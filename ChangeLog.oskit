@@ -1,5 +1,12 @@
 2000-02-05  Roland McGrath  <roland@baalperazim.frob.com>
 
+	* version.c (version): Call it 1.2.91-OSKit now.
+	* debian/changelog: Likewise.
+
+	* Makefile.in (device-files): Remove obsolete files ds_routines.c and
+	dev_forward.defs.
+	(dist): Punt old rules and just run dpkg-buildpackage.
+
 	* Makefile.in (config.h): Depend on stamp-configh.
 	(stamp-configh): New target to run config.status for config.h update.
 
@@ -293,3 +300,8 @@
 
 	* debian/control, debian/rules: First crack at setting things up to
 	build an oskit-mach package instead of gnumach.
+
+Local variables:
+mode: change-log
+fill-column: 75
+End:
