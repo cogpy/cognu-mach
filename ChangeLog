@@ -1,5 +1,8 @@
 2002-06-14  Roland McGrath  <roland@frob.com>
 
+	* oskit/ds_routines.c: Fix copyright: Utah -> CMU.
+	I wrote this file and copied a little bit of CMU code, no Utah code.
+
 	* oskit/ds_routines.c (ds_device_write): Fix typo:
 	mach_msg_number_t -> mach_msg_type_number_t
 
