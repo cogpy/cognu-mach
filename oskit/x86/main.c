@@ -27,6 +27,7 @@
 #include <oskit/x86/base_gdt.h>
 #include <oskit/c/unistd.h>
 #include <oskit/dev/dev.h>
+#include <oskit/smp.h>
 
 #include "vm_param.h"
 #include <kern/time_out.h>
@@ -36,6 +37,7 @@
 #include <kern/zalloc.h>
 #include <i386/machspl.h>
 #include <i386/pmap.h>
+#include <i386/mp_desc.h>
 
 
 static void my_exit (int), (*his_exit) (int);
@@ -48,11 +50,36 @@ extern pt_entry_t *kernel_page_dir;
 
 extern char	version[];
 
-vm_offset_t int_stack_top, int_stack_high; /* XXX */
-
-
 char **kernel_argv;
 char *kernel_cmdline;		/* XXX */
+
+void
+setup_machine_slot (int mycpu)
+{
+  struct cpu_info info;
+  cpuid (&info);
+
+  /* Examine the CPU model information provided by the oskit,
+     and set machine_slot[0] to describe the CPU to users who ask.  */
+  switch (info.family)
+    {
+    default:
+    case CPU_FAMILY_386:
+      machine_slot[mycpu].cpu_type = CPU_TYPE_I386;
+      break;
+    case CPU_FAMILY_486:
+      machine_slot[mycpu].cpu_type = CPU_TYPE_I486;
+      break;
+    case CPU_FAMILY_PENTIUM:
+      machine_slot[mycpu].cpu_type = CPU_TYPE_PENTIUM;
+      break;
+    case CPU_FAMILY_PENTIUM_PRO:
+      machine_slot[mycpu].cpu_type = CPU_TYPE_PENTIUMPRO;
+      break;
+    }
+  machine_slot[mycpu].cpu_subtype = CPU_SUBTYPE_AT386;
+  machine_slot[mycpu].is_cpu = TRUE;
+}
 
 int
 main (int argc, char **argv)
@@ -121,37 +148,44 @@ main (int argc, char **argv)
   kernel_page_dir[lin2pdenum(0)] = 0;
   inval_tlb();
 
-  /* XXX We'll just use the initialization stack we're already running on
-     as the interrupt stack for now.  Later this will have to change,
-     because the init stack will get freed after bootup.  */
-  int_stack_top = (int)&base_stack_end;
-
   /* Interrupt stacks are allocated in physical memory,
      while kernel stacks are allocated in kernel virtual memory,
-  so phys_last_addr serves as a convenient dividing point.  */
+     so phys_last_addr serves as a convenient dividing point.  */
   int_stack_high = phys_mem_max;
 
-  /* Examine the CPU model information provided by the oskit,
-     and set machine_slot[0] to describe the CPU to users who ask.  */
-  switch (base_cpuid.family)
+#if NCPUS > 1
+  smp_init_paging ();		/* This maps physical memory SMP needs.  */
+  if (smp_init () != 0)
+    printf ("SMP initialization failed!\n");
+  else
     {
-    default:
-    case CPU_FAMILY_386:
-      machine_slot[0].cpu_type = CPU_TYPE_I386;
-      break;
-    case CPU_FAMILY_486:
-      machine_slot[0].cpu_type = CPU_TYPE_I486;
-      break;
-    case CPU_FAMILY_PENTIUM:
-      machine_slot[0].cpu_type = CPU_TYPE_PENTIUM;
-      break;
-    case CPU_FAMILY_PENTIUM_PRO:
-      machine_slot[0].cpu_type = CPU_TYPE_PENTIUMPRO;
-      break;
+      int ncpus;
+      printf ("SMP initialized (maximum %d supported by this kernel).");
+      ncpus = smp_get_num_cpus ();
+      if (ncpus == 1)
+	printf ("Running on a uniprocessor.\n");
+      else
+	{
+	  printf ("Detected %d CPUs.\n");
+	  if (ncpus > NCPUS)
+	    printf ("WARNING: This kernel can only use %d CPUs.\n"
+		    "The remaining %d CPUs will be completely idle!"
+		    "\nYou should recompile your kernel with --enable-cpus=%d"
+		    " or higher.\n",
+		    NCPUS, ncpus - NCPUS, ncpus);
+	}
+      master_cpu = smp_find_cur_cpu ();
+      ivect[SMP_IPI_VECTOR] = pmap_update_interrupt;
+      intpri[SMP_IPI_VECTOR] = SPL1;
+      mp_desc_init (master_cpu);
     }
-  machine_slot[0].cpu_subtype = CPU_SUBTYPE_AT386;
-  machine_slot[0].is_cpu = TRUE;
-  machine_slot[0].running = TRUE;
+  interrupt_stack_alloc ();
+#else
+#define master_cpu 0
+#endif
+
+  setup_machine_slot (master_cpu);
+  machine_slot[master_cpu].running = TRUE;
 
   kernel_argv = argv;		/* Stash our args for user_bootstrap to use. */
 
@@ -169,6 +203,7 @@ main (int argc, char **argv)
 
   /* Start the system.  This function does not return.  */
   setup_main();
+  /* NOTREACHED */
   return -1;
 }
 

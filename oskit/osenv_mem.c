@@ -585,6 +585,17 @@ mem_mapphys(oskit_osenv_mem_t *o, oskit_addr_t pa,
   return 0;
 }
 
+#if NCPUS > 1
+/* This function is used as a callback from smp_init_paging.  */
+oskit_addr_t
+smp_map_range (oskit_addr_t start, oskit_size_t size)
+{
+  oskit_error_t err = mem_mapphys (0, start, size, &start, 0);
+  return err ? 0 : start;
+}
+#endif
+
+
 static struct oskit_osenv_mem_ops osenv_mem_ops = {
 	mem_query,
 	mem_addref,

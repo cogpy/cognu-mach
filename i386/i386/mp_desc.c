@@ -25,21 +25,11 @@
  */
 
 #include <cpus.h>
-
-#if	NCPUS > 1
-
 #include <kern/cpu_number.h>
 #include <mach/machine.h>
 #include <vm/vm_kern.h>
 
 #include <i386/mp_desc.h>
-#include <i386/lock.h>
-
-/*
- * The i386 needs an interrupt stack to keep the PCB stack from being
- * overrun by interrupts.  All interrupt stacks MUST lie at lower addresses
- * than any thread`s kernel stack.
- */
 
 /*
  * Addresses of bottom and top of interrupt stacks.
@@ -52,11 +42,20 @@ vm_offset_t	int_stack_top[NCPUS];
  */
 vm_offset_t	int_stack_high;
 
+#if	NCPUS > 1
+
+#include <i386/lock.h>
+
+#include <oskit/x86/base_idt.h>
+#include "gdt.h"
+#include <oskit/x86/base_tss.h>
+
+
 /*
- * First cpu`s interrupt stack.
+ * The i386 needs an interrupt stack to keep the PCB stack from being
+ * overrun by interrupts.  All interrupt stacks MUST lie at lower addresses
+ * than any thread`s kernel stack.
  */
-char		intstack[];	/* bottom */
-char		eintstack[];	/* top */
 
 /*
  * We allocate interrupt stacks from physical memory.
@@ -76,25 +75,17 @@ vm_offset_t	avail_start;
 /*
  * Allocated descriptor tables.
  */
-struct mp_desc_table	*mp_desc_table[NCPUS] = { 0 };
+struct mp_desc_table	*mp_desc_table[NCPUS];
 
 /*
  * Pointer to TSS for access in load_context.
  */
-struct i386_tss		*mp_ktss[NCPUS] = { 0 };
+struct i386_tss		*mp_ktss[NCPUS];
 
 /*
  * Pointer to GDT to reset the KTSS busy bit.
  */
-struct x86_desc	*mp_gdt[NCPUS] = { 0 };
-
-/*
- * Boot-time tables, for initialization and master processor.
- */
-extern struct x86_gate		idt[IDTSZ];
-extern struct x86_desc	gdt[GDTSZ];
-extern struct x86_desc	ldt[LDTSZ];
-extern struct i386_tss		ktss;
+struct x86_desc	*mp_gdt[NCPUS];
 
 /*
  * Allocate and initialize the per-processor descriptor tables.
@@ -129,17 +120,10 @@ mp_desc_init(mycpu)
 		/*
 		 * Copy the tables
 		 */
-		bcopy((char *)idt,
-		  (char *)mpt->idt,
-		  sizeof(idt));
-		bcopy((char *)gdt,
-		  (char *)mpt->gdt,
-		  sizeof(gdt));
-		bcopy((char *)ldt,
-		  (char *)mpt->ldt,
-		  sizeof(ldt));
-		bzero((char *)&mpt->ktss,
-		  sizeof(struct i386_tss));
+		memcpy (mdp->idt, base_idt, sizeof mdp->idt);
+		memcpy (mdp->gdt, base_gdt, sizeof mdp->gdt);
+		memcpy (mdp->ldt, ldt, sizeof ldt);
+		bzero (&mpt->ktss, sizeof mpt->ktss);
 
 		/*
 		 * Fix up the entries in the GDT to point to
@@ -160,6 +144,52 @@ mp_desc_init(mycpu)
 		return mpt;
 	}
 }
+
+/* Hacked from oskit's base_cpu_load.  */
+void
+mp_desc_load(struct mp_desc_table *mpt)
+{
+  struct pseudo_descriptor pdesc;
+
+  /* Create a pseudo-descriptor describing the GDT.  */
+  pdesc.limit = sizeof(mpt->gdt) - 1;
+  pdesc.linear_base = kvtolin(mpt->gdt);
+
+  /* Load it into the CPU.  */
+  set_gdt(&pdesc);
+
+  /*
+   * Reload all the segment registers from the new GDT.
+   */
+  asm volatile("
+ljmp	%0,$1f
+1:
+" : : "i" (KERNEL_CS));
+  set_ds(KERNEL_DS);
+  set_es(KERNEL_DS);
+  set_ss(KERNEL_DS);
+
+  /*
+   * Clear out the FS and GS registers by default,
+   * since they're not needed for normal execution of GCC code.
+   */
+  set_fs(0);
+  set_gs(0);
+
+  /* Create a pseudo-descriptor describing the GDT.  */
+  pdesc.limit = sizeof(mpt->idt) - 1;
+  pdesc.linear_base = kvtolin(mpt->idt);
+
+  /* Load the IDT.  */
+  set_idt(&pdesc);
+
+  /* Make sure the TSS isn't marked busy.  */
+  mpt->gdt[BASE_TSS / 8].access &= ~ACC_TSS_BUSY;
+
+  /* Load the TSS.  */
+  set_tr(BASE_TSS);
+}
+
 
 
 /*
@@ -193,8 +223,13 @@ interrupt_stack_alloc()
 	 */
 	for (i = 0; i < NCPUS; i++) {
 	    if (i == master_cpu) {
-		interrupt_stack[i] = (vm_offset_t) intstack;
-		int_stack_top[i]   = (vm_offset_t) eintstack;
+	      /* XXX We'll just use the initialization stack we're already
+		 running on as the interrupt stack for now.  Later this will
+		 have to change, because the init stack will get freed after
+	         bootup.
+	      */
+		interrupt_stack[i] = (vm_offset_t) &base_stack;
+		int_stack_top[i]   = (vm_offset_t) &base_stack_end;
 	    }
 	    else if (machine_slot[i].is_cpu) {
 		interrupt_stack[i] = stack_start;
