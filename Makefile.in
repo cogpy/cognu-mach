@@ -72,12 +72,11 @@ bogus-files = bootstrap_symbols.h fast_tas.h hw_footprint.h net_atm.h \
 # Device support interfaces
 device-files = \
 	       device_init.c dev_pager.c \
-	       ds_routines.c \
 	       net_io.c \
 	       dev_hdr.h dev_master.h device_port.h \
 	       device_types_kernel.h ds_routines.h \
 	       memory_object_reply.cli \
-	       dev_forward.defs device_pager.srv device.srv \
+	       device_pager.srv device.srv \
 	       device_reply.cli device_error_reply.cli
 device-cfiles = $(filter %.c,$(device-files))
 
@@ -337,36 +336,7 @@ mkkerneldirs:
 #
 
 dist:
-	rm -rf gnumach-$(version)
-	mkdir gnumach-$(version)
-	# Directories
-	mkdir gnumach-$(version)/{bogus,device,ipc,kern,vm,include}
-	mkdir gnumach-$(version)/include/{mach,device,mach_debug,sys}
-	mkdir gnumach-$(version)/include/mach/exec
-	for dir in `cat $(all-archs-subdirs)`; do \
-		mkdir -p gnumach-$(version)/$$dir; \
-	done
-	# Files
-	cp $(addprefix $(srcdir)/,$(topfiles)) gnumach-$(version)
-	cp $(addprefix $(srcdir)/bogus/,$(bogus-files)) gnumach-$(version)/bogus
-	cp $(addprefix $(srcdir)/device/,$(device-files)) gnumach-$(version)/device
-	cp $(addprefix $(srcdir)/ipc/,$(ipc-files)) gnumach-$(version)/ipc
-	cp $(addprefix $(srcdir)/kern/,$(kern-files)) gnumach-$(version)/kern
-	cp $(addprefix $(srcdir)/vm/,$(vm-files)) gnumach-$(version)/vm
-	cp $(addprefix $(srcdir)/include/,$(mach-headers)) gnumach-$(version)/include/mach
-	cp $(addprefix $(srcdir)/include/,$(device-headers)) gnumach-$(version)/include/device
-	cp $(addprefix $(srcdir)/include/,$(mach-debug-headers)) gnumach-$(version)/include/mach_debug
-	cp $(addprefix $(srcdir)/include/,$(mach-exec-headers)) gnumach-$(version)/include/mach/exec
-	cp $(addprefix $(srcdir)/include/,$(other-headers)) gnumach-$(version)/include
-	cp $(addprefix $(srcdir)/include/sys/,$(other-sys-headers)) gnumach-$(version)/include/sys
-	cp $(addprefix $(srcdir)/include/mach/,$(other-mach-headers)) gnumach-$(version)/include/mach
-	# Files in arch dirs
-	for file in `cat $(all-archs-files)`; do \
-		cp $(srcdir)/$$file gnumach-$(version)/`dirname $$file`; \
-	done
-	chmod -R u=rwX,og=rX gnumach-$(version)
-	tar cfz gnumach-$(version).tar.gz gnumach-$(version)
-	rm -rf gnumach-$(version)
+	cd $(srcdir) && dpkg-buildpackage
 
 
 
