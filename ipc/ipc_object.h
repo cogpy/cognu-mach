@@ -41,6 +41,7 @@
 #include <kern/lock.h>
 #include <kern/macro_help.h>
 #include <kern/zalloc.h>
+#include "ipc_types.h"
 
 typedef unsigned int ipc_object_refs_t;
 typedef unsigned int ipc_object_bits_t;
@@ -108,85 +109,70 @@ MACRO_BEGIN								\
 	(io)->io_references--;						\
 MACRO_END
 
-extern void
-ipc_object_reference(/* ipc_object_t */);
+extern void ipc_object_reference(ipc_object_t);
 
-extern void
-ipc_object_release(/* ipc_object_t */);
+extern void ipc_object_release(ipc_object_t);
 
-extern kern_return_t
-ipc_object_translate(/* ipc_space_t, mach_port_t,
-			mach_port_right_t, ipc_object_t * */);
+extern kern_return_t ipc_object_translate(ipc_space_t, mach_port_t,
+					  mach_port_right_t, ipc_object_t *);
 
-extern kern_return_t
-ipc_object_alloc_dead(/* ipc_space_t, mach_port_t * */);
+extern kern_return_t ipc_object_alloc_dead(ipc_space_t, mach_port_t *);
 
-extern kern_return_t
-ipc_object_alloc_dead_name(/* ipc_space_t, mach_port_t */);
+extern kern_return_t ipc_object_alloc_dead_name(ipc_space_t, mach_port_t);
 
-extern kern_return_t
-ipc_object_alloc(/* ipc_space_t, ipc_object_type_t,
-		    mach_port_type_t, mach_port_urefs_t,
-		    mach_port_t *, ipc_object_t * */);
+extern kern_return_t ipc_object_alloc(ipc_space_t, ipc_object_type_t,
+				      mach_port_type_t, mach_port_urefs_t,
+				      mach_port_t *, ipc_object_t *);
 
-extern kern_return_t
-ipc_object_alloc_name(/* ipc_space_t, ipc_object_type_t,
-			 mach_port_type_t, mach_port_urefs_t,
-			 mach_port_t, ipc_object_t * */);
+extern kern_return_t ipc_object_alloc_name(ipc_space_t, ipc_object_type_t,
+					   mach_port_type_t, mach_port_urefs_t,
+					   mach_port_t, ipc_object_t *);
 
-extern mach_msg_type_name_t
-ipc_object_copyin_type(/* mach_msg_type_name_t */);
+extern mach_msg_type_name_t ipc_object_copyin_type(mach_msg_type_name_t);
 
-extern kern_return_t
-ipc_object_copyin(/* ipc_space_t, mach_port_t,
-		     mach_msg_type_name_t, ipc_object_t * */);
+extern kern_return_t ipc_object_copyin(ipc_space_t, mach_port_t,
+				       mach_msg_type_name_t, ipc_object_t *);
 
-extern void
-ipc_object_copyin_from_kernel(/* ipc_object_t, mach_msg_type_name_t */);
+extern void ipc_object_copyin_from_kernel(ipc_object_t, mach_msg_type_name_t);
 
-extern void
-ipc_object_destroy(/* ipc_object_t, mach_msg_type_name_t */);
+extern void ipc_object_destroy(ipc_object_t, mach_msg_type_name_t);
 
-extern kern_return_t
-ipc_object_copyout(/* ipc_space_t, ipc_object_t,
-		      mach_msg_type_name_t, boolean_t, mach_port_t * */);
+extern kern_return_t ipc_object_copyout(ipc_space_t, ipc_object_t,
+					mach_msg_type_name_t,
+					boolean_t, mach_port_t *);
 
-extern kern_return_t
-ipc_object_copyout_name(/* ipc_space_t, ipc_object_t,
-			   mach_msg_type_name_t, boolean_t, mach_port_t */);
+extern kern_return_t ipc_object_copyout_name(ipc_space_t, ipc_object_t,
+					     mach_msg_type_name_t,
+					     boolean_t, mach_port_t);
 
-extern void
-ipc_object_copyout_dest(/* ipc_space_t, ipc_object_t,
-			   mach_msg_type_name_t, mach_port_t * */);
+extern void ipc_object_copyout_dest(ipc_space_t, ipc_object_t,
+				    mach_msg_type_name_t, mach_port_t *);
 
-extern kern_return_t
-ipc_object_rename(/* ipc_space_t, mach_port_t, mach_port_t */);
+extern kern_return_t ipc_object_rename(ipc_space_t, mach_port_t, mach_port_t);
 
 #if	MACH_IPC_COMPAT
 
 extern mach_msg_type_name_t
-ipc_object_copyout_type_compat(/* mach_msg_type_name_t */);
+ipc_object_copyout_type_compat(mach_msg_type_name_t);
 
-extern kern_return_t
-ipc_object_copyin_compat(/* ipc_space_t, mach_port_t,
-			    mach_msg_type_name_t, boolean_t,
-			    ipc_object_t * */);
+extern kern_return_t ipc_object_copyin_compat(ipc_space_t, mach_port_t,
+					      mach_msg_type_name_t, boolean_t,
+					      ipc_object_t *);
 
-extern kern_return_t
-ipc_object_copyin_header(/* ipc_space_t, mach_port_t,
-			    ipc_object_t *, mach_msg_type_name_t * */);
+extern kern_return_t ipc_object_copyin_header(ipc_space_t, mach_port_t,
+					      ipc_object_t *,
+					      mach_msg_type_name_t *);
 
-extern kern_return_t
-ipc_object_copyout_compat(/* ipc_space_t, ipc_object_t,
-			     mach_msg_type_name_t, mach_port_t * */);
+extern kern_return_t ipc_object_copyout_compat(ipc_space_t, ipc_object_t,
+					       mach_msg_type_name_t,
+					       mach_port_t *);
 
-extern kern_return_t
-ipc_object_copyout_name_compat(/* ipc_space_t, ipc_object_t,
-				  mach_msg_type_name_t, mach_port_t */);
+extern kern_return_t ipc_object_copyout_name_compat(ipc_space_t, ipc_object_t,
+						    mach_msg_type_name_t,
+						    mach_port_t);
 
 #endif	/* MACH_IPC_COMPAT */
 
-extern void
-ipc_object_print(/* ipc_object_t */);
+extern void ipc_object_print(ipc_object_t);
 
 #endif	/* _IPC_IPC_OBJECT_H_ */
