@@ -113,7 +113,8 @@ binary-arch: build
 
 	$(install_file)		README debian/tmp$(DOCDIR)
 	$(install_file)		NEWS debian/tmp$(DOCDIR)
-	$(install_file)		ChangeLog debian/tmp$(DOCDIR)/ChangeLog
+	$(install_file)		ChangeLog.oskit debian/tmp$(DOCDIR)
+	$(install_file)		ChangeLog debian/tmp$(DOCDIR)
 	$(install_file)		ChangeLog.0 debian/tmp$(DOCDIR)
 	$(install_file)		ChangeLog.00 debian/tmp$(DOCDIR)
 	$(install_file)		debian/README.Debian debian/tmp$(DOCDIR)

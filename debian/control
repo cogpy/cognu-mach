@@ -3,7 +3,7 @@ Section: base
 Priority: optional
 Maintainer: Roland McGrath <frob@debian.org>
 Standards-Version: 2.5.0.0
-Build-Depends: oskit (>= 0.97_19991121)
+Build-Depends: oskit (>= 0.97.19991124)
 
 Package: oskit-mach
 Section: base
@@ -17,6 +17,6 @@ Package: gnumach-dev
 Section: devel
 Priority: optional
 Architecture: all
-Description: The GNU version of the Mach microkernel
+Description: The GNU version of the Mach microkernel (development files)
  These are the header files for the Mach microkernel used by the Hurd.
  These headers are compatible between the gnumach and oskit-mach variants.
