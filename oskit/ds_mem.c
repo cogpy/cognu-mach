@@ -30,6 +30,10 @@ io_return_t
 ds_mem_map (device_t dev, vm_prot_t prot,
 	    vm_offset_t offset, vm_size_t size, oskit_addr_t *pa)
 {
+  if (offset == 0 && size == 0)
+    /* Special case for compatibility with the old Mach driver behavior.  */
+    size = dev->com.mem.size;
+
   if (offset % dev->com.mem.recsize || !page_aligned (offset))
     INVALREC;
   if (trunc_page (offset) > trunc_page (dev->com.mem.size))
