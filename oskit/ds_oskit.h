@@ -120,6 +120,7 @@ struct device {
 #define DEV_LOCK(dev)	((void)0)
 #define DEV_UNLOCK(dev)	((void)0)
 
+extern const struct device_ops no_device_ops;
 extern const struct device_ops stream_device_ops;
 extern const struct device_ops asyncio_device_ops;
 extern const struct device_ops block_device_ops;
