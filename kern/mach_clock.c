@@ -229,7 +229,6 @@ void clock_interrupt(usec, usermode, basepri)
 		    timedelta -= tickdelta;
 		}
 		time_value_add_usec(&time, delta);
-		if (time.seconds % 60 == 0) asm volatile ("int $3");
 	    }
 	    update_mapped_time(&time);
 
