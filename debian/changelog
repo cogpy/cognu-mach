@@ -2,7 +2,7 @@ oskit-mach (1:1.2.90-0) unstable; urgency=low
 
   * First Debian packaging of OSKit-Mach, a new variant based on gnumach.
 
-  -- Roland McGrath <frob@debian.org>  Sat, 5 Feb 2000 01:22:58 -0500
+ -- Roland McGrath <frob@debian.org>  Sat,  5 Feb 2000 01:22:58 -0500
 
 gnumach (1:1.2-2) unstable; urgency=low
 
