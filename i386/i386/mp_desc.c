@@ -33,9 +33,10 @@
 
 /*
  * Addresses of bottom and top of interrupt stacks.
+ * When NCPUS==1 these initialized values never change.
  */
-vm_offset_t	interrupt_stack[NCPUS];
-vm_offset_t	int_stack_top[NCPUS];
+vm_offset_t	interrupt_stack[NCPUS] = { (vm_offset_t) &base_stack_start, };
+vm_offset_t	int_stack_top[NCPUS] = { (vm_offset_t) &base_stack_end, };
 
 /*
  * Barrier address.
@@ -211,16 +212,7 @@ void
 interrupt_stack_alloc()
 {
 	register int	i;
-	int		cpu_count;
 	vm_offset_t	stack_start;
-
-	/*
-	 * Count the number of CPUs.
-	 */
-	cpu_count = 0;
-	for (i = 0; i < NCPUS; i++)
-	    if (machine_slot[i].is_cpu)
-		cpu_count++;
 
 	/*
 	 * Allocate an interrupt stack for each CPU except for
