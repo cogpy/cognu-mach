@@ -36,6 +36,7 @@
 #include <mach/boolean.h>
 #include <mach/machine/vm_types.h>
 #include <mach/machine/fp_reg.h>
+#include "gdt.h"
 
 #include <kern/lock.h>
 
@@ -130,7 +131,7 @@ struct i386_machine_state {
 	struct user_ldt	*	ldt;
 	struct i386_fpsave_state *ifps;
 	struct v86_assist_state	v86s;
-  	natural_t user_thread_register;
+	struct x86_desc user_gdt[USER_GDT_SLOTS];
 };
 
 typedef struct pcb {

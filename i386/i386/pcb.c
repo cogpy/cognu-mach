@@ -126,13 +126,9 @@ vm_offset_t stack_detach(thread)
 #if	NCPUS > 1
 #define	curr_gdt(mycpu)		(mp_gdt[mycpu])
 #define	curr_ktss(mycpu)	(mp_ktss[mycpu])
-#define curr_user_thread_reg(mycpu)	\
-  (mp_desc_table[mycpu].user_thread_register)
 #else
 #define	curr_gdt(mycpu)		(gdt)
 #define	curr_ktss(mycpu)	((struct task_tss *)&base_tss)
-#define curr_user_thread_reg(mycpu) (user_thread_register)
-natural_t user_thread_register;
 #endif
 
 #define	gdt_desc_p(mycpu,sel) \
@@ -182,9 +178,11 @@ switch_ktss(pcb_t old_pcb, pcb_t pcb)
 	}
       }
 
-    if (old_pcb)
-      old_pcb->ims.user_thread_register = curr_user_thread_reg(mycpu);
-    curr_user_thread_reg(mycpu) = pcb->ims.user_thread_register;
+	/* Copy in the per-thread GDT slots.  No reloading is necessary
+	   because just restoring the segment registers on the way back to
+	   user mode reloads the shadow registers from the in-memory GDT.  */
+	memcpy (gdt_desc_p (mycpu, USER_GDT),
+		pcb->ims.user_gdt, sizeof pcb->ims.user_gdt);
 
 	/*
 	 * Load the floating-point context, if necessary.
@@ -363,7 +361,7 @@ void pcb_init(thread)
 	pcb->iss.ds = USER_DS;
 	pcb->iss.es = USER_DS;
 	pcb->iss.fs = USER_DS;
-	pcb->iss.gs = USER_GS;
+	pcb->iss.gs = USER_DS;
 	pcb->iss.eflags = EFL_USER_SET;
 
 	thread->pcb = pcb;
@@ -497,7 +495,7 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		    saved_state->ds = USER_DS;
 		    saved_state->es = USER_DS;
 		    saved_state->fs = USER_DS;
-		    saved_state->gs = USER_GS;
+		    saved_state->gs = USER_DS;
 		}
 		else {
 		    /*

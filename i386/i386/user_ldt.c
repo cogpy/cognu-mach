@@ -170,23 +170,6 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 		case ACC_P | ACC_PL_U | ACC_CODE_CR:
 		case ACC_P | ACC_PL_U | ACC_CALL_GATE_16:
 		case ACC_P | ACC_PL_U | ACC_CALL_GATE:
-		  /* Silently cap the segment's limit at VM_MAX_ADDRESS. */
-		  {
-		    unsigned base = ((dp->base_high << 24)
-				     | (dp->base_med << 16) | dp->base_low);
-		    unsigned limit
-		      = ((dp->limit_high << 16) | dp->limit_low);
-		    if (dp->granularity & SZ_G)
-		      limit <<= 12;
-		    if (base > VM_MAX_ADDRESS)
-		      {
-			fill_descriptor_base(dp, 0);
-			fill_descriptor_limit(dp, 0);
-		      }
-		    else if (base + limit > VM_MAX_ADDRESS
-			     || base + limit < base)
-		      fill_descriptor_limit(dp, VM_MAX_ADDRESS - base);
-		  }
 		  break;
 		default:
 		    return KERN_INVALID_ARGUMENT;
@@ -415,4 +398,59 @@ user_ldt_free(user_ldt)
 	kfree((vm_offset_t)user_ldt,
 		user_ldt->desc.limit_low + 1
 		+ sizeof(struct x86_desc));
+}
+
+
+kern_return_t
+i386_set_gdt (thread_t thread, int *selector, struct x86_desc *desc)
+{
+  int idx;
+
+  if (thread == THREAD_NULL)
+    return KERN_INVALID_ARGUMENT;
+
+  if (*selector == -1)
+    {
+      for (idx = sel_idx (USER_GDT); idx < sel_idx (USER_GDT) + USER_GDT_SLOTS;
+	   ++idx)
+	if ((thread->pcb->ims.user_gdt[idx].access & ACC_P) == 0)
+	  {
+	    *selector = (idx << 3) | SEL_PL_U;
+	    break;
+	  }
+      if (idx == sel_idx (USER_GDT) + USER_GDT_SLOTS)
+	return KERN_NO_SPACE;	/* ? */
+    }
+  else if ((*selector & (SEL_LDT|SEL_PL)) != SEL_PL_U
+	   || sel_idx (*selector) < USER_GDT
+	   || sel_idx (*selector) >= USER_GDT + USER_GDT_SLOTS)
+    return KERN_INVALID_ARGUMENT;
+  else
+    idx = sel_idx (*selector);
+
+  if ((desc->access & ACC_P) == 0)
+    memset (&thread->pcb->ims.user_gdt[idx], 0,
+	    sizeof thread->pcb->ims.user_gdt[idx]);
+  else if ((desc->access & (ACC_TYPE|ACC_PL)) != (ACC_TYPE_USER|ACC_PL_U))
+    return KERN_INVALID_ARGUMENT;
+  else
+    thread->pcb->ims.user_gdt[idx] = *desc;
+
+  return KERN_SUCCESS;
+}
+
+kern_return_t
+i386_get_gdt (thread_t thread, int selector, struct x86_desc *desc)
+{
+  if (thread == THREAD_NULL)
+    return KERN_INVALID_ARGUMENT;
+
+  if ((selector & (SEL_LDT|SEL_PL)) != SEL_PL_U
+      || sel_idx (selector) < USER_GDT
+      || sel_idx (selector) >= USER_GDT + USER_GDT_SLOTS)
+    return KERN_INVALID_ARGUMENT;
+
+  *desc = thread->pcb->ims.user_gdt[sel_idx (selector)];
+
+  return KERN_SUCCESS;
 }
