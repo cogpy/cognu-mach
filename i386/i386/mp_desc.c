@@ -188,7 +188,7 @@ ljmp	%0,$1f
   set_fs(0);
   set_gs(0);
 
-  /* Create a pseudo-descriptor describing the GDT.  */
+  /* Create a pseudo-descriptor describing the IDT.  */
   pdesc.limit = sizeof(mpt->idt) - 1;
   pdesc.linear_base = kvtolin(mpt->idt);
 
