@@ -293,16 +293,30 @@ clib-routines.o: kernel-clib
 	      -o $@ \
 	      `sed 's/^/-Wl,-u,/' $<` -x c /dev/null -lc
 
-oskit-kernel.o: kernel.o clib-routines.o
+oskit-kern%.o: kern%.o clib-routines.o
 	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -o $@ \
 	      -Wl,-\( $^ -loskit_clientos -loskit_c $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 %-undef-bad: %-undef Makefile
 	sed '$(foreach r,$(clib-routines) $(magic-symbols),/^$r$$/d;)' $< > $@
 
-kernel: oskit-kernel.o $(OSKIT_LIBDIR)/crtn.o
+kern%: oskit-kern%.o $(OSKIT_LIBDIR)/crtn.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
+# This combined with the other pattern rules let you ask
+# for a target like `kernel-ide+scsi_ncr53c8xx+ethernet_eepro100'
+# to link a kernel with a given subset of the oskit drivers.
+init-%.c:
+	{ echo 'void oskit_linux_init_devs(void) {'; \
+	  for drv in $(subst +, ,$*); do \
+	    echo "  oskit_linux_init_$${drv} ();"; \
+	  done; echo '}'; \
+	} > $@T
+	mv -f $@T $@
+
+kernel-%.o: $(OSKIT_LIBDIR)/multiboot.o $(objfiles) init-%.o
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -o $@ \
+	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 #
 # Installation
