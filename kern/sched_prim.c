@@ -152,9 +152,15 @@ void thread_check(thread_t, run_queue_t);
 queue_head_t		wait_queue[NUMQUEUES];
 decl_simple_lock_data(,	wait_lock[NUMQUEUES])
 
+#include <oskit/types.h>
+
 /* NOTE: we want a small positive integer out of this */
-#define wait_hash(event) \
-	((((int)(event) < 0) ? ~(int)(event) : (int)(event)) % NUMQUEUES)
+static inline int
+wait_hash(event_t arg)
+{
+  oskit_sreg_t event = (oskit_sreg_t)arg;
+  return ((event < 0 ? ~event : event) % NUMQUEUES);
+}
 
 void wait_queue_init(void)
 {
