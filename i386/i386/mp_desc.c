@@ -133,11 +133,11 @@ mp_desc_init(mycpu)
 		 * this LDT and this TSS.
 		 */
 		fill_descriptor(&mpt->gdt[sel_idx(KERNEL_LDT)],
-			(unsigned)&mpt->ldt,
+			(unsigned)kvtolin(&mpt->ldt),
 			LDTSZ * sizeof(struct x86_desc) - 1,
 			ACC_P|ACC_PL_K|ACC_LDT, 0);
 		fill_descriptor(&mpt->gdt[sel_idx(KERNEL_TSS)],
-			(unsigned)&mpt->ktss,
+			(unsigned)kvtolin(&mpt->ktss),
 			sizeof(struct x86_tss) - 1,
 			ACC_P|ACC_PL_K|ACC_TSS, 0);
 
@@ -147,7 +147,7 @@ mp_desc_init(mycpu)
 		 */
 		mpt->cpu_number = mycpu;
 		fill_descriptor(&mpt->gdt[sel_idx(KERNEL_GS)],
-			(unsigned)&mpt->cpu_number, sizeof(int) - 1,
+			(unsigned)kvtolin(&mpt->cpu_number), sizeof(int) - 1,
 			ACC_P|ACC_PL_K|ACC_DATA, 0);
 
 		mpt->ktss.ss0 = KERNEL_DS;
