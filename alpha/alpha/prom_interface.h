@@ -1,53 +1,56 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	prom_interface.h,v $
+ * $Log: prom_interface.h,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.4  93/08/10  15:15:37  mrt
  * 	"..all the systems implemented the fields backwards, so that
  * 	" MAJOR and MINOR were switched.  The SRM was changed to match.."
  * 	Consequently, we switched our definition in the struct per_cpu_slot.
  * 	[93/08/06            af]
- * 
+ *
  * Revision 2.3  93/03/09  10:50:46  danner
  * 	Changed prom dispatching to be more link-safe.
  * 	[93/02/20            af]
- * 
+ *
  * Revision 2.2  93/02/05  07:59:57  danner
  * 	Working version, taken from boot directory.
  * 	[93/02/04  00:57:09  af]
- * 
+ *
  * 	Added reference to doc for the HWRPB &co.
  * 	[92/12/22            af]
  * 	Added reference to documentation source(s).
  * 	[92/12/16  15:17:51  af]
- * 
+ *
  * 	Created.
  * 	[92/06/02            af]
- * 
+ *
  */
 /*
  *	File: prom_interface.h
@@ -105,7 +108,7 @@ typedef union {
 } prom_return_t;
 
 
-#endif	ASSEMBLER
+#endif	/* ASSEMBLER */
 
 /*
  * Callback codes
@@ -315,8 +318,4 @@ struct per_cpu_slot {
 #define	PHALT_FROM_KERNEL	5
 #define	PHALT_DOUBLE_ABORT	6
 
-#endif ASSEMBLER
-
-
-
-
+#endif /* ASSEMBLER */

@@ -2,39 +2,42 @@
  * Mach Operating System
  * Copyright (c) 1993,1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	pmap.h,v $
+ * $Log: pmap.h,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.3  93/01/19  08:59:45  danner
  * 	Do not allocate cpusets as commons, to avoid
  * 	cacheline conflicts.
  * 	[93/01/15            af]
- * 
+ *
  * Revision 2.2  93/01/14  17:13:51  danner
  * 	Created, from dbg's i386 pmap module.
  * 	[92/06/15            af]
- * 
+ *
  *
  */
 
@@ -65,7 +68,7 @@
 typedef unsigned long	pt_entry_t;
 #define PT_ENTRY_NULL	((pt_entry_t *) 0)
 
-#endif	ASSEMBLER
+#endif	/* ASSEMBLER */
 
 #define ALPHA_OFFMASK	(ALPHA_PGBYTES-1)	/* offset within page */
 
@@ -187,7 +190,7 @@ void		process_pmap_updates();
 void		pmap_update_interrupt();
 extern	pmap_t	kernel_pmap;
 
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 /*
  *	Machine dependent routines that are used only for Alpha.
@@ -345,7 +348,7 @@ pt_entry_t	*pmap_pte();
 	splx(s);							\
 }
 
-#else	NCPUS > 1
+#else	/* NCPUS > 1 */
 
 /*
  *	With only one CPU, we just have to indicate whether the pmap is
@@ -376,7 +379,7 @@ pt_entry_t	*pmap_pte();
 	    (pmap)->cpus_using = FALSE;					\
 }
 
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 #define	pmap_kernel()			(kernel_pmap)
 #define pmap_resident_count(pmap)	((pmap)->stats.resident_count)
@@ -392,7 +395,7 @@ pt_entry_t	*pmap_pte();
 extern pmap_t		kernel_pmap;	/* pointer to the kernel pmap	*/
 
 
-#endif	ASSEMBLER
+#endif	/* ASSEMBLER */
 
 /*
  *	We want to implement pmap_steal_memory and pmap_startup.
@@ -400,4 +403,4 @@ extern pmap_t		kernel_pmap;	/* pointer to the kernel pmap	*/
 
 #define	MACHINE_PAGES
 
-#endif	_PMAP_MACHINE_
+#endif	/* _PMAP_MACHINE_ */

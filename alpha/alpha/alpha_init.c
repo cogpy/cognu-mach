@@ -2,60 +2,63 @@
  * Mach Operating System
  * Copyright (c) 1993,1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	alpha_init.c,v $
+ * $Log: alpha_init.c,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.5  93/05/15  19:10:51  mrt
  * 	machparam.h -> machspl.h
- * 
+ *
  * Revision 2.4  93/03/11  13:57:46  danner
  * 	Corrected boot time page stealing commentary.
  * 	[93/03/11            danner]
- * 
+ *
  * Revision 2.3  93/03/09  10:49:03  danner
  * 	GCC quiets, protos, standard boothowto, lint.
  * 	[93/03/05            af]
- * 
+ *
  * Revision 2.2  93/02/05  07:57:03  danner
  * 	No more ISP hacks.  Now we parse args.
  * 	Fixed bug in memory stealing call.
  * 	[93/02/04  00:56:23  af]
- * 
+ *
  * 	MP Icache sanity call, help Jeffrey in dprintf by delaying
  * 	dropping of bootstrap VM spaces.
  * 	[93/01/15            af]
  * 	Set vm_page_big_pagenum to support vm_page_grab_contiguous_pages.
  * 	[92/12/25  01:42:54  af]
- * 
+ *
  * 	Added reference to doc for the HWRPB &co.
  * 	[92/12/22            af]
  * 	Added reference to documentation source(s).
  * 	[92/12/16  15:11:03  af]
- * 
+ *
  * 	Created.
  * 	[92/06/03            af]
- * 
+ *
  */
 /*
  *	File: alpha_init.c
@@ -102,9 +105,9 @@ extern struct pcb boot_pcb;
 
 #if	MACH_KDB
 int		boothowto = RB_KDB;
-#else	MACH_KDB
+#else	/* MACH_KDB */
 int		boothowto = 0;
-#endif	MACH_KDB
+#endif	/* MACH_KDB */
 
 static init_memory( vm_offset_t first_page);	/* forward */
 
@@ -229,7 +232,7 @@ alpha_init( boolean_t gcc_compiled )
 #if	MACH_KDB
 	if ((boothowto&RB_HALT) && (boothowto&RB_KDB))
 		gimmeabreak();
-#endif	MACH_KDB
+#endif	/* MACH_KDB */
 
 	printf("Alpha boot: memory from 0x%x to 0x%x\n",
 	       memory_start, avail_end);
@@ -269,7 +272,7 @@ alpha_slave_init()
 
 	slave_main();
 }
-#endif	(NCPUS > 1)
+#endif	/* (NCPUS > 1) */
 
 static
 init_memory( vm_offset_t first_page)
@@ -313,4 +316,3 @@ init_memory( vm_offset_t first_page)
 	avail_start = (vm_offset_t)alpha_ptob(first_page);
 	avail_end   = (vm_offset_t)mem_size;
 }
-

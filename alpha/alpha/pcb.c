@@ -1,47 +1,50 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1993,1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	pcb.c,v $
+ * $Log: pcb.c,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.4  93/05/15  19:11:18  mrt
  * 	machparam.h -> machspl.h
- * 
+ *
  * Revision 2.3  93/01/19  08:59:32  danner
  * 	Horrible mess to cope with cache-coherency bugs on ADU MP.
  * 	There is also some other bug at large that prevents proper
  * 	cleanup of the switch functions. Sigh.
  * 	[93/01/15            af]
- * 
+ *
  * Revision 2.2  93/01/14  17:13:36  danner
  * 	Added reference to documentation source(s).
  * 	[92/12/16  15:15:36  af]
- * 
+ *
  * 	Created.
  * 	[92/12/10  14:59:58  af]
- * 
+ *
  */
 /*
  *	File: pcb.c
@@ -210,7 +213,7 @@ void stack_alloc(thread, continuation)
 		stack = PHYS_TO_K0SEG(m->phys_addr);
 #if	MACH_DEBUG
 		stack_init(stack);
-#endif	MACH_DEBUG
+#endif	/* MACH_DEBUG */
 		STACK_MSB(stack)->page = m;
 #endif	/* ALLOCATE_STACK_WITH_GARD_PAGES */
 	}
@@ -270,7 +273,7 @@ void stack_collect()
 
 #if		MACH_DEBUG
 		stack_finalize(stack);
-#endif		MACH_DEBUG
+#endif		/* MACH_DEBUG */
 		vm_page_release(STACK_MSB(stack)->page);
 
 		s = splsched();
@@ -323,12 +326,12 @@ void stack_statistics(totalp, maxusagep)
 	*totalp = stack_free_count;
 	(void) splx(s);
 }
-#endif	MACH_DEBUG
+#endif	/* MACH_DEBUG */
 
 /* Cannot optimize this because multiP */
 static
 unload_fpa(pcb)
-	pcb_t	pcb;	
+	pcb_t	pcb;
 {
 	register struct alpha_float_state	*mfs;
 

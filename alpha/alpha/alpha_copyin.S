@@ -1,43 +1,46 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1993,1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	alpha_copyin.s,v $
+ * $Log: alpha_copyin.S,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.4  93/05/20  21:01:52  mrt
  * 	Changed use of zero to ra in call to NESTED.
  * 	[93/05/18            mrt]
- * 
+ *
  * Revision 2.3  93/01/19  08:57:31  danner
  * 	Added fast aligned_block_copy.
  * 	[93/01/19            af]
- * 
+ *
  * Revision 2.2  93/01/14  17:10:58  danner
  * 	Added reference to documentation source(s).
  * 	[92/12/16  15:10:27  af]
- * 
+ *
  * 	Created.
  * 	[92/12/10  14:48:32  af]
  */
@@ -65,7 +68,7 @@
 #include <alpha/alpha_cpu.h>
 #include <mach/alpha/alpha_instruction.h>
 
-#include <assym.s>
+#include "alphaasm.h"
 
 	.set	noreorder
 
@@ -129,7 +132,7 @@ NESTED(copyin, 3, FRAMESIZE, ra, 0, 0)
 copy_error:
 	addq	zero,1,v0
 copy_ok:
-	stq	zero,THREAD_RECOVER(s0)	
+	stq	zero,THREAD_RECOVER(s0)
 	ldq	ra,FRAMESIZE-8(sp)
 	ldq	s0,FRAMESIZE-16(sp)
 	lda	sp,FRAMESIZE(sp)
@@ -455,7 +458,7 @@ bybytes:
 	sb	t0,3(a0)
 	b	kdb_iomem_ok
 	nop
-#endif	
+#endif
 	RET
 	END(kdb_putiomem)
-#endif	MACH_KDB
+#endif	/* MACH_KDB */

@@ -1,38 +1,41 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	alpha_instruction.c,v $
+ * $Log: alpha_instruction.c,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.2  93/01/14  17:11:16  danner
  * 	Added reference to documentation source(s).
  * 	[92/12/16  15:11:14  af]
- * 
+ *
  * 	Created.
  * 	[92/06/01            af]
- * 
+ *
  */
 /*
  *	File: alpha_instruction.c
@@ -257,7 +260,7 @@ isa_load_store(ins, dest_addr, getreg, arg)
 	     (ins.mem_format.opcode <= op_stq_c))) {
 
 		/*
-		 * The only address calculation is register+displacement 
+		 * The only address calculation is register+displacement
 		 */
 		*dest_addr = (vm_offset_t) (ins.mem_format.displacement +
 					 (*getreg) (ins.mem_format.rs, arg));
@@ -383,7 +386,7 @@ db_restore_regs(ssp, sp, proc_pc, cur_pc, task)
 		ins.bits = db_get_task_value(pc, sizeof(alpha_instruction), FALSE, task);
 
 		if (ins.mem_format.opcode == op_lda
-			|| ins.mem_format.opcode == op_ldah) 
+			|| ins.mem_format.opcode == op_ldah)
 			continue;
 
 		if ((ins.mem_format.rs == SP) &&
@@ -395,7 +398,7 @@ db_restore_regs(ssp, sp, proc_pc, cur_pc, task)
 							 8, FALSE, task);
 			}
 			continue;
-		} 
+		}
 	end_prolog:
 		/*
 		 * end of prolog code.  look one more instruction.
@@ -405,4 +408,4 @@ db_restore_regs(ssp, sp, proc_pc, cur_pc, task)
 	}
 }
 
-#endif	MACH_KDB
+#endif	/* MACH_KDB */

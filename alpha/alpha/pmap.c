@@ -2,54 +2,57 @@
  * Mach Operating System
  * Copyright (c) 1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	pmap.c,v $
+ * $Log: pmap.c,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.4  93/05/15  19:11:31  mrt
  * 	machparam.h -> machspl.h
- * 
+ *
  * Revision 2.3  93/03/09  10:50:31  danner
  * 	GCC quiets.
  * 	[93/03/05            af]
- * 
+ *
  * Revision 2.2  93/02/05  07:59:42  danner
  * 	Added pmap_set_modify, for some smart device driver.
  * 	[93/02/04  00:51:56  af]
- * 
+ *
  * 	Fixed locking bug: at interrupt time one should not call
  * 	pmap_extract()  !  Made kvtophys() call the safer one.
  * 	[93/01/15            af]
  * 	Added reference to documentation source(s).
  * 	[92/12/16  15:17:39  af]
- * 
+ *
  * 	Support for new MI multiP ddb.  Code probably belongs elsewhere.
  * 	[92/12/16  12:45:52  af]
- * 
+ *
  * 	Created, starting from i386 version and extending it with
  * 	one more layer in the pagetable tree.
  * 	[92/12/10  15:02:31  af]
- * 
+ *
  */
 
 /*
@@ -409,7 +412,7 @@ volatile boolean_t	cpu_update_needed[NCPUS];
 	} \
 }
 
-#else	NCPUS > 1
+#else	/* NCPUS > 1 */
 
 #define SPLVM(spl)
 #define SPLX(spl)
@@ -718,7 +721,7 @@ pmap_map_io(phys, size)
 	pte_ktemplate(template,phys,VM_PROT_READ|VM_PROT_WRITE);
 
 	phys = virtual_avail;
-	virtual_avail += round_page(size);	
+	virtual_avail += round_page(size);
 
 	while (size > 0) {
 		*pte++ = template;
@@ -1247,7 +1250,7 @@ void pmap_remove(map, s, e)
 	if (map == PMAP_NULL)
 		return;
 
-if (pmap_debug || ((s > pmap_suspect_vs) && (s < pmap_suspect_ve))) 
+if (pmap_debug || ((s > pmap_suspect_vs) && (s < pmap_suspect_ve)))
 db_printf("[%d]pmap_remove(%x,%x,%x)\n", cpu_number(), map, s, e);
 	PMAP_READ_LOCK(map, spl);
 
@@ -1456,7 +1459,7 @@ void pmap_protect(map, s, e, prot)
 	if (map == PMAP_NULL)
 		return;
 
-if (pmap_debug || ((s > pmap_suspect_vs) && (s < pmap_suspect_ve))) 
+if (pmap_debug || ((s > pmap_suspect_vs) && (s < pmap_suspect_ve)))
 db_printf("[%d]pmap_protect(%x,%x,%x,%x)\n", cpu_number(), map, s, e, prot);
 	/*
 	 * Determine the new protection.
@@ -1530,7 +1533,7 @@ void pmap_enter(pmap, v, pa, prot, wired)
 	vm_offset_t		old_pa;
 
 	assert(pa != vm_page_fictitious_addr);
-if (pmap_debug || ((v > pmap_suspect_vs) && (v < pmap_suspect_ve))) 
+if (pmap_debug || ((v > pmap_suspect_vs) && (v < pmap_suspect_ve)))
 db_printf("[%d]pmap_enter(%x(%d), %x, %x, %x, %x)\n", cpu_number(), pmap, pmap->pid, v, pa, prot, wired);
 	if (pmap == PMAP_NULL)
 		return;
@@ -1573,7 +1576,7 @@ Retry:
 	    /*
 	     *	May be changing its wired attribute or protection
 	     */
-		
+
 	    if (wired && !(*pte & ALPHA_PTE_WIRED))
 		pmap->stats.wired_count++;
 	    else if (!wired && (*pte & ALPHA_PTE_WIRED))
@@ -1646,7 +1649,7 @@ Retry:
 			}
 		    }
 #endif	/* DEBUG */
-		    
+
 		    /*
 		     *	Add new pv_entry after header.
 		     */
@@ -2436,7 +2439,7 @@ if (pmap_debug) db_printf("pmap_is_ref(%x)\n", phys);
 #if	NCPUS > 1
 /*
 *	    TLB Coherence Code (TLB "shootdown" code)
-* 
+*
 * Threads that belong to the same task share the same address space and
 * hence share a pmap.  However, they  may run on distinct cpus and thus
 * have distinct TLBs that cache page table entries. In order to guarantee
@@ -2449,7 +2452,7 @@ if (pmap_debug) db_printf("pmap_is_ref(%x)\n", phys);
 * flush its own TLB; a processor that needs to invalidate another TLB
 * needs to interrupt the processor that owns that TLB to signal the
 * update.
-* 
+*
 * Whenever a pmap is updated, the lock on that pmap is locked, and all
 * cpus using the pmap are signaled to invalidate. All threads that need
 * to activate a pmap must wait for the lock to clear to await any updates
@@ -2458,7 +2461,7 @@ if (pmap_debug) db_printf("pmap_is_ref(%x)\n", phys);
 * throughout the TLB code is that all kernel code that runs at or higher
 * than splvm blocks out update interrupts, and that such code does not
 * touch pageable pages.
-* 
+*
 * A shootdown interrupt serves another function besides signaling a
 * processor to invalidate. The interrupt routine (pmap_update_interrupt)
 * waits for the both the pmap lock (and the kernel pmap lock) to clear,
@@ -2471,17 +2474,17 @@ if (pmap_debug) db_printf("pmap_is_ref(%x)\n", phys);
 * Spinning on the VALUES of the locks is sufficient (rather than
 * having to acquire the locks) because any updates that occur subsequent
 * to finding the lock unlocked will be signaled via another interrupt.
-* (This assumes the interrupt is cleared before the low level interrupt code 
-* calls pmap_update_interrupt()). 
-* 
+* (This assumes the interrupt is cleared before the low level interrupt code
+* calls pmap_update_interrupt()).
+*
 * The signaling processor must wait for any implicit updates in progress
 * to terminate before continuing with its update. Thus it must wait for an
 * acknowledgement of the interrupt from each processor for which such
 * references could be made. For maintaining this information, a set
-* cpus_active is used. A cpu is in this set if and only if it can 
+* cpus_active is used. A cpu is in this set if and only if it can
 * use a pmap. When pmap_update_interrupt() is entered, a cpu is removed from
 * this set; when all such cpus are removed, it is safe to update.
-* 
+*
 * Before attempting to acquire the update lock on a pmap, a cpu (A) must
 * be at least at the priority of the interprocessor interrupt
 * (splip<=splvm). Otherwise, A could grab a lock and be interrupted by a
@@ -2642,12 +2645,12 @@ if (cpu_number() == suicide_cpu) halt();
 	    i_bit_set(my_cpu, &cpus_active);
 
 	} while (cpu_update_needed[my_cpu]);
-	
+
 	splx(s);
 out:
 	db_inside_pmap_update[my_cpu]--;
 }
-#else	NCPUS > 1
+#else	/* NCPUS > 1 */
 /*
  *	Dummy routine to satisfy external reference.
  */

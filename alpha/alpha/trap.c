@@ -2,24 +2,24 @@
  * Mach Operating System
  * Copyright (c) 1994,1993,1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS-IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon the
  * the rights to redistribute these changes.
  */
@@ -29,36 +29,39 @@
  *	Added extern declaration of exception(), so that we do
  *	not lose the high 32 bits of a bad virtual address.
  *
- * $Log:	trap.c,v $
+ * $Log: trap.c,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.7  93/05/15  19:11:41  mrt
  * 	machparam.h -> machspl.h
- * 
+ *
  * Revision 2.6  93/03/09  10:51:42  danner
  * 	Proto for Thread_syscall_return with GCC.
  * 	[93/03/07            af]
  * 	Fixed pcsample botch.
  * 	[93/03/05            af]
- * 
+ *
  * Revision 2.5  93/02/05  08:00:14  danner
  * 	Added machine check handler (jeffreyh).
  * 	[93/02/04  00:45:20  af]
- * 
+ *
  * Revision 2.4  93/02/04  07:55:25  danner
  * 	Added pc_sampling support
  * 	[93/02/02            danner]
- * 
+ *
  * Revision 2.3  93/01/19  09:00:01  danner
  * 	Better MP printouts.  Save more state before getting to ddb
  * 	in crashes.  Still cannot continue from a crash, though.
  * 	[93/01/15            af]
- * 
+ *
  * Revision 2.2  93/01/14  17:14:37  danner
  * 	Added reference to documentation source(s).
  * 	[92/12/16  15:18:18  af]
- * 
+ *
  * 	Created.
  * 	[92/12/10  15:06:12  af]
- * 
+ *
  */
 /*
  *	File: trap.c
@@ -107,7 +110,7 @@ boolean_t	debug_all_traps_with_kdb = FALSE;
 extern struct db_watchpoint *db_watchpoint_list;
 extern boolean_t db_watchpoints_inserted;
 
-#endif	MACH_KDB
+#endif	/* MACH_KDB */
 
 void
 user_page_fault_continue(kr)
@@ -129,7 +132,7 @@ db_printf("Fix trap.c & watchpoints");
 				(void) kdb_trap(mss, 2);
 #endif
 		}
-#endif	MACH_KDB
+#endif	/* MACH_KDB */
 		thread_exception_return();
 		/*NOTREACHED*/
 	}
@@ -140,7 +143,7 @@ db_printf("Fix trap.c & watchpoints");
 		thread_exception_return();
 		/*NOTREACHED*/
 	}
-#endif	MACH_KDB
+#endif	/* MACH_KDB */
 
 	exception(EXC_BAD_ACCESS, kr, current_thread()->pcb->mss.bad_address);
 	/*NOTREACHED*/
@@ -230,7 +233,7 @@ if (debug_verbose) db_printf("{[%d]trap[%x](%x %x %x %x)}\n",
 					       vaddr,
 					       ss_ptr))
 				(void) kdb_trap(ss_ptr, 2);
-#endif	MACH_KDB
+#endif	/* MACH_KDB */
 			return;
 		}
 
@@ -249,8 +252,8 @@ if (debug_verbose) db_printf("{[%d]trap[%x](%x %x %x %x)}\n",
 	case T_SCHECK:
 	case T_PCHECK:
 	    if (alpha_machine_check){
-		    (*alpha_machine_check)();	    /* XXXThis will need to 
-						     * XXXtake args if it is 
+		    (*alpha_machine_check)();	    /* XXXThis will need to
+						     * XXXtake args if it is
 						     * made real
 						     */
 		    return ;
@@ -376,7 +379,7 @@ if (!memo++) db_printf("Remember to stress-test FPA usage\n");
 	ss_ptr->cause = cause;
 	if (debug_all_traps_with_kdb && kdb_trap(ss_ptr, 1))
 		return;
-#endif	MACH_KDB
+#endif	/* MACH_KDB */
 
 	/* Deliver the exception */
 	exception(exc_type, exc_code, cause);
@@ -832,7 +835,7 @@ prepare_sstep(msss, mss)
 		if (brpc != pc) {
 			bp->address = (vm_offset_t) brpc;
 			if (copyin(brpc, &bp->instruction, sizeof ins))
-				goto seq;	/* he'll get hurt */	
+				goto seq;	/* he'll get hurt */
 			if (poke_instruction(brpc, SSTEP_INSTRUCTION))
 				goto seq;	/* ditto */
 			msss->ss_count++, bp++;
@@ -842,7 +845,7 @@ seq:
 	pc += 1;
 	bp->address = (vm_offset_t) pc;
 	if (copyin(pc, &bp->instruction, sizeof ins))
-		return;			/* he'll get hurt */	
+		return;			/* he'll get hurt */
 	if (poke_instruction(pc, SSTEP_INSTRUCTION))
 		return;
 	msss->ss_count++;
@@ -886,7 +889,7 @@ poke_instruction(loc, ins)
 {
 	vm_map_t	 map = current_thread()->task->map;
 	vm_offset_t	 pa;
-	kern_return_t	 ret;	
+	kern_return_t	 ret;
 again:
 	pa = pmap_extract(map->pmap, (vm_offset_t) loc);
 	if (pa == 0) {
@@ -918,7 +921,7 @@ thread_kdb_return()
 		/*NOTREACHED*/
 	}
 }
-#endif	MACH_KDB
+#endif	/* MACH_KDB */
 
 #if	MACH_PCSAMPLE
 /*

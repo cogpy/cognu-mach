@@ -1,42 +1,45 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1993,1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	alpha_instruction.h,v $
+ * $Log: alpha_instruction.h,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.3  93/01/19  09:01:18  danner
  * 	Added some, removed some PAL calls.
  * 	Chosed not to put here PAL instructions (for ddb)
  * 	because I am sadly afraid they might be chip-specific.
  * 	We'll see.
  * 	[93/01/15            af]
- * 
+ *
  * Revision 2.2  93/01/14  17:40:36  danner
  * 	Created.
  * 	[91/12/05            af]
- * 
+ *
  */
 
 /*
@@ -158,7 +161,7 @@ typedef union {
 
 } alpha_instruction;
 
-#endif	!defined(ASSEMBLER)
+#endif	/* !defined(ASSEMBLER) */
 
 /*
  *
