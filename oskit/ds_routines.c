@@ -159,6 +159,7 @@ device_deallocate (device_t device)
   zfree(dev_hdr_zone, (vm_offset_t)device);
 }
 
+const struct device_ops no_device_ops;
 
 void ds_init()
 {
@@ -729,6 +730,8 @@ ds_device_write_inband (device_t dev, ipc_port_t reply_port,
 {
   if (dev == DEVICE_NULL)
     return D_NO_SUCH_DEVICE;
+  if (!(dev->mode & D_WRITE))
+    INVALOP;
   if (! data)
     INVALSZ;
   assert (count <= IO_INBAND_MAX);
