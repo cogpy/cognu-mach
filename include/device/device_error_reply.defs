@@ -8,7 +8,7 @@ subsystem
 #if	KERNEL_USER
 	  KernelUser
 #endif
-		     device_reply 2900;
+		     device_error_reply 2900;
 				/* to match reply numbers for device.defs */
 
 #include <mach/std_types.defs>

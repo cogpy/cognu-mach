@@ -6,6 +6,9 @@
 #include <machine/spl.h>
 #include <mach/mig_errors.h>
 
+#include "device_reply.h"
+#include "device_error_reply.h"
+
 #include "ds_oskit.h"
 #include "ds_request.h"
 
