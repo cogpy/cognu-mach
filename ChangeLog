@@ -1,3 +1,12 @@
+2002-07-19  Roland McGrath  <roland@frob.com>
+
+	* configure.in (force_install): New substituted variable,
+	set to yes/no by --enable-force-install.
+	* Makefile.in (force-install): New variable from configure.
+	[$(force_install) = yes]: Make installed headers depend on a force
+	target.
+	* configure: Regenerated.
+
 2002-07-05  Roland McGrath  <roland@frob.com>
 
 	* Makefile.in (kernel-%.o): Use -L$(OSKIT_LIBDIR)/.. switch.
