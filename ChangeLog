@@ -1,3 +1,8 @@
+2002-06-14  Roland McGrath  <roland@frob.com>
+
+	* oskit/ds_routines.c (ds_device_write): Fix typo:
+	mach_msg_number_t -> mach_msg_type_number_t
+
 2002-06-05  Roland McGrath  <roland@frob.com>
 
 	* ipc/ipc_hash.h: Include "ipc_types.h", "ipc_object.h" for types.
