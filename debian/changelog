@@ -8,7 +8,7 @@ oskit-mach (1:1.2.91) unstable; urgency=low
   * Lintian fixes vs gnumach 1:1.2-2 package: /boot/*.gz not made executable,
     use /usr/share/doc instead of /usr/doc.
 
- -- Roland McGrath <frob@debian.org>  Sat,  5 Feb 2000 21:51:44 -0500
+ -- Roland McGrath <frob@debian.org>  Sun,  6 Feb 2000 03:22:25 -0500
 
 gnumach (1:1.2-2) unstable; urgency=low
 
