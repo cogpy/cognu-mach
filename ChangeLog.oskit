@@ -1,5 +1,9 @@
 2001-08-20  Roland McGrath  <roland@frob.com>
 
+	* kern/bootstrap.c (bootstrap_create): Doc fix, whitespace cleanup.
+
+2001-08-20  Roland McGrath  <roland@frob.com>
+
 	* kern/bootstrap.c (bootstrap_create): Set ${kernel-command-line}
 	rather than ${multiboot-cmdline}, to match Hurd's serverboot.
 
