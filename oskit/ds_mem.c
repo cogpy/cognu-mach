@@ -49,7 +49,8 @@ ds_mem_map (device_t dev, vm_prot_t prot,
 static int
 direct_mapped (vm_offset_t pa)
 {
-  return (trunc_page (pa) >= round_page (phys_mem_min) &&
+  return (trunc_page (pa) >= PAGE_SIZE &&
+	  trunc_page (pa) >= round_page (phys_mem_min) &&
 	  round_page (pa) <= trunc_page (phys_mem_max));
 }
 
