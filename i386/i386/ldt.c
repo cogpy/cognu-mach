@@ -51,11 +51,13 @@ ldt_init()
 		      (vm_offset_t)&syscall, KERNEL_CS,
 		      ACC_PL_U|ACC_CALL_GATE, 0);
 	fill_ldt_descriptor(USER_CS,
-			    VM_MIN_ADDRESS, VM_MAX_ADDRESS-VM_MIN_ADDRESS,
+			    VM_MIN_ADDRESS,
+			    VM_MAX_ADDRESS-VM_MIN_ADDRESS-4096,
 			    /* XXX LINEAR_... */
 			    ACC_PL_U|ACC_CODE_R, SZ_32);
 	fill_ldt_descriptor(USER_DS,
-			    VM_MIN_ADDRESS, VM_MAX_ADDRESS-VM_MIN_ADDRESS,
+			    VM_MIN_ADDRESS,
+			    VM_MAX_ADDRESS-VM_MIN_ADDRESS-4096,
 			    ACC_PL_U|ACC_DATA_W, SZ_32);
 
 	fill_ldt_descriptor(USER_GS, kvtolin(&user_thread_register),
