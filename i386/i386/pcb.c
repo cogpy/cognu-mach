@@ -30,7 +30,7 @@
 #include <mach/std_types.h>
 #include <mach/kern_return.h>
 #include <mach/thread_status.h>
-#include <mach/exec/exec.h>
+#include <oskit/exec/exec.h>
 
 #include "vm_param.h"
 #include <kern/counters.h>

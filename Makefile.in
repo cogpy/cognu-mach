@@ -98,7 +98,7 @@ kern-cfiles = act.c ast.c bootstrap.c counters.c eventcount.c \
 	machine.c pc_sample.c priority.c processor.c profile.c \
 	queue.c sched_prim.c startup.c strings.c syscall_emulation.c \
 	syscall_subr.c syscall_sw.c task.c thread.c thread_swap.c \
-	time_stamp.c timer.c zalloc.c elf-load.c
+	time_stamp.c timer.c zalloc.c
 kern-files = $(kern-cfiles) \
 	act.h assert.h ast.h compat_xxx_defs.h counters.h cpu_number.h \
 	debug.h eventcount.h host.h ipc_host.h ipc_kobject.h ipc_sched.h \
@@ -261,7 +261,8 @@ magic-symbols := etext edata end
 
 OSKIT_LIBDIR = @OSKIT_LIBDIR@
 OSKIT_LIBS = -loskit_kern -loskit_lmm -loskit_com -loskit_smp \
-	     -loskit_unsupp -loskit_dev -loskit_linux_dev -loskit_diskpart \
+	     -loskit_exec -loskit_unsupp \
+	     -loskit_dev -loskit_linux_dev -loskit_diskpart \
 
 # These rules are useful for development, but have significant overhead.
 kernel.a: $(objfiles)
