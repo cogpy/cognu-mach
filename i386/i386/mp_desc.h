@@ -54,7 +54,6 @@
  */
 struct mp_desc_table {
   	int cpu_number;		/* to be fetched via %gs */
-  	natural_t user_thread_register;	/* USER_GS:0 points here */
 	struct x86_gate	idt[IDTSZ];	/* IDT */
 	struct x86_desc	gdt[GDTSZ];	/* GDT */
 	struct x86_desc	ldt[LDTSZ];	/* LDT */

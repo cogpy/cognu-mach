@@ -697,15 +697,10 @@ void pmap_bootstrap()
 			pt_entry_t *pte;
 			vm_offset_t pteva;
 
-			/* Initialize the page directory entry.  We give
-			   user-mode access to everything because it will
-			   be constrained by the segmentation.  This allows
-			   special-purpose segments to be set up by kernel
-			   code to allow user access to specific locations
-			   above VM_MAX_ADDRESS.  */
+			/* Initialize the page directory entry.  */
 			*pde = (pa_to_pte((vm_offset_t)ptable)
 				| INTEL_PTE_VALID | INTEL_PTE_WRITE
-				| INTEL_PTE_USER | kernel_pte_global);
+				| kernel_pte_global);
 
 			/* Initialize the page table.  */
 			for (pte = ptable; (va < phys_mem_max) && (pte < ptable+NPTES); pte++)
@@ -720,8 +715,7 @@ void pmap_bootstrap()
 			      entry |= pa_to_pte(va) | INTEL_PTE_VALID;
 			      if ((va < (vm_offset_t)_start)
 				  || (va + INTEL_PGBYTES > (vm_offset_t)etext))
-				/* See comment above about user access.  */
-				entry |= INTEL_PTE_WRITE | INTEL_PTE_USER;
+				entry |= INTEL_PTE_WRITE;
 			      va += INTEL_PGBYTES;
 			    }
 			  WRITE_PTE_FAST(pte, entry);
