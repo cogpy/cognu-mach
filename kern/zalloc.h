@@ -40,7 +40,6 @@
 #include <kern/macro_help.h>
 #include <kern/lock.h>
 #include <kern/queue.h>
-#include <machine/zalloc.h>
 
 /*
  *	A zone is a collection of fixed size blocks for which there
