@@ -1,3 +1,9 @@
+2001-10-10  Roland McGrath  <roland@frob.com>
+
+	* oskit/ds_osenv.c (ds_osenv_init): Don't call direct_cons_set_flags.
+	* oskit/ds_routines.c (ds_device_open): Call it here instead.
+	Motivated by Kevin Kreamer <kkreamer@etherhogz.org>.
+
 2001-10-07  Roland McGrath  <roland@frob.com>
 
 	* Merged from gnumach: -j oskit-fork-20010405 -j oskit-fork-20011007.
