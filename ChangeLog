@@ -1,3 +1,10 @@
+2002-11-20  Marcus Brinkmann  <marcus@gnu.org>
+
+	* i386/i386/io_perm.c (io_perm_device_ops): New static variable.
+	(i386_io_perm_create): Use the io_perm_device_ops for the device.
+	(i386_io_perm_modify): Check that this is really an io_perm device.
+	* iopb.h, iopb.c: Obsolete files removed.
+
 2002-11-12  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_routines.c (dev_open_com): Revert last change.

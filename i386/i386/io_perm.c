@@ -62,10 +62,13 @@
 #include "io_perm.h"
 #include "gdt.h"
 
-
 /* XXX From oskit/ds_routines.c  */
 device_t dev_open_alloc (void);
 void setup_no_senders (device_t dev);
+
+
+/* We use our own device ops to identify an io_perm pseudo device.  */
+static struct device_ops io_perm_device_ops;
 
 
 /* The outtran which allows MiG to convert an io_perm_t object to a port
@@ -144,7 +147,7 @@ i386_io_perm_create (ipc_port_t master_port, io_port_t from, io_port_t to,
   /* Set up the dummy device.  */
   (*new)->com_device = 0;
   (*new)->mode = 0;
-  (*new)->ops = &no_device_ops;
+  (*new)->ops = &io_perm_device_ops;
   setup_no_senders ((device_t) *new);
 
   (*new)->com.io_perm.from = from;
@@ -173,7 +176,8 @@ i386_io_perm_modify (task_t target_task, io_perm_t io_perm, boolean_t enable)
   unsigned char *iopb;
   io_port_t iopb_size;
 
-  if (target_task == TASK_NULL || (device_t) io_perm == DEVICE_NULL)
+  if (target_task == TASK_NULL || (device_t) io_perm == DEVICE_NULL
+      || ((device_t) io_perm)->ops != &io_perm_device_ops)
     return KERN_INVALID_ARGUMENT;
 
   from = io_perm->com.io_perm.from;
