@@ -1,3 +1,16 @@
+2003-03-05  Roland McGrath  <roland@redhat.com>
+
+	* configure.in: Require 2.54 and use new form of AC_INIT.
+	Add descriptions to all AC_DEFINE and AC_DEFINE_UNQUOTED.
+	Punt AC_PROG_CC_LOCAL, just use vanilla AC_PROG_CC.
+	AC_TRY_CPP -> AC_PREPROC_IFELSE for oskit version check.
+	AC_LINK_FILES -> AC_CONFIG_LINKS.
+	Use new form of AC_OUTPUT with AC_CONFIG_FILES.
+	* acconfig.h, aclocal.m4: Files removed.
+	* configure. config.h.in: Regenerated with version 2.57.
+	* Makefile.in ($(srcdir)/config.h.in): Depend on configure.in
+	instead of acconfig.h.
+
 2003-03-05  Roland McGrath  <roland@frob.com>
 
 	* configure.in (HAVE_I8042): New check for oskit_dev_init_i8042.
