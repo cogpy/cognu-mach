@@ -63,7 +63,7 @@ AC_CHECK_TOOL(CC, gcc)
 # and sets default CFLAGS nicely for us, so do that too.
 AC_PROG_CC_LOCAL
 
-AC_CHECK_TOOL(LD, ld)
+AC_CHECK_TOOL(LD, ld)AC_SUBST(LDFLAGS)
 AC_CHECK_TOOL(NM, nm)
 
 AC_CHECK_TOOL(MIG, mig, mig)
@@ -88,7 +88,8 @@ fi
 # Set up `machine' link in build directory for easier header file location.
 AC_LINK_FILES(${systype}/${systype},machine)
 
-OSKIT_LIBDIR=`${CC} -print-file-name=oskit`
+test "x${OSKIT_LIBDIR+set}" = xset ||
+  OSKIT_LIBDIR=`${CC} -print-file-name=oskit`
 AC_SUBST(OSKIT_LIBDIR)
 
 # Do machine-specific configuration last so that it can override anything

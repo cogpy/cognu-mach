@@ -1212,7 +1212,8 @@ fi
 # Set up `machine' link in build directory for easier header file location.
 
 
-OSKIT_LIBDIR=`${CC} -print-file-name=oskit`
+test "x${OSKIT_LIBDIR+set}" = xset ||
+  OSKIT_LIBDIR=`${CC} -print-file-name=oskit`
 
 
 # Do machine-specific configuration last so that it can override anything
