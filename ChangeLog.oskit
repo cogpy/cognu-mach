@@ -1,3 +1,11 @@
+2000-02-06  Roland McGrath  <roland@baalperazim.frob.com>
+
+	* oskit/osenv_mem.c (consider_lmm_collect): Fix fencepost error in
+	loop calling vm_page_grab.  After putting memory back into the LMM,
+	wake up threads blocked on &lmm_wants_pages.
+	(alloc_for_oskit): After waking from &lmm_wants_pages block, loop
+	to retry LMM allocation.
+
 2000-02-05  Roland McGrath  <roland@baalperazim.frob.com>
 
 	* version.c (version): Call it 1.2.91-OSKit now.
