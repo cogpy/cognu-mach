@@ -1,6 +1,8 @@
-/*
- * An oskit COM stream-based incarnation of the "kmsg" device.
- */
+/* An oskit COM stream-based incarnation of the "kmsg" device.
+
+   This is an oskit-based kernel logging device in the style of Linux's
+   /proc/kmsg magical file.  It is the backend used for all logging output
+   from oskit components.  */
 
 #include "ds_oskit.h"
 

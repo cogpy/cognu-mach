@@ -423,7 +423,13 @@ void		vm_page_module_init(void)
 	vm_page_zone = zinit((vm_size_t) sizeof(struct vm_page),
 			     VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
 			     PAGE_SIZE,
-			     0, "vm pages");
+			     /*
+			      * This zone can be collectable, since we
+			      * dynamically add and remove pages from the
+			      * pool as the needs of drivers for contiguous
+			      * memory changes.
+			      */
+			     ZONE_COLLECTABLE, "vm pages");
 }
 
 /*

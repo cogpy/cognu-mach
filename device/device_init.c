@@ -60,8 +60,8 @@ device_service_create()
 	    panic("can't allocate master device port");
 
 	ds_init();
-	device_pager_init();
 	net_io_init();
+	device_pager_init();
 #ifdef FIPC
 	fipc_init();
 #endif

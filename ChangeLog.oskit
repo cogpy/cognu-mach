@@ -1,0 +1,271 @@
+1999-11-25  Roland McGrath  <roland@baalperazim.frob.com>
+
+	Drastically revamp hardware support using the Flux OSKit.
+	Numerous new and changed files, and many files and whole
+	subdirectory trees removed.  All old device drivers are removed,
+	replaced using the OSKit device driver libraries.
+	All the changes on this page are a unified interdependent set
+	of changes turning GNUmach into OSKit-Mach, but since there
+	are so many changes I have put them in separate paragraphs
+	roughly divided by topic.
+
+	* oskit: New subdirectory of support code using OSKit interfaces,
+	and providing OSKit bottom-end interfaces for using components in Mach.
+	* oskit/ds_asyncio.c: New file.
+	* oskit/ds_block.c: New file.
+	* oskit/ds_bus.c: New file.
+	* oskit/ds_mem.c: New file.
+	* oskit/ds_net.c: New file.
+	* oskit/ds_osenv.c: New file.
+	* oskit/ds_oskit.h: New file.
+	* oskit/ds_partition.c: New file.
+	* oskit/ds_request.c: New file.
+	* oskit/ds_request.h: New file.
+	* oskit/ds_routines.c: New file.
+	* oskit/ds_stream.c: New file.
+	* oskit/osenv_irq.c: New file.
+	* oskit/osenv_log.c: New file.
+	* oskit/osenv_mem.c: New file.
+	* oskit/osenv_sleep.c: New file.
+	* oskit/osenv_synch.c: New file.
+	* oskit/pc/osenv_bell.c: New file.
+	* oskit/pc/osenv_timer.c: New file.
+	* oskit/x86/main.c: New file.
+	* oskit/kmsg.c: New file.  This is an oskit-based kernel logging
+	device in the style of Linux's /proc/kmsg magical file.  It is the
+	backend used for all logging output from oskit components.
+
+	Front-end changes for device and miscellaneous support code changes:
+	* device/dev_hdr.h: Rewritten.
+	* device/dev_pager.c: Revamped to support only the new uniform
+	oskit-based device_t interface, one flavor of pager.
+	Commented out unused routines.
+	* device/device_init.c (device_service_create): Don't call
+	dev_lookup_init.
+	* device/net_io.c (if_init_queues): Moved here from defunct subrs.c.
+	(net_set_filter): Call net_kmsg_more before successful return, to
+	make sure the very first packet buffer gets allocated.
+	* kern/startup.c: Remove XPR cruft, panic_init, printf_init.
+	* kern/syscall_sw.c: Add some missing headers.
+	* kern/mach_clock.c: Deliver oskit clock ticks at splsoftclock.
+
+	Miscellaneous cleanups & changes to use convenient OSKit facilities.
+	* i386/i386/cswitch.S: Assembler macro nits.
+	* i386/i386/fpu.c, i386/i386/fpu.h: Magic instruction macro nits.
+	* i386/i386/fpe_linkage.c: Use OSKit structure and constant names.
+	* i386/i386/i386sym.sym: Likewise.
+	* i386/i386/idt-gen.h: Likewise.
+	* i386/i386/idt.c: Likewise.
+	* i386/i386/idt_inittab.S: Likewise.
+	* i386/i386/gdt.c: Likewise.
+	* i386/i386/gdt.h: Likewise.
+	* i386/i386/ldt.c: Likewise.
+	* i386/i386/ldt.h: Likewise.
+	* i386/i386/user_ldt.h: Likewise.
+	* i386/i386/user_ldt.c: Likewise.
+	* i386/i386/locore.S: Likewise.
+	* i386/i386/iopb.c: Likewise.
+	* i386/i386/iopb.h: Likewise.
+	* i386/i386/mp_desc.c: Likewise.
+	* i386/i386/mp_desc.h: Likewise.
+	* i386/i386/io_emulate.c: Likewise.
+	* i386/i386/io_emulate.h: Likewise.
+	* i386/i386/pcb.c: Likewise.
+	* i386/i386/pit.c: Likewise.
+	* i386/i386/pic.c: Likewise.
+	* i386/i386/spl.S: Likewise.
+	* i386/i386/thread.h: Likewise.
+	* i386/i386at/int_init.c: Likewise.
+	* i386/i386at/interrupt.S: Likewise.
+	* i386/i386at/pic_isa.c: Likewise.
+	* kern/kalloc.c: Likewise.
+	* i386/intel/pmap.h: Likewise.
+	* i386/i386/trap.c: Likewise.  Remove much cruft, TTD & KDB.
+	Call oskit gdb_trap handler if enabled.
+	* i386/i386/vm_param.h: Use <oskit/x86/base_vm.h> for defns.
+	* i386/i386/hardclock.c: Clean up unused PS2 & LINUX_DEV cruft.
+	* i386/include/mach/i386/vm_param.h: #undef PAGE_SHIFT in case of
+	conflicting defn from the oskit.
+	* kern/assert.h: Rewritten using <oskit/c/assert.h>.
+	* kern/debug.h: Use <oskit/gdb.h>.
+	* kern/machine.c: Likewise.
+	* kern/bootstrap.c: Use oskit headers for multiboot and exec stuff.
+	(boot_info): Fix type, not a pointer.
+	(bootstrap_create): Fix uses.
+	(get_compat_strings): Initialize to "UNKNOWN" in case nothing seen.
+	(user_bootstrap): Increase buffer sizes for device/file name prompts.
+	* vm/vm_object.c: Remove XPR cruft.
+
+	Changes to the physical page pool code to share a pool of available
+	memory kept in contiguous chunks with oskit code (drivers).
+	The pageout daemon moves memory between the shared pool (the LMM)
+	and the vm_page_queue_free list to keep some available for either
+	use, but vm_page_grab can always steal a page directly from the LMM
+	if the pageout daemon is not keeping the free list full enough.
+	The interesting action here goes on in oskit/osenv_mem.c.
+	* vm/vm_page.h (vm_page_queue_free_count, vm_page_unqueued_count):
+	Declare new variables.
+	(vm_page_free_count): Now a macro.
+	* vm/vm_pageout.c (vm_pageout_scan): Call consider_lmm_collect.
+	* vm/vm_resident.c: Remove XPR cruft.
+	(vm_page_queue_free_count, vm_page_unqueued_count): New variables.
+	(vm_page_free_count): Variable removed.
+	(pmap_startup): Commented out.
+	(vm_page_grab): When the queue is empty, call vm_page_grab_oskit_page.
+	Also wakeup the pageout daemon whenever
+	vm_page_queue_free_count < vm_page_unqueued_count.
+	(vm_page_release): Use vm_page_queue_free_count for vm_page_free_count.
+	(vm_page_module_init): Make the vm_page_zone collectable.
+
+	* i386/intel/pmap.c: Use oskit types, macros, and variables that apply.
+	(INVALIDATE_TLB): Macro replaced with inline function.
+	Attempt to use INVLPG instruction if available.
+	(kernel_pte_global): New variable.
+	(pmap_bootstrap): Set it if processor supports INTEL_PTE_GLOBAL
+	bit, and set PGE flag in %cr4 to enable using it.  Use it for
+	page table entries in the kernel portion of address space.
+	(pmap_create): Use pmap_page_table_page_alloc to get a
+	direct-mapped physical page for the page directory.
+	(pmap_destroy): Deallocate accordingly.
+	(pmap_enter): Zero-fill new page table pages.
+	Use kernel_pte_global if allocating in the kernel_pmap.
+
+	* ipc/mach_port.c (mach_port_insert_right): IO_VALID -> IP_VALID.
+	* kern/ipc_tt.c (mach_ports_register): Add a cast.
+
+	Associated configure/build changes for reorganizations.
+	* configure.in: Generate config.h file instead of -D switches.
+	(--enable-kdb, --enable-kmsg): Options removed.
+	(--enable-smp): New argument, sets MAXCPUS, defines NCPUS.
+	(--enable-fpe): New argument, defines FPE.
+	Add check for a sufficiently new installed oskit version.
+	(OSKIT_LIBDIR): New variable, substituted.
+	Comment out AC_CONFIG_SUBDIRS call.
+	* configure: Regenerated.
+	* acconfig.h, config.h.in: New files, used by autoheader and configure.
+	* cpus.h: New file, uses configure-generated config.h for values.
+	* include/device/device_error_reply.defs: New file.
+	* device/device_error_reply.cli: New file.  Well-typed error replies.
+	* version.c (version): Changed to "GNUmach 1.2.90-OSKit".
+	* Makefile.in, i386/Makefrag: Substantially revamped for many added
+	and removed modules, new linking rules to use oskit libraries.
+	* i386/Files, i386/Subdirs: Updated.
+
+	Removed all old device drivers, hardware support code, and
+	miscellaneous things that can be replaced by using OSKit libraries.
+	Also removed much cruft that was already unused in GNUmach.
+	Removed unused "XPR" kernel logging facility.
+	* chips, ddb, linux, scsi, util: Whole directory trees all removed.
+	* device/blkio.c: Obsolete file removed.
+	* device/buf.h: Likewise.
+	* device/chario.c: Likewise.
+	* device/cirbuf.c: Likewise.
+	* device/cirbuf.h: Likewise.
+	* device/conf.h: Likewise.
+	* device/cons.c: Likewise.
+	* device/cons.h: Likewise.
+	* device/dev_forward.defs: Likewise.
+	* device/dev_lookup.c: Likewise.
+	* device/dev_name.c: Likewise.
+	* device/dk_label.c: Likewise.
+	* device/ds_routines.c: Likewise.
+	* device/errno.h: Likewise.
+	* device/io_req.h: Likewise.
+	* device/kmsg.c: Likewise.
+	* device/kmsg.h: Likewise.
+	* device/param.h: Likewise.
+	* device/subrs.c: Likewise.
+	* device/tty.h: Likewise.
+	* i386/Makefile.in: Likewise.
+	* i386/README-Drivers: Likewise.
+	* i386/configure: Likewise.
+	* i386/configure.in: Likewise.
+	* i386/i386/_setjmp.S: Likewise.
+	* i386/i386/db_disasm.c: Likewise.
+	* i386/i386/db_interface.c: Likewise.
+	* i386/i386/db_machdep.h: Likewise.
+	* i386/i386/db_trace.c: Likewise.
+	* i386/i386/debug.h: Likewise.
+	* i386/i386/debug_i386.c: Likewise.
+	* i386/i386/debug_trace.S: Likewise.
+	* i386/i386/fpe.b: Likewise.
+	* i386/i386/fpe.b_elf: Likewise.
+	* i386/i386/io_map.c: Likewise.
+	* i386/i386/ktss.c: Likewise.
+	* i386/i386/ktss.h: Likewise.
+	* i386/i386/kttd_interface.c: Likewise.
+	* i386/i386/kttd_machdep.h: Likewise.
+	* i386/i386/loose_ends.c: Likewise.
+	* i386/i386/pic.h: Likewise.
+	* i386/i386/pit.h: Likewise.
+	* i386/i386/proc_reg.h: Likewise.
+	* i386/i386/seg.c: Likewise.
+	* i386/i386/seg.h: Likewise.
+	* i386/i386/setjmp.h: Likewise.
+	* i386/i386/timer.h: Likewise.
+	* i386/i386/tss.h: Likewise.
+	* i386/i386/xpr.h: Likewise.
+	* i386/i386at/asm_startup.h: Likewise.
+	* i386/i386at/autoconf.c: Likewise.
+	* i386/i386at/blit.c: Likewise.
+	* i386/i386at/blitreg.h: Likewise.
+	* i386/i386at/blituser.h: Likewise.
+	* i386/i386at/blitvar.h: Likewise.
+	* i386/i386at/boothdr.S: Likewise.
+	* i386/i386at/com.c: Likewise.
+	* i386/i386at/comreg.h: Likewise.
+	* i386/i386at/conf.c: Likewise.
+	* i386/i386at/cons_conf.c: Likewise.
+	* i386/i386at/cram.h: Likewise.
+	* i386/i386at/dev_hdr.h: Likewise.
+	* i386/i386at/device_emul.h: Likewise.
+	* i386/i386at/disk.h: Likewise.
+	* i386/i386at/ds8390.h: Likewise.
+	* i386/i386at/eisa.h: Likewise.
+	* i386/i386at/fd.c: Likewise.
+	* i386/i386at/fdreg.h: Likewise.
+	* i386/i386at/i386at_ds_routines.c: Likewise.
+	* i386/i386at/i8250.h: Likewise.
+	* i386/i386at/i82586.h: Likewise.
+	* i386/i386at/if_3c501.c: Likewise.
+	* i386/i386at/if_3c501.h: Likewise.
+	* i386/i386at/if_3c503.h: Likewise.
+	* i386/i386at/if_de6c.c: Likewise.
+	* i386/i386at/if_de6c.h: Likewise.
+	* i386/i386at/if_de6s.S: Likewise.
+	* i386/i386at/if_ne.c: Likewise.
+	* i386/i386at/if_nereg.h: Likewise.
+	* i386/i386at/if_ns8390.c: Likewise.
+	* i386/i386at/if_ns8390.h: Likewise.
+	* i386/i386at/if_par.c: Likewise.
+	* i386/i386at/if_par.h: Likewise.
+	* i386/i386at/if_pc586.c: Likewise.
+	* i386/i386at/if_pc586.h: Likewise.
+	* i386/i386at/if_wd8003.h: Likewise.
+	* i386/i386at/immc.c: Likewise.
+	* i386/i386at/iopl.c: Likewise.
+	* i386/i386at/kd.c: Likewise.
+	* i386/i386at/kd.h: Likewise.
+	* i386/i386at/kd_event.c: Likewise.
+	* i386/i386at/kd_mouse.c: Likewise.
+	* i386/i386at/kd_queue.c: Likewise.
+	* i386/i386at/kd_queue.h: Likewise.
+	* i386/i386at/kdasm.S: Likewise.
+	* i386/i386at/kdsoft.h: Likewise.
+	* i386/i386at/lpr.c: Likewise.
+	* i386/i386at/lprreg.h: Likewise.
+	* i386/i386at/model_dep.c: Likewise.
+	* i386/i386at/nfd.c: Likewise.
+	* i386/i386at/nfdreg.h: Likewise.
+	* i386/i386at/nhd.c: Likewise.
+	* i386/i386at/nhdreg.h: Likewise.
+	* i386/i386at/phys_mem_grab_page.c: Likewise.
+	* i386/i386at/rtc.c: Likewise.
+	* i386/i386at/rtc.h: Likewise.
+	* kern/debug.c: Likewise.
+	* kern/printf.c: Likewise.
+	* kern/xpr.c: Likewise.
+	* kern/xpr.h: Likewise.
+
+	* debian/control, debian/rules: First crack at setting things up to
+	build an oskit-mach package instead of gnumach.
