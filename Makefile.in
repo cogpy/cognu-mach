@@ -233,7 +233,8 @@ all: kernel
 
 clean:
 	rm -f *.[oda] kernel
-	rm -f *.symc *.symc.o *_user.c *_server.c *.h
+	rm -f *.symc *.symc.o *_user.c *_server.c
+	rm -f $(filter-out config.h,$(wildcard *.h))
 	rm -f *.migs_d *.migsh_d *.migu_d *.miguh_d
 
 distclean: clean
