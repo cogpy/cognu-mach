@@ -252,6 +252,16 @@ pmap_grab_page (void)
   return (vm_offset_t) page;
 }
 
+int
+init_alloc (vm_size_t size, vm_offset_t *p)
+{
+  void *block = lmm_alloc (&malloc_lmm, size, 0);
+  if (block == 0)
+    return 0;
+  *p = (vm_offset_t) block;
+  return 1;
+}
+
 
 /* in zalloc.c XXX */
 extern vm_offset_t	zdata;
@@ -590,7 +600,7 @@ mem_mapphys(oskit_osenv_mem_t *o, oskit_addr_t pa,
 oskit_addr_t
 smp_map_range (oskit_addr_t start, oskit_size_t size)
 {
-  oskit_error_t err = mem_mapphys (0, start, size, &start, 0);
+  oskit_error_t err = mem_mapphys (0, start, size, (void **)&start, 0);
   return err ? 0 : start;
 }
 #endif
