@@ -24,10 +24,10 @@
 #include <oskit/x86/proc_reg.h>
 #include <oskit/x86/paging.h>
 #include <oskit/x86/base_vm.h>
-#include <oskit/x86/base_gdt.h>
 #include <oskit/c/unistd.h>
 #include <oskit/dev/dev.h>
 #include <oskit/smp.h>
+#include "gdt.h"
 
 #include <string.h>
 
@@ -42,13 +42,6 @@
 #include <i386/mp_desc.h>
 
 #include <kern/cpu_number.h>
-
-/* The BASE_TSS in OSKit has no I/O permission bitmap, but we want
-   one.  So we replace it with an extended TSS at link-time.  */
-#include <machine/tss.h>
-#include <machine/io_perm.h>
-static struct task_tss ktss;
-extern struct x86_tss base_tss __attribute__ ((alias ("ktss")));
 
 /* As of 2000-12-21 the oskit has an incorrect value for this constant
    in <oskit/x86/proc_reg.h>, so we redefine it with the correct one.  */
@@ -152,15 +145,11 @@ main (int argc, char **argv)
   int_init();
   ldt_init();
 
-  /* Set up the BASE_TSS to include an I/O permission bitmap.  */
-  fill_descriptor(&base_gdt[sel_idx(BASE_TSS)],
-		  kvtolin(&ktss),
-		  sizeof(struct task_tss) - 1,
-		  ACC_P|ACC_PL_K|ACC_TSS, 0);
-  ktss.tss.io_bit_map_offset = IOPB_INVAL;
-  ktss.barrier = 0xFF;
-  /* This will also reload the TSS.  */
-  base_cpu_load();
+  base_cpu_load();		/* Load all the new tables into the CPU.  */
+
+  /* Now reload the TSS using our slot instead of the oskit's.  */
+  base_gdt[sel_idx (KERNEL_TSS)].access &= ~ACC_TSS_BUSY;
+  set_tr(KERNEL_TSS);
 
   /* Arrange a callback to our special exit function below, so we can
      try to return to a state the generic oskit reboot code can cope with.  */
@@ -245,6 +234,10 @@ my_exit (int rc)
     = kernel_page_dir[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS)];
   set_cr4 (get_cr4 () &~ CR4_PGE);
   set_pdbr (kvtophys (kernel_page_dir));
+
+  /* Reload the oskit's GDT slots.  */
+  base_gdt_init ();
+  base_gdt_load ();
 
   asm volatile ("	ljmp	%0,$1f	\n" /* Switch to LINEAR_CS,  */
 		"1:	movw	%w1,%%ds\n" /* Switch %ds to LINEAR_DS.  */
@@ -385,4 +378,10 @@ void machine_init()
 	/* Catch interrupt stack overflow.  */
 	set_b0 (kvtolin (&base_stack_start), DR7_LEN_4, DR7_RW_DATA);
 	base_gdt_load();	/* necessary after setting debug regs */
+
+	/* That loaded the oskit's selectors.  Now reload ours.  */
+	asm volatile("ljmp %0,$1f\n\t1:" : : "i" (KERNEL_CS));
+	set_ds(KERNEL_DS);
+	set_es(KERNEL_DS);
+	set_ss(KERNEL_DS);
 }
