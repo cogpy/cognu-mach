@@ -182,11 +182,17 @@ ljmp	%0,$1f
   set_ss(KERNEL_DS);
 
   /*
-   * Clear out the FS and GS registers by default,
-   * since they're not needed for normal execution of GCC code.
+   * While in kernel mode, the %gs register is always KERNEL_GS,
+   * which points into the `struct mp_desc_table' for each processor,
+   * at the `cpu_number' word.  The cpu_number macro uses this.
+   */
+  set_gs(KERNEL_GS);
+
+  /*
+   * Clear out the FS register by default,
+   * since it's not needed for normal execution of GCC code.
    */
   set_fs(0);
-  set_gs(0);
 
   /* Create a pseudo-descriptor describing the IDT.  */
   pdesc.limit = sizeof(mpt->idt) - 1;
