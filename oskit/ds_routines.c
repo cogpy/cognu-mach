@@ -142,17 +142,19 @@ device_deallocate (device_t device)
 
   dev_hash_remove (device);
   simple_unlock(&device->ref_lock);
-  simple_unlock(&dev_number_lock);
+  simple_unlock(&dev_hash_lock);
 
   /* Destroy the port.  */
   ipc_kobject_set (device->port, IKO_NULL, IKOT_NONE);
   ipc_port_dealloc_kernel (device->port);
   device->port = IP_NULL;
 
+  DEV_LOCK (device);
   if (device->ops && device->ops->close)
     (*device->ops->close) (device);
   if (device->com_device)	/* close hook might have cleared it */
     oskit_device_release (device->com_device);
+  DEV_UNLOCK (device);
 
   zfree(dev_hdr_zone, (vm_offset_t)device);
 }
@@ -208,6 +210,8 @@ void ds_init()
 
 	ds_osenv_init();
 	ds_request_init();
+
+	DEV_LOCK_INIT;
 }
 
 
@@ -341,7 +345,9 @@ dev_open_com (oskit_device_t *com_device, dev_mode_t mode, device_t *devp,
       ++dev->ref_count;
       simple_unlock (&dev_hash_lock);
 
+      DEV_LOCK (dev);
       oskit_device_release (com_device); /* consume ref passed in */
+      DEV_UNLOCK (dev);
       if (dev->ops == 0)
 	{
 	  /* Somebody else is blocked in the oskit getting this device open.
