@@ -2,7 +2,7 @@ Source: oskit-mach
 Section: base
 Priority: optional
 Maintainer: Roland McGrath <frob@debian.org>
-Standards-Version: 2.5.0.0
+Standards-Version: 3.0.1
 Build-Depends: oskit (>= 0.97.19991124)
 Build-Depends: mig
 

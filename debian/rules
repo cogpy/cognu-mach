@@ -27,8 +27,8 @@ LDFLAGS = -s
 PREFIX = /usr
 BINDIR = $(PREFIX)/bin
 MANDIR = $(PREFIX)/man
-DOCDIR = $(PREFIX)/doc/$(package)
-DOCDIR-DEV = $(PREFIX)/doc/$(package-dev)
+DOCDIR = $(PREFIX)/share/doc/$(package)
+DOCDIR-DEV = $(PREFIX)/share/doc/$(package-dev)
 
 #  Package specific stuff.  The idea is to try to make the rules
 #  generic (gradually).
@@ -109,6 +109,7 @@ binary-arch: build
 	pfx=`cd debian/tmp && pwd` && cd build && $(MAKE) install-kernel prefix=$$pfx
 	strip --strip-all	debian/tmp/boot/$(package)
 	gzip -9fq		debian/tmp/boot/$(package)
+ 	chmod a-x		debian/tmp/boot/$(package).gz
 	-find debian/tmp -type d | xargs chmod g-w
 
 	$(install_file)		README debian/tmp$(DOCDIR)
