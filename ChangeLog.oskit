@@ -1,3 +1,7 @@
+2001-01-11  Roland McGrath  <roland@frob.com>
+
+	* oskit/ds_block.c (ds_blkio_get_status): Implement DEV_GET_RECORDS.
+
 2000-12-21  Roland McGrath  <roland@frob.com>
 
 	* oskit/x86/main.c (CR4_PGE): #undef and define to 0x80,
