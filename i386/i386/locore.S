@@ -1661,80 +1661,6 @@ _inst_fetch_fault:
 	RETRY_TABLE_END
 
 
-
-ENTRY(dr6)
-	movl	%db6, %eax
-	ret
-
-/*	dr<i>(address, type, len, persistence)
- */
-ENTRY(dr0)
-	movl	S_ARG0, %eax
-	movl	%eax,EXT(dr_addr)
-	movl	%eax, %db0
-	movl	$0, %ecx
-	jmp	0f
-ENTRY(dr1)
-	movl	S_ARG0, %eax
-	movl	%eax,EXT(dr_addr)+1*4
-	movl	%eax, %db1
-	movl	$2, %ecx
-	jmp	0f
-ENTRY(dr2)
-	movl	S_ARG0, %eax
-	movl	%eax,EXT(dr_addr)+2*4
-	movl	%eax, %db2
-	movl	$4, %ecx
-	jmp	0f
-
-ENTRY(dr3)
-	movl	S_ARG0, %eax
-	movl	%eax,EXT(dr_addr)+3*4
-	movl	%eax, %db3
-	movl	$6, %ecx
-
-0:
-	pushl	%ebp
-	movl	%esp, %ebp
-
-	movl	%db7, %edx
-	movl	%edx,EXT(dr_addr)+4*4
-	andl	dr_msk(,%ecx,2),%edx	/* clear out new entry */
-	movl	%edx,EXT(dr_addr)+5*4
-	movzbl	B_ARG3, %eax
-	andb	$3, %al
-	shll	%cl, %eax
-	orl	%eax, %edx
-
-	movzbl	B_ARG1, %eax
-	andb	$3, %al
-	addb	$0x10, %ecx
-	shll	%cl, %eax
-	orl	%eax, %edx
-
-	movzbl	B_ARG2, %eax
-	andb	$3, %al
-	addb	$0x2, %ecx
-	shll	%cl, %eax
-	orl	%eax, %edx
-
-	movl	%edx, %db7
-	movl	%edx,EXT(dr_addr)+7*4
-	movl	%edx, %eax
-	leave
-	ret
-
-	.data
-dr_msk:
-	.long	~0x000f0003
-	.long	~0x00f0000c
-	.long	~0x0f000030
-	.long	~0xf00000c0
-ENTRY(dr_addr)
-	.long	0,0,0,0
-	.long	0,0,0,0
-	.text
-
 /*
  * Waste 10 microseconds.
  */
@@ -1743,20 +1669,3 @@ ENTRY(tenmicrosec)
 tenmicroloop:
 	loop	tenmicroloop
 	ret
-
-/*
- * cpu_shutdown()
- * Force reboot
- */
-null_idt:
-	.space	8 * 32
-
-null_idtr:
-        .word   8 * 32 - 1
-        .long   null_idt
-
-Entry(cpu_shutdown)
-        lidt    null_idtr       /* disable the interrupt handler */
-        xor     %ecx,%ecx       /* generate a divide by zero */
-        div     %ecx,%eax       /* reboot now */
-        ret                     /* this will "never" be executed */
