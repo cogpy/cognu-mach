@@ -308,6 +308,12 @@ resettodr()
 
 
 void
+machine_idle (int mycpu)
+{
+  asm volatile ("hlt" : : : "memory");
+}
+
+void
 halt_cpu ()
 {
   while (1)
@@ -380,18 +386,3 @@ void machine_init()
 	set_b0 (kvtolin (&base_stack_start), DR7_LEN_4, DR7_RW_DATA);
 	base_gdt_load();	/* necessary after setting debug regs */
 }
-
-/* XXX temp stubs */
-void iopb_init() {}
-void iopb_destroy() {}
-
-#include <device/dev_hdr.h>
-#include <mach/mig_errors.h>
-
-kern_return_t i386_io_port_add(thread_t thread, device_t device)
-{ return MIG_BAD_ID; }
-kern_return_t i386_io_port_remove(thread_t thread, device_t device)
-{ return MIG_BAD_ID; }
-kern_return_t
-i386_io_port_list(thread_t thread, device_t **list, unsigned int *list_count)
-{ return MIG_BAD_ID; }
