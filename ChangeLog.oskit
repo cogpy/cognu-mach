@@ -1,4 +1,4 @@
-2000-09-17  Roland McGrath  <roland@gateway.sf.frob.com>
+2000-09-17  Roland McGrath  <roland@frob.com>
 
 	* oskit/x86/main.c (main): Set CR4_PGE bit here, after paging_enable.
 	* i386/intel/pmap.c (pmap_bootstrap): Not here, since it's before
