@@ -1,5 +1,9 @@
 2002-04-21  Roland McGrath  <roland@frob.com>
 
+	* i386/i386/mp_desc.c (mp_desc_load): Avoid newlines inside strings.
+
+2002-04-21  Roland McGrath  <roland@frob.com>
+
 	* i386/intel/pmap.c (pmap_bootstrap): Set INTEL_PTE_USER in pte
 	entries as well as pde entries.
 	Reported by Jeroen Dekkers <jeroen@dekkers.cx>.
