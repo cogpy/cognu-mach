@@ -27,11 +27,6 @@ i[[3456]]86) systype=i386 ;;
 *) AC_MSG_ERROR([unsupported CPU type]) ;;
 esac
 
-case "$host_os" in
-gnu*) ;;
-*) AC_MSG_ERROR([sorry, this is the gnu os, not $host_os]) ;;
-esac
-
 AC_SUBST(systype)
 AC_SUBST(cross_compiling)
 
