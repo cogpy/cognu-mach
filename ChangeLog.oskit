@@ -1,3 +1,8 @@
+2002-03-05  Roland McGrath  <roland@frob.com>
+
+	* oskit/ds_mem.c (ds_mem_map): If OFFSET and SIZE are both zero,
+	map the whole thing.
+
 2002-03-04  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_routines.c (ds_device_write): If the write_inband routine
