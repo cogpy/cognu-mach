@@ -19,8 +19,7 @@
 srcdir=@srcdir@
 systype=@systype@
 prefix=@prefix@
-version = @VERSION@
-tool_prefix=@ac_tool_prefix@
+version = @PACKAGE_VERSION@
 force_install=@force_install@
 
 exec_prefix=$(prefix)
