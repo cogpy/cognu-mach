@@ -1,3 +1,8 @@
+2000-10-29  Roland McGrath  <roland@frob.com>
+
+	* Makefile.in (clib-routines): Add ffs, needed when not inlined.
+	Reported by Igor Khavkine <i_khavki@alcor.concordia.ca>.
+
 2000-10-27  Roland McGrath  <roland@frob.com>
 
 	* oskit/x86/main.c (main): Don't #define master_cpu here.
