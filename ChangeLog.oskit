@@ -1,3 +1,8 @@
+2000-01-28  Roland McGrath  <roland@baalperazim.frob.com>
+
+	* i386/i386/trap.c (user_page_fault_continue): Disable a debugging
+	printf.
+
 2000-01-25  Roland McGrath  <roland@baalperazim.frob.com>
 
 	* configure.in: Remove check for host_os.  It does not matter.
