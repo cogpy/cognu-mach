@@ -1,5 +1,7 @@
 2002-06-02  Roland McGrath  <roland@frob.com>
 
+	* oskit/ds_routines.c (DEV_PTR_HASH): uintptr_t -> natural_t
+
 	* oskit/ds_routines.c (DEV_PTR_HASH): unsigned int -> uintptr_t
 	(ds_device_write): unsigned int -> mach_msg_number_t
 
