@@ -51,6 +51,14 @@
 
 #include <i386/io_emulate.h>
 
+#if MULTIPROCESSOR
+# include <i386/mp_desc.h>
+# define user_thread_register \
+    (mp_desc_table[cpu_number()]->user_thread_register)
+#else
+extern natural_t user_thread_register;
+#endif
+
 #include <oskit/gdb.h>
 #include <oskit/x86/pc/base_console.h> /* enable_gdb */
 #include <oskit/x86/physmem.h>
@@ -468,7 +476,11 @@ int user_trap(regs)
 		printf("user page fault at linear address %08x\n", subcode);
 		trap_dump (regs);
 #endif
-		assert(subcode < LINEAR_MIN_KERNEL_ADDRESS);
+		if (subcode >= LINEAR_MIN_KERNEL_ADDRESS)
+		  /* This must be an access through the USER_GS segment.  */
+		  assert (trunc_page(subcode) ==
+			  kvtolin(trunc_page(&user_thread_register)));
+
 		(void) vm_fault(thread->task->map,
 				trunc_page((vm_offset_t)subcode),
 				(regs->err & T_PF_WRITE)
