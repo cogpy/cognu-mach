@@ -1,3 +1,9 @@
+2001-10-07  Roland McGrath  <roland@frob.com>
+
+	* oskit/osenv_softirq.c: New file,
+	contributed by Daniel Wagner <wagi@gmx.ch>
+	* Makefile.in (osenv-overrides): Add osenv_softirq.
+
 2001-10-03  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_routines.c (no_device_ops): New variable.
