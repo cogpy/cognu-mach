@@ -25,7 +25,7 @@
 
 #include <mach/kern_return.h>
 
-#include <device/device_types.h> 
+#include <device/device_types.h>
 #include <device/device.h>
 #include <device/dev_hdr.h>
 #include <device/device_port.h>
@@ -35,7 +35,7 @@
 #include <spl.h>
 #include <kern/lock.h>
 
-#include "fipc.h" 
+#include "fipc.h"
 
 void fipc_packet();
 void allocate_fipc_buffers(boolean_t);
@@ -46,9 +46,9 @@ int f_lookup_hash(unsigned short port);
 int fipc_done(io_req_t ior);
 
 
-/********************************************************************/
-/* fipc variables
-/********************************************************************/
+/********************************************************************
+ * fipc variables
+ ********************************************************************/
 
 fipc_port_t fports[N_MAX_OPEN_FIPC_PORTS];
 fipc_lookup_table_ent fipc_lookup_table[N_MAX_OPEN_FIPC_PORTS];
@@ -109,7 +109,7 @@ void allocate_fipc_buffers(boolean_t r_buf)
 	int total_buffer_size;
 
 	if (r_buf)
-	{	
+	{
 		free_count = &n_free_recv_bufs;
 		min_count = N_MIN_RECV_BUFS;
 		max_count = N_MAX_RECV_BUFS;
@@ -148,7 +148,7 @@ void allocate_fipc_buffers(boolean_t r_buf)
 			*free_list_tail += FIPC_BUFFER_SIZE;
 		}
 		*(char**)*free_list_tail = NULL;
-	}	
+	}
 	else  /* Request to grow the buffer pool. */
 	{
 #ifdef FI_DEBUG
@@ -191,10 +191,10 @@ void allocate_fipc_buffers(boolean_t r_buf)
  * level.
  */
 
-inline 
+inline
 char* get_fipc_buffer(int size, boolean_t r_buf, boolean_t at_int_lvl)
 {
-	/* we currently don't care about size, since there is only one 
+	/* we currently don't care about size, since there is only one
 	 * buffer pool. */
 
 	char* head;
@@ -202,7 +202,7 @@ char* get_fipc_buffer(int size, boolean_t r_buf, boolean_t at_int_lvl)
 	int *free_count, min_count;
 
 	if (r_buf)
-	{	
+	{
 		free_count = &n_free_recv_bufs;
 		free_list = &fipc_recv_free_list;
 		min_count = N_MIN_RECV_BUFS;
@@ -222,7 +222,7 @@ char* get_fipc_buffer(int size, boolean_t r_buf, boolean_t at_int_lvl)
 
 	if (*free_count < min_count)
 	{
-		if (!at_int_lvl) 
+		if (!at_int_lvl)
 			allocate_fipc_buffers(r_buf);
 	}
 
@@ -243,7 +243,7 @@ char* get_fipc_buffer(int size, boolean_t r_buf, boolean_t at_int_lvl)
  */
 
 inline
-void return_fipc_buffer(char* buf, int size,  
+void return_fipc_buffer(char* buf, int size,
 			boolean_t r_buf, boolean_t at_int_lvl)
 {
 	/* return the buffer to the free pool */
@@ -251,7 +251,7 @@ void return_fipc_buffer(char* buf, int size,
 	int *free_count, min_count;
 
 	if (r_buf)
-	{	
+	{
 		free_count = &n_free_recv_bufs;
 		free_list = &fipc_recv_free_list;
 		free_list_tail = &fipc_recv_free_list_tail;
@@ -393,13 +393,13 @@ int fipc_lookup_table_remove(unsigned short port)
 	cfp = &fports[f_tbl_num];
 	tail = &cfp->rq_tail;
 	crqe = &cfp->recv_q[*tail];
-		
-	if (cfp->valid_msg == FIPC_RECV_Q_SIZE) 
+
+	if (cfp->valid_msg == FIPC_RECV_Q_SIZE)
 	{
 		/* Queue full.
 		 * Drop packet, return buffer, and return. */
 #ifdef FI_DEBUG
-		printf ("Port %d queue is full: valid_msg count: %d\n", 
+		printf ("Port %d queue is full: valid_msg count: %d\n",
 				to_port, cfp->valid_msg);
 #endif
 		fipc_stats.dropped_msgs += 1;
@@ -435,21 +435,21 @@ int fipc_lookup_table_remove(unsigned short port)
 inline
 kern_return_t loopback(char *packet)
 {
-	fipc_packet(packet+sizeof(struct ether_header), 
+	fipc_packet(packet+sizeof(struct ether_header),
 		*(struct ether_header*)packet);
 	return KERN_SUCCESS;
 }
 
 
-/********************************************************************/
-/* Routine: fipc_send
-/********************************************************************/
+/********************************************************************
+ * Routine: fipc_send
+ ********************************************************************/
 
 kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 		char *user_buffer, int len)
 {
 #ifdef i386
-	static mach_device_t 	eth_device = 0; 
+	static mach_device_t 	eth_device = 0;
 #else
 	static device_t 	eth_device = 0;
 #endif
@@ -469,11 +469,11 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 #endif
 
 #ifdef FI_DEBUG
-	printf("fipc_send(dest: %s, port:%d, len:%d, buf:x%x) !!!\n", 
+	printf("fipc_send(dest: %s, port:%d, len:%d, buf:x%x) !!!\n",
 		ether_sprintf(dest.hwaddr), dest.port, len, user_buffer);
 #endif
 
-	if (dest.port > MAX_FIPC_PORT_NUM || 
+	if (dest.port > MAX_FIPC_PORT_NUM ||
 		len > FIPC_MSG_SIZE)
 	{
 #ifdef FI_DEBUG
@@ -490,20 +490,20 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 		int stat_count = sizeof(net_hwaddr)/sizeof(int);
 
 		/* XXX Automatic lookup for ne0 or ne1 was failing... */
-		eth_device = device_lookup(ETHER_DEVICE_NAME); 
+		eth_device = device_lookup(ETHER_DEVICE_NAME);
 #ifdef i386
-		if (eth_device == (mach_device_t) DEVICE_NULL || 
-			eth_device == (mach_device_t)D_NO_SUCH_DEVICE) 
+		if (eth_device == (mach_device_t) DEVICE_NULL ||
+			eth_device == (mach_device_t)D_NO_SUCH_DEVICE)
 #else
-		if (eth_device == DEVICE_NULL || 
-			eth_device == (device_t)D_NO_SUCH_DEVICE) 
+		if (eth_device == DEVICE_NULL ||
+			eth_device == (device_t)D_NO_SUCH_DEVICE)
 #endif
-			{	
+			{
 #ifdef FI_DEBUG
 				printf ("FIPC: Couldn't find ethernet device %s.\n",
 					ETHER_DEVICE_NAME);
 #endif
-				return (KERN_FAILURE); 
+				return (KERN_FAILURE);
 			}
 
 		/* The device should be open! */
@@ -520,16 +520,16 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 			ior->io_device = eth_device;
 			ior->io_unit = eth_device->dev_number;
 			ior->io_op = IO_OPEN | IO_CALL;
-			ior->io_mode = mode; 
+			ior->io_mode = mode;
 			ior->io_error = 0;
 			ior->io_done = 0;
 			ior->io_reply_port = MACH_PORT_NULL;
 			ior->io_reply_port_type = 0;
-			
+
 			/* open the device */
-			open_res = 
+			open_res =
 				(*eth_device->dev_ops->d_open)
-					(eth_device->dev_number, 
+					(eth_device->dev_number,
 					(int)mode, ior);
 			if (ior->io_error != D_SUCCESS)
 			{
@@ -538,7 +538,7 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 #endif
 				return open_res;
 			}
-		}	
+		}
 #ifdef i386
 		rc = mach_device_get_status(eth_device, NET_ADDRESS,
 					    net_hwaddr, &stat_count);
@@ -549,7 +549,7 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 		if (rc != D_SUCCESS)
 		{
 #ifdef FI_DEBUG
-			printf("FIPC: Couldn't determine hardware ethernet address: %d\n", 
+			printf("FIPC: Couldn't determine hardware ethernet address: %d\n",
 					rc);
 #endif
 			return KERN_FAILURE;
@@ -559,8 +559,8 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 #ifdef FI_DEBUG
 		printf ("host: %s\n", ether_sprintf(hwaddr));
 #endif
-	}	
-		
+	}
+
 #ifdef FIPC_LOOPBACK
 	if (!memcmp(dest.hwaddr, hwaddr, ETHER_HWADDR_SIZE))
 /*
@@ -578,7 +578,7 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 	}
 #endif
 
-	data_count = len + sizeof (struct ether_header) 
+	data_count = len + sizeof (struct ether_header)
 				 + sizeof (fipc_header_t);
 
 #ifdef FIPC_LOOPBACK
@@ -605,25 +605,25 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 #endif
 		if (!ior)
 			io_req_alloc (ior, 0);
-	
+
 		/* Set up the device information. */
 		ior->io_device      = eth_device;
 		ior->io_unit        = eth_device->dev_number;
 		ior->io_op	    = IO_WRITE | IO_INBAND | IO_INTERNAL;
 		ior->io_mode        = D_WRITE;
-		ior->io_recnum      = 0;     
-		ior->io_data        = fipc_buf; 
+		ior->io_recnum      = 0;
+		ior->io_data        = fipc_buf;
 		ior->io_count       = data_count;
 		ior->io_total       = data_count;
 		ior->io_alloc_size  = 0;
 		ior->io_residual    = 0;
 		ior->io_error       = 0;
-		ior->io_done        = fipc_done; 
-		ior->io_reply_port  = MACH_PORT_NULL; 
-		ior->io_reply_port_type = 0; 
-		ior->io_copy        = VM_MAP_COPY_NULL; 
+		ior->io_done        = fipc_done;
+		ior->io_reply_port  = MACH_PORT_NULL;
+		ior->io_reply_port_type = 0;
+		ior->io_copy        = VM_MAP_COPY_NULL;
 #ifdef FIPC_LOOPBACK
-	}	
+	}
 #endif
 
 #ifdef FI_DEBUG
@@ -641,7 +641,7 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 		fhdr->msg_size = len;
 		data_buffer = (char*)fhdr+sizeof(fipc_header_t);
 
-		copyin (user_buffer, data_buffer, 
+		copyin (user_buffer, data_buffer,
 			min (FIPC_BUFFER_SIZE-sizeof(fipc_header_t), len));
 
 #ifdef FIPC_LOOPBACK
@@ -679,37 +679,37 @@ kern_return_t syscall_fipc_send(fipc_endpoint_t dest,
 #endif
 		if (!ior)
 			io_req_alloc (ior, 0);
-	
+
 		/* Set up the device information. */
 		ior->io_device      = eth_device;
 		ior->io_unit        = eth_device->dev_number;
 		ior->io_op	    = IO_WRITE | IO_INBAND | IO_INTERNAL;
 		ior->io_mode        = D_WRITE;
-		ior->io_recnum      = 0;     
-		ior->io_data        = fipc_buf; 
+		ior->io_recnum      = 0;
+		ior->io_data        = fipc_buf;
 		ior->io_count       = data_count;
 		ior->io_total       = data_count;
 		ior->io_alloc_size  = 0;
 		ior->io_residual    = 0;
 		ior->io_error       = 0;
-		ior->io_done        = fipc_done; 
-		ior->io_reply_port  = MACH_PORT_NULL; 
-		ior->io_reply_port_type = 0; 
-		ior->io_copy        = VM_MAP_COPY_NULL; 
+		ior->io_done        = fipc_done;
+		ior->io_reply_port  = MACH_PORT_NULL;
+		ior->io_reply_port_type = 0;
+		ior->io_copy        = VM_MAP_COPY_NULL;
 #ifdef FIPC_LOOPBACK
-	}	
+	}
 #endif
 
 /********************************************************************
-/* syscall_fipc_recv()
-/*
-/********************************************************************/
+ * syscall_fipc_recv()
+ *
+ ********************************************************************/
 
-kern_return_t syscall_fipc_recv(unsigned short user_port, 
+kern_return_t syscall_fipc_recv(unsigned short user_port,
 	char *user_buffer, int *user_size, fipc_endpoint_t *user_sender)
 {
 	char* f_buffer;
-	fipc_port_t *cfp; 
+	fipc_port_t *cfp;
 	fipc_buffer_q_ent *crqe;
 	int *head;
 	int msg_size;
@@ -731,7 +731,7 @@ kern_return_t syscall_fipc_recv(unsigned short user_port,
 	if (fport_num == INVALID)
 		return KERN_RESOURCE_SHORTAGE;
 
-	cfp = &fports[fport_num]; 
+	cfp = &fports[fport_num];
 	head = &cfp->rq_head;
 	crqe = &cfp->recv_q[*head];
 
@@ -772,7 +772,7 @@ kern_return_t syscall_fipc_recv(unsigned short user_port,
 
 	splx(spl);
 
-	copyout(f_buffer+sizeof(fipc_header_t), user_buffer, msg_size); 
+	copyout(f_buffer+sizeof(fipc_header_t), user_buffer, msg_size);
 	copyout(&(crqe->sender), user_sender, sizeof(fipc_endpoint_t));
 	copyout(&msg_size, user_size, sizeof(msg_size));
 

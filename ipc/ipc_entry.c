@@ -25,7 +25,7 @@
  *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
- *
+ */
 /*
  *	File:	ipc/ipc_entry.c
  *	Author:	Rich Draves
@@ -847,8 +847,8 @@ db_ipc_object_by_name(
 {
         ipc_space_t space = task->itk_space;
         ipc_entry_t entry;
- 
- 
+
+
         entry = ipc_entry_lookup(space, name);
         if(entry != IE_NULL) {
                 iprintf("(task 0x%x, name 0x%x) ==> object 0x%x",
