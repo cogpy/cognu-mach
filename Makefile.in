@@ -135,6 +135,7 @@ oskit-cfiles = $(osenv-overrides:=.c) \
 	       ds_asyncio.c smp-glue.c
 oskit-files = $(oskit-cfiles) ds_oskit.h
 
+oskit-dirs-alpha := alpha pc
 oskit-dirs-i386 := x86 pc
 
 

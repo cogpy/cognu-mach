@@ -23,6 +23,7 @@ AC_CONFIG_HEADER(config.h)
 AC_CANONICAL_HOST
 
 case "$host_cpu" in
+alpha*) systype=alpha ;;
 i[[3456]]86) systype=i386 ;;
 *) AC_MSG_ERROR([unsupported CPU type]) ;;
 esac
