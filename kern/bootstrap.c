@@ -39,6 +39,7 @@
 #include <kern/host.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <kern/lock.h>
 #include <vm/vm_kern.h>
 #include <device/device_port.h>
 
@@ -127,6 +128,12 @@ void bootstrap_create()
       if (losers)
 	panic ("cannot set boot-script variable device-port: %s",
 	       boot_script_error_string (losers));
+
+	losers = boot_script_set_variable ("multiboot-cmdline", VAL_STR,
+					   (int) kernel_cmdline);
+	if (losers)
+	  panic ("cannot set boot-script variable %s: %s",
+		 "multiboot-cmdline", boot_script_error_string (losers));
 
 #if OSKIT_MACH
       {
@@ -631,6 +638,8 @@ struct user_bootstrap_info
 {
   struct multiboot_module *mod;
   char **argv;
+  int done;
+  decl_simple_lock_data(,lock)
 };
 
 int
@@ -645,13 +654,24 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
 
   if (task != MACH_PORT_NULL)
     {
-      struct user_bootstrap_info info = { hook, argv };
       thread_t thread;
+      struct user_bootstrap_info info = { hook, argv, 0, };
+      simple_lock_init (&info.lock);
+      simple_lock (&info.lock);
+
       err = thread_create ((task_t)task, &thread);
       assert(err == 0);
       thread->saved.other = &info;
       thread_start (thread, user_bootstrap);
       thread_resume (thread);
+
+      /* We need to synchronize with the new thread and block this
+	 main thread until it has finished referring to our local state.  */
+      while (! info.done)
+	{
+	  thread_sleep ((event_t) &info, simple_lock_addr(info.lock), FALSE);
+	  simple_lock (&info.lock);
+	}
     }
 }
 
@@ -671,6 +691,13 @@ static void user_bootstrap()
   build_args_and_stack(&boot_exec_info, info->argv, 0);
 
   task_suspend (current_task());
+
+  /* Tell the bootstrap thread running boot_script_exec_cmd
+     that we are done looking at INFO.  */
+  simple_lock (&info.lock);
+  assert (!info->done);
+  info->done = 1;
+  thread_wakeup ((event_t) &info);
 
   /*
    * Exit to user thread.
