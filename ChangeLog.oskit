@@ -1,3 +1,17 @@
+2001-08-20  Roland McGrath  <roland@frob.com>
+
+	* kern/bootstrap.c (boot_read, read_exec): Use phystokv to access
+	module data addresses.
+	(boot_script_exec_cmd): Return a value.
+	(boot_script_task_create, boot_script_task_resume): Add \n to err msg.
+	(user_bootstrap): Remove spurious & in thread_wakeup arg.
+	These bugs all reported by Neal H Walfield <neal@cs.uml.edu>.
+
+2001-08-18  Roland McGrath  <roland@frob.com>
+
+	* kern/bootstrap.c (bootstrap_create): Pass &BMODS[0] to
+	bootstrap_exec_compat, not the module data address.
+
 2001-08-17  Roland McGrath  <roland@frob.com>
 
 	* kern/bootstrap.c (boot_script_exec_cmd, user_bootstrap):
