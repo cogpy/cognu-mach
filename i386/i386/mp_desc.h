@@ -40,7 +40,9 @@
  * and since using a TSS marks it busy.
  */
 
-#include <oskit/x86/seg.h>
+#include <mach/std_types.h>
+
+#include <oskit/x86/base_idt.h>	/* IDTSZ */
 #include <oskit/x86/tss.h>
 
 #include "gdt.h"
@@ -51,6 +53,7 @@
  * allocated one per processor (except for the boot processor).
  */
 struct mp_desc_table {
+  	int cpu_number;		/* to be fetched via %gs */
 	struct x86_gate	idt[IDTSZ];	/* IDT */
 	struct x86_desc	gdt[GDTSZ];	/* GDT */
 	struct x86_desc	ldt[LDTSZ];	/* LDT */
@@ -79,7 +82,7 @@ extern struct x86_desc	*mp_gdt[NCPUS];
 extern struct mp_desc_table *	mp_desc_init (int cpu);
 
 /* This one loads the tables into the running CPU.  */
-extern struct mp_desc_table *	mp_desc_load (struct mp_desc_table *);
+void	mp_desc_load (struct mp_desc_table *);
 
 
 #endif MULTIPROCESSOR
