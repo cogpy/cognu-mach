@@ -22,6 +22,7 @@
  */
 
 #include "ds_oskit.h"
+#include "device_error_reply.h"
 
 #include <mach/boolean.h>
 #include <mach/kern_return.h>
@@ -711,16 +712,23 @@ ds_device_write (device_t dev, ipc_port_t reply_port,
 	  vm_offset_t addr;
 	  kern_return_t kr = vm_map_copyout (device_io_map, &addr,
 					     (vm_map_copy_t) data);
-	  if (kr == KERN_SUCCESS)
-	    {
-	      /* Note: we assume that write_inband can take a large count.  */
-	      kr = (*dev->ops->write_inband) (dev, reply_port,
-					      reply_port_type, mode, recnum,
-					      (char *) addr, count,
-					      bytes_written);
-	      (void) vm_deallocate (device_io_map, addr, count);
-	    }
-	  return kr;
+	  if (kr != KERN_SUCCESS)
+	    return kr;
+
+	  /* Note: we assume that write_inband can take a large count.  */
+	  kr = (*dev->ops->write_inband) (dev, reply_port,
+					  reply_port_type, mode, recnum,
+					  (char *) addr, count,
+					  bytes_written);
+	  (void) vm_deallocate (device_io_map, addr, count);
+	  if (kr == KERN_SUCCESS || kr == MIG_NO_REPLY)
+	    return kr;
+	  /* We don't want to return an error to our caller, because it
+	     will respond to that by destroying the message body--but we
+	     have already consumed DATA, and destroying it would be bad.  */
+	  if (IP_VALID (reply_port))
+	    ds_device_write_error_reply (reply_port, reply_port_type, kr);
+	  return MIG_NO_REPLY;
 	}
     }
   return (*dev->ops->write) (dev, reply_port,
