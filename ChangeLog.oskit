@@ -1,3 +1,11 @@
+2002-04-28  Roland McGrath  <roland@frob.com>
+
+	* configure.in [$MAXCPUS > 1] (SMP_LIBS): Substitute this after
+	checking for -loskit_smp.
+	* configure: Regenerated.
+	* Makefile.in (SMP_LIBS): New variable, substituted by configure.
+	(OSKIT_LIBS): Use it in place of literal -loskit_smp.
+
 2002-04-21  Roland McGrath  <roland@frob.com>
 
 	* i386/i386/mp_desc.c (mp_desc_load): Avoid newlines inside strings.
