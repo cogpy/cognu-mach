@@ -43,7 +43,7 @@
 #include <vm/vm_kern.h>
 #include <device/device_port.h>
 
-#include <sys/varargs.h>
+#include <stdarg.h>
 
 #include <oskit/machine/multiboot.h>
 #include <oskit/exec/exec.h>
@@ -337,9 +337,7 @@ extern vm_offset_t	user_stack_low();
 extern vm_offset_t	set_user_regs();
 
 void
-static build_args_and_stack(boot_exec_info, va_alist)
-	exec_info_t *boot_exec_info;
-	va_dcl
+static build_args_and_stack(struct exec_info *boot_exec_info, ...)
 {
 	vm_offset_t	stack_base;
 	vm_size_t	stack_size;
@@ -360,7 +358,7 @@ static build_args_and_stack(boot_exec_info, va_alist)
 	/*
 	 * Calculate the size of the argument list.
 	 */
-	va_start(argv_ptr);
+	va_start(argv_ptr, boot_exec_info);
 	arg_len = 0;
 	arg_count = 0;
 	for (;;) {
@@ -419,7 +417,7 @@ static build_args_and_stack(boot_exec_info, va_alist)
 	/*
 	 * Then the strings and string pointers for each argument
 	 */
-	va_start(argv_ptr);
+	va_start(argv_ptr, boot_exec_info);
 	while (--arg_count >= 0) {
 	    arg_ptr = va_arg(argv_ptr, char *);
 	    arg_item_len = strlen(arg_ptr) + 1; /* include trailing 0 */

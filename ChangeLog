@@ -1,3 +1,73 @@
+2000-10-29  Roland McGrath  <roland@frob.com>
+
+	* i386/include/mach/proc_ops.h: Dead file removed.
+	* i386/include/mach/setjmp.h: Dead file removed.
+	* i386/include/mach/sa/sys/varargs.h: Dead file removed.
+	* include/mach/proc_ops.h: Dead file removed.
+	* Makefile.in (mach-headers): Remove proc_ops.h.
+	* i386/Makefrag (i386-installed-headers): Likewise.
+	(installed-headers): Don't touch this any more.
+
+2000-09-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* i386/i386at/conf.c (dev_name_list): Don't use MACH_COM to check
+	if com support is enabled, but NCOM, as it used to be.
+
+2000-09-24  OKUJI Yoshinori  <okuji@gnu.org>
+
+	* linux/dev/glue/block.c: Reverted the changes at 2000-08-17.
+	Reported by Brent Fulgham <brent.fulgham@xpsystems.com>.
+
+2000-09-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* linux/dev/glue/block.c (init_partition): Move initialization
+	of MASK until it is asserted that gd is non-NULL.
+
+2000-08-17  OKUJI Yoshinori  <okuji@gnu.org>
+
+	* linux/dev/glue/block.c (rdwr_partial): Mask the minor device
+	number with MINOR_SHIFT bits, when indexing the array of
+	partitions. Reported by Marius Vollmer <mvo@zagadka.ping.de>.
+	(init_partition): Likewise.
+	(check_limit): Likewise.
+	(device_get_status): Likewise.
+
+2000-07-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Fix omissions in last change:
+	* linux/src/arch/i386/lib/delay.S: Now really delete the file.
+	* linux/src/arch/i386/lib/delay.c: Now really add the file.
+
+2000-07-04  Marcus Brinkmann <marcus@gnu.org>
+
+	* debian/changelog: Add entry for new Debian upload.
+        * linux/dev/drivers/scsi/seagate.c (WRITE_CONTROL, WRITE_DATA):
+        Added from linux 2.2.15.
+        (__asm__ constructs): Replace with equivalent C code from linux 2.2.15
+        to support gcc-2.95.
+        * linux/src/drivers/scsi/in2000.h: Update asm code to linux 2.2.15.
+	* linux/src/drivers/scsi/ppa.c: Replace asm code with equivalent
+	C code from linux 2.2.15.
+
+2000-02-06  Stefan Weil <stefan.weil@de.heidelberg.com>
+
+	* device/subrs.c: Fixed compiler warning.
+	* ddb/db_output.c, kern/bootstrap.c, kern/debug.c, kern/printf.c:
+	Replaced varargs.h by stdarg.h. Fixed prototypes (const char *fmt).
+	* ddb/db_output.h: Use prototype for db_printf.
+	* i386/Files: removed varargs.h.
+	* i386/i386/pit.h: Fixed compiler warning.
+	* i386/i386at/model_dep.c: Tried to fix compiler warning.
+	* i386/include/mach/sa/sys/varargs.h: Removed.
+	* i386/linux/Makefile.in: Removed delay.S, added delay.c.
+	* linux/dev/include/asm-i386/segment.h: Support gcc-2.95.
+	* linux/dev/include/asm-i386/string.h,
+	linux/src/include/asm-i386/string.h: Update from linux-2.2.14.
+	* linux/dev/lib/vsprintf.c: Fixed compiler warning.
+	* linux/src/include/asm-i386/delay.h: Update from linux-2.2.14.
+	* linux/src/arch/i386/lib/delay.c: Copy from linux-2.2.14.
+	* linux/src/include/asm-i386/string.h: Update from linux-2.2.14.
+
 1999-10-08  Thomas Bushnell, BSG  <tb@mit.edu>
 
 	* linux/src/drivers/net/3c59x.c: Updated to version 0.99L of the
