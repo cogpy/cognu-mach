@@ -45,3 +45,19 @@ osenv_intr_enabled(void)
 {
   return curr_ipl < SPLIO;
 }
+
+/*
+ * Disable interrupts returning the old value.  Combo of:
+ *	save = osenv_intr_enabled();
+ *	osenv_intr_disable();
+ */
+int
+osenv_intr_save_disable(void)
+{
+  if (osenv_intr_enabled ())
+    {
+      osenv_intr_disable ();
+      return 1;
+    }
+  return 0;
+}
