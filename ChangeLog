@@ -1,3 +1,8 @@
+2002-07-05  Roland McGrath  <roland@frob.com>
+
+	* Makefile.in (kernel-%.o): Use -L$(OSKIT_LIBDIR)/.. switch.
+	Reoprted by James Morrison <rocketmail_com@rocketmail.com>.
+
 2002-06-23  Roland McGrath  <roland@frob.com>
 
 	* kern/sched_prim.c (wait_hash): Macro replaced with static inline
