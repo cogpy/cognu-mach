@@ -1,3 +1,13 @@
+2000-02-07  Roland McGrath  <roland@baalperazim.frob.com>
+
+	* oskit/osenv_mem.c (alloc_for_oskit): Add to lmm_wants_pages, rather
+	than resetting it.
+	(consider_lmm_collect): Separate the conditions, so we always check
+	vm_page_unqueued_count against lmm_wants_pages first.  As another
+	separate condition, if lmm_want_pages is nonzero, clear it and then
+	thread_wakeup on it.  Check to move pages into the VM system is now
+	a final independent conditional.
+
 2000-02-06  Roland McGrath  <roland@baalperazim.frob.com>
 
 	* Drivers.macros: File removed; obsolete in this branch.
