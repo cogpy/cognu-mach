@@ -1605,23 +1605,25 @@ net_io_init()
  *	@(#)bpf.c	7.5 (Berkeley) 7/15/91
  */
 
+#include <oskit/types.h>
+
 #if defined(sparc) || defined(mips) || defined(ibm032) || defined(alpha)
 #define BPF_ALIGN
 #endif
 
 #ifndef BPF_ALIGN
-#define EXTRACT_SHORT(p)	((u_short)ntohs(*(u_short *)p))
-#define EXTRACT_LONG(p)		(ntohl(*(u_long *)p))
+#define EXTRACT_SHORT(p)	((oskit_u16_t)ntohs(*(oskit_u16_t *)p))
+#define EXTRACT_LONG(p)		(ntohl(*(oskit_u32_t *)p))
 #else
 #define EXTRACT_SHORT(p)\
-	((u_short)\
-		((u_short)*((u_char *)p+0)<<8|\
-		 (u_short)*((u_char *)p+1)<<0))
+	((oskit_u16_t)\
+		((oskit_u16_t)*((u_char *)p+0)<<8|\
+		 (oskit_u16_t)*((u_char *)p+1)<<0))
 #define EXTRACT_LONG(p)\
-		((u_long)*((u_char *)p+0)<<24|\
-		 (u_long)*((u_char *)p+1)<<16|\
-		 (u_long)*((u_char *)p+2)<<8|\
-		 (u_long)*((u_char *)p+3)<<0)
+		((oskit_u32_t)*((u_char *)p+0)<<24|\
+		 (oskit_u32_t)*((u_char *)p+1)<<16|\
+		 (oskit_u32_t)*((u_char *)p+2)<<8|\
+		 (oskit_u32_t)*((u_char *)p+3)<<0)
 #endif
 
 /*
@@ -1641,9 +1643,9 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
 	register bpf_insn_t pc, pc_end;
 	register unsigned int buflen;
 
-	register unsigned long A, X;
+	register oskit_u32_t A, X;
 	register int k;
-	long mem[BPF_MEMWORDS];
+	oskit_s32_t mem[BPF_MEMWORDS];
 
 	pc = ((bpf_insn_t) infp->filter) + 1;
 					/* filter[0].code is BPF_BEGIN */
@@ -1690,24 +1692,24 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
 
 		case BPF_LD|BPF_W|BPF_ABS:
 			k = pc->k;
-			if ((u_int)k + sizeof(long) <= buflen) {
+			if ((u_int)k + sizeof(oskit_s32_t) <= buflen) {
 #ifdef BPF_ALIGN
 				if (((int)(p + k) & 3) != 0)
 					A = EXTRACT_LONG(&p[k]);
 				else
 #endif
-					A = ntohl(*(long *)(p + k));
+					A = ntohl(*(oskit_s32_t *)(p + k));
 				continue;
 			}
 
 			k -= BPF_DLBASE;
-			if ((u_int)k + sizeof(long) <= NET_HDW_HDR_MAX) {
+			if ((u_int)k + sizeof(oskit_s32_t) <= NET_HDW_HDR_MAX) {
 #ifdef BPF_ALIGN
 				if (((int)(header + k) & 3) != 0)
 					A = EXTRACT_LONG(&header[k]);
 				else
 #endif
-					A = ntohl(*(long *)(header + k));
+					A = ntohl(*(oskit_s32_t *)(header + k));
 				continue;
 			} else {
 				return 0;
@@ -1753,14 +1755,14 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
 
 		case BPF_LD|BPF_W|BPF_IND:
 			k = X + pc->k;
-			if (k + sizeof(long) > buflen)
+			if (k + sizeof(oskit_s32_t) > buflen)
 				return 0;
 #ifdef BPF_ALIGN
 			if (((int)(p + k) & 3) != 0)
 				A = EXTRACT_LONG(&p[k]);
 			else
 #endif
-				A = ntohl(*(long *)(p + k));
+				A = ntohl(*(oskit_s32_t *)(p + k));
 			continue;
 
 		case BPF_LD|BPF_H|BPF_IND:
