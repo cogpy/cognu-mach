@@ -1,5 +1,10 @@
 2001-08-20  Roland McGrath  <roland@frob.com>
 
+	* kern/bootstrap.c (bootstrap_create): Set ${kernel-command-line}
+	rather than ${multiboot-cmdline}, to match Hurd's serverboot.
+
+2001-08-20  Roland McGrath  <roland@frob.com>
+
 	* kern/bootstrap.c (boot_read, read_exec): Use phystokv to access
 	module data addresses.
 	(boot_script_exec_cmd): Return a value.
