@@ -181,10 +181,7 @@ mp_desc_load(struct mp_desc_table *mpt)
   /*
    * Reload all the segment registers from the new GDT.
    */
-  asm volatile("
-ljmp	%0,$1f
-1:
-" : : "i" (KERNEL_CS));
+  asm volatile ("ljmp %0, $1f \n 1:" : : "i" (KERNEL_CS));
   set_ds(KERNEL_DS);
   set_es(KERNEL_DS);
   set_ss(KERNEL_DS);
