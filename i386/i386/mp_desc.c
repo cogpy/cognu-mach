@@ -30,6 +30,7 @@
 #include <vm/vm_kern.h>
 
 #include <i386/mp_desc.h>
+#include <oskit/x86/base_stack.h>
 
 /*
  * Addresses of bottom and top of interrupt stacks.
@@ -51,7 +52,6 @@ vm_offset_t	int_stack_high;
 #include <oskit/x86/base_idt.h>
 #include "gdt.h"
 #include <oskit/x86/base_tss.h>
-#include <oskit/x86/base_stack.h>
 
 
 /*
