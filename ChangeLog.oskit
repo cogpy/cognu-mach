@@ -1,5 +1,9 @@
 2001-08-17  Roland McGrath  <roland@frob.com>
 
+	* kern/bootstrap.c (boot_script_insert_task_port): New function.
+	(boot_script_insert_task_port): Rewritten using task_insert_send_right.
+	(bootstrap_create): Set up boot script variable values.
+
 	* kern/bootstrap.c: Largely rewritten, using Hurd boot_script code.
 
 	* Makefile.in ($(srcdir)/configure, $(srcdir)/config.h.in):
