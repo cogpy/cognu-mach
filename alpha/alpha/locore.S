@@ -1,50 +1,53 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * HISTORY
- * $Log:	locore.s,v $
+ * $Log: locore.S,v $
+ * Revision 1.1  2002/05/28 06:27:03  roland
+ * Alpha support files verbatim from CMU release MK83a.
+ *
  * Revision 2.3  93/03/09  10:50:17  danner
  * 	Removed debugging code that did not fly under GCC.
  * 	Sigh, nothing like shoting yourself on the foot.
  * 	[93/02/19            af]
- * 
+ *
  * Revision 2.2  93/02/05  07:59:22  danner
  * 	Removed ISP hacks.  Console callbacks work now,
  * 	so they are not truly needed anymore.
  * 	[93/01/26            af]
- * 
+ *
  * 	Change all mov inst. to or instructions to avoid a strange chip
  * 	bug seen in starts.
  * 	[93/01/12            jeffreyh]
  * 	Added reference to documentation source(s).
  * 	[92/12/16  15:15:22  af]
- * 
+ *
  * 	Created.
  * 	[92/06/03            af]
- * 
+ *
  */
 
 /*
@@ -69,7 +72,7 @@
 #include <alpha/alpha_cpu.h>
 #include <alpha/trap.h>
 
-#include "assym.s"
+#include "alphaasm.h"
 
 #if	__GNU_AS__
 #define	LDGP(x)	setgp x
@@ -166,7 +169,7 @@ VECTOR(TRAP_dispatcher,IM_T1|IM_T2|IM_T3|IM_T4|IM_T5|IM_T6|IM_RA)
 	lda	a0,MSS_SIZE+MEL_TF(sp)		/* recover hw framep */
 	stq	a0,MSS_FRAMEP(sp)
 	or	sp,zero,a0
-	
+
 	/*
 	 * Here we have:
 	 *	t1 -> ?????
@@ -395,7 +398,7 @@ restore_them_registers:
 	ldq	at,MSS_AT(a0)
 
 	br	zero,TRAP_end
-	
+
 to_kernel_mode:
 	or	sp,zero,a0			/* saved_state pointer */
 	lda	t1,MSS_SIZE+MEL_TF(sp)
@@ -630,7 +633,7 @@ VECTOR(kdb_breakpoint,0)
 
 	/* find SP value before trapping */
 	srl	t6,56,t0		/* t6 still holds PS. Alignement.. */
-	lda	v0,MSS_SIZE+MEL_TF(sp)	/* .. HW frame ... */ 
+	lda	v0,MSS_SIZE+MEL_TF(sp)	/* .. HW frame ... */
 	addq	t0,v0,t0		/* .. adjust for alignment ... */
 	lda	t0,MEL_SIZE-MEL_TF(t0)	/* .. got it */
 	stq	t0,MSS_SP(a0)
