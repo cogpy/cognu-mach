@@ -1,5 +1,8 @@
 2000-02-05  Roland McGrath  <roland@baalperazim.frob.com>
 
+	* Makefile.in (config.h): Depend on stamp-configh.
+	(stamp-configh): New target to run config.status for config.h update.
+
 	* i386/Makefrag (install-headers, i386-install-headers,
 	install-kernel, i386-install-kernel): Rules removed.
 
