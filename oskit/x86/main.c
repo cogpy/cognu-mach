@@ -29,6 +29,8 @@
 #include <oskit/dev/dev.h>
 #include <oskit/smp.h>
 
+#include <string.h>
+
 #include "vm_param.h"
 #include <kern/time_out.h>
 #include <sys/time.h>

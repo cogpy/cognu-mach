@@ -26,6 +26,8 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 
+#include <string.h>
+
 #include <oskit/io/blkio.h>
 
 

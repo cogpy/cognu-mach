@@ -2,6 +2,7 @@
 
 #include <oskit/machine/physmem.h>
 #include <vm/vm_map.h>
+#include <string.h>
 
 
 /* For device_get_status, we look like a block device.  */

@@ -27,6 +27,8 @@
 #include <oskit/machine/proc_reg.h>
 #include <oskit/machine/base_irq.h>
 
+#include <string.h>
+
 #include <machine/spl.h>
 extern int intnull();
 
