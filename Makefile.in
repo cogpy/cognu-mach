@@ -129,7 +129,7 @@ oskit-cfiles = $(osenv-overrides:=.c) \
 	       ds_mem.c ds_bus.c \
 	       ds_net.c \
 	       ds_stream.c \
-	       ds_asyncio.c
+	       ds_asyncio.c smp-glue.c
 oskit-files = $(oskit-cfiles) ds_oskit.h
 
 oskit-dirs-i386 := x86 pc
@@ -260,8 +260,8 @@ magic-symbols := etext edata end
 
 
 OSKIT_LIBDIR = @OSKIT_LIBDIR@
-OSKIT_LIBS = -loskit_kern -loskit_lmm -loskit_com \
-	     -loskit_unsupp -loskit_dev -loskit_linux_dev -loskit_diskpart
+OSKIT_LIBS = -loskit_kern -loskit_lmm -loskit_com -loskit_smp \
+	     -loskit_unsupp -loskit_dev -loskit_linux_dev -loskit_diskpart \
 
 # These rules are useful for development, but have significant overhead.
 kernel.a: $(objfiles)
