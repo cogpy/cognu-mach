@@ -801,6 +801,8 @@
 
 	* debian/control, debian/rules: First crack at setting things up to
 	build an oskit-mach package instead of gnumach.
+
+Older changes in ChangeLog.1
 
 Local variables:
 mode: change-log
