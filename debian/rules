@@ -55,8 +55,8 @@ configure: stamp-configure
 stamp-configure:
 	$(checkdir)
 	-mkdir build
-	test mig --version 2>/dev/null || \
-	if test i386-gnu-mig --version 2>/dev/null; then \
+	mig --version 2>/dev/null ||
+	if i386-gnu-mig --version 2>/dev/null; then \
 	  MIG=i386-gnu-mig; export MIG; fi; \
 	cd build && ../configure --build=$(BUILDARCH) --host=$(HOSTARCH)
 	touch stamp-configure
