@@ -1,3 +1,8 @@
+2004-01-15  Alfred M. Szmidt  <ams@kemisten.nu>
+
+	* Makefile.in (%-undef: %.o): Match new output format from
+	nm (binutils) 2.14.x.
+
 2003-03-05  Roland McGrath  <roland@frob.com>
 
 	* Makefile.in (tool_prefix): Variable removed.
