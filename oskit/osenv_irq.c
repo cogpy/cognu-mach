@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1998, 1999 University of Utah and the Flux Group.
+ * Copyright (c) 1996, 1998, 1999, 2000 University of Utah and the Flux Group.
  * All rights reserved.
  *
  * This file is part of the Flux OSKit.  The OSKit is free software, also known
@@ -26,7 +26,6 @@
 #include <oskit/machine/pio.h>
 #include <oskit/machine/proc_reg.h>
 #include <oskit/machine/base_irq.h>
-#include <stdio.h>
 
 #include <machine/spl.h>
 extern int intnull();
