@@ -20,8 +20,6 @@ package-dev := gnumach-dev
 BUILDARCH := $(DEB_BUILD_GNU_TYPE)
 HOSTARCH := $(DEB_HOST_GNU_TYPE)
 
-installed-kernel = /boot/oskit-mach
-
 # Configuration variables (these should be pretty generic)
 CC = cc
 CFLAGS = -O4 -g -pipe
@@ -112,8 +110,8 @@ binary-arch: build
 	$(make_directory)	debian/tmp/DEBIAN debian/tmp$(DOCDIR)
 
 	pfx=`cd debian/tmp && pwd` && cd build && $(MAKE) install-kernel prefix=$$pfx
-	strip --strip-all	debian/tmp$(installed-kernel)
-	gzip -9fq		debian/tmp$(installed-kernel)
+	strip --strip-all	debian/tmp/boot/$(package)
+	gzip -9fq		debian/tmp/boot/$(package)
 	-find debian/tmp -type d | xargs chmod g-w
 
 	$(install_file)		README debian/tmp$(DOCDIR)

@@ -1,6 +1,6 @@
 Source: oskit-mach
 Section: base
-Priority: optional
+Priority: extra
 Maintainer: Roland McGrath <frob@debian.org>
 Standards-Version: 2.5.0.0
 Build-Depends: oskit (>= 0.97.19991124)
@@ -8,15 +8,15 @@ Build-Depends: mig | mig-i386-gnu
 
 Package: oskit-mach
 Section: base
-Priority: optional
-Architecture: hurd-i386
+Priority: extra
+Architecture: hurd-i386 i386
 Description: A version of the Mach microkernel built using the Flux OSKit.
  This is a variant of the Mach microkernel compatible with the Hurd.
  The device drivers and some other support code come from the OSKit.
 
 Package: gnumach-dev
 Section: devel
-Priority: optional
+Priority: extra
 Architecture: all
 Description: The GNU version of the Mach microkernel (development files)
  These are the header files for the Mach microkernel used by the Hurd.
