@@ -1,3 +1,8 @@
+2000-10-01  Roland McGrath  <roland@frob.com>
+
+	* oskit/osenv_mem.c (free_for_oskit): Copy assert on FLAGS
+	consistency from alloc_for_oskit.
+
 2000-09-17  Roland McGrath  <roland@frob.com>
 
 	* oskit/x86/main.c (main): Set CR4_PGE bit here, after paging_enable.
