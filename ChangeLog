@@ -1,3 +1,10 @@
+2003-02-28  Roland McGrath  <roland@frob.com>
+
+	* oskit/osenv_irq.c (console_irq, console_irq_handler): New variables.
+	(irq_alloc, irq_free): Implement special kludge with console_irq.
+	* oskit/ds_osenv.c (ds_osenv_init): Set console_irq before
+	initializing the minimal interrupt-driven console.
+
 2002-11-20  Marcus Brinkmann  <marcus@gnu.org>
 
 	* i386/i386/io_perm.c (io_perm_device_ops): New static variable.
