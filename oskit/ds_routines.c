@@ -129,26 +129,29 @@ device_deallocate (device_t device)
     return;
 
   simple_lock (&device->ref_lock);
-  if (device->ref_count > 1) {
-    --device->ref_count;
-    simple_unlock (&device->ref_lock);
-    return;
-  }
+  if (device->ref_count > 1)
+    {
+      --device->ref_count;
+      simple_unlock (&device->ref_lock);
+      return;
+    }
   simple_unlock (&device->ref_lock);
 
-  assert (device->com_device);
+  if (device->com_device)
+    {
+      simple_lock(&dev_hash_lock);
+      simple_lock(&device->ref_lock);
+      if (--device->ref_count > 0)
+       {
+         simple_unlock (&device->ref_lock);
+         simple_unlock (&dev_hash_lock);
+         return;
+       }
 
-  simple_lock(&dev_hash_lock);
-  simple_lock(&device->ref_lock);
-  if (--device->ref_count > 0) {
-    simple_unlock (&device->ref_lock);
-    simple_unlock (&dev_hash_lock);
-    return;
-  }
-
-  dev_hash_remove (device);
-  simple_unlock(&device->ref_lock);
-  simple_unlock(&dev_hash_lock);
+      dev_hash_remove (device);
+      simple_unlock(&device->ref_lock);
+      simple_unlock(&dev_hash_lock);
+    }
 
   /* Destroy the port.  */
   ipc_kobject_set (device->port, IKO_NULL, IKOT_NONE);
