@@ -38,8 +38,8 @@ ds_net_get_status (device_t dev, dev_flavor_t flavor, dev_status_t status,
 	oskit_etherdev_getaddr (eth, (void *) status);
 	oskit_etherdev_release (eth);
 
-	status[0] = htonl (status[0]);
-	status[1] = htonl (status[1]);
+	status[0] = ntohl (status[0]);
+	status[1] = ntohl (status[1]);
 
 	return D_SUCCESS;
       }
