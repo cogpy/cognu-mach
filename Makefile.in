@@ -380,8 +380,10 @@ $(srcdir)/config.h.in: $(srcdir)/acconfig.h
 
 Makefile: Makefile.in config.status
 	./config.status
-config.h: config.h.in config.status
+config.h: stamp-configh ;
+stamp-configh: config.h.in config.status
 	./config.status
+	touch $@
 
 config.status: configure
 	./config.status --recheck
