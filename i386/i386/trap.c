@@ -109,7 +109,7 @@ user_page_fault_continue(kr)
 		/*NOTREACHED*/
 	}
 
-#if 1
+#if 0
 	  printf("user page fault %#x error %d\n", regs->cr2,kr);
 if (user_fault_backtrace) user_trap_backtrace(regs);
 #endif
