@@ -72,6 +72,7 @@ extern char *kernel_cmdline;
 static void user_bootstrap();	/* forward */
 static void user_bootstrap_compat();	/* forward */
 static void bootstrap_exec_compat(void *exec_data); /* forward */
+static void get_compat_strings(char *flags_str, char *root_str); /* forward */
 
 static mach_port_t
 task_insert_send_right(
@@ -111,7 +112,66 @@ void bootstrap_create()
     }
   else
     {
-      int i, losers = 0;
+      int i, losers;
+
+      /* Initialize boot script variables.  We leak these send rights.  */
+      losers = boot_script_set_variable
+	("host-port", VAL_PORT,
+	 (int)ipc_port_make_send(realhost.host_priv_self));
+      if (losers)
+	panic ("cannot set boot-script variable host-port: %s",
+	       boot_script_error_string (losers));
+      losers = boot_script_set_variable
+	("device-port", VAL_PORT,
+	 (int) ipc_port_make_send(master_device_port));
+      if (losers)
+	panic ("cannot set boot-script variable device-port: %s",
+	       boot_script_error_string (losers));
+
+#if OSKIT_MACH
+      {
+	/* The oskit's "environ" array contains all the words from
+	   the multiboot command line that looked like VAR=VAL.
+	   We set each of these as boot-script variables, which
+	   can be used for things like ${root-device}.  */
+
+	extern char **environ;
+	char **ep;
+	for (ep = environ; *ep != 0; ++ep)
+	  {
+	    size_t len = strlen (*ep) + 1;
+	    char *var = memcpy (alloca (len), *ep, len);
+	    char *val = strchr (var, '=');
+	    *val++ = '\0';
+	    losers = boot_script_set_variable (var, VAL_STR, (int) val);
+	    if (losers)
+	      panic ("cannot set boot-script variable %s: %s",
+		     var, boot_script_error_string (losers));
+	  }
+      }
+#else  /* GNUmach, not oskit-mach */
+      {
+	char *flag_string = alloca(1024);
+	char *root_string = alloca(1024);
+
+	/*
+	 * Get the (compatibility) boot flags and root name strings.
+	 */
+	get_compat_strings(flag_string, root_string);
+
+	losers = boot_script_set_variable ("boot-args", VAL_STR,
+					   (int) flag_string);
+	if (losers)
+	  panic ("cannot set boot-script variable %s: %s",
+		 "boot-args", boot_script_error_string (losers));
+	losers = boot_script_set_variable ("root-device", VAL_STR,
+					   (int) root_string);
+	if (losers)
+	  panic ("cannot set boot-script variable %s: %s",
+		 "root-device", boot_script_error_string (losers));
+      }
+#endif
+
       for (i = 0; i < boot_info.mods_count; ++i)
 	{
 	  char *line = (char*)phystokv(bmods[i].string);
@@ -676,16 +736,16 @@ boot_script_free_task (task_t task, int aborting)
 }
 
 int
-boot_script_insert_right (struct cmd *cmd, mach_port_t port)
+boot_script_insert_right (struct cmd *cmd, mach_port_t port, mach_port_t *name)
 {
-  kern_return_t rc = mach_port_insert_right(cmd->task->itk_space, port,
-					    (ipc_object_t)port,
-					    MACH_MSG_TYPE_COPY_SEND);
-  if (rc)
-    {
-      printf("boot_script_insert_right failed with %x", rc);
-      return BOOT_SCRIPT_MACH_ERROR;
-    }
+  *name = task_insert_send_right (cmd->task, (ipc_port_t)port);
+  return 0;
+}
+
+int
+boot_script_insert_task_port (struct cmd *cmd, task_t task, mach_port_t *name)
+{
+  *name = task_insert_send_right (cmd->task, task->itk_sself);
   return 0;
 }
 
