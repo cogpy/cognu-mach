@@ -12,10 +12,12 @@ dnl "AS IS" CONDITION.  THE FREE SOFTWARE FOUNDATION DISCLAIMS ANY
 dnl LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE
 dnl USE OF THIS SOFTWARE.
 
-
 AC_INIT(kern/ipc_kobject.c)
 AC_PREREQ(2.12)
 AC_CONFIG_HEADER(config.h)
+
+VERSION=1.90
+AC_SUBST(VERSION)
 
 #
 # Deduce output var `systype' from configuration parms.
@@ -102,9 +104,4 @@ test "x${OSKIT_LIBDIR+set}" = xset ||
   OSKIT_LIBDIR=`${CC} -print-file-name=oskit`
 AC_SUBST(OSKIT_LIBDIR)
 
-# Do machine-specific configuration last so that it can override anything
-# set above if necessary.
-
-dnl AC_CONFIG_SUBDIRS(linux ${systype})
-
-AC_OUTPUT(Makefile doc/Makefile)
+AC_OUTPUT(Makefile version.c doc/Makefile)
