@@ -1,5 +1,10 @@
 2001-08-17  Roland McGrath  <roland@frob.com>
 
+	* kern/bootstrap.c (boot_script_exec_cmd, user_bootstrap):
+	Synchronize so boot_script_exec_cmd doesn't return until
+	the thread running user_bootstrap has done its job.
+	(bootstrap_create): Set boot script variable "multiboot-cmdline".
+
 	* kern/bootstrap.c (boot_script_insert_task_port): New function.
 	(boot_script_insert_task_port): Rewritten using task_insert_send_right.
 	(bootstrap_create): Set up boot script variable values.
