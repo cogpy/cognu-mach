@@ -39,6 +39,7 @@ CC = @CC@
 LD = @LD@
 NM = @NM@
 MIG = @MIG@
+MBCHK = @MBCHK@
 
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
@@ -245,8 +246,8 @@ mostlyclean: distclean
 maintainer-clean: mostlyclean
 	rm -f $(srcdir)/configure $(all-archs-configures)
 
-check:
-
+check: kernel
+	$(MBCHK) $<
 
 #
 # Kernel Image

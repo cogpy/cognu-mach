@@ -1089,10 +1089,41 @@ fi
 fi
 
 
+# Extract the first word of "mbchk", so it can be a program name with args.
+set dummy mbchk; ac_word=$2
+echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+echo "configure:1096: checking for $ac_word" >&5
+if eval "test \"`echo '$''{'ac_cv_prog_MBCHK'+set}'`\" = set"; then
+  echo $ac_n "(cached) $ac_c" 1>&6
+else
+  if test -n "$MBCHK"; then
+  ac_cv_prog_MBCHK="$MBCHK" # Let the user override the test.
+else
+  IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS=":"
+  ac_dummy="$PATH"
+  for ac_dir in $ac_dummy; do
+    test -z "$ac_dir" && ac_dir=.
+    if test -f $ac_dir/$ac_word; then
+      ac_cv_prog_MBCHK="mbchk"
+      break
+    fi
+  done
+  IFS="$ac_save_ifs"
+  test -z "$ac_cv_prog_MBCHK" && ac_cv_prog_MBCHK=":"
+fi
+fi
+MBCHK="$ac_cv_prog_MBCHK"
+if test -n "$MBCHK"; then
+  echo "$ac_t""$MBCHK" 1>&6
+else
+  echo "$ac_t""no" 1>&6
+fi
+
+
 # Check oskit version.
 NEEDED_OSKIT_VERSION=19991121
 echo $ac_n "checking how to run the C preprocessor""... $ac_c" 1>&6
-echo "configure:1096: checking how to run the C preprocessor" >&5
+echo "configure:1127: checking how to run the C preprocessor" >&5
 # On Suns, sometimes $CPP names a directory.
 if test -n "$CPP" && test -d "$CPP"; then
   CPP=
@@ -1107,13 +1138,13 @@ else
   # On the NeXT, cc -E runs the code through the compiler's parser,
   # not just through cpp.
   cat > conftest.$ac_ext <<EOF
-#line 1111 "configure"
+#line 1142 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:1117: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:1148: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -1124,13 +1155,13 @@ else
   rm -rf conftest*
   CPP="${CC-cc} -E -traditional-cpp"
   cat > conftest.$ac_ext <<EOF
-#line 1128 "configure"
+#line 1159 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:1134: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:1165: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -1141,13 +1172,13 @@ else
   rm -rf conftest*
   CPP="${CC-cc} -nologo -E"
   cat > conftest.$ac_ext <<EOF
-#line 1145 "configure"
+#line 1176 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:1151: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:1182: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -1173,13 +1204,13 @@ echo "$ac_t""$CPP" 1>&6
 
 
 echo $ac_n "checking for oskit version >= ${NEEDED_OSKIT_VERSION}""... $ac_c" 1>&6
-echo "configure:1177: checking for oskit version >= ${NEEDED_OSKIT_VERSION}" >&5
+echo "configure:1208: checking for oskit version >= ${NEEDED_OSKIT_VERSION}" >&5
 if eval "test \"`echo '$''{'gnumach_cv_oskit_version_${NEEDED_OSKIT_VERSION}'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   
 cat > conftest.$ac_ext <<EOF
-#line 1183 "configure"
+#line 1214 "configure"
 #include "confdefs.h"
 #include <oskit/version.h>
 #if _OSKIT_VERSION < ${NEEDED_OSKIT_VERSION}
@@ -1187,7 +1218,7 @@ cat > conftest.$ac_ext <<EOF
 #endif
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:1191: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:1222: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -1374,6 +1405,7 @@ s%@cross_linkable@%$cross_linkable%g
 s%@LD@%$LD%g
 s%@NM@%$NM%g
 s%@MIG@%$MIG%g
+s%@MBCHK@%$MBCHK%g
 s%@CPP@%$CPP%g
 s%@OSKIT_LIBDIR@%$OSKIT_LIBDIR%g
 
