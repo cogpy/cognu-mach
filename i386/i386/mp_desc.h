@@ -43,7 +43,6 @@
 #include <oskit/x86/seg.h>
 #include <oskit/x86/tss.h>
 
-#include "idt.h"
 #include "gdt.h"
 #include "ldt.h"
 
@@ -52,10 +51,10 @@
  * allocated one per processor (except for the boot processor).
  */
 struct mp_desc_table {
-	struct real_gate	idt[IDTSZ];	/* IDT */
+	struct x86_gate	idt[IDTSZ];	/* IDT */
 	struct x86_desc	gdt[GDTSZ];	/* GDT */
 	struct x86_desc	ldt[LDTSZ];	/* LDT */
-	struct x86_tss		ktss;
+	struct x86_tss 	ktss;
 };
 
 /*
@@ -77,9 +76,25 @@ extern struct x86_desc	*mp_gdt[NCPUS];
 /*
  * Each CPU calls this routine to set up its descriptor tables.
  */
-extern struct mp_desc_table *	mp_desc_init(/* int */);
+extern struct mp_desc_table *	mp_desc_init (int cpu);
+
+/* This one loads the tables into the running CPU.  */
+extern struct mp_desc_table *	mp_desc_load (struct mp_desc_table *);
 
 
 #endif MULTIPROCESSOR
+
+
+/*
+ * Addresses of bottom and top of interrupt stacks.
+ */
+extern vm_offset_t	interrupt_stack[NCPUS];
+extern vm_offset_t	int_stack_top[NCPUS];
+
+/*
+ * Barrier address.
+ */
+extern vm_offset_t	int_stack_high;
+
 
 #endif	/* _I386_MP_DESC_H_ */
