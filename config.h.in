@@ -10,3 +10,6 @@
 
 /* Define if you have the <oskit/dev/stream.h> header file.  */
 #undef HAVE_OSKIT_DEV_STREAM_H
+
+/* Definf if -loskit_dev has the i8042 driver.  */
+#undef HAVE_I8042

@@ -67,4 +67,8 @@ ds_osenv_init (void)
 
   oskit_linux_init_osenv (mach_osenv);
   oskit_linux_init_devs ();
+
+#ifdef HAVE_I8042
+  oskit_dev_init_i8042 ();
+#endif
 }

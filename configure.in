@@ -98,6 +98,9 @@ fi
 
 AC_CHECK_HEADERS(oskit/dev/stream.h)
 
+AC_CHECK_LIB(oskit_dev, oskit_dev_init_i8042, [AC_DEFINE(HAVE_I8042)], [],
+	     [-loskit_lmm -loskit_clientos -loskit_c -loskit_kern -loskit_com])
+
 AC_SUBST(SMP_LIBS)SMP_LIBS=
 if test $MAXCPUS -gt 1; then
   AC_CHECK_LIB(oskit_smp, smp_init, [SMP_LIBS=-loskit_smp], [
