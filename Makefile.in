@@ -21,6 +21,7 @@ systype=@systype@
 prefix=@prefix@
 version = @VERSION@
 tool_prefix=@ac_tool_prefix@
+force_install=@force_install@
 
 exec_prefix=$(prefix)
 
@@ -341,10 +342,18 @@ installed-headers-names = $(addprefix $(includedir)/,$(installed-headers))
 installed-sysdep-headers-names = $(addprefix $(includedir)/,$($(systype)-installed-headers))
 install: install-headers install-kernel
 
-$(installed-headers-names): $(includedir)/%: $(srcdir)/include/%
+ifeq ($(force_install),yes)
+ instforce := FORCE
+ FORCE:
+else
+ instforce :=
+endif
+
+$(installed-headers-names): $(includedir)/%: $(srcdir)/include/% $(instforce)
 	$(INSTALL_DATA) $< $@
 
-$(installed-sysdep-headers-names): $(includedir)/%: $(sysdep)/include/%
+$(installed-sysdep-headers-names): $(includedir)/%: $(sysdep)/include/% \
+						    $(instforce)
 	$(INSTALL_DATA) $< $@
 
 install-headers: mkheaderdirs $(installed-headers-names) $(installed-sysdep-headers-names)
