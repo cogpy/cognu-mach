@@ -255,7 +255,7 @@ check:
 clib-routines := memcpy memmove memset bcopy bzero memchr rawmemchr \
 		 strstr strtok strchr strchrnul strcpy stpcpy strcat \
 		 strcmp strncmp \
-		 htonl htons ntohl ntohs
+		 htonl htons ntohl ntohs ffs
 magic-symbols := etext edata end
 
 
