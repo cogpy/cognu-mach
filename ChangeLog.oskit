@@ -1,5 +1,12 @@
 2000-02-05  Roland McGrath  <roland@baalperazim.frob.com>
 
+	* i386/Makefrag (install-headers, i386-install-headers,
+	install-kernel, i386-install-kernel): Rules removed.
+
+	* i386/i386/locore.S (dr6, dr0, dr1, dr2, dr3, dr_msk, dr_addr):
+	Remove these obsolete entry points and variables.
+	(null_idt, null_idtr, cpu_shutdown): These too.
+
 	* oskit/osenv_irq.c: Don't #include <stdio.h>!
 
 2000-01-28  Roland McGrath  <roland@baalperazim.frob.com>
