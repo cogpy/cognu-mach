@@ -1,5 +1,8 @@
 2002-05-28  Roland McGrath  <roland@frob.com>
 
+	* kern/boot_script.c, kern/boot_script.h: Files updated from
+	versions in hurd/boot (64 bit fixes).
+
 	* alpha/alpha/alpha_cpu.S: Use "alphaasm.h" instead of "assym.s".
 	* alpha/alpha/context.S: Likewise.
 	* alpha/alpha/locore.S: Likewise.
