@@ -1,5 +1,9 @@
 2003-03-05  Roland McGrath  <roland@frob.com>
 
+	* Makefile.in (tool_prefix): Variable removed.
+	(version): @VERSION@ -> @PACKAGE_VERSION@
+	* version.c.in: Use @PACKAGE_NAME@ and @PACKAGE_VERSION@.
+
 	* configure.in: Require 2.54 and use new form of AC_INIT.
 	Add descriptions to all AC_DEFINE and AC_DEFINE_UNQUOTED.
 	Punt AC_PROG_CC_LOCAL, just use vanilla AC_PROG_CC.
