@@ -1,6 +1,7 @@
 /* In keeping with Mach's old chario behavior, we just ignore RECNUM.  */
 
 #include <stddef.h>
+#include <string.h>
 
 #include <machine/spl.h>
 #include <mach/mig_errors.h>
@@ -441,6 +442,8 @@ listener_notify (oskit_listener_t *io, oskit_iunknown_t *obj)
   device_t dev = listener_device (io);
 
   ds_device_ready (dev);
+
+  return 0;
 }
 
 static struct oskit_listener_ops listener_ops =
