@@ -1,5 +1,9 @@
 2002-03-03  Michael Teichgraeber  <gnubert@web.de>
 
+        * include/device/device_error_reply.defs: Changed subsystem name
+        to device_error_reply.
+        * oskit/ds_asyncio.c: Include "device_reply.h", "device_error_reply.h".
+
 	* oskit/ds_asyncio.c (new_request): Removed unused variable(s).
 	(ds_asyncio_complete_write_inband_1): Likewise.
 	(ds_asyncio_write_inband): Likewise.
