@@ -1,3 +1,7 @@
+2000-02-05  Roland McGrath  <roland@baalperazim.frob.com>
+
+	* oskit/osenv_irq.c: Don't #include <stdio.h>!
+
 2000-01-28  Roland McGrath  <roland@baalperazim.frob.com>
 
 	* i386/i386/trap.c (user_page_fault_continue): Disable a debugging
