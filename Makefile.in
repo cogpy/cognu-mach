@@ -304,7 +304,7 @@ kernel-clib: kernel-undef Makefile
 clib-routines.o: kernel-clib
 	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -static \
 	      -o $@ \
-	      `sed 's/^/-Wl,-u,/' $<` -x c /dev/null -lc
+	      `sed 's/^/-Wl,-u,/' $<` -x c /dev/null -x none -lc
 
 oskit-kern%.o: kern%.o clib-routines.o
 	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -o $@ \
