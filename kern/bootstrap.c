@@ -51,7 +51,7 @@
 #if OSKIT_MACH
 #include <stddef.h>
 #include <string.h>
-#include <oskit/machine/multiboot.h>
+#include <oskit/machine/base_multiboot.h>
 #include <oskit/exec/exec.h>
 #include <oskit/c/stdio.h>
 #define safe_gets(s, n) fgets((s),(n),stdin)
@@ -59,6 +59,7 @@
 #include <mach/machine/multiboot.h>
 #include <mach/exec/exec.h>
 #include <kern/strings.h>
+extern struct multiboot_info boot_info;	/* XXX put this in a header! */
 #endif
 
 #include "../../hurd/boot/boot_script.h"
@@ -67,7 +68,6 @@
 static mach_port_t	boot_device_port;	/* local name */
 static mach_port_t	boot_host_port;		/* local name */
 
-extern struct multiboot_info boot_info;
 extern char *kernel_cmdline;
 
 static void user_bootstrap();	/* forward */
@@ -109,7 +109,7 @@ void bootstrap_create()
     {
       printf("Loading single multiboot module in compat mode: %s\n",
 	     (char*)phystokv(bmods[0].string));
-      bootstrap_exec_compat((void*)phystokv(bmods[0].mod_start));
+      bootstrap_exec_compat(&bmods[0]);
     }
   else
     {
@@ -348,7 +348,7 @@ boot_read(void *handle, vm_offset_t file_ofs, void *buf, vm_size_t size,
   if (mod->mod_start + file_ofs + size > mod->mod_end)
     return -1;
 
-  memcpy(buf, (const char*)mod->mod_start + file_ofs, size);
+  memcpy(buf, (const char*) phystokv (mod->mod_start) + file_ofs, size);
   *out_actual = size;
   return 0;
 }
@@ -388,7 +388,7 @@ read_exec(void *handle, vm_offset_t file_ofs, vm_size_t file_size,
 
 	if (file_size > 0)
 	{
-		err = copyout((char *)mod->mod_start + file_ofs,
+		err = copyout((char *)phystokv (mod->mod_start) + file_ofs,
 			      mem_addr, file_size);
 		assert(err == 0);
 	}
@@ -655,7 +655,7 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
   if (task != MACH_PORT_NULL)
     {
       thread_t thread;
-      struct user_bootstrap_info info = { hook, argv, 0, };
+      struct user_bootstrap_info info = { mod, argv, 0, };
       simple_lock_init (&info.lock);
       simple_lock (&info.lock);
 
@@ -673,6 +673,8 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
 	  simple_lock (&info.lock);
 	}
     }
+
+  return 0;
 }
 
 static void user_bootstrap()
@@ -694,10 +696,10 @@ static void user_bootstrap()
 
   /* Tell the bootstrap thread running boot_script_exec_cmd
      that we are done looking at INFO.  */
-  simple_lock (&info.lock);
+  simple_lock (&info->lock);
   assert (!info->done);
   info->done = 1;
-  thread_wakeup ((event_t) &info);
+  thread_wakeup ((event_t) info);
 
   /*
    * Exit to user thread.
@@ -726,7 +728,7 @@ boot_script_task_create (struct cmd *cmd)
   kern_return_t rc = task_create(TASK_NULL, FALSE, &cmd->task);
   if (rc)
     {
-      printf("boot_script_task_create failed with %x", rc);
+      printf("boot_script_task_create failed with %x\n", rc);
       return BOOT_SCRIPT_MACH_ERROR;
     }
   return 0;
@@ -738,7 +740,7 @@ boot_script_task_resume (struct cmd *cmd)
   kern_return_t rc = task_resume (cmd->task);
   if (rc)
     {
-      printf("boot_script_task_resume failed with %x", rc);
+      printf("boot_script_task_resume failed with %x\n", rc);
       return BOOT_SCRIPT_MACH_ERROR;
     }
   return 0;
