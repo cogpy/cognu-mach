@@ -329,7 +329,7 @@ init-%.c:
 
 kernel-%.o: $(OSKIT_LIBDIR)/multiboot.o $(objfiles) init-%.o
 	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -o $@ \
-	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
+	      -Wl,-\( $^ -L$(OSKIT_LIBDIR)/.. $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 .PHONY: objs
 objs: $(objfiles)
