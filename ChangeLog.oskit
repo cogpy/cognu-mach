@@ -1,3 +1,17 @@
+2001-02-03  Roland McGrath  <roland@frob.com>
+
+	* configure.in: Substitute LDFLAGS.
+	* Makefile.in (LDFLAGS): Substitute configure value.
+
+	* configure.in (OSKIT_LIBDIR): Don't override environment value.
+
+	* Makefile.in (mach-headers): Remove boot.h, which is gone.
+	(mach-exec-headers): Variable removed.
+	(installed-headers): Don't use it.
+	(mach-headers): Remove multiboot.h
+	* i386/Makefrag (i386-installed-headers): Remove dead files.
+	(installed-headers): Don't touch this.
+
 2001-01-11  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_block.c (ds_blkio_get_status): Implement DEV_GET_RECORDS.
