@@ -26,6 +26,8 @@
 #include <oskit/machine/physmem.h>
 #include <oskit/machine/phys_lmm.h>
 
+#include <string.h>
+
 #include <cpus.h>
 #include "lock.h"
 #include "kalloc.h"
@@ -194,9 +196,11 @@ free_for_oskit (void *block, osenv_memflags_t flags, oskit_size_t size)
        Always go directly to physical memory.  */
     flags |= OSENV_VIRT_EQ_PHYS|OSENV_PHYS_WIRED|OSENV_PHYS_CONTIG;
 
+#if 0
   if (in_oskit_interrupt)
     /* The oskit documentation says an interrupt caller must set the flag.  */
     assert (flags & OSENV_NONBLOCKING);
+#endif /* ... but oskit/linux/shared/s_kmem.c doesn't.  */
 
   if ((oskit_addr_t) block < phys_mem_max)
     {
@@ -274,7 +278,6 @@ void pmap_startup(
 {
 	unsigned int i, npages, initial_pages;
 	vm_page_t pages;
-	vm_offset_t paddr;
 
 	/* Calculate how many pages can possibly go into the VM pool,
 	   taking into account the space required for each page's own
