@@ -129,18 +129,18 @@ void bootstrap_create()
 	panic ("cannot set boot-script variable device-port: %s",
 	       boot_script_error_string (losers));
 
-	losers = boot_script_set_variable ("kernel-command-line", VAL_STR,
-					   (int) kernel_cmdline);
-	if (losers)
-	  panic ("cannot set boot-script variable %s: %s",
-		 "multiboot-cmdline", boot_script_error_string (losers));
+      losers = boot_script_set_variable ("kernel-command-line", VAL_STR,
+					 (int) kernel_cmdline);
+      if (losers)
+	panic ("cannot set boot-script variable %s: %s",
+	       "kernel-command-line", boot_script_error_string (losers));
 
 #if OSKIT_MACH
       {
 	/* The oskit's "environ" array contains all the words from
 	   the multiboot command line that looked like VAR=VAL.
 	   We set each of these as boot-script variables, which
-	   can be used for things like ${root-device}.  */
+	   can be used for things like ${root}.  */
 
 	extern char **environ;
 	char **ep;
