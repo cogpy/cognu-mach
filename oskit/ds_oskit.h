@@ -134,8 +134,8 @@ extern const struct device_ops bus_device_ops;
 /* #define INVALSZ while (1) asm volatile ("int $3") */
 #define INVALOP return D_INVALID_OPERATION
 #define INVALSZ return D_INVALID_SIZE
-/*#define INVALREC return D_INVALID_RECNUM*/
-#define INVALREC ({dump_stack_trace();panic("invalid record");})
+#define INVALREC return D_INVALID_RECNUM
+/*#define INVALREC ({dump_stack_trace();panic("invalid record");})*/
 
 
 #include <oskit/dev/error.h>
