@@ -69,7 +69,7 @@ decl_simple_lock_data(,	io_done_list_lock)
    open device ports (device_t).   */
 
 #define	NDEVHASH		7
-#define	DEV_PTR_HASH(com)	((uintptr_t) (com) % NDEVHASH)
+#define	DEV_PTR_HASH(com)	((natural_t) (com) % NDEVHASH)
 queue_head_t dev_hash_table[NDEVHASH];
 
 /*
