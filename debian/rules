@@ -20,6 +20,8 @@ package-dev := gnumach-dev
 BUILDARCH := $(DEB_BUILD_GNU_TYPE)
 HOSTARCH := $(DEB_HOST_GNU_TYPE)
 
+installed-kernel = /boot/oskit-mach
+
 # Configuration variables (these should be pretty generic)
 CC = cc
 CFLAGS = -O4 -g -pipe
@@ -65,7 +67,6 @@ stamp-build: configure
 clean:
 	$(checkdir)
 	-rm -rf build
-	-mv BAR device-drivers.h
 	-rm -f  $(FILES_TO_CLEAN) $(STAMPS_TO_CLEAN)
 	-rm -rf $(DIRS_TO_CLEAN)
 	-rm -f core `find . \( -name '*.orig' -o -name '*.rej' -o -name '*~' \
@@ -109,6 +110,7 @@ binary-arch: build
 
 	pfx=`cd debian/tmp && pwd` && cd build && $(MAKE) install-kernel prefix=$$pfx
 	strip --strip-all	debian/tmp/$(installed-kernel)
+	gzip -9fq		debian/tmp/$(installed-kernel)
 	-find debian/tmp -type d | xargs chmod g-w
 
 	$(install_file)		README debian/tmp$(DOCDIR)

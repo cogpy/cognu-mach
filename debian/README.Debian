@@ -1,10 +1,17 @@
-GNU Mach for Debian
+GNU OSKit-Mach for Debian
 -------------------
 
-This is the GNU version of the Mach microkernel, currently used as the
-basis for the GNU Hurd.
+This is a variant the GNU version of the Mach microkernel, currently used
+as the basis for the GNU Hurd.  This variant uses the OSKit for device
+drivers and some other low-level support; for information on the OSKit,
+see http://www.cs.utah/edu/flux/oskit/ on the web.
 
-Let us know if you have hardware troubles.
-Compiling a fresh kernel with minimal hardware support is recommended.
+If you have hardware problems, please try some OSKit example kernels using
+the same configurations on your hardware.  If you have problems with the
+OSKit example kernels, please report them as OSKit problems (see the OSKit
+web pages and source code for details).  If you can use your hardware with
+other OSKit programs but still have problems with OSKit-Mach, then report
+that to me (or to <bug-hurd@gnu.org>).
 
-GNU Hurd Maintainers <bug-hurd@gnu.org>
+
+Roland McGrath <frob@debian.org>
