@@ -58,17 +58,6 @@ ASFLAGS += -DASSEMBLER
 
 # Header files we install
 
-install-headers: i386-install-headers
-i386-install-headers:
-	cd i386 && $(MAKE) install-headers
-
-install-kernel: i386-install-kernel
-i386-install-kernel:
-	cd $(systype) && $(MAKE) install-kernel
-
-# We have our own version of this file
-installed-headers := $(filter-out mach/proc_ops.h,$(installed-headers))
-
 i386-installed-headers= mach/proc_ops.h \
 		$(addprefix mach/i386/,asm.h bios.h boolean.h code16.h \
 		debug_reg.h disk.h dpmi.h eflags.h exception.h far_ptr.h \
@@ -77,3 +66,7 @@ i386-installed-headers= mach/proc_ops.h \
 		pio.h pmode.h proc_reg.h rpc.h seg.h syscall_sw.h \
 		thread_status.h time_stamp.h trap.h tss.h vcpi.h vm_param.h \
 		vm_types.h)
+
+# We have our own version of this file
+installed-headers := $(filter-out mach/proc_ops.h,$(installed-headers))
+
