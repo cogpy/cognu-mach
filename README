@@ -1,6 +1,24 @@
 -*- Text -*-
-This is the GNU mach 1.2 distribution.
+This is NOT the GNU mach 1.2 distribution!
 
+This is OSKit-Mach and this README file is out of date!
+NEWS is also out of date.
+See ChangeLog.oskit for changes since the split from gnumach.
+ChangeLog has the earlier gnumach changes since the 1.2 release.
+
+It is safe to install this over your gnumach installation.  The installed
+header files are 100% compatible (and 99.44% identical).  This installs
+/boot/oskit-mach and doesn't touch /boot/gnumach, so you can boot either.
+
+There are no meaningful --enable options.  Drivers are determined by
+whatever is compiled into the oskit libraries (I'll add options later).
+SMP does not work, don't even bother trying it.  The FPE does not exist,
+don't even bother trying it.  There is no DDB, but there is serial-port
+GDB, which is better (if you have another machine to run GDB on).
+
+Following is the gnumach-1.2 README, which is mostly not helpful now.
+
+
 This kernel is derived from the Utah kernel source.  We use it to run
 the Hurd on.  It is being distributed by us so that we can more easily
 modify the source, and so that it will work with the normal GNU coding
@@ -43,4 +61,3 @@ build a particular kernel.
 Bug reports relating to this distribution should be sent to
 bug-hurd@gnu.org.  Requests for assistance should be made on
 help-hurd@gnu.org.
-

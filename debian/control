@@ -3,8 +3,7 @@ Section: base
 Priority: optional
 Maintainer: Roland McGrath <frob@debian.org>
 Standards-Version: 3.0.1
-Build-Depends: oskit (>= 0.97.19991124)
-Build-Depends: mig
+Build-Depends: mig, oskit (>= 0.97.19991124)
 
 Package: oskit-mach
 Section: base
