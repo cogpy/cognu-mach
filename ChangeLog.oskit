@@ -42,7 +42,7 @@
 	(io_port_t): New type.
 	(io_perm_t): Likewise.
 	(i386_io_port_add): Interface removed.
-	(i386_io_port_removed): Likewise.
+	(i386_io_port_remove): Likewise.
 	(i386_io_port_list): Likewise.
 	(i386_io_perm_create): New interface.
 	(i386_io_perm_modify): Likewise.
