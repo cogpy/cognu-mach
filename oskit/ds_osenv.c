@@ -1,6 +1,10 @@
 #include "ds_oskit.h"
 
+#include <oskit/dev/dev.h>
 #include <oskit/dev/linux.h>
+#include <oskit/dev/osenv_irq.h>
+#include <oskit/dev/osenv_intr.h>
+#include <oskit/dev/osenv_sleep.h>
 #include <oskit/c/stdlib.h>
 
 #include <oskit/c/termios.h>
@@ -33,6 +37,7 @@ ds_osenv_init (void)
     }
   else if (serial_console)
     {
+      oskit_osenv_intr_t *intr = oskit_create_osenv_intr ();
       char *p = getenv ("COM_CONS");
       int port = p ? atoi(p) : 1;
       struct termios param = base_cooked_termios;
@@ -41,15 +46,16 @@ ds_osenv_init (void)
       param.c_oflag &= ~OPOST;
       rc = cq_com_console_init (port, &param,
 				oskit_create_osenv_irq (),
-				oskit_create_osenv_intr (),
-				oskit_create_osenv_sleep (),
+				intr,
+				oskit_create_osenv_sleep (intr),
 				&ds_console_stream);
     }
   else
     {
+      oskit_osenv_intr_t *intr = oskit_create_osenv_intr ();
       rc = cq_direct_console_init (oskit_create_osenv_irq (),
-				   oskit_create_osenv_intr (),
-				   oskit_create_osenv_sleep (),
+				   intr,
+				   oskit_create_osenv_sleep (intr),
 				   &ds_console_stream);
     }
   if (rc)
