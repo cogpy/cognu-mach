@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Roland McGrath <frob@debian.org>
 Standards-Version: 2.5.0.0
 Build-Depends: oskit (>= 0.97.19991124)
+Build-Depends: mig | mig-i386-gnu
 
 Package: oskit-mach
 Section: base
