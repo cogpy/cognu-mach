@@ -1,3 +1,8 @@
+2002-02-28  Marcus Brinkmann <marcus@gnu.org>
+
+        * oskit/ds_routines.c (device_deallocate): Allow DEVICE->com_device
+        to be NULL for simple pseudo device handlers.
+
 2002-03-05  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_request.h (ds_request_init, ds_asyncio_ready): Declare them.
