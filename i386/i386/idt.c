@@ -23,8 +23,7 @@
 
 #include <oskit/x86/gate_init.h>
 #include <oskit/x86/base_idt.h>
-#include <oskit/x86/base_gdt.h>
-#include <oskit/x86/base_trap.h>
+#include "gdt.h"
 
 extern struct gate_init_entry idt_inittab[];
 
