@@ -1,26 +1,26 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1994,1993,1992,1991 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
- * any improvements or extensions that they make and grant Carnegie Mellon 
+ *
+ * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
@@ -33,7 +33,7 @@
 
 #include <vm/vm_kern.h>
 
-#include <i386/seg.h>
+#include <oskit/x86/seg.h>
 #include <i386/thread.h>
 #include <i386/user_ldt.h>
 #include "ldt.h"
@@ -80,7 +80,7 @@ boolean_t selector_check(thread, sel, type)
 		return FALSE;
 
 	access = ldt->ldt[sel_idx(sel)].access;
-	
+
 	if ((access & (ACC_P|ACC_PL|ACC_TYPE_USER))
 		!= (ACC_P|ACC_PL_U|ACC_TYPE_USER))
 	    return FALSE;
@@ -97,12 +97,12 @@ kern_return_t
 i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	thread_t	thread;
 	int		first_selector;
-	struct real_descriptor *desc_list;
+	struct x86_desc *desc_list;
 	unsigned int	count;
 	boolean_t	desc_list_inline;
 {
 	user_ldt_t	new_ldt, old_ldt, temp;
-	struct real_descriptor *dp;
+	struct x86_desc *dp;
 	int		i;
 	int             min_selector = 0;
 	pcb_t		pcb;
@@ -141,9 +141,9 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 
 	    (void) vm_map_pageable(ipc_kernel_map,
 			dst_addr,
-			dst_addr + count * sizeof(struct real_descriptor),
+			dst_addr + count * sizeof(struct x86_desc),
 			VM_PROT_READ|VM_PROT_WRITE);
-	    desc_list = (struct real_descriptor *)dst_addr;
+	    desc_list = (struct x86_desc *)dst_addr;
 	}
 
 	for (i = 0, dp = desc_list;
@@ -157,7 +157,7 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 		    break;
 		case ACC_P | ACC_CALL_GATE:
 		    /* Mach kernel call */
-		    *dp = *(struct real_descriptor *)
+		    *dp = *(struct x86_desc *)
 				&ldt[sel_idx(USER_SCALL)];
 		    break;
 		case ACC_P | ACC_PL_U | ACC_DATA:
@@ -175,7 +175,7 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 		    return KERN_INVALID_ARGUMENT;
 	    }
 	}
-	ldt_size_needed = sizeof(struct real_descriptor)
+	ldt_size_needed = sizeof(struct x86_desc)
 			* (first_desc + count);
 
 	pcb = thread->pcb;
@@ -194,7 +194,7 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 
 		new_ldt = (user_ldt_t)
 				kalloc(ldt_size_needed
-				       + sizeof(struct real_descriptor));
+				       + sizeof(struct x86_desc));
 		/*
 		 *	Build a descriptor that describes the
 		 *	LDT itself
@@ -226,11 +226,11 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 		      old_ldt->desc.limit_low + 1);
 	    }
 	    else if (thread == current_thread()) {
-		struct real_descriptor template = {0, 0, 0, ACC_P, 0, 0 ,0};
+		struct x86_desc template = {0, 0, 0, ACC_P, 0, 0 ,0};
 
 		for (dp = &new_ldt->ldt[0], i = 0; i < first_desc; i++, dp++) {
 		    if (i < LDTSZ)
-		    	*dp = *(struct real_descriptor *) &ldt[i];
+		    	*dp = *(struct x86_desc *) &ldt[i];
 		    else
 			*dp = template;
 		}
@@ -239,7 +239,7 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	    temp = old_ldt;
 	    old_ldt = new_ldt;	/* use new LDT from now on */
 	    new_ldt = temp;	/* discard old LDT */
-  
+
 	    pcb->ims.ldt = old_ldt;	/* set LDT for thread */
 
 	    /*
@@ -255,14 +255,14 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	 */
 	bcopy((char *)desc_list,
 	      (char *)&old_ldt->ldt[first_desc],
-	      count * sizeof(struct real_descriptor));
+	      count * sizeof(struct x86_desc));
 
 	simple_unlock(&pcb->lock);
 
 	if (new_ldt)
 	    kfree((vm_offset_t)new_ldt,
 		  new_ldt->desc.limit_low + 1
-		+ sizeof(struct real_descriptor));
+		+ sizeof(struct x86_desc));
 
 	/*
 	 * Free the descriptor list, if it was
@@ -272,7 +272,7 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	if (!desc_list_inline) {
 	    (void) kmem_free(ipc_kernel_map,
 			(vm_offset_t) desc_list,
-			count * sizeof(struct real_descriptor));
+			count * sizeof(struct x86_desc));
 	    vm_map_copy_discard(old_copy_object);
 	}
 
@@ -284,7 +284,7 @@ i386_get_ldt(thread, first_selector, selector_count, desc_list, count)
 	thread_t	thread;
 	int		first_selector;
 	int		selector_count;		/* number wanted */
-	struct real_descriptor **desc_list;	/* in/out */
+	struct x86_desc **desc_list;	/* in/out */
 	unsigned int	*count;			/* in/out */
 {
 	struct user_ldt *user_ldt;
@@ -320,12 +320,12 @@ i386_get_ldt(thread, first_selector, selector_count, desc_list, count)
 	     * Find how many descriptors we should return.
 	     */
 	    ldt_count = (user_ldt->desc.limit_low + 1) /
-			sizeof (struct real_descriptor);
+			sizeof (struct x86_desc);
 	    ldt_count -= first_desc;
 	    if (ldt_count > selector_count)
 		ldt_count = selector_count;
 
-	    ldt_size = ldt_count * sizeof(struct real_descriptor);
+	    ldt_size = ldt_count * sizeof(struct x86_desc);
 
 	    /*
 	     * Do we have the memory we need?
@@ -385,7 +385,7 @@ i386_get_ldt(thread, first_selector, selector_count, desc_list, count)
 	     */
 	    (void) vm_map_copyin(ipc_kernel_map, addr, size_used,
 				 TRUE, &memory);
-	    *desc_list = (struct real_descriptor *)memory;
+	    *desc_list = (struct x86_desc *)memory;
 	}
 
 	return KERN_SUCCESS;
@@ -397,5 +397,5 @@ user_ldt_free(user_ldt)
 {
 	kfree((vm_offset_t)user_ldt,
 		user_ldt->desc.limit_low + 1
-		+ sizeof(struct real_descriptor));
+		+ sizeof(struct x86_desc));
 }

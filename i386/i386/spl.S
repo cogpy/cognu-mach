@@ -1,13 +1,13 @@
-/* 
+/*
  * Copyright (c) 1995 Shantanu Goel
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * THE AUTHOR ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  THE AUTHOR DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
@@ -19,7 +19,7 @@
 
 #include <mach/machine/asm.h>
 #include <i386/ipl.h>
-#include <i386/pic.h>
+#include <oskit/x86/pc/pic.h>
 
 /*
  * Set IPL to the specified value.
@@ -35,7 +35,7 @@
 	movl	$(level),%edx;		\
 	cmpl	EXT(curr_ipl),%edx;	\
 	jne	spl;			\
-	sti;				\
+/*	sti; */				\
 	movl	%edx,%eax;		\
 	ret
 
@@ -43,12 +43,13 @@
  * Program PICs with mask in %eax.
  */
 #define SETMASK()				\
+	orl	EXT(nested_pic_mask),%eax; 	\
 	cmpl	EXT(curr_pic_mask),%eax;	\
 	je	9f;				\
-	outb	%al,$(PIC_MASTER_OCW);		\
+	outb	%al,$(MASTER_OCW);		\
 	movl	%eax,EXT(curr_pic_mask);	\
 	movb	%ah,%al;			\
-	outb	%al,$(PIC_SLAVE_OCW);		\
+	outb	%al,$(SLAVES_OCW);		\
 9:
 
 ENTRY(spl0)

@@ -55,6 +55,7 @@
 #include <machine/machspl.h>	/* for splsched */
 #include <sys/reboot.h>
 
+#include <oskit/gdb.h>
 
 
 /*
@@ -188,8 +189,8 @@ host_reboot(host, options)
 		return (KERN_INVALID_HOST);
 
 	if (options & RB_DEBUGGER) {
-		extern void Debugger();
-		Debugger("Debugger");
+	  	gdb_breakpoint();
+		panic("host_reboot with RB_DEBUGGER flag");
 	} else {
 #ifdef parisc
 /* XXX this could be made common */
@@ -331,7 +332,7 @@ Retry:
 	thread_block((void(*)()) 0);
 	goto Retry;
     }
-	 
+
     /*
      *	Avoid work if processor is already in this processor set.
      */
@@ -364,7 +365,7 @@ Retry:
     }
     processor_unlock(processor);
     splx(s);
-    
+
     return(KERN_SUCCESS);
 }
 
@@ -647,7 +648,7 @@ Restart_pset:
 	}
 
 #endif	/* MACH_HOST */
-	
+
 	/*
 	 *	Do shutdown, make sure we live when processor dies.
 	 */

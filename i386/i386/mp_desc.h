@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -40,8 +40,9 @@
  * and since using a TSS marks it busy.
  */
 
-#include "seg.h"
-#include "tss.h"
+#include <oskit/x86/seg.h>
+#include <oskit/x86/tss.h>
+
 #include "idt.h"
 #include "gdt.h"
 #include "ldt.h"
@@ -52,9 +53,9 @@
  */
 struct mp_desc_table {
 	struct real_gate	idt[IDTSZ];	/* IDT */
-	struct real_descriptor	gdt[GDTSZ];	/* GDT */
-	struct real_descriptor	ldt[LDTSZ];	/* LDT */
-	struct i386_tss		ktss;
+	struct x86_desc	gdt[GDTSZ];	/* GDT */
+	struct x86_desc	ldt[LDTSZ];	/* LDT */
+	struct x86_tss		ktss;
 };
 
 /*
@@ -65,12 +66,12 @@ extern struct mp_desc_table	*mp_desc_table[NCPUS];
 /*
  * The kernel TSS gets its own pointer.
  */
-extern struct i386_tss		*mp_ktss[NCPUS];
+extern struct x86_tss		*mp_ktss[NCPUS];
 
 /*
  * So does the GDT.
  */
-extern struct real_descriptor	*mp_gdt[NCPUS];
+extern struct x86_desc	*mp_gdt[NCPUS];
 
 
 /*

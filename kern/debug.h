@@ -30,6 +30,9 @@
 
 #include <kern/assert.h> /*XXX*/
 
+#include <oskit/gdb.h>
+#define Debugger(msg)	({gdb_breakpoint(); panic(msg);})
+
 #ifdef DEBUG
 
 #define here() printf("@ %s:%d\n", __FILE__, __LINE__)

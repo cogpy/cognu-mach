@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1994 The University of Utah and
  * the Computer Systems Laboratory at the University of Utah (CSL).
  * All rights reserved.
@@ -38,7 +38,7 @@
 #error you need to define IDTSZ
 #endif
 
-extern struct real_gate idt[IDTSZ];
+extern struct x86_gate idt[IDTSZ];
 
 /* Fill a gate in the IDT.  */
 #define fill_idt_gate(int_num, entry, selector, access, dword_count) \

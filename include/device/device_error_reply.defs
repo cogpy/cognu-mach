@@ -1,0 +1,34 @@
+/*
+ * This provides device_<call>_error_reply stubs that replace the
+ * stubs device_<call>_reply from <device/device_reply.defs>,
+ * to as to send properly typed reply messages.
+ */
+
+subsystem
+#if	KERNEL_USER
+	  KernelUser
+#endif
+		     device_reply 2900;
+				/* to match reply numbers for device.defs */
+
+#include <mach/std_types.defs>
+#include <device/device_types.defs>
+
+userprefix	ds_;
+
+type reply_port_t = polymorphic|MACH_MSG_TYPE_PORT_SEND_ONCE
+	ctype: mach_port_t;
+
+#define ERROR_REPLY_ROUTINE(name)					      \
+simpleroutine name##_error_reply(					      \
+	    reply_port		: reply_port_t;				      \
+	in  return_code		: kern_return_t)
+
+ERROR_REPLY_ROUTINE (device_open);
+skip;	/* device_close */
+ERROR_REPLY_ROUTINE (device_write);
+ERROR_REPLY_ROUTINE (device_write_inband);
+ERROR_REPLY_ROUTINE (device_read);
+ERROR_REPLY_ROUTINE (device_read_inband);
+
+#undef ERROR_REPLY_ROUTINE

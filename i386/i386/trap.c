@@ -27,10 +27,7 @@
  * Hardware trap/fault handler.
  */
 
-#include <cpus.h>
-#include <fpe.h>
-#include <mach_kdb.h>
-#include <mach_ttd.h>
+#include <config.h>
 #include <mach_pcsample.h>
 
 #include <sys/types.h>
@@ -54,6 +51,10 @@
 
 #include <i386/io_emulate.h>
 
+#include <oskit/gdb.h>
+#include <oskit/x86/pc/base_console.h> /* enable_gdb */
+#include <oskit/x86/physmem.h>
+
 #include "debug.h"
 
 extern void exception();
@@ -61,57 +62,57 @@ extern void thread_exception_return();
 
 extern void i386_exception();
 
-#if	MACH_KDB
-boolean_t	debug_all_traps_with_kdb = FALSE;
-extern struct db_watchpoint *db_watchpoint_list;
-extern boolean_t db_watchpoints_inserted;
 
 void
-thread_kdb_return()
+user_trap_backtrace(struct trap_state *regs)
 {
-	register thread_t thread = current_thread();
-	register struct i386_saved_state *regs = USER_REGS(thread);
+	  trap_dump(regs);
+	  {
+	    unsigned int fp, i, tmp1, tmp2;
 
-	if (kdb_trap(regs->trapno, regs->err, regs)) {
-		thread_exception_return();
-		/*NOTREACHED*/
-	}
+	    fp = regs->ebp;
+
+	    printf("Backtrace: fp=%x", (int) fp);
+	    for (i = 0; fp && i < 32; i++) {
+	      if ((i % 8) == 0)
+		printf("\n");
+
+	      if (copyin(fp,&tmp1,sizeof tmp1))
+		break;
+	      fp = tmp1;
+	      if (!fp) break;
+	      if (copyin(fp,&tmp1,sizeof tmp1))
+		break;
+	      if (copyin(fp+4,&tmp2,sizeof tmp2))
+		break;
+
+	      if (!(tmp2 && tmp1))
+		break;
+
+	      printf(" %08x", tmp2);
+	    }
+	    printf("\n");
+	  }
 }
-#endif	MACH_KDB
 
-#if	MACH_TTD
-extern boolean_t kttd_enabled;
-boolean_t debug_all_traps_with_kttd = TRUE;
-#endif	MACH_TTD
+int user_fault_backtrace;
 
 void
 user_page_fault_continue(kr)
 	kern_return_t kr;
 {
 	register thread_t thread = current_thread();
-	register struct i386_saved_state *regs = USER_REGS(thread);
+	register struct trap_state *regs = USER_REGS(thread);
 
 	if (kr == KERN_SUCCESS) {
-#if	MACH_KDB
-		if (db_watchpoint_list &&
-		    db_watchpoints_inserted &&
-		    (regs->err & T_PF_WRITE) &&
-		    db_find_watchpoint(thread->task->map,
-				       (vm_offset_t)regs->cr2,
-				       regs))
-			kdb_trap(T_WATCHPOINT, 0, regs);
-#endif	MACH_KDB
 		thread_exception_return();
 		/*NOTREACHED*/
 	}
 
-#if	MACH_KDB
-	if (debug_all_traps_with_kdb &&
-	    kdb_trap(regs->trapno, regs->err, regs)) {
-		thread_exception_return();
-		/*NOTREACHED*/
-	}
-#endif	MACH_KDB
+#if 1
+	  printf("user page fault %#x error %d\n", regs->cr2,kr);
+if (user_fault_backtrace) user_trap_backtrace(regs);
+#endif
 
 	i386_exception(EXC_BAD_ACCESS, kr, regs->cr2);
 	/*NOTREACHED*/
@@ -164,15 +165,13 @@ char *trap_name(unsigned int trapnum)
 }
 
 
-boolean_t	brb = TRUE;
-
 /*
  * Trap from kernel mode.  Only page-fault errors are recoverable,
  * and then only in special circumstances.  All other errors are
  * fatal.
  */
 void kernel_trap(regs)
-	register struct i386_saved_state *regs;
+	register struct trap_state *regs;
 {
 	int	exc;
 	int	code;
@@ -186,16 +185,6 @@ void kernel_trap(regs)
 	type = regs->trapno;
 	code = regs->err;
 	thread = current_thread();
-
-#if 0
-((short*)0xb8700)[0] = 0x0f00+'K';
-((short*)0xb8700)[1] = 0x0f30+(type / 10);
-((short*)0xb8700)[2] = 0x0f30+(type % 10);
-#endif
-#if 0
-printf("kernel trap %d error %d\n", type, code);
-dump_ss(regs);
-#endif
 
 	switch (type) {
 	    case T_NO_FPU:
@@ -243,7 +232,7 @@ dump_ss(regs);
 			map = thread->task->map;
 			if (map == kernel_map) {
 				printf("kernel page fault at %08x:\n");
-				dump_ss(regs);
+				trap_dump(regs);
 				panic("kernel thread accessed user space!\n");
 			}
 		}
@@ -260,18 +249,7 @@ dump_ss(regs);
 				  FALSE,
 				  FALSE,
 				  (void (*)()) 0);
-#if	MACH_KDB
-		if (result == KERN_SUCCESS) {
-		    /* Look for watchpoints */
-		    if (db_watchpoint_list &&
-			db_watchpoints_inserted &&
-			(code & T_PF_WRITE) &&
-			db_find_watchpoint(map,
-				(vm_offset_t)subcode, regs))
-			kdb_trap(T_WATCHPOINT, 0, regs);
-		}
-		else
-#endif	MACH_KDB
+
 		if ((code & T_PF_WRITE) == 0 &&
 		    result == KERN_PROTECTION_FAILURE)
 		{
@@ -335,24 +313,24 @@ dump_ss(regs);
 
 	    default:
 	    badtrap:
+
+		/* Allow oskit gdb stub to handle the trap if it wants to.  */
+		if (enable_gdb && gdb_trap (regs) == 0)
+		  return;
+
 	    	printf("Kernel ");
 		if (type < TRAP_TYPES)
 			printf("%s trap", trap_type[type]);
 		else
 			printf("trap %d", type);
 		printf(", eip 0x%x\n", regs->eip);
-#if	MACH_TTD
-		if (kttd_enabled && kttd_trap(type, code, regs))
-			return;
-#endif	/* MACH_TTD */
-#if	MACH_KDB
-		if (kdb_trap(type, code, regs))
-		    return;
-#endif	MACH_KDB
+
 		splhigh();
 		printf("kernel trap, type %d, code = %x\n",
 			type, code);
-		dump_ss(regs);
+		/* Move kernel sp to place trap_dump looks at.  */
+		regs->esp = regs->cr2;
+		trap_dump(regs);
 		panic("trap");
 		return;
 	}
@@ -364,7 +342,7 @@ dump_ss(regs);
  *	Return TRUE if from emulated system call.
  */
 int user_trap(regs)
-	register struct i386_saved_state *regs;
+	register struct trap_state *regs;
 {
 	int	exc;
 	int	code;
@@ -373,19 +351,15 @@ int user_trap(regs)
 	vm_map_t	map;
 	kern_return_t	result;
 	register thread_t thread = current_thread();
-	extern vm_offset_t phys_last_addr;
 
-	if ((vm_offset_t)thread < phys_last_addr) {
+	if ((vm_offset_t)thread < phys_mem_max) {
 		printf("user_trap: bad thread pointer 0x%x\n", thread);
 		printf("trap type %d, code 0x%x, va 0x%x, eip 0x%x\n",
 		       regs->trapno, regs->err, regs->cr2, regs->eip);
 		asm volatile ("1: hlt; jmp 1b");
 	}
-#if 0
-printf("user trap %d error %d sub %08x\n", type, code, subcode);
-#endif
 
-	if (regs->efl & EFL_VM) {
+	if (regs->eflags & EFL_VM) {
 	    /*
 	     * If hardware assist can handle exception,
 	     * continue execution.
@@ -399,13 +373,8 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 	subcode = 0;
 
 #if 0
-	((short*)0xb8700)[3] = 0x0f00+'U';
-	((short*)0xb8700)[4] = 0x0f30+(type / 10);
-	((short*)0xb8700)[5] = 0x0f30+(type % 10);
-#endif
-#if 0
 	printf("user trap %d error %d\n", type, code);
-	dump_ss(regs);
+	trap_dump(regs);
 #endif
 
 	switch (type) {
@@ -416,40 +385,11 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		break;
 
 	    case T_DEBUG:
-#if	MACH_TTD
-		if (kttd_enabled && kttd_in_single_step()) {
-			if (kttd_trap(type, regs->err, regs))
-				return 0;
-		}
-#endif	/* MACH_TTD */
-#if	MACH_KDB
-		if (db_in_single_step()) {
-		    if (kdb_trap(type, regs->err, regs))
-			return 0;
-		}
-#endif
 		exc = EXC_BREAKPOINT;
 		code = EXC_I386_SGL;
 		break;
 
 	    case T_INT3:
-#if	MACH_TTD
-		if (kttd_enabled && kttd_trap(type, regs->err, regs))
-			return 0;
-		break;
-#endif	/* MACH_TTD */
-#if	MACH_KDB
-	    {
-		boolean_t db_find_breakpoint_here();
-
-		if (db_find_breakpoint_here(
-			(current_thread())? current_thread()->task: TASK_NULL,
-			regs->eip - 1)) {
-		    if (kdb_trap(type, regs->err, regs))
-			return 0;
-		}
-	    }
-#endif
 		exc = EXC_BREAKPOINT;
 		code = EXC_I386_BPT;
 		break;
@@ -502,7 +442,7 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		break;
 
 	    case T_GENERAL_PROTECTION:
-		if (!(regs->efl & EFL_VM)) {
+		if (!(regs->eflags & EFL_VM)) {
 			if (check_io_fault(regs))
 				return 0;
 		}
@@ -524,13 +464,12 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		break;
 
 	    case T_PAGE_FAULT:
+		subcode = regs->cr2;
 #if 0
 		printf("user page fault at linear address %08x\n", subcode);
-		dump_ss (regs);
-
+		trap_dump (regs);
 #endif
 		assert(subcode < LINEAR_MIN_KERNEL_ADDRESS);
-		subcode = regs->cr2;
 		(void) vm_fault(thread->task->map,
 				trunc_page((vm_offset_t)subcode),
 				(regs->err & T_PF_WRITE)
@@ -547,31 +486,49 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		return 0;
 
 	    default:
-#if	MACH_TTD
-		if (kttd_enabled && kttd_trap(type, regs->err, regs))
-			return 0;
-#endif	/* MACH_TTD */
-#if	MACH_KDB
-		if (kdb_trap(type, regs->err, regs))
-		    return 0;
-#endif	MACH_KDB
+
+		/* Allow oskit gdb stub to handle the trap if it wants to.  */
+		if (enable_gdb && gdb_trap (regs) == 0)
+		  return 0;
+
 		splhigh();
 		printf("user trap, type %d, code = %x\n",
 		       type, regs->err);
-		dump_ss(regs);
+		trap_dump(regs);
 		panic("trap");
 		return 0;
 	}
 
-#if	MACH_TTD
-	if (debug_all_traps_with_kttd && kttd_trap(type, regs->err, regs))
-		return 0;
-#endif	/* MACH_TTD */
-#if	MACH_KDB
-	if (debug_all_traps_with_kdb &&
-	    kdb_trap(type, regs->err, regs))
-		return 0;
-#endif	MACH_KDB
+#if 0
+	printf("user trap %d error %d\n", type, code);
+	trap_dump(regs);
+	{
+	  unsigned int fp, i, tmp1, tmp2;
+
+	  fp = regs->ebp;
+
+	  printf("Backtrace: fp=%x", (int) fp);
+	  for (i = 0; fp && i < 32; i++) {
+	    if ((i % 8) == 0)
+	      printf("\n");
+
+	    if (copyin(fp,&tmp1,sizeof tmp1))
+	      break;
+	    fp = tmp1;
+	    if (!fp) break;
+	    if (copyin(fp,&tmp1,sizeof tmp1))
+	      break;
+	    if (copyin(fp+4,&tmp2,sizeof tmp2))
+	      break;
+
+	    if (!(tmp2 && tmp1))
+	      break;
+
+	    printf(" %08x", tmp2);
+	  }
+	  printf("\n");
+	}
+#endif
 
 	i386_exception(exc, code, subcode);
 	/*NOTREACHED*/
@@ -593,7 +550,7 @@ int sti_count = 0;
 boolean_t
 v86_assist(thread, regs)
 	thread_t	thread;
-	register struct i386_saved_state *regs;
+	register struct trap_state *regs;
 {
 	register struct v86_assist_state *v86 = &thread->pcb->ims.v86s;
 
@@ -636,7 +593,7 @@ v86_assist(thread, regs)
 	    v86->flags &= ~V86_IF_PENDING;
 	    v86->flags |=  EFL_IF;
 	    if ((v86->flags & EFL_TF) == 0)
-		regs->efl &= ~EFL_TF;
+		regs->eflags &= ~EFL_TF;
 	}
 
 	if (regs->trapno == T_DEBUG) {
@@ -721,6 +678,7 @@ v86_assist(thread, regs)
 			if (!data_32)
 			    opcode |= 0x6600;	/* word IO */
 
+#if 0
 			switch (emulate_io(regs, opcode, io_port)) {
 			    case EM_IO_DONE:
 				/* instruction executed */
@@ -730,10 +688,13 @@ v86_assist(thread, regs)
 				thread->recover = 0;
 				return TRUE;
 			    case EM_IO_ERROR:
+#endif
 				/* port not mapped */
 				thread->recover = 0;
 				return FALSE;
+#if 0
 			}
+#endif
 			break;
 
 		    case 0xfa:		/* cli */
@@ -758,7 +719,7 @@ v86_assist(thread, regs)
 				    v86->flags |= EFL_IF;
 			    } else {
 				    v86->flags |= V86_IF_PENDING;
-				    regs->efl |= EFL_TF;
+				    regs->eflags |= EFL_TF;
 			    }
 					/* single step to set IF next inst. */
 			}
@@ -771,7 +732,7 @@ v86_assist(thread, regs)
 			vm_offset_t sp;
 			int	size;
 
-			flags = regs->efl;
+			flags = regs->eflags;
 			if ((v86->flags & EFL_IF) == 0)
 			    flags &= ~EFL_IF;
 
@@ -779,7 +740,7 @@ v86_assist(thread, regs)
 			    flags &= ~EFL_TF;
 			else flags |= EFL_TF;
 
-			sp = regs->uesp;
+			sp = regs->esp;
 			if (!addr_32)
 			    sp &= 0xffff;
 			else if (sp > 0xffff)
@@ -793,9 +754,9 @@ v86_assist(thread, regs)
 				    size))
 			    goto addr_error;
 			if (addr_32)
-			    regs->uesp = sp;
+			    regs->esp = sp;
 			else
-			    regs->uesp = (regs->uesp & 0xffff0000) | sp;
+			    regs->esp = (regs->esp & 0xffff0000) | sp;
 			break;
 		    }
 
@@ -804,7 +765,7 @@ v86_assist(thread, regs)
 			vm_offset_t sp;
 			int	nflags;
 
-			sp = regs->uesp;
+			sp = regs->esp;
 			if (!addr_32)
 			    sp &= 0xffff;
 			else if (sp > 0xffff)
@@ -824,9 +785,9 @@ v86_assist(thread, regs)
 			    sp += sizeof(short);
 			}
 			if (addr_32)
-			    regs->uesp = sp;
+			    regs->esp = sp;
 			else
-			    regs->uesp = (regs->uesp & 0xffff0000) | sp;
+			    regs->esp = (regs->esp & 0xffff0000) | sp;
 
 			if (v86->flags & V86_IRET_PENDING) {
 				v86->flags = nflags & (EFL_TF | EFL_IF);
@@ -834,7 +795,7 @@ v86_assist(thread, regs)
 			} else {
 				v86->flags = nflags & (EFL_TF | EFL_IF);
 			}
-			regs->efl = (regs->efl & ~EFL_V86_SAFE)
+			regs->eflags = (regs->eflags & ~EFL_V86_SAFE)
 				     | (nflags & EFL_V86_SAFE);
 			break;
 		    }
@@ -846,7 +807,7 @@ v86_assist(thread, regs)
 			union iret_struct iret_struct;
 
 			v86->flags &= ~V86_IRET_PENDING;
-			sp = regs->uesp;
+			sp = regs->esp;
 			if (!addr_32)
 			    sp &= 0xffff;
 			else if (sp > 0xffff)
@@ -867,9 +828,9 @@ v86_assist(thread, regs)
 			    sp += sizeof(struct iret_16);
 			}
 			if (addr_32)
-			    regs->uesp = sp;
+			    regs->esp = sp;
 			else
-			    regs->uesp = (regs->uesp & 0xffff0000) | sp;
+			    regs->esp = (regs->esp & 0xffff0000) | sp;
 
 			if (data_32) {
 			    eip	      = iret_struct.iret_32.eip;
@@ -883,7 +844,7 @@ v86_assist(thread, regs)
 			}
 
 			v86->flags = nflags & (EFL_TF | EFL_IF);
-			regs->efl = (regs->efl & ~EFL_V86_SAFE)
+			regs->eflags = (regs->eflags & ~EFL_V86_SAFE)
 				     | (nflags & EFL_V86_SAFE);
 			break;
 		    }
@@ -932,13 +893,13 @@ v86_assist(thread, regs)
 		struct iret_16 iret_16;
 		struct int_vec int_vec;
 
-		sp = regs->uesp & 0xffff;
+		sp = regs->esp & 0xffff;
 		if (sp < sizeof(struct iret_16))
 		    goto stack_error;
 		sp -= sizeof(struct iret_16);
 		iret_16.ip = regs->eip;
 		iret_16.cs = regs->cs;
-		iret_16.flags = regs->efl & 0xFFFF;
+		iret_16.flags = regs->eflags & 0xFFFF;
 		if ((v86->flags & EFL_TF) == 0)
 		    iret_16.flags &= ~EFL_TF;
 		else iret_16.flags |= EFL_TF;
@@ -954,10 +915,10 @@ v86_assist(thread, regs)
 			    (char *)Addr8086(regs->ss,sp),
 			    sizeof(struct iret_16)))
 		    goto addr_error;
-		regs->uesp = (regs->uesp & 0xFFFF0000) | (sp & 0xffff);
+		regs->esp = (regs->esp & 0xFFFF0000) | (sp & 0xffff);
 		regs->eip = int_vec.ip;
 		regs->cs  = int_vec.cs;
-		regs->efl  &= ~EFL_TF;
+		regs->eflags  &= ~EFL_TF;
 		v86->flags &= ~(EFL_IF | EFL_TF);
 		v86->flags |= V86_IRET_PENDING;
 	    }
@@ -1051,8 +1012,10 @@ i386_exception(exc, code, subcode)
 
 boolean_t
 check_io_fault(regs)
-	struct i386_saved_state *regs;
+	struct trap_state *regs;
 {
+  return FALSE;
+#if 0
 	int		eip, opcode, io_port;
 	boolean_t	data_16 = FALSE;
 
@@ -1122,6 +1085,7 @@ check_io_fault(regs)
 		/* port not mapped */
 		return FALSE;
 	}
+#endif
 }
 
 #if	MACH_PCSAMPLE > 0
@@ -1132,7 +1096,7 @@ unsigned
 interrupted_pc(t)
 	thread_t t;
 {
-	register struct i386_saved_state *iss;
+	register struct trap_state *iss;
 
  	iss = USER_REGS(t);
  	return iss->eip;

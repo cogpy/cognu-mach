@@ -2,24 +2,24 @@
  * Mach Operating System
  * Copyright (c) 1991,1990,1989,1988 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -35,6 +35,13 @@
 #ifndef	_PMAP_MACHINE_
 #define _PMAP_MACHINE_	1
 
+#include <oskit/x86/paging.h>
+#define	INTEL_PGBYTES		I386_PGBYTES
+#define INTEL_PTE_WIRED		0x00000200
+#define ptenum(a)	lin2ptenum(a)
+#define	intel_btop(x)		atop(x)
+#define	intel_ptob(x)		ptoa(x)
+
 #ifndef	ASSEMBLER
 
 #include <kern/zalloc.h>
@@ -43,111 +50,14 @@
 #include <mach/vm_statistics.h>
 #include <mach/kern_return.h>
 
-/*
- *	Define the generic in terms of the specific
- */
-
-#if	i386
-#define	INTEL_PGBYTES		I386_PGBYTES
-#define INTEL_PGSHIFT		I386_PGSHIFT
-#define	intel_btop(x)		i386_btop(x)
-#define	intel_ptob(x)		i386_ptob(x)
-#define	intel_round_page(x)	i386_round_page(x)
-#define	intel_trunc_page(x)	i386_trunc_page(x)
-#define trunc_intel_to_vm(x)	trunc_i386_to_vm(x)
-#define round_intel_to_vm(x)	round_i386_to_vm(x)
-#define vm_to_intel(x)		vm_to_i386(x)
-#endif	i386
-#if	i860
-#define	INTEL_PGBYTES		I860_PGBYTES
-#define INTEL_PGSHIFT		I860_PGSHIFT
-#define	intel_btop(x)		i860_btop(x)
-#define	intel_ptob(x)		i860_ptob(x)
-#define	intel_round_page(x)	i860_round_page(x)
-#define	intel_trunc_page(x)	i860_trunc_page(x)
-#define trunc_intel_to_vm(x)	trunc_i860_to_vm(x)
-#define round_intel_to_vm(x)	round_i860_to_vm(x)
-#define vm_to_intel(x)		vm_to_i860(x)
-#endif	i860
-
-/*
- *	i386/i486/i860 Page Table Entry
- */
-
-typedef unsigned int	pt_entry_t;
-#define PT_ENTRY_NULL	((pt_entry_t *) 0)
-
-#endif	ASSEMBLER
-
-#define INTEL_OFFMASK	0xfff	/* offset within page */
-#define PDESHIFT	22	/* page descriptor shift */
-#define PDEMASK		0x3ff	/* mask for page descriptor index */
-#define PTESHIFT	12	/* page table shift */
-#define PTEMASK		0x3ff	/* mask for page table index */
-
-/*
- *	Convert linear offset to page descriptor index
- */
-#define lin2pdenum(a)	(((a) >> PDESHIFT) & PDEMASK)
-
-/*
- *	Convert page descriptor index to linear address
- */
-#define pdenum2lin(a)	((vm_offset_t)(a) << PDESHIFT)
-
-/*
- *	Convert linear offset to page table index
- */
-#define ptenum(a)	(((a) >> PTESHIFT) & PTEMASK)
-
-#define NPTES	(intel_ptob(1)/sizeof(pt_entry_t))
-#define NPDES	(intel_ptob(1)/sizeof(pt_entry_t))
-
-/*
- *	Hardware pte bit definitions (to be used directly on the ptes
- *	without using the bit fields).
- */
-
-#if	i860
-#define INTEL_PTE_valid		0x00000001
-#else
-#define INTEL_PTE_VALID		0x00000001
-#endif
-#define INTEL_PTE_WRITE		0x00000002
-#define INTEL_PTE_USER		0x00000004
-#define INTEL_PTE_WTHRU		0x00000008
-#define INTEL_PTE_NCACHE 	0x00000010
-#define INTEL_PTE_REF		0x00000020
-#define INTEL_PTE_MOD		0x00000040
-#define INTEL_PTE_WIRED		0x00000200
-#define INTEL_PTE_PFN		0xfffff000
-
-#if	i860
-#if	NOCACHE
-#define	INTEL_PTE_VALID		(INTEL_PTE_valid	\
-				|INTEL_PTE_WTHRU	\
-				|INTEL_PTE_NCACHE	\
-				|INTEL_PTE_REF		\
-				|INTEL_PTE_MOD		\
-				)
-#else	NOCACHE
-#define	INTEL_PTE_VALID		(INTEL_PTE_valid	\
-				|INTEL_PTE_REF		\
-				|INTEL_PTE_MOD		\
-				)
-#endif	NOCACHE
-#endif	i860
-
-#define	pa_to_pte(a)		((a) & INTEL_PTE_PFN)
-#define	pte_to_pa(p)		((p) & INTEL_PTE_PFN)
-#define	pte_increment_pa(p)	((p) += INTEL_OFFMASK+1)
+#include <oskit/x86/base_vm.h>
+#include <oskit/x86/proc_reg.h>
 
 /*
  *	Convert page table entry to kernel virtual address
  */
 #define ptetokv(a)	(phystokv(pte_to_pa(a)))
 
-#ifndef	ASSEMBLER
 typedef	volatile long	cpu_set;	/* set of CPUs - must be <= 32 */
 					/* changed by other processors */
 

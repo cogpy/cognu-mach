@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1993,1992,1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -41,14 +41,13 @@
 
 #include "io_port.h"
 #include "iopb.h"
-#include "seg.h"
 #include "gdt.h"
 
 /*
  * A set of ports for an IO device.
  */
 struct io_port {
-	mach_device_t	device;		/* Mach device */
+	device_t	device;		/* Mach device */
 	queue_chain_t	dev_list;	/* link in device list */
 	queue_chain_t	io_use_list;	/* List of threads that use it */
 	io_reg_t	*io_port_list;	/* list of IO ports that use it */
@@ -154,7 +153,7 @@ io_bitmap_clear(
  */
 io_port_t
 device_to_io_port_lookup(
-	mach_device_t	device)
+	device_t	device)
 {
 	register io_port_t io_port;
 
@@ -172,7 +171,7 @@ device_to_io_port_lookup(
  */
 void
 io_port_create(
-	mach_device_t	device,
+	device_t	device,
 	io_reg_t	*io_port_list)
 {
 	register io_port_t io_port;
@@ -204,7 +203,7 @@ io_port_create(
  */
 void
 io_port_destroy(
-	mach_device_t	device)
+	device_t	device)
 {
 	io_port_t	io_port;
 	io_use_t	iu;
@@ -245,7 +244,7 @@ io_tss_init(
 	vm_offset_t	addr = (vm_offset_t) io_tss;
 	vm_size_t	size = (char *)&io_tss->barrier - (char *)io_tss;
 
-	bzero(&io_tss->tss, sizeof(struct i386_tss));
+	bzero(&io_tss->tss, sizeof(struct x86_tss));
 	io_tss->tss.io_bit_map_offset
 			= (char *)&io_tss->bitmap - (char *)io_tss;
 	io_tss->tss.ss0 = KERNEL_DS;
@@ -310,7 +309,7 @@ iopb_destroy(
 kern_return_t
 i386_io_port_add(
 	thread_t	thread,
-	mach_device_t	device)
+	device_t	device)
 {
 	pcb_t		pcb;
 	iopb_tss_t	io_tss, new_io_tss;
@@ -409,7 +408,7 @@ i386_io_port_add(
 kern_return_t
 i386_io_port_remove(thread, device)
 	thread_t	thread;
-	mach_device_t	device;
+	device_t	device;
 {
 	pcb_t		pcb;
 	iopb_tss_t	io_tss;
@@ -479,13 +478,13 @@ extern ipc_port_t	mach_convert_device_to_port(/* device_t */);
 kern_return_t
 i386_io_port_list(thread, list, list_count)
 	thread_t	thread;
-	mach_device_t	**list;
+	device_t	**list;
 	unsigned int	*list_count;
 {
 	register pcb_t	pcb;
 	register iopb_tss_t io_tss;
 	unsigned int	count, alloc_count;
-	mach_device_t	*devices;
+	device_t	*devices;
 	vm_size_t	size_needed, size;
 	vm_offset_t	addr;
 	int		i;
@@ -512,7 +511,7 @@ i386_io_port_list(thread, list, list_count)
 	    if (addr == 0)
 		return KERN_RESOURCE_SHORTAGE;
 
-	    devices = (mach_device_t *)addr;
+	    devices = (device_t *)addr;
 	    count = 0;
 
 	    simple_lock(&iopb_lock);
@@ -561,7 +560,7 @@ i386_io_port_list(thread, list, list_count)
 
 		bcopy((void *)addr, (void *)new_addr, size_needed);
 		kfree(addr, size);
-		devices = (mach_device_t *)new_addr;
+		devices = (device_t *)new_addr;
 	    }
 
 	    for (i = 0; i < count; i++)
@@ -581,7 +580,7 @@ i386_io_port_list(thread, list, list_count)
 boolean_t
 iopb_check_mapping(thread, device)
 	thread_t	thread;
-	mach_device_t	device;
+	device_t	device;
 {
 	pcb_t		pcb;
 	io_port_t	io_port;

@@ -1,47 +1,48 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1993,1992,1991,1990 Carnegie Mellon University
- * Copyright (c) 1991 IBM Corporation 
+ * Copyright (c) 1991 IBM Corporation
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation,
- * and that the nema IBM not be used in advertising or publicity 
+ * and that the nema IBM not be used in advertising or publicity
  * pertaining to distribution of the software without specific, written
  * prior permission.
- * 
+ *
  * CARNEGIE MELLON AND IBM ALLOW FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON AND IBM DISCLAIM ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 
 #include <cpus.h>
-#include <platforms.h>
 #include <mach_kdb.h>
 #include <mach_ttd.h>
 #include <stat_time.h>
 
 #include <mach/machine/asm.h>
 #include <mach/machine/eflags.h>
-#include "proc_reg.h"
 #include "trap.h"
-#include "seg.h"
 #include "ldt.h"
 #include "i386asm.h"
 #include "cpu_number.h"
+
+#include <oskit/x86/proc_reg.h>
+#include <oskit/x86/seg.h>
+
 
 /*
  * Fault recovery.
@@ -335,7 +336,7 @@ trap_check_kernel_exit:
 	cmpl	$_kret_iret,8(%esp)	/* on IRET? */
 	je	fault_iret
 	cmpl	$_kret_popl_ds,8(%esp)	/* popping DS? */
-	je	fault_popl_ds	
+	je	fault_popl_ds
 	cmpl	$_kret_popl_es,8(%esp)	/* popping ES? */
 	je	fault_popl_es
 	cmpl	$_kret_popl_fs,8(%esp)	/* popping FS? */
@@ -533,9 +534,9 @@ _kret_iret:
  * Trap from kernel mode.  No need to switch stacks.
  */
 trap_from_kernel:
-#if	MACH_KDB || MACH_TTD
+#if	MACH_KDB || MACH_TTD || 1 /* XXX oskit gdb support */
 	movl	%esp,%ebx		/* save current stack */
-	
+
 	cmpl	EXT(int_stack_high),%esp	/* on an interrupt stack? */
 	jb	1f			/* OK if so */
 
@@ -972,7 +973,7 @@ syscall_entry:
 syscall_entry_2:
 	pushl	%eax			/* save system call number */
 	pushl	$0			/* clear trap number slot */
-		
+
 	pusha				/* save the general registers */
 	pushl	%ds			/* and the segment registers */
 	pushl	%es
@@ -1049,7 +1050,7 @@ syscall_native:
 					/* get number of arguments */
 	jecxz	mach_call_call		/* skip argument copy if none */
 
-	movl	R_UESP(%ebx),%esi	/* get user stack pointer */
+	movl	R_ESP(%ebx),%esi	/* get user stack pointer */
 	lea	4(%esi,%ecx,4),%esi	/* skip user return address, */
 					/* and point past last argument */
 	movl	$USER_DS,%edx		/* use user data segment for accesses */
@@ -1119,7 +1120,7 @@ syscall_emul:
 	mov	%di,%fs
 
 /* XXX what about write-protected pages? */
-	movl	R_UESP(%ebx),%edi	/* get user stack pointer */
+	movl	R_ESP(%ebx),%edi	/* get user stack pointer */
 	subl	$8,%edi			/* push space for new arguments */
 	movl	R_EFLAGS(%ebx),%eax	/* move flags */
 	RECOVER(syscall_addr)
@@ -1127,7 +1128,7 @@ syscall_emul:
 	movl	R_EIP(%ebx),%eax	/* move eip */
 	RECOVER(syscall_addr)
 	movl	%eax,%fs:4(%edi)	/* to user stack */
-	movl	%edi,R_UESP(%ebx)	/* set new user stack pointer */
+	movl	%edi,R_ESP(%ebx)	/* set new user stack pointer */
 	movl	%edx,R_EIP(%ebx)	/* change return address to trap */
 	movl	%ebx,%esp		/* back to PCB stack */
 	jmp	_return_from_trap	/* return to user */
@@ -1142,15 +1143,15 @@ syscall_addr:
 	movl	$(T_PF_USER),R_ERR(%ebx)
 					/* set error code - read user space */
 	jmp	_take_trap		/* treat as a trap */
-	
 
-#if 0	
+
+#if 0
 /* Discover what kind of cpu we have; return the family number
    (3, 4, 5, 6, for 386, 486, 586, 686 respectively).  */
 ENTRY(discover_x86_cpu_type)
 	movl	%esp,%edx		/* Save stack pointer */
 	and	$~0x3,%esp		/* Align stack pointer */
-	
+
 	pushfl				/* Fetch flags ... */
 	popl	%eax			/*  ... into eax */
 	movl	%eax,%ecx		/* Save original flags for return */
@@ -1165,7 +1166,7 @@ ENTRY(discover_x86_cpu_type)
 	jnz	0f			/* Skip next bit if AC toggled */
 	movl	$3,%eax			/*   Return value is 386 */
 	jmp	9f			/*   And RETURN */
-	
+
 0:	testl	$EFL_ID,%eax		/* Test ID bit */
 	jnz	0f			/* Skip next bit if ID toggled */
 	movl	$4,%eax			/*   Return value is 486 */
@@ -1177,7 +1178,7 @@ ENTRY(discover_x86_cpu_type)
 	cpuid				/*  ... into eax */
 	shrl	$8,%eax			/* Slide family bits down */
 	andl	$15,%eax		/* And select them */
-	
+
 9:	pushl	%ecx			/* From ecx... */
 	popfl				/* ... restore original flags */
 	movl	%edx,%esp		/* Restore stack pointer */
@@ -1747,9 +1748,9 @@ tenmicroloop:
  * cpu_shutdown()
  * Force reboot
  */
-null_idt:	
+null_idt:
 	.space	8 * 32
-		
+
 null_idtr:
         .word   8 * 32 - 1
         .long   null_idt
@@ -1759,13 +1760,3 @@ Entry(cpu_shutdown)
         xor     %ecx,%ecx       /* generate a divide by zero */
         div     %ecx,%eax       /* reboot now */
         ret                     /* this will "never" be executed */
-
-
-/*
- * Allocate enough space for a kernel TSS with a complete I/O bitmap,
- * for making v86-mode BIOS calls.  XXX
- */
-	.data
-	.globl	EXT(ktss)
-	.comm	EXT(ktss),0x68+65536/8+1
-

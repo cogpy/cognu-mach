@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1994 The University of Utah and
  * the Computer Systems Laboratory at the University of Utah (CSL).
  * All rights reserved.
@@ -48,6 +48,8 @@
 #define round_i386_to_vm(p)	(atop(round_page(i386_ptob(p))))
 #define vm_to_i386(p)		(i386_btop(ptoa(p)))
 
+#include <oskit/x86/base_vm.h>
+#if 0
 /*
  *	Physical memory is direct-mapped to virtual memory
  *	starting at virtual address phys_mem_va.
@@ -60,5 +62,6 @@ extern vm_offset_t phys_mem_va;
  */
 #define kvtolin(a)	((vm_offset_t)(a) + LINEAR_MIN_KERNEL_ADDRESS)
 #define lintokv(a)	((vm_offset_t)(a) - LINEAR_MIN_KERNEL_ADDRESS)
+#endif
 
 #endif _I386_KERNEL_I386_VM_PARAM_

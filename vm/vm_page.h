@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1993-1988 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -139,7 +139,7 @@ typedef struct vm_page	*vm_page_t;
 /*
  *	Each pageable resident page falls into one of three lists:
  *
- *	free	
+ *	free
  *		Available for allocation now.
  *	inactive
  *		Not referenced in any map, but still has an
@@ -166,8 +166,11 @@ vm_offset_t	first_phys_addr;	/* physical address for first_page */
 extern
 vm_offset_t	last_phys_addr;		/* physical address for last_page */
 
+#define vm_page_free_count (vm_page_queue_free_count + vm_page_unqueued_count)
 extern
-int	vm_page_free_count;	/* How many pages are free? */
+int	vm_page_queue_free_count; /* How many are on vm_page_queue_free? */
+extern
+int	vm_page_unqueued_count; /* How many are in the LMM? */
 extern
 int	vm_page_fictitious_count;/* How many fictitious pages are free? */
 extern

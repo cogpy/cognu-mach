@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990,1989,1988 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -244,29 +244,16 @@ mach_device_deallocate(device)
 /*
  * port-to-device lookup routines.
  */
-decl_simple_lock_data(,
-	dev_port_lock)
+
 
 /*
  * Enter a port-to-device mapping.
  */
 void
-dev_port_enter(device)
-	register mach_device_t	device;
+dev_port_enter (device_t device)
 {
-	mach_device_reference(device);
-#ifdef i386
-	ipc_kobject_set(device->port,
-			(ipc_kobject_t) &device->dev, IKOT_DEVICE);
-	device->dev.emul_data = device;
-	{
-	  extern struct device_emulation_ops mach_device_emulation_ops;
-
-	  device->dev.emul_ops = &mach_device_emulation_ops;
-	}
-#else
-	ipc_kobject_set(device->port, (ipc_kobject_t) device, IKOT_DEVICE);
-#endif
+  device_reference(device);
+  ipc_kobject_set(device->port, (ipc_kobject_t) device, IKOT_DEVICE);
 }
 
 /*
@@ -276,8 +263,8 @@ void
 dev_port_remove(device)
 	register mach_device_t	device;
 {
-	ipc_kobject_set(device->port, IKO_NULL, IKOT_NONE);
-	mach_device_deallocate(device);
+  ipc_kobject_set(device->port, IKO_NULL, IKOT_NONE);
+  device_deallocate(device);
 }
 
 /*

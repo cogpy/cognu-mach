@@ -1,26 +1,26 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
- * any improvements or extensions that they make and grant Carnegie Mellon 
+ *
+ * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 
@@ -55,8 +55,6 @@
 #include <i386/mp_desc.h>
 #endif
 
-extern vm_offset_t	kvtophys();
-
 /*
  * Symbols exported from FPE emulator.
  */
@@ -79,9 +77,9 @@ extern void	fix_desc();
 #endif
 
 #define	gdt_desc_p(mycpu,sel) \
-	((struct real_descriptor *)&curr_gdt(mycpu)[sel_idx(sel)])
+	((struct x86_desc *)&curr_gdt(mycpu)[sel_idx(sel)])
 #define	idt_desc_p(mycpu,idx) \
-	((struct real_gate *)&curr_idt(mycpu)[idx])
+	((struct x86_gate *)&curr_idt(mycpu)[idx])
 
 void	set_user_access();	/* forward */
 
@@ -101,8 +99,8 @@ struct long_ptr fpe_recover_ptr;
 void
 fpe_init()
 {
-	register struct real_descriptor *gdt_p;
-	register struct real_gate *idt_p;
+	register struct x86_desc *gdt_p;
+	register struct x86_gate *idt_p;
 
 	/*
 	 * Map in the pages for the FP emulator:
@@ -181,7 +179,7 @@ fpe_init()
  */
 boolean_t
 fp_emul_error(regs)
-	struct i386_saved_state *regs;
+	struct trap_state *regs;
 {
 	register struct i386_fpsave_state *ifps;
 	register vm_offset_t	start_va;
@@ -200,7 +198,7 @@ fp_emul_error(regs)
 	    fp_state_alloc();
 	    ifps = current_thread()->pcb->ims.ifps;
 	}
-	    
+
 	panic("fp_emul_error: FP emulation is probably broken because of VM changes; fix! XXX");
 	start_va = (vm_offset_t) &ifps->fp_save_state;
 	set_user_access(current_map()->pmap,
@@ -224,7 +222,7 @@ void
 enable_fpe(ifps)
 	register struct i386_fpsave_state *ifps;
 {
-	struct real_descriptor *dp;
+	struct x86_desc *dp;
 	vm_offset_t	start_va;
 
 	dp = gdt_desc_p(cpu_number(), USER_FPREGS);

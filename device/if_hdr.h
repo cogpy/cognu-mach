@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990,1989 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -68,6 +68,7 @@ struct ifqueue {
  * Header for network interface drivers.
  */
 struct ifnet {
+#if 0
 	short	if_unit;		/* unit number */
 	short	if_flags;		/* up/down, broadcast, etc. */
 	short	if_timer;		/* time until if_watchdog called */
@@ -78,6 +79,7 @@ struct ifnet {
 	short	if_alloc_size;		/* size of read buffer to allocate */
 	char	*if_address;		/* pointer to hardware address */
 	struct ifqueue if_snd;		/* output queue */
+#endif
 	queue_head_t if_rcv_port_list;	/* input filter list */
 	decl_simple_lock_data(,
 		if_rcv_port_list_lock)	/* lock for filter list */

@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -86,14 +86,14 @@ struct i386_tss		*mp_ktss[NCPUS] = { 0 };
 /*
  * Pointer to GDT to reset the KTSS busy bit.
  */
-struct real_descriptor	*mp_gdt[NCPUS] = { 0 };
+struct x86_desc	*mp_gdt[NCPUS] = { 0 };
 
 /*
  * Boot-time tables, for initialization and master processor.
  */
-extern struct real_gate		idt[IDTSZ];
-extern struct real_descriptor	gdt[GDTSZ];
-extern struct real_descriptor	ldt[LDTSZ];
+extern struct x86_gate		idt[IDTSZ];
+extern struct x86_desc	gdt[GDTSZ];
+extern struct x86_desc	ldt[LDTSZ];
 extern struct i386_tss		ktss;
 
 /*
@@ -147,7 +147,7 @@ mp_desc_init(mycpu)
 		 */
 		fill_descriptor(&mpt->gdt[sel_idx(KERNEL_LDT)],
 			(unsigned)&mpt->ldt,
-			LDTSZ * sizeof(struct real_descriptor) - 1,
+			LDTSZ * sizeof(struct x86_desc) - 1,
 			ACC_P|ACC_PL_K|ACC_LDT, 0);
 		fill_descriptor(&mpt->gdt[sel_idx(KERNEL_TSS)],
 			(unsigned)&mpt->ktss,

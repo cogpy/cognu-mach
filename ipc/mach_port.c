@@ -1307,7 +1307,7 @@ mach_port_insert_right(
 	    !MACH_MSG_TYPE_PORT_ANY_RIGHT(polyPoly))
 		return KERN_INVALID_VALUE;
 
-	if (!IO_VALID(poly))
+	if (!IP_VALID(poly))
 		return KERN_INVALID_CAPABILITY;
 
 	return ipc_object_copyout_name(space, poly, polyPoly, FALSE, name);

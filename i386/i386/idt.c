@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1994 The University of Utah and
  * the Computer Systems Laboratory at the University of Utah (CSL).
  * All rights reserved.
@@ -21,39 +21,14 @@
  *      Author: Bryan Ford, University of Utah CSL
  */
 
-#include "vm_param.h"
-#include "seg.h"
-#include "idt.h"
-#include "gdt.h"
+#include <oskit/x86/gate_init.h>
+#include <oskit/x86/base_idt.h>
+#include <oskit/x86/base_gdt.h>
+#include <oskit/x86/base_trap.h>
 
-struct real_gate idt[IDTSZ];
-
-struct idt_init_entry
-{
-	unsigned entrypoint;
-	unsigned short vector;
-	unsigned short type;
-};
-extern struct idt_init_entry idt_inittab[];
+extern struct gate_init_entry idt_inittab[];
 
 void idt_init()
 {
-	struct idt_init_entry *iie = idt_inittab;
-
-	/* Initialize the exception vectors from the idt_inittab.  */
-	while (iie->entrypoint)
-	{
-		fill_idt_gate(iie->vector, iie->entrypoint, KERNEL_CS, iie->type, 0);
-		iie++;
-	}
-
-	/* Load the IDT pointer into the processor.  */
-	{
-		struct pseudo_descriptor pdesc;
-
-		pdesc.limit = sizeof(idt)-1;
-		pdesc.linear_base = kvtolin(&idt);
-		lidt(&pdesc);
-	}
+	gate_init(base_idt, idt_inittab, KERNEL_CS);
 }
-

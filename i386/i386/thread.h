@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990,1989 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -40,44 +40,16 @@
 #include <kern/lock.h>
 
 #include <i386/iopb.h>
-#include <i386/tss.h>
 
 /*
- *	i386_saved_state:
+ * The old `struct i386_saved_state' is replaced by the (identical)
+ * OSKit `struct trap_state'.
  *
  *	This structure corresponds to the state of user registers
  *	as saved upon kernel entry.  It lives in the pcb.
  *	It is also pushed onto the stack for exceptions in the kernel.
  */
-
-struct i386_saved_state {
-	unsigned int	gs;
-	unsigned int	fs;
-	unsigned int	es;
-	unsigned int	ds;
-	unsigned int	edi;
-	unsigned int	esi;
-	unsigned int	ebp;
-	unsigned int	cr2;		/* kernel esp stored by pusha -
-					   we save cr2 here later */
-	unsigned int	ebx;
-	unsigned int	edx;
-	unsigned int	ecx;
-	unsigned int	eax;
-	unsigned int	trapno;
-	unsigned int	err;
-	unsigned int	eip;
-	unsigned int	cs;
-	unsigned int	efl;
-	unsigned int	uesp;
-	unsigned int	ss;
-	struct v86_segs {
-	    unsigned int v86_es;	/* virtual 8086 segment registers */
-	    unsigned int v86_ds;
-	    unsigned int v86_fs;
-	    unsigned int v86_gs;
-	} v86_segs;
-};
+#include <oskit/x86/base_trap.h>
 
 /*
  *	i386_exception_link:
@@ -86,7 +58,7 @@ struct i386_saved_state {
  *	It points to the current thread`s user registers.
  */
 struct i386_exception_link {
-	struct i386_saved_state *saved_state;
+	struct trap_state *saved_state;
 };
 
 /*
@@ -165,7 +137,7 @@ struct i386_machine_state {
 
 typedef struct pcb {
 	struct i386_interrupt_state iis[2];	/* interrupt and NMI */
-	struct i386_saved_state iss;
+	struct trap_state iss;
 	struct i386_machine_state ims;
 	decl_simple_lock_data(, lock)
 #ifdef LINUX_DEV

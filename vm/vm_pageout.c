@@ -108,7 +108,7 @@
 #define	VM_PAGE_FREE_MIN(free)	(10 + (free) / 100)
 #endif	VM_PAGE_FREE_MIN
 
-/*      When vm_page_external_count exceeds vm_page_external_limit, 
+/*      When vm_page_external_count exceeds vm_page_external_limit,
  *	allocations of externally paged pages stops.
  */
 
@@ -561,6 +561,7 @@ void vm_pageout_scan()
     Restart:
 	stack_collect();
 	net_kmsg_collect();
+	consider_lmm_collect();
 	consider_task_collect();
 	consider_thread_collect();
 	consider_zone_gc();
@@ -711,12 +712,12 @@ void vm_pageout_scan()
 		    assert (!m->active && m->inactive);
 		    if (want_pages || m->external)
 		      break;
-		    
+
 		    m = (vm_page_t) queue_next (m);
 		    if (!m)
 		      goto pause;
 		  }
-		
+
 		object = m->object;
 
 		/*
@@ -809,19 +810,19 @@ void vm_pageout_scan()
 				vm_page_external_count--;
 			}
 		}
-		
+
 		/* If we don't actually need more memory, and the page
 		   is not dirty, put it on the tail of the inactive queue
 		   and move on to the next page. */
 		if (!want_pages && !m->dirty) {
-			queue_remove (&vm_page_queue_inactive, m, 
+			queue_remove (&vm_page_queue_inactive, m,
 				      vm_page_t, pageq);
 			queue_enter (&vm_page_queue_inactive, m,
 				     vm_page_t, pageq);
 			vm_page_unlock_queues();
 			vm_pageout_inactive_cleaned_external++;
 			continue;
-		}			
+		}
 
 		/*
 		 *	If it's clean and not precious, we can free the page.
@@ -968,11 +969,11 @@ void vm_pageout()
 	free_after_reserve = vm_page_free_count - vm_page_free_reserved;
 
 	if (vm_page_external_limit == 0)
-	        vm_page_external_limit = 
+	        vm_page_external_limit =
 			VM_PAGE_EXTERNAL_LIMIT (free_after_reserve);
 
 	if (vm_page_external_target == 0)
-	        vm_page_external_target = 
+	        vm_page_external_target =
 			VM_PAGE_EXTERNAL_TARGET (free_after_reserve);
 
 	if (vm_page_free_min == 0)

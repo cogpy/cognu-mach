@@ -41,7 +41,6 @@
 #include <kern/thread.h>
 #include <mach/vm_statistics.h>
 #include "vm_param.h"
-#include <kern/xpr.h>
 #include <kern/zalloc.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -55,10 +54,6 @@
 #include <mach_debug/hash_info.h>
 #include <vm/vm_user.h>
 #endif
-
-/* in zalloc.c XXX */
-extern vm_offset_t	zdata;
-extern vm_size_t	zdata_size;
 
 /*
  *	Associated with eacn page of user-allocatable memory is a
@@ -109,7 +104,8 @@ vm_page_t	vm_page_queue_free;
 vm_page_t	vm_page_queue_fictitious;
 decl_simple_lock_data(,vm_page_queue_free_lock)
 unsigned int	vm_page_free_wanted;
-int		vm_page_free_count;
+int		vm_page_queue_free_count;
+int		vm_page_unqueued_count;
 int		vm_page_fictitious_count;
 int		vm_page_external_count;
 
@@ -237,15 +233,6 @@ void vm_page_bootstrap(
 	vm_page_free_wanted = 0;
 
 	/*
-	 *	Steal memory for the zone system.
-	 */
-
-	kentry_data_size = kentry_count * sizeof(struct vm_map_entry);
-	kentry_data = pmap_steal_memory(kentry_data_size);
-
-	zdata = pmap_steal_memory(zdata_size);
-
-	/*
 	 *	Allocate (and initialize) the virtual-to-physical
 	 *	table hash buckets.
 	 *
@@ -280,6 +267,13 @@ void vm_page_bootstrap(
 	}
 
 	/*
+	 *	Steal memory for the kentry zone.
+	 */
+
+	kentry_data_size = kentry_count * sizeof(struct vm_map_entry);
+	kentry_data = pmap_steal_memory(kentry_data_size);
+
+	/*
 	 *	Machine-dependent code allocates the resident page table.
 	 *	It uses vm_page_init to initialize the page frames.
 	 *	The code also returns to us the virtual space available
@@ -287,6 +281,8 @@ void vm_page_bootstrap(
 	 *	to get the alignment right.
 	 */
 
+	/* pmap_startup is responsible for stealing memory for
+	   the zone system and putting it in zdata.  */
 	pmap_startup(&virtual_space_start, &virtual_space_end);
 	virtual_space_start = round_page(virtual_space_start);
 	virtual_space_end = trunc_page(virtual_space_end);
@@ -346,8 +342,7 @@ vm_offset_t pmap_steal_memory(
 	for (vaddr = round_page(addr);
 	     vaddr < addr + size;
 	     vaddr += PAGE_SIZE) {
-		if (!pmap_next_page(&paddr))
-			panic("pmap_steal_memory");
+		paddr = pmap_grab_page();
 
 		/*
 		 *	XXX Logically, these mappings should be wired,
@@ -361,6 +356,7 @@ vm_offset_t pmap_steal_memory(
 	return addr;
 }
 
+#if 0
 void pmap_startup(
 	vm_offset_t *startp,
 	vm_offset_t *endp)
@@ -413,6 +409,7 @@ void pmap_startup(
 	*startp = virtual_space_start;
 	*endp = virtual_space_end;
 }
+#endif
 #endif	/* MACHINE_PAGES */
 
 /*
@@ -867,10 +864,13 @@ vm_page_t vm_page_grab(
 		return VM_PAGE_NULL;
 	}
 
-	if (vm_page_queue_free == VM_PAGE_NULL)
-		panic("vm_page_grab");
+	if (vm_page_queue_free == VM_PAGE_NULL) {
+		vm_page_grab_oskit_page();
+		assert (vm_page_queue_free != VM_PAGE_NULL);
+	}
 
-	if (--vm_page_free_count < vm_page_free_count_minimum)
+	--vm_page_queue_free_count;
+	if (vm_page_free_count < vm_page_free_count_minimum)
 		vm_page_free_count_minimum = vm_page_free_count;
 	if (external)
 		vm_page_external_count++;
@@ -893,12 +893,14 @@ vm_page_t vm_page_grab(
 
 	if ((vm_page_free_count < vm_page_free_min) ||
 	    ((vm_page_free_count < vm_page_free_target) &&
-	     (vm_page_inactive_count < vm_page_inactive_target)))
+	     (vm_page_inactive_count < vm_page_inactive_target)) ||
+	    vm_page_queue_free_count < vm_page_unqueued_count)
 		thread_wakeup((event_t) &vm_page_free_wanted);
 
 	return mem;
 }
 
+#if 0
 vm_offset_t vm_page_grab_phys_addr()
 {
 	vm_page_t p = vm_page_grab(FALSE);
@@ -1139,6 +1141,7 @@ out:
 
 	return ret;
 }
+#endif
 
 /*
  *	vm_page_release:
@@ -1156,7 +1159,7 @@ void vm_page_release(
 	mem->free = TRUE;
 	mem->pageq.next = (queue_entry_t) vm_page_queue_free;
 	vm_page_queue_free = mem;
-	vm_page_free_count++;
+	vm_page_queue_free_count++;
 	if (external)
 		vm_page_external_count--;
 
@@ -1183,7 +1186,7 @@ void vm_page_release(
 	if ((vm_page_free_wanted > 0) &&
 	    (vm_page_free_count >= vm_page_free_reserved)) {
 		vm_page_free_wanted--;
-		thread_wakeup_one((event_t) &vm_page_free_count);
+		thread_wakeup_one((event_t) &vm_page_queue_free_count);
 	}
 
 	simple_unlock(&vm_page_queue_free_lock);
@@ -1217,7 +1220,7 @@ void vm_page_wait(
 	    || (vm_page_external_count > vm_page_external_limit)) {
 		if (vm_page_free_wanted++ == 0)
 			thread_wakeup((event_t)&vm_page_free_wanted);
-		assert_wait((event_t)&vm_page_free_count, FALSE);
+		assert_wait((event_t)&vm_page_queue_free_count, FALSE);
 		simple_unlock(&vm_page_queue_free_lock);
 		if (continuation != 0) {
 			counter(c_vm_page_wait_block_user++);

@@ -68,7 +68,8 @@ void softclock();		/* forward */
 int		hz = HZ;		/* number of ticks per second */
 int		tick = (1000000 / HZ);	/* number of usec per tick */
 time_value_t	time = { 0, 0 };	/* time since bootup (uncorrected) */
-unsigned long	elapsed_ticks = 0;	/* ticks elapsed since bootup */
+unsigned long	elapsed_ticks;		/* ticks elapsed since bootup */
+unsigned long	timeout_tick;		/* tick value for softclock timeouts */
 
 int		timedelta = 0;
 int		tickdelta = 0;
@@ -186,7 +187,6 @@ void clock_interrupt(usec, usermode, basepri)
 
 	    register spl_t s;
 	    register timer_elt_t	telt;
-	    boolean_t	needsoft = FALSE;
 
 #if	TS_FORMAT == 1
 	    /*
@@ -207,7 +207,7 @@ void clock_interrupt(usec, usermode, basepri)
 
 	    telt = (timer_elt_t)queue_first(&timer_head.chain);
 	    if (telt->ticks <= elapsed_ticks)
-		needsoft = TRUE;
+	      timeout_tick = elapsed_ticks;
 	    simple_unlock(&timer_lock);
 	    splx(s);
 
@@ -229,20 +229,21 @@ void clock_interrupt(usec, usermode, basepri)
 		    timedelta -= tickdelta;
 		}
 		time_value_add_usec(&time, delta);
+		if (time.seconds % 60 == 0) asm volatile ("int $3");
 	    }
 	    update_mapped_time(&time);
 
 	    /*
-	     *	Schedule soft-interupt for timeout if needed
+	     * We always run softclock so it can deliver oskit clock ticks.
+	     * The value of TIMEOUT_TICK tells softclock whether we detected
+	     * a (Mach) timeout above.
 	     */
-	    if (needsoft) {
-		if (basepri) {
-		    (void) splsoftclock();
-		    softclock();
-		}
-		else {
-		    setsoftclock();
-		}
+	    if (basepri) {
+	      (void) splsoftclock();
+	      softclock();
+	    }
+	    else {
+	      setsoftclock();
 	    }
 	}
 }
@@ -279,14 +280,15 @@ void softclock()
 	register int	(*fcn)();
 	register char	*param;
 
-	while (TRUE) {
+	if (timeout_tick == elapsed_ticks)
+	  while (TRUE) {
 	    s = splsched();
 	    simple_lock(&timer_lock);
 	    telt = (timer_elt_t) queue_first(&timer_head.chain);
 	    if (telt->ticks > elapsed_ticks) {
-		simple_unlock(&timer_lock);
-		splx(s);
-		break;
+	      simple_unlock(&timer_lock);
+	      splx(s);
+	      break;
 	    }
 	    fcn = telt->fcn;
 	    param = telt->param;
@@ -298,7 +300,10 @@ void softclock()
 
 	    assert(fcn != 0);
 	    (*fcn)(param);
-	}
+	  }
+
+	/* Give the oskit a clock tick.  */
+	softclock_oskit ();
 }
 
 /*
@@ -369,7 +374,7 @@ void init_timeout()
 }
 
 /*
- * Record a timestamp in STAMP. 
+ * Record a timestamp in STAMP.
  */
 void
 record_time_stamp (time_value_t *stamp)

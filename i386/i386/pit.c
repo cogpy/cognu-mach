@@ -1,29 +1,29 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990,1989 Carnegie Mellon University
- * Copyright (c) 1991 IBM Corporation 
+ * Copyright (c) 1991 IBM Corporation
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation,
- * and that the name IBM not be used in advertising or publicity 
+ * and that the name IBM not be used in advertising or publicity
  * pertaining to distribution of the software without specific, written
  * prior permission.
- * 
+ *
  * CARNEGIE MELLON AND IBM ALLOW FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON AND IBM DISCLAIM ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -49,18 +49,18 @@ NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
-#include <platforms.h>
 #include <kern/time_out.h>
 #include <i386/ipl.h>
-#include <i386/pit.h>
+#include <oskit/x86/pc/pit.h>
 
-int pitctl_port  = PITCTL_PORT;		/* For 386/20 Board */
-int pitctr0_port = PITCTR0_PORT;	/* For 386/20 Board */
-int pitctr1_port = PITCTR1_PORT;	/* For 386/20 Board */
-int pitctr2_port = PITCTR2_PORT;	/* For 386/20 Board */
+#define pitctl_port PIT_CONTROL
+#define pitctr0_port PIT_CNTR0
+#define pitctr1_port PIT_CNTR1
+#define pitctr2_port PIT_CNTR2
+
 /* We want PIT 0 in square wave mode */
 
-int pit0_mode = PIT_C0|PIT_SQUAREMODE|PIT_READMODE ;
+int pit0_mode = PIT_SEL0|PIT_SQWAVE|PIT_16BIT ;
 
 
 unsigned int delaycount;		/* loop count in trying to delay for
@@ -72,7 +72,7 @@ unsigned long microdata=50;		/* loop count for 10 microsecond wait.
 					   it before the clock has been
 					   initialized.
 					 */
-unsigned int clknumb = CLKNUM;		/* interrupt interval for timer 0 */
+unsigned int clknumb = PIT_HZ;		/* interrupt interval for timer 0 */
 
 #ifdef PS2
 extern int clock_int_handler();
@@ -106,11 +106,11 @@ clkstart()
 	 * timers you do not use
 	 */
 	outb(pitctl_port, pit0_mode);
-	clknumb = CLKNUM/hz;
+	clknumb = PIT_HZ/hz;
 	byte = clknumb;
 	outb(pitctr0_port, byte);
 	byte = clknumb>>8;
-	outb(pitctr0_port, byte); 
+	outb(pitctr0_port, byte);
 	splon(s);         /* restore interrupt state */
 }
 
@@ -127,7 +127,7 @@ findspeed()
 
 	s = sploff();                 /* disable interrupts */
 	/* Put counter in count down mode */
-#define PIT_COUNTDOWN PIT_READMODE|PIT_NDIVMODE
+#define PIT_COUNTDOWN PIT_16BIT|PIT_RATEGEN
 	outb(pitctl_port, PIT_COUNTDOWN);
 	/* output a count of -1 to counter 0 */
 	outb(pitctr0_port, 0xff);
@@ -140,10 +140,10 @@ findspeed()
 	leftover = (leftover<<8) + byte ;
 	/* Formula for delaycount is :
 	 *  (loopcount * timer clock speed)/ (counter ticks * 1000)
-	 * 1000 is for figuring out milliseconds 
+	 * 1000 is for figuring out milliseconds
 	 */
         /* we arrange calculation so that it doesn't overflow */
-        delaycount = ((COUNT/1000) * CLKNUM) / (0xffff-leftover);
+        delaycount = ((COUNT/1000) * PIT_HZ) / (0xffff-leftover);
 	/*        printf("findspeed: delaycount=%d (tics=%d)\n",
 	       delaycount, (0xffff-leftover));*/
 	splon(s);         /* restore interrupt state */
@@ -228,7 +228,7 @@ microfind()
 	 *  (loopcount * timer clock speed)/ (counter ticks * 1000)
 	 *  Note also that 1000 is for figuring out milliseconds
 	 */
-        microdata = (MICROCOUNT * CLKNUM) / ((0xffff-leftover)*100000);
+        microdata = (MICROCOUNT * PIT_HZ) / ((0xffff-leftover)*100000);
 	if (!microdata)
 		microdata++;
 

@@ -74,6 +74,9 @@
 #include <vm/vm_page.h>
 #include <vm/vm_user.h>
 
+#include <oskit/x86/physmem.h>
+#include <oskit/x86/base_cpu.h>
+
 #include <mach/machine/vm_param.h>
 #include <machine/thread.h>
 #include "cpu_number.h"
@@ -185,13 +188,6 @@ char	*pv_lock_table;		/* pointer to array of bits */
 boolean_t	pmap_initialized = FALSE;
 
 /*
- *	More-specific code provides these;
- *	they indicate the total extent of physical memory
- *	that we know about and might ever have to manage.
- */
-extern vm_offset_t phys_first_addr, phys_last_addr;
-
-/*
  *	Range of kernel virtual addresses available for kernel memory mapping.
  *	Does not include the virtual addresses used to map physical memory 1-1.
  *	Initialized by pmap_bootstrap.
@@ -204,9 +200,9 @@ vm_size_t morevm = 40 * 1024 * 1024;	/* VM space for kernel map */
 
 /*
  *	Index into pv_head table, its lock bits, and the modify/reference
- *	bits starting at phys_first_addr.
+ *	bits starting at phys_mem_min.
  */
-#define pa_index(pa)	(atop(pa - phys_first_addr))
+#define pa_index(pa)	(atop(pa - phys_mem_min))
 
 #define pai_to_pvh(pai)		(&pv_head_table[pai])
 #define lock_pvh_pai(pai)	(bit_lock(pai, pv_lock_table))
@@ -374,17 +370,45 @@ lock_data_t	pmap_system_lock;
 
 #define MAX_TBIS_SIZE	32		/* > this -> TBIA */ /* XXX */
 
-#if	i860
-/* Do a data cache flush until we find the caching bug XXX prp */
-#define INVALIDATE_TLB(s, e) { \
-	flush(); \
-	flush_tlb(); \
+static inline void
+INVALIDATE_TLB(vm_offset_t start, vm_offset_t end)
+{
+  if (base_cpuid.family != CPU_FAMILY_386 /* 486 or greater only */
+      && end - start < VM_MAX_ADDRESS - VM_MIN_ADDRESS)	/* if not whole TLB */
+    {
+      /* Later x86 processors can invalidate individual TLB entries
+	 one page at a time.  (We don't bother with this if we are
+	 invalidating the whole TLB anyway.) XXX do this anyway
+	 if we don't have PGE?
+
+	 This requires addressing the page in a kernel-mode instruction
+	 here, so we must compute from the linear addresses to kernel
+	 segment offsets.  Our loop then is in addresses relative to the
+	 kernel segmentation, which will start high and wrap around to zero
+	 at VM_MAX_ADDRESS.  So a test of S < E would not work!
+
+	 XXX I saw all manner of inexplicable weirdness when I tried to
+	 enable this code.  I even thought I had it reliably working for
+	 a while by inserting some nop's, but then I couldn't reproduce that.
+	 This was on an Intel Pentium (100MHz).  Your mileage may vary. --rm
+      */
+      oskit_addr_t s, e;
+      for (s = lintokv (start), e = lintokv (end);
+	   s != e;		/* note we wrap around zero! */
+	   s += PAGE_SIZE) {
+	asm volatile ("invlpg %0" : : "m" (*(int *) s));
+	asm volatile ("invlpg %0" : : "m" (*(int *) kvtolin(s))); /* XXX ??? */
+      }
+    }
+  else
+    /* This is the only option on the 386, and we use it on later
+       processors as well when flushing all user-space mappings.
+       Note that if PGE is supported, this does not flush TLB entries
+       marked global (kernel-space mappings).  Those mappings must be
+       flushed with invlpg.  Any kernel-space mapping change will call here
+       to flush just the affected pages, and hit the invplg case above.  */
+    inval_tlb ();
 }
-#else	i860
-#define INVALIDATE_TLB(s, e) { \
-	flush_tlb(); \
-}
-#endif	i860
 
 
 #if	NCPUS > 1
@@ -549,7 +573,7 @@ vm_offset_t pmap_map(virt, start, end, prot)
 /*
  *	Back-door routine for mapping kernel VM at initialization.
  * 	Useful for mapping memory outside the range
- *	[phys_first_addr, phys_last_addr) (i.e., devices).
+ *	[phys_mem_min, phys_mem_max) (i.e., devices).
  *	Otherwise like pmap_map.
 #if	i860
  *      Sets no-cache bit.
@@ -583,6 +607,8 @@ vm_offset_t pmap_map_bd(virt, start, end, prot)
 	}
 	return(virt);
 }
+
+static pt_entry_t kernel_pte_global;
 
 /*
  *	Bootstrap the system enough to run with virtual memory.
@@ -626,8 +652,8 @@ void pmap_bootstrap()
 	 * mapped into the kernel address space,
 	 * and extends to a stupid arbitrary limit beyond that.
 	 */
-	kernel_virtual_start = phys_last_addr;
-	kernel_virtual_end = phys_last_addr + morevm;
+	kernel_virtual_start = phys_mem_max;
+	kernel_virtual_end = phys_mem_max + morevm;
 
 	/*
 	 * Allocate and clear a kernel page directory.
@@ -639,6 +665,15 @@ void pmap_bootstrap()
 			kernel_pmap->dirbase[i] = 0;
 	}
 
+	if (base_cpuid.feature_flags & CPUF_PAGE_GLOBAL_EXT) {
+	  /*
+	   * The processor supports the "global" bit to avoid flushing
+	   * kernel TLB entries, if we turn it on.
+	   */
+	  set_cr4 (get_cr4 () | CR4_PGE);
+	  kernel_pte_global = INTEL_PTE_GLOBAL;
+	}
+
 	/*
 	 * Allocate and set up the kernel page tables.
 	 */
@@ -647,7 +682,7 @@ void pmap_bootstrap()
 
 		/*
 		 * Map virtual memory for all known physical memory, 1-1,
-		 * from phys_first_addr to phys_last_addr.
+		 * from phys_mem_min to phys_mem_max.
 		 * Make any mappings completely in the kernel's text segment read-only.
 		 *
 		 * Also allocate some additional all-null page tables afterwards
@@ -656,7 +691,7 @@ void pmap_bootstrap()
 		 * to allocate new kernel page tables later.
 		 * XX fix this
 		 */
-		for (va = phys_first_addr; va < phys_last_addr + morevm; )
+		for (va = phys_mem_min; va < phys_mem_max + morevm; )
 		{
 			pt_entry_t *pde = kernel_page_dir + lin2pdenum(kvtolin(va));
 			pt_entry_t *ptable = (pt_entry_t*)pmap_grab_page();
@@ -664,37 +699,31 @@ void pmap_bootstrap()
 			vm_offset_t pteva;
 
 			/* Initialize the page directory entry.  */
-			*pde = pa_to_pte((vm_offset_t)ptable)
-				| INTEL_PTE_VALID | INTEL_PTE_WRITE;
+			*pde = (pa_to_pte((vm_offset_t)ptable)
+				| INTEL_PTE_VALID | INTEL_PTE_WRITE
+				| kernel_pte_global);
 
 			/* Initialize the page table.  */
-			for (pte = ptable; (va < phys_last_addr) && (pte < ptable+NPTES); pte++)
+			for (pte = ptable; (va < phys_mem_max) && (pte < ptable+NPTES); pte++)
 			{
-				if ((pte - ptable) < ptenum(va))
-				{
-					WRITE_PTE_FAST(pte, 0);
-				}
-				else
-				{
-					extern char _start[], etext[];
+			  pt_entry_t entry = kernel_pte_global;
+			  if ((pte - ptable) < ptenum(va))
+			    entry |= 0;	/* nada */
+			  else
+			    {
+			      extern char _start[], etext[];
 
-					if ((va >= (vm_offset_t)_start)
-					    && (va + INTEL_PGBYTES <= (vm_offset_t)etext))
-					{
-						WRITE_PTE_FAST(pte, pa_to_pte(va)
-							| INTEL_PTE_VALID);
-					}
-					else
-					{
-						WRITE_PTE_FAST(pte, pa_to_pte(va)
-							| INTEL_PTE_VALID | INTEL_PTE_WRITE);
-					}
-					va += INTEL_PGBYTES;
-				}
+			      entry |= pa_to_pte(va) | INTEL_PTE_VALID;
+			      if ((va < (vm_offset_t)_start)
+				  || (va + INTEL_PGBYTES > (vm_offset_t)etext))
+				entry |= INTEL_PTE_WRITE;
+			      va += INTEL_PGBYTES;
+			    }
+			  WRITE_PTE_FAST(pte, entry);
 			}
 			for (; pte < ptable+NPTES; pte++)
 			{
-				WRITE_PTE_FAST(pte, 0);
+				WRITE_PTE_FAST(pte, kernel_pte_global);
 				va += INTEL_PGBYTES;
 			}
 		}
@@ -812,7 +841,7 @@ void pmap_init()
 	 *	the modify bit array, and the pte_page table.
 	 */
 
-	npages = atop(phys_last_addr - phys_first_addr);
+	npages = atop(phys_mem_max - phys_mem_min);
 	s = (vm_size_t) (sizeof(struct pv_entry) * npages
 				+ pv_lock_table_size(npages)
 				+ npages);
@@ -910,7 +939,7 @@ pmap_page_table_page_alloc()
 	 *	Allocate it now if it is missing.
 	 */
 	if (pmap_object == VM_OBJECT_NULL)
-	    pmap_object = vm_object_allocate(phys_last_addr - phys_first_addr);
+	    pmap_object = vm_object_allocate(phys_mem_max - phys_mem_min);
 
 	/*
 	 *	Allocate a VM page for the level 2 page table entries.
@@ -923,6 +952,7 @@ pmap_page_table_page_alloc()
 	 *	can be found later.
 	 */
 	pa = m->phys_addr;
+debug_unprotect_page(pa);
 	vm_object_lock(pmap_object);
 	vm_page_insert(m, pmap_object, pa);
 	vm_page_lock_queues();
@@ -930,11 +960,6 @@ pmap_page_table_page_alloc()
 	inuse_ptepages_count++;
 	vm_page_unlock_queues();
 	vm_object_unlock(pmap_object);
-
-	/*
-	 *	Zero the page.
-	 */
-	bzero(phystokv(pa), PAGE_SIZE);
 
 #if	i860
 	/*
@@ -1009,10 +1034,16 @@ pmap_t pmap_create(size)
 	if (p == PMAP_NULL)
 		panic("pmap_create");
 
+	/* This gets a physical page with a direct-mapped address,
+	   rather than assigning a new kernel virtual address.
+	   This saves us having to do the translation at task-switch time.  */
+	p->dirbase = (pt_entry_t *) phystokv(pmap_page_table_page_alloc());
+#if 0
 	if (kmem_alloc_wired(kernel_map,
 			     (vm_offset_t *)&p->dirbase, INTEL_PGBYTES)
 							!= KERN_SUCCESS)
 		panic("pmap_create");
+#endif
 
 	bcopy(kernel_page_dir, p->dirbase, INTEL_PGBYTES);
 	p->ref_count = 1;
@@ -1078,7 +1109,11 @@ void pmap_destroy(p)
 		vm_object_unlock(pmap_object);
 	    }
 	}
+	/* See comment in pmap_create.  */
+	pmap_page_table_page_dealloc(kvtophys(p->dirbase));
+#if 0
 	kmem_free(kernel_map, p->dirbase, INTEL_PGBYTES);
+#endif
 	zfree(pmap_zone, (vm_offset_t) p);
 }
 
@@ -1603,6 +1638,10 @@ Retry:
 	    PMAP_READ_UNLOCK(pmap, spl);
 
 	    ptp = pmap_page_table_page_alloc();
+	    /*
+	     *	Zero the page.
+	     */
+	    bzero(phystokv(ptp), PAGE_SIZE);
 
 	    /*
 	     * Re-lock the pmap and check that another thread has
@@ -1648,6 +1687,8 @@ Retry:
 	    continue;
 	}
 
+	template = pmap == kernel_pmap ? kernel_pte_global : 0;
+
 	/*
 	 *	Special case if the physical page is already mapped
 	 *	at this address.
@@ -1663,7 +1704,7 @@ Retry:
 	    else if (!wired && (*pte & INTEL_PTE_WIRED))
 		pmap->stats.wired_count--;
 
-	    template = pa_to_pte(pa) | INTEL_PTE_VALID;
+	    template |= pa_to_pte(pa) | INTEL_PTE_VALID;
 	    if (pmap != kernel_pmap)
 		template |= INTEL_PTE_USER;
 	    if (prot & VM_PROT_WRITE)
@@ -1772,7 +1813,7 @@ Retry:
 	     *	Build a template to speed up entering -
 	     *	only the pfn changes.
 	     */
-	    template = pa_to_pte(pa) | INTEL_PTE_VALID;
+	    template |= pa_to_pte(pa) | INTEL_PTE_VALID;
 	    if (pmap != kernel_pmap)
 		template |= INTEL_PTE_USER;
 	    if (prot & VM_PROT_WRITE)
@@ -2558,6 +2599,6 @@ pmap_unmap_page_zero ()
   pte = (int *) pmap_pte (kernel_pmap, 0);
   assert (pte);
   *pte = 0;
-  asm volatile ("movl %%cr3,%%eax; movl %%eax,%%cr3" ::: "ax");
+  inval_tlb ();
 }
 #endif /* i386 */

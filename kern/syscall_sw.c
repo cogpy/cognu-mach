@@ -33,12 +33,12 @@
 #include <mach/port.h>
 #include <mach/kern_return.h>
 #include <kern/syscall_sw.h>
+#include <kern/debug.h>
 
 /* Include declarations of the trap functions. */
 #include <mach/mach_traps.h>
 #include <mach/message.h>
 #include <kern/syscall_subr.h>
-#include <chips/nw_mk.h>
 
 
 /*
@@ -93,7 +93,7 @@ extern	kern_return_t	evc_wait_clear();
 extern	kern_return_t	syscall_device_write_request();
 extern	kern_return_t	syscall_device_writev_request();
 
-#ifdef FIPC 
+#ifdef FIPC
 extern kern_return_t	syscall_fipc_send();
 extern kern_return_t	syscall_fipc_recv();
 #endif FIPC

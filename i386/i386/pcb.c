@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -41,15 +41,16 @@
 #include <vm/pmap.h>
 
 #include <i386/thread.h>
-#include <i386/proc_reg.h>
-#include <i386/seg.h>
-#include <i386/tss.h>
 #include <i386/user_ldt.h>
 #include <i386/fpu.h>
 #include "eflags.h"
 #include "gdt.h"
 #include "ldt.h"
-#include "ktss.h"
+
+#include <oskit/x86/seg.h>
+#include <oskit/x86/tss.h>
+#include <oskit/x86/base_tss.h>
+#include <oskit/x86/proc_reg.h>
 
 #if	NCPUS > 1
 #include <i386/mp_desc.h>
@@ -125,11 +126,11 @@ vm_offset_t stack_detach(thread)
 #define	curr_ktss(mycpu)	(mp_ktss[mycpu])
 #else
 #define	curr_gdt(mycpu)		(gdt)
-#define	curr_ktss(mycpu)	(&ktss)
+#define	curr_ktss(mycpu)	(&base_tss)
 #endif
 
 #define	gdt_desc_p(mycpu,sel) \
-	((struct real_descriptor *)&curr_gdt(mycpu)[sel_idx(sel)])
+	((struct x86_desc *)&curr_gdt(mycpu)[sel_idx(sel)])
 
 void switch_ktss(pcb)
 	register pcb_t	pcb;
@@ -148,9 +149,9 @@ void switch_ktss(pcb)
 	 *	won`t save the v86 segments, so we leave room.
 	 */
 
-	pcb_stack_top = (pcb->iss.efl & EFL_VM)
+	pcb_stack_top = (pcb->iss.eflags & EFL_VM)
 			? (int) (&pcb->iss + 1)
-			: (int) (&pcb->iss.v86_segs);
+			: (int) (&pcb->iss.v86_es);
 
 	if (tss == 0) {
 	    /*
@@ -166,7 +167,7 @@ void switch_ktss(pcb)
 	     * Set the IO permissions.  Use this thread`s TSS.
 	     */
 	    *gdt_desc_p(mycpu,USER_TSS)
-	    	= *(struct real_descriptor *)tss->iopb_desc;
+	    	= *(struct x86_desc *)tss->iopb_desc;
 	    tss->tss.esp0 = pcb_stack_top;
 	    set_tr(USER_TSS);
 	    gdt_desc_p(mycpu,KERNEL_TSS)->access &= ~ ACC_TSS_BUSY;
@@ -340,7 +341,7 @@ void pcb_init(thread)
 	pcb->iss.es = USER_DS;
 	pcb->iss.fs = USER_DS;
 	pcb->iss.gs = USER_DS;
-	pcb->iss.efl = EFL_USER_SET;
+	pcb->iss.eflags = EFL_USER_SET;
 
 	thread->pcb = pcb;
 }
@@ -392,7 +393,7 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 	    case i386_REGS_SEGS_STATE:
 	    {
 		register struct i386_thread_state	*state;
-		register struct i386_saved_state	*saved_state;
+		register struct trap_state	*saved_state;
 
 		if (count < i386_THREAD_STATE_COUNT) {
 		    return(KERN_INVALID_ARGUMENT);
@@ -426,13 +427,13 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		saved_state->edi = state->edi;
 		saved_state->esi = state->esi;
 		saved_state->ebp = state->ebp;
-		saved_state->uesp = state->uesp;
+		saved_state->esp = state->uesp;
 		saved_state->ebx = state->ebx;
 		saved_state->edx = state->edx;
 		saved_state->ecx = state->ecx;
 		saved_state->eax = state->eax;
 		saved_state->eip = state->eip;
-		saved_state->efl = (state->efl & ~EFL_USER_CLEAR)
+		saved_state->eflags = (state->efl & ~EFL_USER_CLEAR)
 				    | EFL_USER_SET;
 
 		/*
@@ -444,10 +445,10 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		     */
 		    saved_state->cs = state->cs & 0xffff;
 		    saved_state->ss = state->ss & 0xffff;
-		    saved_state->v86_segs.v86_ds = state->ds & 0xffff;
-		    saved_state->v86_segs.v86_es = state->es & 0xffff;
-		    saved_state->v86_segs.v86_fs = state->fs & 0xffff;
-		    saved_state->v86_segs.v86_gs = state->gs & 0xffff;
+		    saved_state->v86_ds = state->ds & 0xffff;
+		    saved_state->v86_es = state->es & 0xffff;
+		    saved_state->v86_fs = state->fs & 0xffff;
+		    saved_state->v86_gs = state->gs & 0xffff;
 
 		    /*
 		     * Zero protected mode segment registers.
@@ -556,7 +557,7 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		thread->pcb->ims.v86s.int_count = int_count;
 
 		thread->pcb->ims.v86s.flags =
-			USER_REGS(thread)->efl & (EFL_TF | EFL_IF);
+			USER_REGS(thread)->eflags & (EFL_TF | EFL_IF);
 		break;
 	    }
 
@@ -594,7 +595,7 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
 	    case i386_REGS_SEGS_STATE:
 	    {
 		register struct i386_thread_state	*state;
-		register struct i386_saved_state	*saved_state;
+		register struct trap_state	*saved_state;
 
 		if (*count < i386_THREAD_STATE_COUNT)
 		    return(KERN_INVALID_ARGUMENT);
@@ -613,19 +614,19 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
 		state->ecx = saved_state->ecx;
 		state->eax = saved_state->eax;
 		state->eip = saved_state->eip;
-		state->efl = saved_state->efl;
-		state->uesp = saved_state->uesp;
+		state->efl = saved_state->eflags;
+		state->uesp = saved_state->esp;
 
 		state->cs = saved_state->cs;
 		state->ss = saved_state->ss;
-		if (saved_state->efl & EFL_VM) {
+		if (saved_state->eflags & EFL_VM) {
 		    /*
 		     * V8086 mode.
 		     */
-		    state->ds = saved_state->v86_segs.v86_ds & 0xffff;
-		    state->es = saved_state->v86_segs.v86_es & 0xffff;
-		    state->fs = saved_state->v86_segs.v86_fs & 0xffff;
-		    state->gs = saved_state->v86_segs.v86_gs & 0xffff;
+		    state->ds = saved_state->v86_ds & 0xffff;
+		    state->es = saved_state->v86_es & 0xffff;
+		    state->fs = saved_state->v86_fs & 0xffff;
+		    state->gs = saved_state->v86_gs & 0xffff;
 
 		    if (thread->pcb->ims.v86s.int_table) {
 			/*
@@ -756,13 +757,13 @@ set_user_regs(stack_base, stack_size, exec_info, arg_size)
 	vm_size_t	arg_size;
 {
 	vm_offset_t	arg_addr;
-	register struct i386_saved_state *saved_state;
+	register struct trap_state *saved_state;
 
 	arg_size = (arg_size + sizeof(int) - 1) & ~(sizeof(int)-1);
 	arg_addr = stack_base + stack_size - arg_size;
 
 	saved_state = USER_REGS(current_thread());
-	saved_state->uesp = (int)arg_addr;
+	saved_state->esp = (int)arg_addr;
 	saved_state->eip = exec_info->entry;
 
 	return (arg_addr);

@@ -49,8 +49,8 @@
 #include <kern/assert.h>
 #include <kern/lock.h>
 #include <kern/queue.h>
-#include <kern/xpr.h>
 #include <kern/zalloc.h>
+#include <kern/debug.h>
 #include <vm/memory_object.h>
 #include <vm/vm_fault.h>
 #include <vm/vm_map.h>
@@ -120,7 +120,7 @@ void vm_object_deactivate_pages(vm_object_t);
  *	that depend on the default memory manager are called
  *	"internal".  The "pager_created" field is provided to
  *	indicate whether these ports have ever been allocated.
- *	
+ *
  *	The kernel may also create virtual memory objects to
  *	hold changed pages after a copy-on-write operation.
  *	In this case, the virtual memory object (and its
@@ -776,7 +776,7 @@ void vm_object_abort_activity(
 			 	p->unlock_request = VM_PROT_NONE;
 			PAGE_WAKEUP(p);
 		}
-		
+
 		p = next;
 	}
 
@@ -836,7 +836,7 @@ kern_return_t memory_object_destroy(
 
 	old_object = object->pager;
 	object->pager = IP_NULL;
-	
+
 	old_control = object->pager_request;
 	object->pager_request = PAGER_REQUEST_NULL;
 
@@ -920,7 +920,7 @@ void vm_object_deactivate_pages(
  *		remove access to all pages in shadowed objects.
  *
  *		The object must *not* be locked.  The object must
- *		be temporary/internal.  
+ *		be temporary/internal.
  *
  *              If pmap is not NULL, this routine assumes that
  *              the only mappings for the pages are in that
@@ -1183,7 +1183,7 @@ kern_return_t vm_object_copy_slowly(
 							top_page);
 
 					break;
-				
+
 				case VM_FAULT_RETRY:
 					break;
 
@@ -1422,7 +1422,7 @@ kern_return_t vm_object_copy_call(
 	}
 
 	vm_object_unlock(src_object);
-		
+
 	/*
 	 *	Initialize the rest of the paging stuff
 	 */
@@ -1602,13 +1602,13 @@ vm_object_t vm_object_copy_delayed(
 
 	queue_iterate(&src_object->memq, p, vm_page_t, listq) {
 	    if (!p->fictitious)
-		pmap_page_protect(p->phys_addr, 
+		pmap_page_protect(p->phys_addr,
 				  (VM_PROT_ALL & ~VM_PROT_WRITE &
 				   ~p->page_lock));
 	}
 
 	vm_object_unlock(src_object);
-	
+
 	return new_copy;
 }
 
@@ -1694,7 +1694,7 @@ kern_return_t	vm_object_copy_strategically(
 		break;
 
 	    case MEMORY_OBJECT_COPY_CALL:
-		if ((result = vm_object_copy_call(	
+		if ((result = vm_object_copy_call(
 				src_object,
 				src_offset,
 				size,
@@ -1754,7 +1754,7 @@ void vm_object_shadow(
 	 *	count.
 	 */
 	result->shadow = source;
-	
+
 	/*
 	 *	Store the offset into the source object,
 	 *	and fix up the offset into the new object.
@@ -2279,7 +2279,7 @@ void vm_object_pager_create(
 	 */
 
 	object->pager_created = TRUE;
-		
+
 	/*
 	 *	Prevent collapse or termination by
 	 *	holding a paging reference
@@ -2433,10 +2433,10 @@ void vm_object_collapse(
 		/*
 		 *		There is a backing object, and
 		 */
-	
+
 		if ((backing_object = object->shadow) == VM_OBJECT_NULL)
 			return;
-	
+
 		vm_object_lock(backing_object);
 		/*
 		 *	...
@@ -2448,13 +2448,13 @@ void vm_object_collapse(
 		 *	XXX It may be sufficient for the backing
 		 *	XXX object to be temporary.
 		 */
-	
+
 		if (!backing_object->internal ||
 		    backing_object->paging_in_progress != 0) {
 			vm_object_unlock(backing_object);
 			return;
 		}
-	
+
 		/*
 		 *	The backing object can't be a copy-object:
 		 *	the shadow_offset for the copy-object must stay
@@ -2485,7 +2485,7 @@ void vm_object_collapse(
 		 *	If there is exactly one reference to the backing
 		 *	object, we can collapse it into the parent.
 		 */
-	
+
 		if (backing_object->ref_count == 1) {
 			if (!vm_object_cache_lock_try()) {
 				vm_object_unlock(backing_object);
@@ -2754,7 +2754,7 @@ void vm_object_collapse(
 
 			/*
 			 *	Backing object might have had a copy pointer
-			 *	to us.  If it did, clear it. 
+			 *	to us.  If it did, clear it.
 			 */
 			if (backing_object->copy == object)
 				backing_object->copy = VM_OBJECT_NULL;

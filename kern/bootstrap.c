@@ -45,8 +45,8 @@
 
 #include <sys/varargs.h>
 
-#include <mach/machine/multiboot.h>
-#include <mach/exec/exec.h>
+#include <oskit/machine/multiboot.h>
+#include <oskit/exec/exec.h>
 
 #if	MACH_KDB
 #include <machine/db_machdep.h>
@@ -57,7 +57,7 @@
 static mach_port_t	boot_device_port;	/* local name */
 static mach_port_t	boot_host_port;		/* local name */
 
-extern struct multiboot_info *boot_info;
+extern struct multiboot_info boot_info;
 extern char *kernel_cmdline;
 
 static void user_bootstrap();	/* forward */
@@ -87,12 +87,12 @@ void bootstrap_create()
 {
 	struct multiboot_module *bmod;
 
-	if (!(boot_info->flags & MULTIBOOT_MODS)
-	    || (boot_info->mods_count == 0))
+	if (!(boot_info.flags & MULTIBOOT_MODS)
+	    || (boot_info.mods_count == 0))
 		panic("No bootstrap code loaded with the kernel!");
-	if (boot_info->mods_count > 1)
+	if (boot_info.mods_count > 1)
 		printf("Warning: only one boot module currently used by Mach\n");
-	bmod = (struct multiboot_module *)phystokv(boot_info->mods_addr);
+	bmod = (struct multiboot_module *)phystokv(boot_info.mods_addr);
 	bootstrap_exec((void*)phystokv(bmod->mod_start));
 
 	/* XXX at this point, we could free all the memory used
@@ -170,6 +170,8 @@ itoa(
 static void get_compat_strings(char *flags_str, char *root_str)
 {
 	register char *ip, *cp;
+
+	strcpy (root_str, "UNKNOWN");
 
 	cp = flags_str;
 	*cp++ = '-';
@@ -263,10 +265,10 @@ static int read_exec(void *handle, vm_offset_t file_ofs, vm_size_t file_size,
 	start_page = trunc_page(mem_addr);
 	end_page = round_page(mem_addr + mem_size);
 
-	/*
+#if 0
 	printf("reading bootstrap section %08x-%08x-%08x prot %d pages %08x-%08x\n",
 		mem_addr, mem_addr+file_size, mem_addr+mem_size, mem_prot, start_page, end_page);
-	*/
+#endif
 
 	err = vm_allocate(user_map, &start_page, end_page - start_page, FALSE);
 	assert(err == 0);
@@ -285,7 +287,7 @@ static int read_exec(void *handle, vm_offset_t file_ofs, vm_size_t file_size,
 	}
 }
 
-static void copy_bootstrap(void *e, struct exec_info *boot_exec_info)
+static void copy_bootstrap(void *e, exec_info_t *boot_exec_info)
 {
 	register vm_map_t	user_map = current_task()->map;
 	int err;
@@ -336,7 +338,7 @@ extern vm_offset_t	set_user_regs();
 
 void
 static build_args_and_stack(boot_exec_info, va_alist)
-	struct exec_info *boot_exec_info;
+	exec_info_t *boot_exec_info;
 	va_dcl
 {
 	vm_offset_t	stack_base;
@@ -470,12 +472,12 @@ static build_args_and_stack(boot_exec_info, va_alist)
 
 static void user_bootstrap()
 {
-	struct exec_info boot_exec_info;
+	exec_info_t boot_exec_info;
 
 	char	host_string[12];
 	char	device_string[12];
-	char	flag_string[12];
-	char	root_string[12];
+	char	flag_string[1024];
+	char	root_string[1024];
 
 	/*
 	 * Copy the bootstrap code from boot_exec into the user task.

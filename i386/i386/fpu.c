@@ -1,34 +1,32 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1992-1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 /*
  * Support for 80387 floating point or FP emulator.
  */
-#include <cpus.h>
-#include <fpe.h>
-#include <platforms.h>
+#include <config.h>
 
 #include <mach/exception.h>
 #include <mach/machine/thread_status.h>
@@ -101,9 +99,14 @@ init_fpu()
 	 */
 	set_cr0(get_cr0() & ~(CR0_EM|CR0_TS));	/* allow use of FPU */
 
-	fninit();
-	status = fnstsw();
-	fnstcw(&control);
+	if (getenv ("no_fpu"))
+	  status = control = 0;
+	else
+	  {
+	    fninit();
+	    status = fnstsw();
+	    fnstcw(&control);
+	  }
 
 	if ((status & 0xff) == 0 &&
 	    (control & 0x103f) == 0x3f)
@@ -175,7 +178,7 @@ fp_free(fps)
 ASSERT_IPL(SPL0);
 #if	NCPUS == 1
 	if ((fp_thread != THREAD_NULL) && (fp_thread->pcb->ims.ifps == fps)) {
-		/* 
+		/*
 		 * Make sure we don't get FPU interrupts later for
 		 * this thread
 		 */
@@ -443,7 +446,7 @@ ASSERT_IPL(SPL0);
 	fninit();
 	fnstcw(&control);
 	control &= ~(FPC_PC|FPC_RC); /* Clear precision & rounding control */
-	control |= (FPC_PC_53 |		/* Set precision */ 
+	control |= (FPC_PC_53 |		/* Set precision */
 			FPC_RC_RN | 	/* round-to-nearest */
 			FPC_ZE |	/* Suppress zero-divide */
 			FPC_OE |	/*  and overflow */
@@ -642,7 +645,7 @@ ASSERT_IPL(SPL0);
 	    pcb->ims.ifps = ifps;
 	    fpinit();
 #if 1
-/* 
+/*
  * I'm not sure this is needed. Does the fpu regenerate the interrupt in
  * frstor or not? Without this code we may miss some exceptions, with it
  * we might send too many exceptions.

@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1993-1989 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -50,7 +50,8 @@
 #include <device/device_types.h>
 #include <device/ds_routines.h>
 #include <device/dev_hdr.h>
-#include <device/io_req.h>
+
+#include "../oskit/ds_oskit.h"
 
 extern vm_offset_t	block_io_mmap();	/* dummy routine to allow
 						   mmap for block devices */
@@ -109,13 +110,8 @@ struct dev_pager {
 	ipc_port_t	pager;		/* pager port */
 	ipc_port_t	pager_request;	/* Known request port */
 	ipc_port_t	pager_name;	/* Known name port */
-	mach_device_t	device;		/* Device handle */
-	int		type;		/* to distinguish */
-#define DEV_PAGER_TYPE	0
-#define CHAR_PAGER_TYPE	1
-	/* char pager specifics */
-	int		prot;
-	vm_size_t	size;
+	device_t	device;		/* Device handle */
+	vm_prot_t	prot;
 };
 typedef struct dev_pager *dev_pager_t;
 #define	DEV_PAGER_NULL	((dev_pager_t)0)
@@ -241,19 +237,13 @@ dev_pager_t dev_pager_hash_lookup(ipc_port_t	name_port)
 }
 
 kern_return_t	device_pager_setup(
-	mach_device_t	device,
+	device_t	device,
 	int		prot,
 	vm_offset_t	offset,
 	vm_size_t	size,
 	mach_port_t	*pager)
 {
 	register dev_pager_t	d;
-
-	/*
-	 *	Verify the device is indeed mappable
-	 */
-	if (!device->dev_ops->d_mmap || (device->dev_ops->d_mmap == nomap))
-		return (D_INVALID_OPERATION);
 
 	/*
 	 *	Allocate a structure to hold the arguments
@@ -287,14 +277,8 @@ kern_return_t	device_pager_setup(
 	d->pager_request = IP_NULL;
 	d->pager_name = IP_NULL;
 	d->device = device;
-	mach_device_reference(device);
+	device_reference(device);
 	d->prot = prot;
-	d->size = round_page(size);
-	if (device->dev_ops->d_mmap == block_io_mmap) {
-		d->type = DEV_PAGER_TYPE;
-	} else {
-		d->type = CHAR_PAGER_TYPE;
-	}
 
 	dev_pager_hash_insert(d->pager, d);
 	dev_pager_hash_insert((ipc_port_t)device, d);	/* HACK */
@@ -330,6 +314,8 @@ kern_return_t	device_pager_data_request(
 	vm_prot_t	protection_required)
 {
 	register dev_pager_t	ds;
+	register vm_object_t	object;
+	vm_offset_t		device_map_page(void *,vm_offset_t);
 
 #ifdef lint
 	protection_required++;
@@ -346,76 +332,31 @@ kern_return_t	device_pager_data_request(
 	if (ds->pager_request != pager_request)
 		panic("(device_pager)data_request: bad pager_request");
 
-	if (ds->type == CHAR_PAGER_TYPE) {
-	    register vm_object_t	object;
-	    vm_offset_t			device_map_page(void *,vm_offset_t);
-
 #if	NORMA_VM
-	    object = vm_object_lookup(pager);
+	object = vm_object_lookup(pager);
 #else	NORMA_VM
-	    object = vm_object_lookup(pager_request);
+	object = vm_object_lookup(pager_request);
 #endif	NORMA_VM
-	    if (object == VM_OBJECT_NULL) {
-		    (void) r_memory_object_data_error(pager_request,
-						      offset, length,
-						      KERN_FAILURE);
-		    dev_pager_deallocate(ds);
-		    return (KERN_SUCCESS);
-	    }
-
-	    vm_object_page_map(object,
-			       offset, length,
-			       device_map_page, (char *)ds);
-
-	    vm_object_deallocate(object);
+	if (object == VM_OBJECT_NULL) {
+	  (void) r_memory_object_data_error(pager_request,
+					    offset, length,
+					    KERN_FAILURE);
+	  dev_pager_deallocate(ds);
+	  return (KERN_SUCCESS);
 	}
-	else {
-	    register io_req_t		ior;
-	    register mach_device_t	device;
-	    io_return_t			result;
 
-	    panic("(device_pager)data_request: dev pager");
-	    
-	    device = ds->device;
-	    mach_device_reference(device);
-	    dev_pager_deallocate(ds);
-	    
-	    /*
-	     * Package the read for the device driver.
-	     */
-	    io_req_alloc(ior, 0);
-	    
-	    ior->io_device	= device;
-	    ior->io_unit	= device->dev_number;
-	    ior->io_op		= IO_READ | IO_CALL;
-	    ior->io_mode	= 0;
-	    ior->io_recnum	= offset / device->bsize;
-	    ior->io_data	= 0;		/* driver must allocate */
-	    ior->io_count	= length;
-	    ior->io_alloc_size	= 0;		/* no data allocated yet */
-	    ior->io_residual	= 0;
-	    ior->io_error	= 0;
-	    ior->io_done	= device_pager_data_request_done;
-	    ior->io_reply_port	= pager_request;
-	    ior->io_reply_port_type = MACH_MSG_TYPE_PORT_SEND;
-	    
-	    result = (*device->dev_ops->d_read)(device->dev_number, ior);
-	    if (result == D_IO_QUEUED)
-		return (KERN_SUCCESS);
-	    
-	    /*
-	     * Return by queuing IOR for io_done thread, to reply in
-	     * correct environment (kernel).
-	     */
-	    ior->io_error = result;
-	    iodone(ior);
-	}
+	vm_object_page_map(object,
+			   offset, length,
+			   device_map_page, (char *)ds);
+
+	vm_object_deallocate(object);
 
 	dev_pager_deallocate(ds);
 
 	return (KERN_SUCCESS);
 }
 
+#if 0
 /*
  * Always called by io_done thread.
  */
@@ -429,7 +370,7 @@ boolean_t device_pager_data_request_done(register io_req_t	ior)
 	    if (ior->io_residual) {
 		if (device_pager_debug)
 		    printf("(device_pager)data_request_done: r: 0x%x\n",ior->io_residual);
-		bzero( (char *) (&ior->io_data[ior->io_count - 
+		bzero( (char *) (&ior->io_data[ior->io_count -
 					       ior->io_residual]),
 		      (unsigned) ior->io_residual);
 	    }
@@ -467,9 +408,10 @@ boolean_t device_pager_data_request_done(register io_req_t	ior)
 	(void)vm_deallocate(kernel_map,
 			    start_alloc,
 			    end_alloc - start_alloc);
-	mach_device_deallocate(ior->io_device);
+	device_deallocate(ior->io_device);
 	return (TRUE);
 }
+#endif
 
 kern_return_t device_pager_data_write(
 	ipc_port_t		pager,
@@ -479,12 +421,11 @@ kern_return_t device_pager_data_write(
 	vm_size_t		data_count)
 {
 	register dev_pager_t	ds;
-	register mach_device_t	device;
-	register io_req_t	ior;
+	register device_t	device;
 	kern_return_t		result;
 
 	panic("(device_pager)data_write: called");
-
+#if 0
 	ds = dev_pager_hash_lookup((ipc_port_t)pager);
 	if (ds == DEV_PAGER_NULL)
 		panic("(device_pager)data_write: lookup failed");
@@ -496,7 +437,7 @@ kern_return_t device_pager_data_write(
 		panic("(device_pager)data_write: char pager");
 
 	device = ds->device;
-	mach_device_reference(device);
+	device_reference(device);
 	dev_pager_deallocate(ds);
 
 	/*
@@ -522,20 +463,23 @@ kern_return_t device_pager_data_write(
 	if (result != D_IO_QUEUED) {
 	    device_write_dealloc(ior);
 	    io_req_free((vm_offset_t)ior);
-	    mach_device_deallocate(device);
+	    device_deallocate(device);
 	}
+#endif
 
 	return (KERN_SUCCESS);
 }
 
+#if 0
 boolean_t device_pager_data_write_done(ior)
 	register io_req_t	ior;
 {
 	device_write_dealloc(ior);
-	mach_device_deallocate(ior->io_device);
+	device_deallocate(ior->io_device);
 
 	return (TRUE);
 }
+#endif
 
 kern_return_t device_pager_copy(
 	ipc_port_t		pager,
@@ -592,10 +536,15 @@ vm_offset_t device_map_page(
 	vm_offset_t	offset)
 {
 	register dev_pager_t	ds = (dev_pager_t) dsp;
+	oskit_addr_t pa;
+	kern_return_t err;
 
-	return pmap_phys_address(
-		   (*(ds->device->dev_ops->d_mmap))
-			(ds->device->dev_number, offset, ds->prot));
+	err = (*ds->device->ops->map) (ds->device, ds->prot,
+				       offset, PAGE_SIZE, &pa);
+	if (err)
+	  panic ("device_map_page: map failure: %x", err);
+
+	return pa;
 }
 
 kern_return_t device_pager_init_pager(
@@ -630,20 +579,20 @@ kern_return_t device_pager_init_pager(
 	ds->pager_request = pager_request;
 	ds->pager_name = pager_name;
 
-	if (ds->type == CHAR_PAGER_TYPE) {
-	    /*
-	     * Reply that the object is ready
-	     */
-	    (void) r_memory_object_set_attributes(pager_request,
-						TRUE,	/* ready */
-						FALSE,	/* do not cache */
-						MEMORY_OBJECT_COPY_NONE);
-	} else {
+	/*
+	 * Reply that the object is ready
+	 */
+	(void) r_memory_object_set_attributes(pager_request,
+					      TRUE,	/* ready */
+					      FALSE,	/* do not cache */
+					      MEMORY_OBJECT_COPY_NONE);
+#if 0
+	/* for block devices, not supported now */
 	    (void) r_memory_object_set_attributes(pager_request,
 						TRUE,	/* ready */
 						TRUE,	/* cache */
 						MEMORY_OBJECT_COPY_DELAY);
-	}
+#endif
 
 	dev_pager_deallocate(ds);
 	return (KERN_SUCCESS);
@@ -668,7 +617,7 @@ kern_return_t device_pager_terminate(
 
 	dev_pager_hash_delete(ds->pager);
 	dev_pager_hash_delete((ipc_port_t)ds->device);	/* HACK */
-	mach_device_deallocate(ds->device);
+	device_deallocate(ds->device);
 
 	/* release the send rights we have saved from the init call */
 

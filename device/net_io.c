@@ -1,25 +1,25 @@
- /* 
+ /*
  * Mach Operating System
  * Copyright (c) 1993-1989 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -29,8 +29,8 @@
  *
  *	Network IO.
  *
- *	Packet filter code taken from vaxif/enet.c written		 
- *		CMU and Stanford. 
+ *	Packet filter code taken from vaxif/enet.c written
+ *		CMU and Stanford.
  */
 
 /*
@@ -46,7 +46,7 @@
 #include <machine/machspl.h>		/* spl definitions */
 #include <device/net_io.h>
 #include <device/if_hdr.h>
-#include <device/io_req.h>
+/*#include <device/io_req.h> */
 #include <device/ds_routines.h>
 
 #include <mach/boolean.h>
@@ -274,10 +274,10 @@ net_kmsg_more(void)
  *	session or multiple network sessions.  For example,
  *	all application level TCP sessions would be represented
  *	by a single packet filter data structure.
- *	
+ *
  *	If a packet filter has a single session, we use a
  *	struct net_rcv_port to represent it.  If the packet
- *	filter represents multiple sessions, we use a 
+ *	filter represents multiple sessions, we use a
  *	struct net_hash_header to represent it.
  */
 
@@ -332,7 +332,7 @@ zone_t  net_hash_entry_zone;
  * This structure represents a packet filter with multiple sessions.
  *
  * For example, all application level TCP sessions might be
- * represented by one of these structures.  It looks like a 
+ * represented by one of these structures.  It looks like a
  * net_rcv_port struct so that both types can live on the
  * same packet filter queues.
  */
@@ -635,6 +635,20 @@ reorder_queue(first, last)
 }
 
 /*
+ * Initialize send and receive queues on an interface.
+ */
+void if_init_queues(ifp)
+	register struct ifnet *ifp;
+{
+#if 0
+	IFQ_INIT(&ifp->if_snd);
+#endif
+	queue_init(&ifp->if_rcv_port_list);
+	simple_lock_init(&ifp->if_rcv_port_list_lock);
+}
+
+
+/*
  * Incoming packet.  Header has already been moved to proper place.
  * We are already at splimp.
  */
@@ -661,7 +675,7 @@ net_packet(ifp, kmsg, count, priority)
 	 * device driver supports TTD, and the bootp succeded.
 	 */
 	if (kttd_enabled && kttd_handle_async(kmsg)) {
-		/* 
+		/*
 		 * Packet was a valid ttd packet and
 		 * doesn't need to be passed up to filter.
 		 * The ttd code put the used kmsg buffer
@@ -749,7 +763,7 @@ net_filter(kmsg, send_list)
  		if (ret_count)
  		    ret_count = count;
  		dest = infp->rcv_port;
- 	    }		    
+ 	    }
 
  	    if (ret_count) {
 
@@ -1147,16 +1161,16 @@ net_set_filter(ifp, rcv_port, priority, filter, filter_count)
 	my_infp = 0;
 	hash_entp = (net_hash_entry_t) zalloc(net_hash_entry_zone);
 	is_new_infp = FALSE;
-    }    
+    }
 
     /*
      * Look for an existing filter on the same reply port.
      * Look for filters with dead ports (for GC).
      * Look for a filter with the same code except KEY insns.
      */
-    
+
     simple_lock(&ifp->if_rcv_port_list_lock);
-    
+
     FILTER_ITERATE(ifp, infp, nextfp)
     {
 	    if (infp->rcv_port == MACH_PORT_NULL) {
@@ -1183,13 +1197,13 @@ net_set_filter(ifp, rcv_port, priority, filter, filter_count)
 			    entp = *head;
 			    do {
 				    nextentp = (net_hash_entry_t) entp->he_next;
-  
-				    /* checked without 
+
+				    /* checked without
 				       ip_lock(entp->rcv_port) */
 				    if (entp->rcv_port == rcv_port
 					|| !IP_VALID(entp->rcv_port)
 					|| !ip_active(entp->rcv_port)) {
-				
+
 					    ret = hash_ent_remove (ifp,
 						(net_hash_header_t)infp,
 						(my_infp == infp),
@@ -1199,7 +1213,7 @@ net_set_filter(ifp, rcv_port, priority, filter, filter_count)
 					    if (ret)
 						    goto hash_loop_end;
 				    }
-			
+
 				    entp = nextentp;
 			    /* While test checks head since hash_ent_remove
 			       might modify it.
@@ -1208,7 +1222,7 @@ net_set_filter(ifp, rcv_port, priority, filter, filter_count)
 		    }
 		hash_loop_end:
 		    ;
-		    
+
 	    } else if (infp->rcv_port == rcv_port
 		       || !IP_VALID(infp->rcv_port)
 		       || !ip_active(infp->rcv_port)) {
@@ -1273,18 +1287,18 @@ net_set_filter(ifp, rcv_port, priority, filter, filter_count)
 		break;
 	enqueue_tail((queue_t)&infp->chain, (queue_entry_t)my_infp);
     }
-    
+
     if (match != 0)
     {	    /* Insert to hash list */
 	net_hash_entry_t *p;
 	int j;
-	
+
 	hash_entp->rcv_port = rcv_port;
 	for (i = 0; i < match->jt; i++)		/* match->jt is n_keys */
 	    hash_entp->keys[i] = match[i+1].k;
 	p = &((net_hash_header_t)my_infp)->
 			table[bpf_hash(match->jt, hash_entp->keys)];
-	
+
 	/* Not checking for the same key values */
 	if (*p == 0) {
 	    queue_init ((queue_t) hash_entp);
@@ -1297,7 +1311,7 @@ net_set_filter(ifp, rcv_port, priority, filter, filter_count)
 	hash_entp->rcv_qlimit = net_add_q_info(rcv_port);
 
     }
-    
+
     simple_unlock(&ifp->if_rcv_port_list_lock);
 
 clean_and_return:
@@ -1307,10 +1321,23 @@ clean_and_return:
 	    net_free_dead_infp(dead_infp);
     if (dead_entp != 0)
 	    net_free_dead_entp(dead_entp);
-    
+
+    if (rval == D_SUCCESS)
+	    /*
+	     * Make sure now that we have some buffers allocated.
+	     * Before any packets at all have been received, the
+	     * net_thread has never run to allocate buffers.
+	     * The very first packet received will be dropped before
+	     * waking up the net_thread to allocate buffers.
+	     * Now that someone is actually listening for packets,
+	     * we should eagerly allocate so we don't drop any.
+	     */
+	    net_kmsg_more();
+
     return (rval);
 }
 
+#if 0
 /*
  * Other network operations
  */
@@ -1328,7 +1355,7 @@ net_getstat(ifp, flavor, status, count)
 
 		if (*count < NET_STATUS_COUNT)
 		    return (D_INVALID_OPERATION);
-		
+
 		ns->min_packet_size = ifp->if_header_size;
 		ns->max_packet_size = ifp->if_header_size + ifp->if_mtu;
 		ns->header_format   = ifp->if_header_format;
@@ -1428,7 +1455,7 @@ net_write(ifp, start, ior)
 	IF_ENQUEUE(&ifp->if_snd, ior);
 	(*start)(ifp->if_unit);
 	splx(s);
-	
+
 	return (D_IO_QUEUED);
 }
 
@@ -1484,10 +1511,13 @@ net_fwrite(ifp, start, ior)
 	IF_ENQUEUE(&ifp->if_snd, ior);
 	(*start)(ifp->if_unit);
 	splx(s);
-	
+
 	return (D_IO_QUEUED);
 }
 #endif /* FIPC */
+
+#endif
+
 
 /*
  * Initialize the whole package.
@@ -1545,7 +1575,7 @@ net_io_init()
  *
  * This code is derived from the Stanford/CMU enet packet filter,
  * (net/enet.c) distributed as part of 4.3BSD, and code contributed
- * to Berkeley by Steven McCanne and Van Jacobson both of Lawrence 
+ * to Berkeley by Steven McCanne and Van Jacobson both of Lawrence
  * Berkeley Laboratory.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1637,7 +1667,7 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
 			return 0;
 #else
 			abort();
-#endif			
+#endif
 		case BPF_RET|BPF_K:
 			if (infp->rcv_port == MACH_PORT_NULL &&
 			    *entpp == 0) {
@@ -1708,7 +1738,7 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
 				A = p[k];
 				continue;
 			}
-			
+
 			k -= BPF_DLBASE;
 			if ((u_int)k < NET_HDW_HDR_MAX) {
 				A = header[k];
@@ -1769,7 +1799,7 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
 		case BPF_LD|BPF_MEM:
 			A = mem[pc->k];
 			continue;
-			
+
 		case BPF_LDX|BPF_MEM:
 			X = mem[pc->k];
 			continue;
@@ -1821,25 +1851,25 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
 		case BPF_ALU|BPF_ADD|BPF_X:
 			A += X;
 			continue;
-			
+
 		case BPF_ALU|BPF_SUB|BPF_X:
 			A -= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_MUL|BPF_X:
 			A *= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_DIV|BPF_X:
 			if (X == 0)
 				return 0;
 			A /= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_AND|BPF_X:
 			A &= X;
 			continue;
-			
+
 		case BPF_ALU|BPF_OR|BPF_X:
 			A |= X;
 			continue;
@@ -1855,23 +1885,23 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
 		case BPF_ALU|BPF_ADD|BPF_K:
 			A += pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_SUB|BPF_K:
 			A -= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_MUL|BPF_K:
 			A *= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_DIV|BPF_K:
 			A /= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_AND|BPF_K:
 			A &= pc->k;
 			continue;
-			
+
 		case BPF_ALU|BPF_OR|BPF_K:
 			A |= pc->k;
 			continue;
@@ -1906,9 +1936,9 @@ bpf_do_filter(infp, p, wirelen, header, hash_headpp, entpp)
  * instruction. Return 2 if it is a valid filter program with a MATCH
  * instruction. Otherwise, return 0.
  * The constraints are that each jump be forward and to a valid
- * code.  The code must terminate with either an accept or reject. 
+ * code.  The code must terminate with either an accept or reject.
  * 'valid' is an array for use by the routine (it must be at least
- * 'len' bytes long).  
+ * 'len' bytes long).
  *
  * The kernel needs to be able to verify an application's filter code.
  * Otherwise, a bogus program could easily crash the system.
@@ -1927,7 +1957,7 @@ bpf_validate(f, bytes, match)
 
 	for (i = 1; i < len; ++i) {
 		/*
-		 * Check that that jumps are forward, and within 
+		 * Check that that jumps are forward, and within
 		 * the code block.
 		 */
 		p = &f[i];
@@ -1945,7 +1975,7 @@ bpf_validate(f, bytes, match)
 		 * Check that memory operations use valid addresses.
 		 */
 		if ((BPF_CLASS(p->code) == BPF_ST ||
-		     (BPF_CLASS(p->code) == BPF_LD && 
+		     (BPF_CLASS(p->code) == BPF_LD &&
 		      (p->code & 0xe0) == BPF_MEM)) &&
 		    (p->k >= BPF_MEMWORDS || p->k < 0))
 			return 0;
@@ -2006,7 +2036,7 @@ bpf_hash (n, keys)
 	register unsigned int *keys;
 {
 	register unsigned int hval = 0;
-	
+
 	while (n--) {
 		hval += *keys++;
 	}
@@ -2046,7 +2076,7 @@ bpf_match (hash, n_keys, keys, hash_headpp, entpp)
 	}
 	HASH_ITERATE_END (head, entp)
 	return FALSE;
-}	
+}
 
 
 /*
@@ -2062,7 +2092,7 @@ hash_ent_remove (ifp, hp, used, head, entp, dead_p)
     int			used;
     net_hash_entry_t	*head, entp;
     queue_entry_t	*dead_p;
-{    
+{
 	hp->ref_count--;
 
 	if (*head == entp) {
@@ -2085,26 +2115,26 @@ hash_ent_remove (ifp, hp, used, head, entp, dead_p)
 	remqueue((queue_t)*head, (queue_entry_t)entp);
 	ENQUEUE_DEAD(*dead_p, entp);
 	return FALSE;
-}    
+}
 
 int
 net_add_q_info (rcv_port)
 	ipc_port_t	rcv_port;
 {
 	mach_port_msgcount_t qlimit = 0;
-	    
+
 	/*
 	 * We use a new port, so increase net_queue_free_min
 	 * and net_kmsg_max to allow for more queued messages.
 	 */
-	    
+
 	if (IP_VALID(rcv_port)) {
 		ip_lock(rcv_port);
 		if (ip_active(rcv_port))
 			qlimit = rcv_port->ip_qlimit;
 		ip_unlock(rcv_port);
 	}
-	    
+
 	simple_lock(&net_kmsg_total_lock);
 	net_queue_free_min++;
 	net_kmsg_max += qlimit + 1;
@@ -2141,9 +2171,9 @@ net_free_dead_infp (dead_infp)
 		ipc_port_release_send(infp->rcv_port);
 		net_del_q_info(infp->rcv_qlimit);
 		zfree(net_rcv_zone, (vm_offset_t) infp);
-	}	    
+	}
 }
-    
+
 /*
  * net_free_dead_entp (dead_entp)
  *	queue_entry_t dead_entp;	list of dead net_hash_entry_t.
@@ -2165,4 +2195,3 @@ net_free_dead_entp (dead_entp)
 		zfree(net_hash_entry_zone, (vm_offset_t) entp);
 	}
 }
-

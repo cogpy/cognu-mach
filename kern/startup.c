@@ -28,7 +28,6 @@
  */
 
 
-#include <xpr_debug.h>
 #include <cpus.h>
 #include <mach_host.h>
 #include <norma_ipc.h>
@@ -80,8 +79,7 @@ extern void	start_other_cpus();
 extern void	action_thread();
 #endif	NCPUS > 1
 
-/* XX */
-extern vm_offset_t phys_first_addr, phys_last_addr;
+#include <oskit/machine/physmem.h>
 
 /*
  *	Running in virtual memory, on the interrupt stack.
@@ -92,9 +90,6 @@ extern vm_offset_t phys_first_addr, phys_last_addr;
 void setup_main()
 {
 	thread_t		startup_thread;
-
-	panic_init();
-	printf_init();
 
 	sched_init();
 	vm_mem_bootstrap();
@@ -111,10 +106,6 @@ void setup_main()
 	init_timers();
 	init_timeout();
 
-#if	XPR_DEBUG
-	xprbootstrap();
-#endif	XPR_DEBUG
-
 	timestamp_init();
 
 	mapable_time_init();
@@ -122,7 +113,7 @@ void setup_main()
 	machine_init();
 
 	machine_info.max_cpus = NCPUS;
-	machine_info.memory_size = phys_last_addr - phys_first_addr; /* XXX mem_size */
+	machine_info.memory_size = phys_mem_max - phys_mem_min; /* XXX mem_size */
 	machine_info.avail_cpus = 0;
 	machine_info.major_version = KERNEL_MAJOR_VERSION;
 	machine_info.minor_version = KERNEL_MINOR_VERSION;
@@ -253,10 +244,6 @@ void start_kernel_threads()
 	 *	Start the user bootstrap.
 	 */
 	bootstrap_create();
-
-#if	XPR_DEBUG
-	xprinit();		/* XXX */
-#endif	XPR_DEBUG
 
 	/*
 	 *	Become the pageout daemon.

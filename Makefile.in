@@ -19,6 +19,7 @@
 srcdir=@srcdir@
 systype=@systype@
 prefix=@prefix@
+tool_prefix=@ac_tool_prefix@
 
 exec_prefix=$(prefix)
 
@@ -28,20 +29,6 @@ libexecdir=$(exec_prefix)/libexec
 bindir=$(exec_prefix)/bin
 
 sysdep = $(srcdir)/$(systype)
-
-# Detect if the user wants KDB
-ifeq ($(findstring -DMACH_KDB,@DEFS@),-DMACH_KDB)
-enable_kdb=yes
-else
-enable_kdb=no
-endif
-
-# Detect if the user wants KMSG
-ifeq ($(findstring -DMACH_KMSG,@DEFS@),-DMACH_KMSG)
-enable_kmsg=yes
-else
-enable_kmsg=no
-endif
 
 # Programs found by configure.
 AWK = @AWK@
@@ -59,7 +46,7 @@ CFLAGS = @CFLAGS@
 all:
 
 # All the possible architectures
-all-archs = i386 linux
+all-archs = i386
 
 all-archs-subdirs = $(patsubst %,$(srcdir)/%/Subdirs,$(all-archs))
 all-archs-files = $(patsubst %,$(srcdir)/%/Files,$(all-archs))
@@ -74,52 +61,23 @@ topfiles = ChangeLog ChangeLog.0 ChangeLog.00 Drivers.macros Makefile.in \
 
 # Old crud from a previous configure scheme
 bogus-files = bootstrap_symbols.h fast_tas.h hw_footprint.h net_atm.h \
-	power_save.h simple_clock.h stat_time.h xpr_debug.h \
+	power_save.h simple_clock.h stat_time.h \
 	$(patsubst %,mach_%.h,assert counters debug fixpri host ipc_compat \
 	ipc_debug ipc_test kdb ldebug lock_mon machine_routines mp_debug \
 	pagemap pcsample ttd vm_debug) \
 	$(patsubst %,norma_%.h,device ether ipc task vm)
 
-# Generic code for various hardware drivers
-chips-files = atm.c audio.c bt431.c bt455.c bt459.c build_font.c busses.c \
-	cfb_hdw.c cfb_misc.c dc503.c dtop_handlers.c dtop_hdw.c dz_hdw.c \
-	fb_hdw.c fb_misc.c fdc_82077_hdw.c frc.c ims332.c isdn_79c30_hdw.c \
-	kernel_font.c lance.c lance_mapped.c lk201.c mc_clock.c mouse.c \
-	nc.c nw_mk.c pm_hdw.c pm_misc.c scc_8530_hdw.c screen.c \
-	screen_switch.c serial_console.c sfb_hdw.c sfb_misc.c spans.c \
-	tca100.c tca100_if.c xcfb_hdw.c xcfb_misc.c \
-	atmreg.h audio_config.h audio_defs.h bt431.h bt455.h bt459.h \
-	bt478.h busses.h dc503.h dtop.h dz_7085.h dz_defs.h eccreg.h \
-	fdc_82077.h ims332.h isdn_79c30.h lance.h lk201.h mc_clock.h \
-	nc.h nw.h nw_mk.h pm_defs.h scc_8530.h screen.h screen_defs.h \
-	screen_switch.h serial_defs.h spans.h tca100.h tca100_if.h \
-	vs42x_rb.h xcfb_monitor.h
-
-# Generic code for various SCSI unit types
-scsi-files = disk_label.c mapped_scsi.c pc_scsi_label.c rz.c rz_audio.c \
-	rz_cpu.c rz_disk.c rz_disk_bbr.c rz_host.c rz_tape.c scsi.c \
-	scsi_alldevs.c scsi_comm.c scsi_cpu.c scsi_disk.c scsi_jukebox.c \
-	scsi_optical.c scsi_printer.c scsi_rom.c scsi_scanner.c \
-	scsi_tape.c scsi_worm.c \
-	compat_30.h mapped_scsi.h rz.h rz_labels.h scsi.h scsi2.h \
-	scsi_defs.h scsi_endian.h
-
-# Icky kernel debugger
-ddb-cfiles = $(addprefix db_,$(ddb-names))
-ddb-names = access.c aout.c break.c command.c cond.c examine.c expr.c \
-	ext_symtab.c input.c lex.c macro.c mp.c output.c print.c run.c \
-	sym.c task_thread.c trap.c variables.c watch.c write_cmd.c
-ddb-files = $(ddb-cfiles) $(patsubst %,db_%.h, \
-	access break command expr lex output print run sym task_thread \
-	variables watch) nlist.h stab.h tr.h
-
 # Device support interfaces
-device-files = blkio.c chario.c cirbuf.c cons.c dev_lookup.c dev_name.c \
-	dev_pager.c device_init.c dk_label.c ds_routines.c net_io.c subrs.c \
-	buf.h cirbuf.h conf.h cons.h dev_hdr.h dev_master.h device_port.h \
-	device_types_kernel.h ds_routines.h errno.h if_ether.h if_hdr.h \
-	io_req.h kmsg.c kmsg.h net_io.h param.h tty.h memory_object_reply.cli \
-	dev_forward.defs device_pager.srv device_reply.cli device.srv
+device-files = \
+	       device_init.c dev_pager.c \
+	       ds_routines.c \
+	       net_io.c \
+	       dev_hdr.h dev_master.h device_port.h \
+	       device_types_kernel.h ds_routines.h \
+	       memory_object_reply.cli \
+	       dev_forward.defs device_pager.srv device.srv \
+	       device_reply.cli device_error_reply.cli
+device-cfiles = $(filter %.c,$(device-files))
 
 # IPC implementation
 ipc-cfiles = $(addprefix ipc_,$(ipc-names)) \
@@ -133,27 +91,22 @@ ipc-files = $(ipc-cfiles) mach_port.srv fipc.h port.h mach_msg.h \
 	object port pset right space splay table target thread types)
 
 # "kernel" implementation (tasks, threads, trivia, etc.)
-kern-cfiles = act.c ast.c bootstrap.c counters.c debug.c eventcount.c \
+kern-cfiles = act.c ast.c bootstrap.c counters.c eventcount.c \
 	exception.c host.c ipc_host.c ipc_kobject.c ipc_mig.c ipc_sched.c \
 	ipc_tt.c kalloc.c lock.c lock_mon.c mach_clock.c mach_factor.c \
-	machine.c pc_sample.c printf.c priority.c processor.c profile.c \
+	machine.c pc_sample.c priority.c processor.c profile.c \
 	queue.c sched_prim.c startup.c strings.c syscall_emulation.c \
 	syscall_subr.c syscall_sw.c task.c thread.c thread_swap.c \
-	time_stamp.c timer.c xpr.c zalloc.c elf-load.c
+	time_stamp.c timer.c zalloc.c elf-load.c
 kern-files = $(kern-cfiles) \
 	act.h assert.h ast.h compat_xxx_defs.h counters.h cpu_number.h \
 	debug.h eventcount.h host.h ipc_host.h ipc_kobject.h ipc_sched.h \
 	ipc_tt.h kalloc.h kern_types.h lock.h mach_param.h macro_help.h \
 	pc_sample.h processor.h queue.h refcount.h sched.h sched_prim.h \
 	shuttle.h strings.h syscall_emulation.h syscall_subr.h syscall_sw.h \
-	task.h thread.h thread_swap.h time_out.h time_stamp.h timer.h xpr.h \
+	task.h thread.h thread_swap.h time_out.h time_stamp.h timer.h \
 	zalloc.h \
 	mach.srv mach4.srv mach_debug.srv mach_host.srv
-
-# Still more trivia
-util-cfiles = about_to_die.c cpu.c cpu_init.c die.c putchar.c puts.c
-util-files = $(util-cfiles) config.h cpu.h cpu_subs.h cpus.h debug.h \
-	phys_mem.h ref_count.h
 
 # Virtual memory implementation
 vm-cfiles = $(addprefix vm_,$(vm-names)) memory_object.c
@@ -163,29 +116,31 @@ vm-files = $(vm-cfiles) memory_object_default.cli memory_object_user.cli \
 	memory_object.h pmap.h $(patsubst %,vm_%.h, \
 	external fault kern map object page pageout user)
 
+# OSKit support files
+osenv-overrides = osenv_mem \
+		  osenv_log \
+		  osenv_irq \
+		  osenv_sleep osenv_synch osenv_timer \
+		  osenv_bell
+oskit-cfiles = $(osenv-overrides:=.c) \
+	       main.c ds_osenv.c ds_request.c kmsg.c \
+	       ds_block.c ds_partition.c \
+	       ds_mem.c ds_bus.c \
+	       ds_net.c \
+	       ds_stream.c \
+	       ds_asyncio.c
+oskit-files = $(oskit-cfiles) ds_oskit.h
 
+oskit-dirs-i386 := x86 pc
 
 # Object files that go into the kernel image.  (This will be augmented by the
 # machine dependent Makefile fragment.)
 
 # Basic kernel source for Mach
-objfiles := $(subst .c,.o,$(ipc-cfiles) $(kern-cfiles) \
-			  $(util-cfiles) $(vm-cfiles))
-vpath %.c $(srcdir)/ipc $(srcdir)/kern $(srcdir)/util $(srcdir)/vm
-
-# These device support files are always needed; the others are needed only
-# if particular drivers want the routines.
-# XXX functions in device/subrs.c should each be moved elsewhere
-objfiles += cons.o dev_lookup.o dev_name.o dev_pager.o device_init.o \
-	ds_routines.o subrs.o net_io.o blkio.o chario.o
-ifeq ($(enable_kmsg),yes)
-objfiles += kmsg.o
-endif
-vpath %.c $(srcdir)/device
-
-# DDB support -- eventually to die.  Please.
-objfiles += $(subst .c,.o,$(ddb-cfiles))
-vpath %.c $(srcdir)/ddb
+objfiles := $(patsubst %.c,%.o,$(ipc-cfiles) $(kern-cfiles) $(vm-cfiles) \
+			       $(device-cfiles) $(oskit-cfiles))
+vpath %.c $(addprefix $(srcdir)/,ipc kern vm device oskit \
+		                 $(addprefix oskit/,$(oskit-dirs-$(systype))))
 
 # Version number
 objfiles += version.o
@@ -231,7 +186,8 @@ other-headers := alloca.h
 
 # User stubs
 objfiles += memory_object_user_user.o memory_object_default_user.o \
-	device_reply_user.o memory_object_reply_user.o
+	    memory_object_reply_user.o \
+	    device_reply_user.o device_error_reply_user.o
 
 # Server stubs
 objfiles += device_server.o device_pager_server.o mach_port_server.o \
@@ -259,14 +215,13 @@ mach_machine:
 # Compilation flags
 #
 
-DEFINES += -DMACH -DCMU -DMACH_KERNEL -DKERNEL @DEFS@
+DEFINES += -DMACH -DMACH_KERNEL -DKERNEL -DCONTINUATIONS @DEFS@
 INCLUDES += -I. -I$(srcdir) -I$(srcdir)/include \
-	-I$(srcdir)/bogus -I$(srcdir)/util -I$(srcdir)/kern -I$(srcdir)/device
-
+	    -I$(srcdir)/bogus -I$(srcdir)/kern -I$(srcdir)/device
 
 include $(sysdep)/Makefrag
 
-CPPFLAGS += -nostdinc $(DEFINES) $(INCLUDES)
+CPPFLAGS += $(DEFINES) $(INCLUDES)
 
 MIGFLAGS += $(CPPFLAGS)
 
@@ -276,12 +231,12 @@ MIGFLAGS += $(CPPFLAGS)
 all: kernel
 
 clean:
-	rm -f *.o *.d kernel
+	rm -f *.[oda] kernel
 	rm -f *.symc *.symc.o *_user.c *_server.c *.h
 	rm -f *.migs_d *.migsh_d *.migu_d *.miguh_d
 
 distclean: clean
-	rm -f config.status config.cache config.log Makefile driverlist
+	rm -f config.status config.cache config.log config.h Makefile
 
 mostlyclean: distclean
 
@@ -296,29 +251,56 @@ check:
 #
 
 # This is the list of routines we decide is OK to steal from the C library.
-clib-routines := memcpy memmove memset bcopy bzero \
-		 strstr \
-		 htonl htons ntohl ntohs \
-		 etext edata end # actually ld magic, not libc
+clib-routines := memcpy memmove memset bcopy bzero memchr rawmemchr \
+		 strstr strtok strchr strchrnul strcpy stpcpy strcat \
+		 strcmp strncmp \
+		 htonl htons ntohl ntohs
+magic-symbols := etext edata end
 
-#kernel.a: $(objfiles)
-#	@rm -f $@
-#	$(AR) cq $@ $^
-kernel.o: $(objfiles) # kernel.a
-	$(LD) -r -o $@ $^
-kernel-undef: kernel.o
+
+OSKIT_LIBDIR = @OSKIT_LIBDIR@
+OSKIT_LIBS = -loskit_kern -loskit_lmm -loskit_com \
+	     -loskit_unsupp -loskit_dev -loskit_linux_dev -loskit_diskpart
+
+# These rules are useful for development, but have significant overhead.
+kernel.a: $(objfiles)
+	@rm -f $@
+	$(AR) cq $@ $^
+kernel_nm: kernel.a ; $(NM) -g $< > $@
+kernel.a.list: kernel.a; $(AR) t $< | sort > $@
+kernel.map.list: kernel.map
+	sed -n 's/^kernel\.a(\([^)]*\)).*$$/\1/p' $< | sort > $@
+kernel-unused: kernel.a.list kernel.map.list
+	(diff -u0 $^ || test $$? -eq 1) | sed -n '1,/@@/d;s/^-//p' > $@
+k%nel.o k%nel.map: $(OSKIT_LIBDIR)/multiboot.o $(osenv-overrides:=.o) k%nel.a
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r \
+	      -o $(@:.map=.o) -Wl,-Map=$(@:.o=.map) \
+	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
+# This rule has less overhead, but doesn't produce the intermediate
+# results necessary to compute `kernel-unused'.
+kernel.o: $(OSKIT_LIBDIR)/multiboot.o $(objfiles)
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -o $@ \
+	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
+
+%-undef: %.o
 	$(NM) -u $< | sed 's/^_*//' | sort -u > $@
-kernel-undef-bad: kernel-undef
-	sed '$(foreach r,$(clib-routines),/^$r$$/d;)' $< > $@
-clib-routines.o: kernel-undef kernel-undef-bad
-	if test -s kernel-undef-bad; \
-	then cat kernel-undef-bad; exit 2; else true; fi
-	$(CC) -nostdlib -nostartfiles -r -static \
+
+kernel-clib: kernel-undef Makefile
+	sed -n '$(foreach r,$(clib-routines),/^$r$$/p;)' $< > $@
+clib-routines.o: kernel-clib
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -static \
 	      -o $@ \
 	      `sed 's/^/-Wl,-u,/' $<` -x c /dev/null -lc
-kernel: kernel.o clib-routines.o
-	$(LD) $(LDFLAGS) -o $@ $^
 
+oskit-kernel.o: kernel.o clib-routines.o
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -o $@ \
+	      -Wl,-\( $^ -loskit_clientos -loskit_c $(OSKIT_LIBS) -Wl,-\) -lgcc
+
+%-undef-bad: %-undef Makefile
+	sed '$(foreach r,$(clib-routines) $(magic-symbols),/^$r$$/d;)' $< > $@
+
+kernel: oskit-kernel.o $(OSKIT_LIBDIR)/crtn.o
+	$(LD) $(LDFLAGS) -o $@ $^
 
 
 #
@@ -356,7 +338,7 @@ dist:
 	rm -rf gnumach-$(version)
 	mkdir gnumach-$(version)
 	# Directories
-	mkdir gnumach-$(version)/{bogus,chips,ddb,device,ipc,kern,scsi,util,vm,include}
+	mkdir gnumach-$(version)/{bogus,device,ipc,kern,vm,include}
 	mkdir gnumach-$(version)/include/{mach,device,mach_debug,sys}
 	mkdir gnumach-$(version)/include/mach/exec
 	for dir in `cat $(all-archs-subdirs)`; do \
@@ -365,13 +347,9 @@ dist:
 	# Files
 	cp $(addprefix $(srcdir)/,$(topfiles)) gnumach-$(version)
 	cp $(addprefix $(srcdir)/bogus/,$(bogus-files)) gnumach-$(version)/bogus
-	cp $(addprefix $(srcdir)/chips/,$(chips-files)) gnumach-$(version)/chips
-	cp $(addprefix $(srcdir)/ddb/,$(ddb-files)) gnumach-$(version)/ddb
 	cp $(addprefix $(srcdir)/device/,$(device-files)) gnumach-$(version)/device
 	cp $(addprefix $(srcdir)/ipc/,$(ipc-files)) gnumach-$(version)/ipc
 	cp $(addprefix $(srcdir)/kern/,$(kern-files)) gnumach-$(version)/kern
-	cp $(addprefix $(srcdir)/scsi/,$(scsi-files)) gnumach-$(version)/scsi
-	cp $(addprefix $(srcdir)/util/,$(util-files)) gnumach-$(version)/util
 	cp $(addprefix $(srcdir)/vm/,$(vm-files)) gnumach-$(version)/vm
 	cp $(addprefix $(srcdir)/include/,$(mach-headers)) gnumach-$(version)/include/mach
 	cp $(addprefix $(srcdir)/include/,$(device-headers)) gnumach-$(version)/include/device
@@ -395,8 +373,12 @@ dist:
 #
 $(srcdir)/configure: configure.in
 	cd $(srcdir) && autoconf
+$(srcdir)/config.h.in: $(srcdir)/acconfig.h
+	cd $(srcdir) && autoheader
 
 Makefile: Makefile.in config.status
+	./config.status
+config.h: config.h.in config.status
 	./config.status
 
 config.status: configure
@@ -468,7 +450,7 @@ endif
 
 # Generic rule for $(CC) based compilation for making dependencies
 define make-deps
-set -e; $(CC) $(CFLAGS) $(CPPFLAGS) -M -MG $< | \
+set -e; $(CC) $(CFLAGS) $(CPPFLAGS) -M $< | \
 	sed > $@.new -e 's/$*\.o:/$*.o $@:/'
 mv -f $@.new $@
 endef

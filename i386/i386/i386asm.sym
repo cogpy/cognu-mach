@@ -1,34 +1,33 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
- * Copyright (c) 1991 IBM Corporation 
+ * Copyright (c) 1991 IBM Corporation
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation,
- * and that the name IBM not be used in advertising or publicity 
+ * and that the name IBM not be used in advertising or publicity
  * pertaining to distribution of the software without specific, written
  * prior permission.
- * 
+ *
  * CARNEGIE MELLON AND IBM ALLOW FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON AND IBM DISCLAIM ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 
-#include <platforms.h>
 #include <cpus.h>
 #include <mach_kdb.h>
 #include <stat_time.h>
@@ -44,12 +43,13 @@
 #include <i386/thread.h>
 #include <i386/pmap.h>
 #include "vm_param.h"
-#include "seg.h"
-#include "tss.h"
-#include "idt.h"
 #include "gdt.h"
 #include "ldt.h"
 #include "mp_desc.h"
+
+#include <oskit/x86/seg.h>
+#include <oskit/x86/tss.h>
+#include <oskit/x86/base_idt.h>
 
 
 offset	thread			th	pcb
@@ -74,21 +74,21 @@ size	i386_kernel_state	iks
 
 size	i386_exception_link	iel
 
-offset	i386_saved_state	r	cs
-offset	i386_saved_state	r	uesp
-offset	i386_saved_state	r	eax
-offset	i386_saved_state	r	trapno
-offset	i386_saved_state	r	err
-offset	i386_saved_state	r	efl		R_EFLAGS
-offset	i386_saved_state	r	eip
-offset	i386_saved_state	r	cr2
+offset	trap_state		r	cs
+offset	trap_state		r	esp
+offset	trap_state		r	eax
+offset	trap_state		r	trapno
+offset	trap_state		r	err
+offset	trap_state		r	eflags		R_EFLAGS
+offset	trap_state		r	eip
+offset	trap_state		r	cr2
 
 offset	i386_interrupt_state	i	eip
 offset	i386_interrupt_state	i	cs
 offset	i386_interrupt_state	i	efl
 
-offset	i386_tss		tss	esp0
-offset	i386_tss		tss	ss0
+offset	x86_tss			tss	esp0
+offset	x86_tss			tss	ss0
 
 expr	I386_PGBYTES					NBPG
 expr	VM_MIN_ADDRESS
@@ -118,10 +118,6 @@ expr	KERNEL_LDT
 
 expr	(VM_MIN_KERNEL_ADDRESS>>PDESHIFT)*sizeof(pt_entry_t)	KERNELBASEPDE
 
-#if	MACH_KDB
-expr	RB_KDB
-#endif	MACH_KDB
-
 #if	NCPUS > 1
 offset	mp_desc_table		mp	gdt
 offset	mp_desc_table		mp	idt
@@ -136,4 +132,3 @@ expr	TIMER_HIGH_UNIT
 offset	thread			th	system_timer
 offset	thread			th	user_timer
 #endif
-

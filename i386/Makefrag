@@ -14,78 +14,26 @@
 
 
 # Some of the i386-specific code checks for these.
-DEFINES += -DCONTINUATIONS -D__ELF__ -Di386 -DLINUX_DEV
+DEFINES += -D__ELF__=1 -Di386=1 -DAT386=1
 
 # Source files for any i386 kernel
-i386at-files = autoconf.c blit.c conf.c cons_conf.c fd.c rtc.c \
-	i386at_ds_routines.c immc.c int_init.c iopl.c kd.c kd_event.c \
-	kd_mouse.c kd_queue.c model_dep.c phys_mem_grab_page.c pic_isa.c
-i386-files = ast_check.c db_disasm.c db_interface.c db_trace.c debug_i386.c \
-	fpe_linkage.c fpu.c gdt.c hardclock.c idt.c io_emulate.c io_map.c \
-	iopb.c ktss.c kttd_interface.c ldt.c loose_ends.c mp_desc.c pcb.c \
-	phys.c pic.c pit.c seg.c trap.c user_ldt.c
+i386at-files = int_init.c pic_isa.c
+i386-files = fpu.c gdt.c idt.c ldt.c \
+	     mp_desc.c pcb.c phys.c pic.c pit.c trap.c user_ldt.c \
+	     hardclock.c # loose_ends.c
 intel-files = pmap.c read_fault.c
 
 # Assembler source
-i386at-Sfiles = boothdr.S interrupt.S kdasm.S
-i386-Sfiles = cswitch.S debug_trace.S idt_inittab.S locore.S spl.S
+i386at-Sfiles = interrupt.S
+i386-Sfiles = cswitch.S idt_inittab.S locore.S spl.S
 
-# Account for them in the image
 objfiles += $(subst .c,.o,$(i386at-files) $(i386-files) $(intel-files)) \
 	    $(subst .S,.o,$(i386at-Sfiles) $(i386-Sfiles))
 vpath %.c $(sysdep)/i386at $(sysdep)/i386 $(sysdep)/intel
 vpath %.S $(sysdep)/i386at $(sysdep)/i386
 
-# Files from the generic source that we want
-objfiles += busses.o cirbuf.o
-vpath busses.c $(srcdir)/chips
-
-# FPE emulation
-objfiles += fpe.o
-
 # Mig-generated
 objfiles += mach_i386_server.o
-
-# This file is only needed for KDB support.
-ifeq ($(enable_kdb),yes)
-objfiles += _setjmp.o
-endif
-
-# XXX: In i386, com is always enabled.
-objfiles += com.o
-
-# This file is only needed for LPR support.
-ifeq ($(findstring -DMACH_LPR,@DEFS@),-DMACH_LPR)
-objfiles += lpr.o
-endif
-
-# We link the device drivers together into this file in a separate Make
-# run, because the Linux-related code sometimes re-uses filenames.  Arrange
-# to have that Makefile used to generate and clean and otherwise deal with
-# those filenames.
-
-objfiles += i386/sysdep.o
-i386/sysdep.o: FORCE
-	cd i386 && $(MAKE) all
-FORCE:
-
-clean: i386-clean
-i386-clean:
-	cd i386 && $(MAKE) clean
-
-distclean: i386-distclean
-i386-distclean:
-	cd i386 && $(MAKE) distclean
-
-mostlyclean: i386-mostlyclean
-i386-mostlyclean:
-	cd i386 && $(MAKE) mostlyclean
-
-maintainerclean: i386-maintainerclean
-i386-maitainerclean:
-	cd i386 && $(MAKE) maintainer-clean
-
-
 
 
 
@@ -93,8 +41,7 @@ i386-maitainerclean:
 vpath i386asm.sym $(sysdep)/i386
 vpath mach_i386.srv $(sysdep)/i386
 
-# Make sure boothdr.o is at the very front
-objfiles := boothdr.o $(filter-out boothdr.o,$(objfiles))
+$(patsubst %.S,%.o,$(i386at-Sfiles) $(i386-Sfiles)): i386asm.h
 
 # Our include files are here; make sure they PRECEDE the generic ones.
 INCLUDES := -I$(sysdep)/i386at -I$(sysdep)/i386 \
@@ -107,8 +54,6 @@ LDFLAGS += -Ttext 100000
 
 # Assemble .S files correctly
 ASFLAGS += -DASSEMBLER
-
-boothdr.o: i386asm.h
 
 
 # Header files we install
@@ -132,11 +77,3 @@ i386-installed-headers= mach/proc_ops.h \
 		pio.h pmode.h proc_reg.h rpc.h seg.h syscall_sw.h \
 		thread_status.h time_stamp.h trap.h tss.h vcpi.h vm_param.h \
 		vm_types.h)
-
-
-# Cheat, cheat, cheat.
-fpe.o: fpe.b_elf
-	uudecode $<
-vpath fpe.b_elf $(sysdep)/i386
-
-fpe.d:; touch $@

@@ -106,6 +106,8 @@ unsigned long k_zone_max[16] = {
  *	This initializes all of the zones.
  */
 
+#include <oskit/x86/debug_reg.h>
+
 void kalloc_init()
 {
 	vm_offset_t min, max;

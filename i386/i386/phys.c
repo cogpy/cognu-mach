@@ -1,29 +1,29 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990,1989 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
- 
+
 #include <mach/boolean.h>
 #include <kern/task.h>
 #include <kern/thread.h>
@@ -36,6 +36,32 @@
 #include <i386/pmap.h>
 #include <mach/machine/vm_param.h>
 
+#include <oskit/x86/base_paging.h>
+
+#include <kern/assert.h>
+
+/* debugging */
+ void
+debug_protect_page (vm_offset_t p)
+{
+#if 0
+  p = kvtolin (p);
+  *pdir_find_pte(kernel_pmap->dirbase, p) &= ~INTEL_PTE_VALID;
+  inval_tlb ();
+#endif
+}
+
+
+ void
+debug_unprotect_page (vm_offset_t p)
+{
+#if 0
+  p = kvtolin (p);
+  *pdir_find_pte(kernel_pmap->dirbase, p) |= INTEL_PTE_VALID;
+  inval_tlb ();
+#endif
+}
+
 /*
  *	pmap_zero_page zeros the specified (machine independent) page.
  */
@@ -43,7 +69,9 @@ pmap_zero_page(p)
 	vm_offset_t p;
 {
 	assert(p != vm_page_fictitious_addr);
+	debug_unprotect_page (p);
 	bzero(phystokv(p), PAGE_SIZE);
+	debug_protect_page (p);
 }
 
 /*
@@ -55,9 +83,14 @@ pmap_copy_page(src, dst)
 	assert(src != vm_page_fictitious_addr);
 	assert(dst != vm_page_fictitious_addr);
 
+	debug_unprotect_page (src);
+	debug_unprotect_page (dst);
 	bcopy(phystokv(src), phystokv(dst), PAGE_SIZE);
+	debug_protect_page (src);
+	debug_protect_page (dst);
 }
 
+#if 0
 /*
  *	copy_to_phys(src_addr_v, dst_addr_p, count)
  *
@@ -100,3 +133,4 @@ vm_offset_t addr;
 		return 0;
 	return i386_trunc_page(*pte) | (addr & INTEL_OFFMASK);
 }
+#endif

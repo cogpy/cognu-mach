@@ -15,6 +15,7 @@ dnl USE OF THIS SOFTWARE.
 
 AC_INIT(kern/ipc_kobject.c)
 AC_PREREQ(2.12)
+AC_CONFIG_HEADER(config.h)
 
 #
 # Deduce output var `systype' from configuration parms.
@@ -40,13 +41,20 @@ AC_PREFIX_DEFAULT()
 #
 # Options
 #
-AC_ARG_ENABLE(kdb,
-[  --enable-kdb             enable use of in-kernel debugger],
-[test "x$enableval" = xno || AC_DEFINE(MACH_KDB)])
+AC_ARG_ENABLE(smp,
+[  --enable-smp=MAXCPUS     enable SMP with up to MAXCPUS processors])
+case "x${enable_smp-no}" in
+xno) MAXCPUS=1 ;;
+xyes) AC_MSG_WARN([defaulting to max 4 CPUs; use --enable-smp=MAXCPUS])
+      MAXCPUS=4 ;;
+x[1-9]*) MAXCPUS="${enable_smp}" ;;
+*) AC_MSG_ERROR([must give a numeric argument to --enable-smp]) ;;
+esac
+AC_DEFINE_UNQUOTED(NCPUS, $MAXCPUS)
 
-AC_ARG_ENABLE(kmsg,
-[  --enable-kmsg            enable use of kmsg device],
-[test "x$enableval" = xno || AC_DEFINE(MACH_KMSG)])
+AC_ARG_ENABLE(fpe,
+[  --enable-fpe		    enable FPU emulator for machines with no FPU],
+[test "x$enableval" = xno || AC_DEFINE(FPE)])
 
 #
 # Programs
@@ -65,12 +73,32 @@ AC_CHECK_TOOL(NM, nm)
 
 AC_CHECK_TOOL(MIG, mig, mig)
 
+# Check oskit version.
+NEEDED_OSKIT_VERSION=19991121
+AC_REQUIRE_CPP()
+AC_MSG_CHECKING([for oskit version >= ${NEEDED_OSKIT_VERSION}])
+AC_CACHE_VAL(gnumach_cv_oskit_version_${NEEDED_OSKIT_VERSION}, [
+AC_TRY_CPP([#include <oskit/version.h>
+#if _OSKIT_VERSION < ${NEEDED_OSKIT_VERSION}
+ #error _OSKIT_VERSION < ${NEEDED_OSKIT_VERSION}
+#endif], eval gnumach_cv_oskit_version_${NEEDED_OSKIT_VERSION}=yes,
+eval gnumach_cv_oskit_version_${NEEDED_OSKIT_VERSION}=no)])
+if eval test \$gnumach_cv_oskit_version_${NEEDED_OSKIT_VERSION} != yes; then
+  AC_MSG_RESULT([no, too old!])
+  AC_MSG_ERROR([version in <oskit/version.h> less than required ${NEEDED_OSKIT_VERSION}])
+else
+  AC_MSG_RESULT([yes, ok])
+fi
+
 # Set up `machine' link in build directory for easier header file location.
 AC_LINK_FILES(${systype}/${systype},machine)
+
+OSKIT_LIBDIR=`${CC} -print-file-name=oskit`
+AC_SUBST(OSKIT_LIBDIR)
 
 # Do machine-specific configuration last so that it can override anything
 # set above if necessary.
 
-AC_CONFIG_SUBDIRS(linux ${systype})
+dnl AC_CONFIG_SUBDIRS(linux ${systype})
 
 AC_OUTPUT(Makefile)

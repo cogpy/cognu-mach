@@ -1,35 +1,35 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
 
 #include <cpus.h>
-#include <platforms.h>
 
 #include <mach/machine/asm.h>
 
-#include "proc_reg.h"
+#include <oskit/x86/proc_reg.h>
+
 #include "i386asm.h"
 #include "cpu_number.h"
 
@@ -129,7 +129,7 @@ ENTRY(switch_to_shutdown_context)
 
 	movl	_interrupt_stack(,%edx,4),%ecx	/* point to its interrupt stack */
 	lea	INTSTACK_SIZE(%ecx),%esp	/* switch to it (top) */
-	
+
 	pushl	%eax				/* push thread */
 	call	EXT(thread_dispatch)		/* reschedule thread */
 	addl	$4,%esp				/* clean stack */
@@ -139,4 +139,3 @@ ENTRY(switch_to_shutdown_context)
 	hlt					/* (should never return) */
 
 #endif	NCPUS > 1
-
