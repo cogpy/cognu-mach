@@ -1,3 +1,8 @@
+2000-12-21  Roland McGrath  <roland@frob.com>
+
+	* oskit/x86/main.c (CR4_PGE): #undef and define to 0x80,
+	since the oskit's value is incorrect.
+
 2000-10-29  Roland McGrath  <roland@frob.com>
 
 	Remove numerous dead header files.
