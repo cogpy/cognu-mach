@@ -1,3 +1,13 @@
+2002-06-02  Roland McGrath  <roland@frob.com>
+
+	* alpha/alpha/ast.h: Fix obsolescent #endif syntax.
+
+2002-06-01  Roland McGrath  <roland@frob.com>
+
+	* ipc/ipc_hash.h (ipc_hash_local_delete): Uncomment prototype decls.
+
+	* kern/mach_clock.c (clock_interrupt): Remove bogus debugging hack.
+
 2002-05-28  Roland McGrath  <roland@frob.com>
 
 	* include/device/device.defs
