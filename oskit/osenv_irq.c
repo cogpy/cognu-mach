@@ -118,6 +118,16 @@ irq_release(oskit_osenv_irq_t *s)
 	return 1;
 }
 
+
+/* This is a special kludge for the minimal console.  If console_irq is -1
+   during the first irq_alloc, we set it to the irq being allocated.
+   Thereafter, allocating that irq will silently succeed and override
+   the handler installed for the minimal console, which we save in
+   console_irq_handler; freeing that irq will restore the console handler.  */
+
+int console_irq;
+static struct int_handler *console_irq_handler;
+
 static OSKIT_COMDECL_U
 irq_alloc(oskit_osenv_irq_t *o, int irq,
 	  void (*handler)(void *), void *data, int flags)
@@ -152,6 +162,29 @@ irq_alloc(oskit_osenv_irq_t *o, int irq,
 	temp->func = handler;
 	temp->data = data;
 	temp->next = NULL;
+
+	/* Special hack for the minimal com and direct console devices.  */
+	if (console_irq == -1) {
+		/* ds_osenv_init sets console_irq to -1 while initializing the
+		   console, so we know this is the irq being allocated for it.
+		   XXX we assume there is only one!
+		*/
+		assert (first_time);
+		console_irq = irq;
+	}
+	else if (irq == console_irq && console_irq_handler == NULL) {
+		/* Attempting to re-allocate the console's irq.
+		   This must be a real device driver taking over
+		   from the minimal console.  Let it.  */
+		assert (! first_time);
+		assert (handlers[irq] != NULL);
+		console_irq_handler = handlers[irq];
+		osenv_log(OSENV_LOG_DEBUG,
+			  "irq %d stolen from console\n", irq);
+		handlers[irq] = temp;
+		shareable[irq] = (flags & OSENV_IRQ_SHAREABLE) != 0;
+		return 0;
+	}
 
 	/*
 	 * Fail if the irq is already in use
@@ -208,11 +241,27 @@ irq_free(oskit_osenv_irq_t *o, int irq,
 	if (temp != NULL &&
 	    temp->func == handler && temp->data == data &&
 	    temp->next == NULL) {
-		osenv_irq_disable(irq);
-		handlers[irq] = NULL;
-		intpri[irq] = SPL0;
-		ivect[irq] = intnull;
-		iunit[irq] = irq;
+		if (irq == console_irq) {
+			/* Special hack for the minimal console's irq.
+			   Restore the console's handler now that no real
+			   driver is using it.
+			   XXX this is probably not actually useful since
+			   the driver won't have left the device in the same
+			   state the minimal console driver expects.
+			*/
+			handlers[irq] = console_irq_handler;
+			shareable[irq] = 0;
+			console_irq_handler = NULL;
+			osenv_log(OSENV_LOG_DEBUG,
+				  "irq %d returned to console\n", irq);
+		}
+		else {
+			osenv_irq_disable(irq);
+			handlers[irq] = NULL;
+			intpri[irq] = SPL0;
+			ivect[irq] = intnull;
+			iunit[irq] = irq;
+		}
 		kfree(temp, sizeof(struct int_handler));
 		return;
 	}

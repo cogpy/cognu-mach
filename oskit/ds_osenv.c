@@ -16,6 +16,8 @@ extern int serial_console;	/* base_console_init.c */
 
 oskit_stream_t *ds_console_stream;
 
+extern int console_irq;		/* kludge in osenv_irq.c */
+
 
 void
 ds_osenv_init (void)
@@ -44,6 +46,7 @@ ds_osenv_init (void)
       param.c_lflag &= ~ECHO;
       param.c_iflag &= ~ICRNL;
       param.c_oflag &= ~OPOST;
+      console_irq = -1;
       rc = cq_com_console_init (port, &param,
 				oskit_create_osenv_irq (),
 				intr,
@@ -53,6 +56,7 @@ ds_osenv_init (void)
   else
     {
       oskit_osenv_intr_t *intr = oskit_create_osenv_intr ();
+      console_irq = -1;
       rc = cq_direct_console_init (oskit_create_osenv_irq (),
 				   intr,
 				   oskit_create_osenv_sleep (intr),
