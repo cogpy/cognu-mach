@@ -1,3 +1,18 @@
+2002-05-22  Roland McGrath  <roland@frob.com>
+
+	* oskit/x86/main.c (machine_idle): New function.
+	* bogus/power_save.h (POWER_SAVE): Define to 1.
+
+	* oskit/x86/main.c (iopb_init, iopb_destroy): Functions removed.
+	(i386_io_port_add, i386_io_port_remove, i386_io_port_list): Likewise.
+
+2002-05-20  Roland McGrath  <roland@frob.com>
+
+	* configure.in (systype): Grok alpha.
+	* configure: Regenerated.
+	* Makefile.in (all-archs): Add alpha.
+	(oskit-dirs-alpha): New variable.
+
 2002-04-28  Roland McGrath  <roland@frob.com>
 
 	* configure.in [$MAXCPUS > 1] (SMP_LIBS): Substitute this after
