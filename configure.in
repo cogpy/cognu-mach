@@ -42,7 +42,7 @@ case "x${enable_smp-no}" in
 xno) MAXCPUS=1 ;;
 xyes) AC_MSG_WARN([defaulting to max 4 CPUs; use --enable-smp=MAXCPUS])
       MAXCPUS=4 ;;
-x[1-9]*) MAXCPUS="${enable_smp}" ;;
+x[[1-9]]*) MAXCPUS="${enable_smp}" ;;
 *) AC_MSG_ERROR([must give a numeric argument to --enable-smp]) ;;
 esac
 AC_DEFINE_UNQUOTED(NCPUS, $MAXCPUS)
