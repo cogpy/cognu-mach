@@ -1,5 +1,11 @@
 2001-12-10  Roland McGrath  <roland@frob.com>
 
+	* oskit/ds_mem.c (ds_mem_read_inband, ds_mem_write_inband):
+	Check RECNUM and COUNT so as not to be fooled by overflow.
+	Apply offset to DEV->com.mem.pa before checking direct_mapped.
+	Check that both ends of the range are direct_mapped.
+	(ds_mem_map): Check OFFSET and SIZE so as not to be fooled by overflow.
+
 	* oskit/ds_oskit.h (INVALREC): Disable panic definition.
 
 2001-12-10  Roland McGrath  <roland@frob.com>
