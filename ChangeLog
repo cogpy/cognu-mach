@@ -1,5 +1,10 @@
 2002-05-28  Roland McGrath  <roland@frob.com>
 
+	* include/device/device.defs
+	(xxx_device_set_status, xxx_device_get_status, xxx_device_set_filter):
+	Replace these routines with skips.
+	[MACH_KERNEL]: Remove simport <kern/compat_xxx_defs.h>.
+
 	* kern/boot_script.c, kern/boot_script.h: Files updated from
 	versions in hurd/boot (64 bit fixes).
 
