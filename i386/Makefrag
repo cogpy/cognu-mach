@@ -18,7 +18,7 @@ DEFINES += -D__ELF__=1 -Di386=1 -DAT386=1
 
 # Source files for any i386 kernel
 i386at-files = int_init.c pic_isa.c
-i386-files = fpu.c gdt.c idt.c ldt.c \
+i386-files = ast_check.c fpu.c gdt.c idt.c ldt.c \
 	     mp_desc.c pcb.c phys.c pic.c pit.c trap.c user_ldt.c \
 	     hardclock.c # loose_ends.c
 intel-files = pmap.c read_fault.c
@@ -69,4 +69,3 @@ i386-installed-headers= mach/proc_ops.h \
 
 # We have our own version of this file
 installed-headers := $(filter-out mach/proc_ops.h,$(installed-headers))
-
