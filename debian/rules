@@ -46,16 +46,13 @@ define checkdir
 endef
 
 define checkroot
-	@test 0 = "`id -u`" || (echo need root priviledges; exit 1)
+	@test 0 = "`id -u`" || (echo need root privileges; exit 1)
 endef
 
 configure: stamp-configure
 stamp-configure:
 	$(checkdir)
 	-mkdir build
-	mig --version 2>/dev/null || \
-	if i386-gnu-mig --version 2>/dev/null; then \
-	  MIG=i386-gnu-mig; export MIG; fi; \
 	cd build && ../configure --build=$(BUILDARCH) --host=$(HOSTARCH)
 	touch stamp-configure
 
