@@ -1,3 +1,9 @@
+2002-06-17  Roland McGrath  <roland@frob.com>
+
+	* device/net_io.c: Remove advertising clause from UCB copyright terms.
+	* include/device/audio_status.h: Likewise.
+	* include/device/bpf.h: Likewise.
+
 2002-06-14  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_routines.c: Fix copyright: Utah -> CMU.
