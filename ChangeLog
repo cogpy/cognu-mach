@@ -10,7 +10,7 @@
 	* linux/dev/drivers/block/ide.c (do_request) [MACH]: In "bad
 	access" printf, actually print the number of sectors of the
 	partition.
-	
+
 1999-10-05  Roland McGrath  <roland@baalperazim.frob.com>
 
 	* i386/intel/pmap.c (pmap_bootstrap): Use _start instead of start.

@@ -1,3 +1,8 @@
+2000-01-25  Roland McGrath  <roland@baalperazim.frob.com>
+
+	* configure.in: Remove check for host_os.  It does not matter.
+	* configure: Regenerated.
+
 1999-11-25  Roland McGrath  <roland@baalperazim.frob.com>
 
 	Drastically revamp hardware support using the Flux OSKit.
