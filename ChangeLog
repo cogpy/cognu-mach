@@ -1,3 +1,33 @@
+2002-06-23  Roland McGrath  <roland@frob.com>
+
+	* kern/sched_prim.c (wait_hash): Macro replaced with static inline
+	function.  Use oskit_sreg_t instead of int.
+
+	* ipc/mach_port.c (mach_port_insert_right): Type fiddle in argument
+	passing.
+
+	* bogus/mach_ipc_compat.h (MACH_IPC_COMPAT): Define to 0.
+
+	* alpha/alpha/pmap.h (kvtophys): Remove decl (now a macro in oskit).
+
+	* device/net_io.c (EXTRACT_LONG, EXTRACT_SHORT, bpf_do_filter): Use
+	oskit_u32_t/s32/u16 in place of u_long/long/u_short.
+
+	* i386/i386/mach_machine_routines.h: New file.
+	* bogus/mach_machine_routines.h (MACH_MACHINE_ROUTINES): Define to 0.
+
+	* alpha/alpha/cpu_number.h (cpu_number): Declare only if [NCPUS > 1].
+	[! ASSEMBLER]: Include kern/cpu_number.h like i386 file does.
+
+	* ipc/ipc_object.h: Uncomment prototypes in all decls.
+	Include "ipc_types.h" for types they use.
+
+	* ipc/ipc_port.h: Uncomment prototypes in all decls.
+
+	* ipc/ipc_hash.c (ipc_hash_index_t): Move typedef to ...
+	* ipc/ipc_hash.h: ... here.
+	(ipc_hash_info): Fix return and argument types in decl.
+
 2002-06-17  Roland McGrath  <roland@frob.com>
 
 	* device/if_hdr.h: Replace ancient UCB copyright terms with current
