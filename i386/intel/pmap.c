@@ -721,7 +721,7 @@ void pmap_bootstrap()
 			      if ((va < (vm_offset_t)_start)
 				  || (va + INTEL_PGBYTES > (vm_offset_t)etext))
 				/* See comment above about user access.  */
-				entry |= INTEL_PTE_WRITE | INTEL_PTE_USER
+				entry |= INTEL_PTE_WRITE | INTEL_PTE_USER;
 			      va += INTEL_PGBYTES;
 			    }
 			  WRITE_PTE_FAST(pte, entry);
