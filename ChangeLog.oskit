@@ -1,3 +1,11 @@
+2001-06-02  Roland McGrath  <roland@frob.com>
+
+	* i386/i386/locore.S (alltraps): Don't conditionalize pushl %gs
+	on [MULTIPROCESSOR].  Reported by Jeroen Dekkers <jeroen@dekkers.cx>.
+
+	* i386/i386/locore.S (mach_call_call) [DEBUG]: Remove syscall_trace
+	code.  Reported by Jeroen Dekkers <jeroen@dekkers.cx>.
+
 2001-05-31  Roland McGrath  <roland@frob.com>
 
 	* i386/i386/mp_desc.c (interrupt_stack, int_stack_top): Initialize
