@@ -1,3 +1,8 @@
+2002-03-04  Roland McGrath  <roland@frob.com>
+
+	* Makefile.in (%_interface.h %_server.c: %.srv): Pass -sheader switch
+	to mig, not -header.
+
 2002-02-28  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_osenv.c (ds_osenv_init): Pass missing argument to
