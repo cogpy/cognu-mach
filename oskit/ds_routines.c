@@ -245,7 +245,9 @@ ds_notify (mach_msg_header_t *msg)
       dev = dev_port_lookup ((ipc_port_t) ns->not_header.msgh_remote_port);
       assert (dev);
 
-      /* Extant send rights held one ref on the device object.  */
+      /* Extant send rights held one ref on the device object,
+	 and we just got another one from dev_port_lookup.  */
+      device_deallocate (dev);
       device_deallocate (dev);
 
       return TRUE;
@@ -359,6 +361,8 @@ dev_open_com (oskit_device_t *com_device, dev_mode_t mode, device_t *devp,
   dev = dev_hash_lookup (com_device, mode);
   if (dev != DEVICE_NULL)
     {
+      /* Acquire a reference on the device, as by device_reference.
+	 We don't just call that because of the locking here.  */
       device_lock (dev);
       ++dev->ref_count;
       simple_unlock (&dev_hash_lock);
@@ -391,6 +395,11 @@ dev_open_com (oskit_device_t *com_device, dev_mode_t mode, device_t *devp,
   dev->com_device = com_device;
   dev->mode = mode;
   dev->ops = 0;
+
+  /* The newly allocated device has one reference on it.  The slot hash
+     table will hold one reference, and we will consume another below.  */
+  assert (dev->ref_count == 1);
+  dev->ref_count == 2;
 
   /* Put the device in the hash table under its COM device.
      After this point we need to use device_lock.  */
@@ -598,7 +607,7 @@ dev_open_com (oskit_device_t *com_device, dev_mode_t mode, device_t *devp,
 	}
     }
 
-  *devp = dev;
+  *devp = dev;			/* Caller consumes the reference.  */
   return D_SUCCESS;
 }
 
@@ -623,9 +632,12 @@ special_mem_device (device_t *loc,
       dev->com.mem.recsize = recsize;
       dev->ops = &mem_device_ops;
       *loc = dev;
+
+      /* The *LOC value (in a global variable) holds a reference that
+	 is never released.  */
     }
 
-  device_reference (*loc);
+  device_reference (*loc);  /* This reference is consumed by the caller.  */
   *out_dev = *loc;
   return D_SUCCESS;
 }
