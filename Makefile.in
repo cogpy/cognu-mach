@@ -44,6 +44,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 
 CFLAGS = @CFLAGS@
+LDFLAGS = @LDFLAGS@
 
 all:
 
@@ -159,22 +160,21 @@ mach-headers= $(addprefix mach/, bootstrap.defs default_pager.defs \
 		mach_port.defs mach_types.defs memory_object.defs \
 		memory_object_default.defs norma_task.defs notify.defs \
 		std_types.defs \
-		alert.h boolean.h boot.h default_pager_types.h exception.h \
+		alert.h boolean.h default_pager_types.h exception.h \
 		host_info.h kern_return.h mach_param.h mach_types.h \
 		machine.h macro_help.h memory_object.h message.h mig_errors.h \
-		msg_type.h multiboot.h norma_special_ports.h notify.h \
+		msg_type.h norma_special_ports.h notify.h \
 		pc_sample.h policy.h port.h processor_info.h \
 		profil.h profilparam.h rpc.h std_types.h syscall_sw.h \
 		task_info.h task_special_ports.h thread_info.h \
 		thread_special_ports.h thread_status.h thread_switch.h \
 		time_value.h version.h vm_attributes.h vm_inherit.h \
 		vm_param.h vm_prot.h vm_statistics.h inline.h)
-mach-exec-headers= $(addprefix mach/exec/, a.out.h elf.h exec.h)
 mach-debug-headers:= $(addprefix mach_debug/, hash_info.h ipc_info.h \
 		mach_debug.defs mach_debug_types.defs mach_debug_types.h \
 		pc_info.h vm_info.h zone_info.h)
 
-installed-headers:= $(device-headers) $(mach-headers) $(mach-exec-headers)
+installed-headers:= $(device-headers) $(mach-headers)
 
 # Other headers for the distribution.  We don't install these, because the
 # GNU C library has correct versions for users to use.
@@ -275,13 +275,13 @@ kernel.map.list: kernel.map
 kernel-unused: kernel.a.list kernel.map.list
 	(diff -u0 $^ || test $$? -eq 1) | sed -n '1,/@@/d;s/^-//p' > $@
 k%nel.o k%nel.map: $(OSKIT_LIBDIR)/multiboot.o $(osenv-overrides:=.o) k%nel.a
-	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r \
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r \
 	      -o $(@:.map=.o) -Wl,-Map=$(@:.o=.map) \
 	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
 # This rule has less overhead, but doesn't produce the intermediate
 # results necessary to compute `kernel-unused'.
 kernel.o: $(OSKIT_LIBDIR)/multiboot.o $(objfiles)
-	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -o $@ \
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -o $@ \
 	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 %-undef: %.o
@@ -290,19 +290,19 @@ kernel.o: $(OSKIT_LIBDIR)/multiboot.o $(objfiles)
 kernel-clib: kernel-undef Makefile
 	sed -n '$(foreach r,$(clib-routines),/^$r$$/p;)' $< > $@
 clib-routines.o: kernel-clib
-	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -static \
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -static \
 	      -o $@ \
 	      `sed 's/^/-Wl,-u,/' $<` -x c /dev/null -lc
 
 oskit-kern%.o: kern%.o clib-routines.o
-	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -o $@ \
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -o $@ \
 	      -Wl,-\( $^ -loskit_clientos -loskit_c $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 %-undef-bad: %-undef Makefile
 	sed '$(foreach r,$(clib-routines) $(magic-symbols),/^$r$$/d;)' $< > $@
 
 kern%: oskit-kern%.o $(OSKIT_LIBDIR)/crtn.o
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) $(KERN_LDFLAGS) -o $@ $^
 
 # This combined with the other pattern rules let you ask
 # for a target like `kernel-ide+scsi_ncr53c8xx+ethernet_eepro100'
@@ -316,7 +316,7 @@ init-%.c:
 	mv -f $@T $@
 
 kernel-%.o: $(OSKIT_LIBDIR)/multiboot.o $(objfiles) init-%.o
-	$(CC) $(CFLAGS) -nostdlib -nostartfiles -r -o $@ \
+	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -o $@ \
 	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 #
