@@ -1,3 +1,54 @@
+2000-10-27  Roland McGrath  <roland@frob.com>
+
+	* oskit/x86/main.c (main): Don't #define master_cpu here.
+	* kern/cpu_number.h [NCPUS == 1] (master_cpu): Define as a macro.
+	Move variable decl to [NCPUS != 1].
+
+	* oskit/smp-glue.c: New file.
+	* Makefile.in (oskit-cfiles): Add it.
+
+	* configure.in (MAXCPUS): Fix quoting of [] pattern in case statement.
+	* configure: Regenerated.
+
+	* i386/Makefrag (i386-files): Add back ast_check.c.
+	* i386/i386/ast_check.c (cause_ast_check): Call interrupt_processor.
+
+	* i386/i386/mp_desc.c (interrupt_stack_alloc): Don't set
+	int_stack_high here.  Call init_alloc separately for each CPU.
+	* oskit/osenv_mem.c (init_alloc): New function.
+
+	* i386/i386/cswitch.S: Use EXT macro on interrupt_stack.
+
+	* i386/i386/cpu_number.h [NCPUS > 1] (cpu_number, CPU_NUMBER):
+	Define these loading the value from %gs:0.
+	* i386/i386/locore.S (all_traps, all_intrs, return_to_iret,
+	ast_from_interrupt, syscall) [MULTIPROCESSOR]: When restoring
+	kernel segment registers, put KERNEL_GS in %gs.
+	* i386/i386/gdt.h (KERNEL_GS): New macro.
+	* i386/i386/i386asm.sym: Emit KERNEL_GS.
+	* i386/i386/gdt.c (gdt_init): Set up KERNEL_GS segment to point to
+	master_cpu.
+	* i386/i386/mp_desc.h (struct mp_desc_table): New member `cpu_number'.
+	* i386/i386/mp_desc.c (mp_desc_init): Set up KERNEL_GS segment to
+	point to this CPU's cpu_number slot, and store MYCPU there.
+
+	* oskit/ds_oskit.h (DEV_LOCK_INIT, DEV_LOCK, DEV_UNLOCK): New macros.
+
+	* oskit/osenv_mem.c (smp_map_range): Add necessary cast.
+
+	* Makefile.in (OSKIT_LIBS): Add -loskit_smp.
+
+	* oskit/ds_routines.c (device_deallocate):
+	dev_number_lock -> dev_hash_lock
+
+	* oskit/x86/main.c: Include <kern/cpu_number.h> for master_cpu decl.
+	* i386/i386/mp_desc.h: Include <oskit/x86/base_idt.h> for IDTSZ decl.
+	Include <oskit/base_stack.h>.
+	Declare mp_desc_load to return void.
+	* i386/i386/mp_desc.c: Use struct x86_desc instead of i386_desc.
+	(mp_desc_init): Replace ktss with base_tss.
+	(interrupt_stack_alloc): base_stack -> base_stack_start
+
 2000-10-26  Roland McGrath  <roland@frob.com>
 
 	* oskit/osenv_synch.c (osenv_intr_save_disable): New function.
