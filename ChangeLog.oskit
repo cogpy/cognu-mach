@@ -1,3 +1,7 @@
+2001-12-12  Roland McGrath  <roland@frob.com>
+
+	* oskit/ds_routines.c (ds_device_read): Remove old debugging crap.
+
 2001-12-10  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_mem.c (ds_mem_read_inband, ds_mem_write_inband):
