@@ -6,6 +6,7 @@
 	* Makefile.in (device-files): Remove obsolete files ds_routines.c and
 	dev_forward.defs.
 	(dist): Punt old rules and just run dpkg-buildpackage.
+	* Makefile.in (oskit-cfiles): Add ds_routines.c here.
 
 	* Makefile.in (config.h): Depend on stamp-configh.
 	(stamp-configh): New target to run config.status for config.h update.
