@@ -396,13 +396,11 @@ dev_open_com (oskit_device_t *com_device, dev_mode_t mode, device_t *devp,
   dev->mode = mode;
   dev->ops = 0;
 
-  /* The newly allocated device has one reference on it.  The slot hash
-     table will hold one reference, and we will consume another below.  */
-  assert (dev->ref_count == 1);
-  dev->ref_count == 2;
-
-  /* Put the device in the hash table under its COM device.
-     After this point we need to use device_lock.  */
+  /* Put the device in the hash table under its COM device.  We hold the
+     only reference to the device, and releasing that reference will remove
+     it from the hash table.  While it's live, someone else might come
+     along and find it in the hash table and get their own reference to
+     keep it there.  After this point we need to use device_lock.  */
   simple_lock (&dev_hash_lock);
   dev_hash_enter (dev);
   simple_unlock (&dev_hash_lock);
