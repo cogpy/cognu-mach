@@ -38,11 +38,15 @@
 
 #include <mach/boolean.h>
 #include <mach/kern_return.h>
+#include "ipc_types.h"
+#include "ipc_object.h"
 
 extern void
 ipc_hash_init();
 
 #if	MACH_IPC_DEBUG
+
+#include <mach_debug/hash_info.h>
 
 extern unsigned int ipc_hash_info(hash_info_bucket_t *, unsigned int);
 
