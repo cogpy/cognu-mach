@@ -46,6 +46,7 @@ INSTALL_DATA = @INSTALL_DATA@
 
 CFLAGS = @CFLAGS@
 LDFLAGS = @LDFLAGS@
+SMP_LIBS = @SMP_LIBS@
 
 all:
 
@@ -269,7 +270,7 @@ magic-symbols := etext edata end
 
 
 OSKIT_LIBDIR = @OSKIT_LIBDIR@
-OSKIT_LIBS = -loskit_kern -loskit_lmm -loskit_com -loskit_smp \
+OSKIT_LIBS = -loskit_kern -loskit_lmm -loskit_com @SMP_LIBS@ \
 	     -loskit_exec -loskit_unsupp \
 	     -loskit_dev -loskit_linux_dev -loskit_diskpart \
 

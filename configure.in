@@ -87,6 +87,13 @@ else
   AC_MSG_RESULT([yes, ok])
 fi
 
+AC_SUBST(SMP_LIBS)SMP_LIBS=
+if test $MAXCPUS -gt 1; then
+  AC_CHECK_LIB(oskit_smp, smp_init, [SMP_LIBS=-loskit_smp], [
+    AC_MSG_ERROR([need -loskit_smp library to build multiprocessor kernel])
+  ])
+fi
+
 # Set up `machine' link in build directory for easier header file location.
 AC_LINK_FILES(${systype}/${systype},machine)
 
