@@ -456,9 +456,7 @@ trap_push_segs:
 	pushl	%ds			/* and the segment registers */
 	pushl	%es
 	pushl	%fs
-#if MULTIPROCESSOR
 	pushl	%gs
-#endif
 
 	/* Note that we have to load the segment registers
 	   even if this is a trap from the kernel,
@@ -1095,17 +1093,6 @@ syscall_native:
 	loop	0b			/* loop for all arguments */
 
 mach_call_call:
-
-#ifdef DEBUG
-	testb	$0xff,EXT(syscall_trace)
-	jz	0f
-	pushl	%eax
-	call	EXT(syscall_trace_print)
-	/* will return with syscallofs still (or again) in eax */
-	addl	$4,%esp
-0:
-#endif /* DEBUG */
-
 	call	*EXT(mach_trap_table)+4(%eax)
 					/* call procedure */
 	movl	%esp,%ecx		/* get kernel stack */
