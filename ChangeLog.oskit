@@ -1,3 +1,28 @@
+2002-04-07  Roland McGrath  <roland@frob.com>
+
+	Provide a new special segment to user tasks so %gs:0 points to one
+	writable word, a different word on each CPU, saved by thread switching.
+	* i386/i386/ldt.h (USER_GS): New macro.
+	* i386/i386/ldt.c (ldt_init): Set USER_GS to point at global variable
+	`user_thread_register'.
+	* i386/i386/mp_desc.h (struct mp_desc_table): New member
+	`user_thread_register'.
+	* i386/i386/mp_desc.c (mp_desc_init): Set USER_GS descriptor in LDT to
+	point at that member.
+	* i386/intel/pmap.c (pmap_bootstrap): Make direct-mapped pages
+	accessible in user mode.
+	* i386/i386/user_ldt.c (i386_set_ldt): Silently cap user segment
+	limits to VM_MAX_ADDRESS.
+	* i386/i386/thread.h (struct i386_machine_state): New member
+	`user_thread_register'.
+	* i386/i386/pcb.c (pcb_init, thread_setstatus): Set user threads' %gs
+	register to USER_GS rather than USER_DS.
+	(switch_ktss): Take new arg OLD_PCB.
+	Don't do set_ldt at all if old and new match.
+	Switch the per-CPU user thread variable into OLD_PCB and out of PCB.
+	(stack_handoff, load_context, switch_context): Update callers.
+	* i386/i386/user_ldt.c (i386_set_ldt): Likewise.
+
 2002-03-11  Marcus Brinkmann  <marcus@gnu.org>
 
 	* i386/i386/machine_task.c (machine_task_module_init): Set
