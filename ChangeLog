@@ -1,3 +1,8 @@
+2002-06-05  Roland McGrath  <roland@frob.com>
+
+	* ipc/ipc_hash.h: Include "ipc_types.h", "ipc_object.h" for types.
+	[MACH_IPC_DEBUG]: Include <mach_debug/hash_info.h> for types.
+
 2002-06-02  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_routines.c (DEV_PTR_HASH): uintptr_t -> natural_t
