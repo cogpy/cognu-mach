@@ -39,6 +39,13 @@
 
 extern void etext();
 
+/* The BASE_TSS in OSKit has no I/O permission bitmap, but we want
+   one.  So we replace it with an extended TSS at link-time.  */
+#include <machine/tss.h>
+#include <machine/io_perm.h>
+static struct task_tss ktss;
+extern struct x86_tss base_tss __attribute__ ((alias ("ktss")));
+
 void
 gdt_init()
 {
@@ -59,6 +66,18 @@ gdt_init()
 	fill_gdt_descriptor(KERNEL_DS,
 			    LINEAR_MIN_KERNEL_ADDRESS, 0xffffffff,
 			    ACC_PL_K|ACC_DATA_W, SZ_32);
+
+	/* Copy the values to the slots used by oskit code.  */
+	gdt[sel_idx (BASE_KERNEL_CS)] = gdt[sel_idx (KERNEL_CS)];
+	gdt[sel_idx (BASE_KERNEL_DS)] = gdt[sel_idx (KERNEL_DS)];
+
+	/* Set up the KERNEL_TSS to include an I/O permission bitmap.  */
+	fill_gdt_descriptor(KERNEL_TSS,
+			    kvtolin(&ktss),
+			    sizeof(struct task_tss) - 1,
+			    ACC_PL_K|ACC_TSS, 0);
+	ktss.tss.io_bit_map_offset = IOPB_INVAL;
+	ktss.barrier = 0xFF;
 
 #if MULTIPROCESSOR
 	/*
