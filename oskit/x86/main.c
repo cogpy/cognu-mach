@@ -39,6 +39,7 @@
 #include <i386/pmap.h>
 #include <i386/mp_desc.h>
 
+#include <kern/cpu_number.h>
 
 static void my_exit (int), (*his_exit) (int);
 
@@ -175,13 +176,11 @@ main (int argc, char **argv)
 		    NCPUS, ncpus - NCPUS, ncpus);
 	}
       master_cpu = smp_find_cur_cpu ();
-      ivect[SMP_IPI_VECTOR] = pmap_update_interrupt;
+      ivect[SMP_IPI_VECTOR] = (int (*)())pmap_update_interrupt;
       intpri[SMP_IPI_VECTOR] = SPL1;
       mp_desc_init (master_cpu);
     }
   interrupt_stack_alloc ();
-#else
-#define master_cpu 0
 #endif
 
   setup_machine_slot (master_cpu);
