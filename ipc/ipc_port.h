@@ -250,15 +250,12 @@ ipc_port_timestamp();
 				     MACH_PORT_RIGHT_SEND,		\
 				     (ipc_object_t *) (portp))
 
-extern kern_return_t
-ipc_port_dnrequest(/* ipc_port_t, mach_port_t, ipc_port_t,
-		      ipc_port_request_index_t * */);
+extern kern_return_t ipc_port_dnrequest(ipc_port_t, mach_port_t, ipc_port_t,
+		      ipc_port_request_index_t *);
 
-extern kern_return_t
-ipc_port_dngrow(/* ipc_port_t */);
+extern kern_return_t ipc_port_dngrow(ipc_port_t);
 
-extern ipc_port_t
-ipc_port_dncancel(/* ipc_port_t, mach_port_t, ipc_port_request_index_t */);
+extern ipc_port_t ipc_port_dncancel(ipc_port_t, mach_port_t, ipc_port_request_index_t);
 
 #define	ipc_port_dnrename(port, index, oname, nname)			\
 MACRO_BEGIN								\
@@ -300,59 +297,42 @@ MACRO_BEGIN								\
 	(port)->ip_mscount = (mscount);					\
 MACRO_END
 
-extern struct ipc_mqueue *
-ipc_port_lock_mqueue(/* ipc_port_t */);
+extern struct ipc_mqueue * ipc_port_lock_mqueue(ipc_port_t);
 
-extern void
-ipc_port_set_seqno(/* ipc_port_t, mach_port_seqno_t */);
+extern void ipc_port_set_seqno(ipc_port_t, mach_port_seqno_t);
 
-extern void
-ipc_port_clear_receiver(/* ipc_port_t */);
+extern void ipc_port_clear_receiver(ipc_port_t);
 
-extern void
-ipc_port_init(/* ipc_port_t, ipc_space_t, mach_port_t */);
+extern void ipc_port_init(ipc_port_t, ipc_space_t, mach_port_t);
 
-extern kern_return_t
-ipc_port_alloc(/* ipc_space_t, mach_port_t *, ipc_port_t * */);
+extern kern_return_t ipc_port_alloc(ipc_space_t, mach_port_t *, ipc_port_t *);
 
-extern kern_return_t
-ipc_port_alloc_name(/* ipc_space_t, mach_port_t, ipc_port_t * */);
+extern kern_return_t ipc_port_alloc_name(ipc_space_t, mach_port_t,
+					 ipc_port_t *);
 
-extern void
-ipc_port_destroy(/* ipc_port_t */);
+extern void ipc_port_destroy(ipc_port_t);
 
-extern boolean_t
-ipc_port_check_circularity(/* ipc_port_t, ipc_port_t */);
+extern boolean_t ipc_port_check_circularity(ipc_port_t, ipc_port_t);
 
-extern ipc_port_t
-ipc_port_lookup_notify(/* ipc_space_t, mach_port_t */);
+extern ipc_port_t ipc_port_lookup_notify(ipc_space_t, mach_port_t);
 
-extern ipc_port_t
-ipc_port_make_send(/* ipc_port_t */);
+extern ipc_port_t ipc_port_make_send(ipc_port_t);
 
-extern ipc_port_t
-ipc_port_copy_send(/* ipc_port_t */);
+extern ipc_port_t ipc_port_copy_send(ipc_port_t);
 
-extern mach_port_t
-ipc_port_copyout_send(/* ipc_port_t, ipc_space_t */);
+extern mach_port_t ipc_port_copyout_send(ipc_port_t, ipc_space_t);
 
-extern void
-ipc_port_release_send(/* ipc_port_t */);
+extern void ipc_port_release_send(ipc_port_t);
 
-extern ipc_port_t
-ipc_port_make_sonce(/* ipc_port_t */);
+extern ipc_port_t ipc_port_make_sonce(ipc_port_t);
 
-extern void
-ipc_port_release_sonce(/* ipc_port_t */);
+extern void ipc_port_release_sonce(ipc_port_t);
 
-extern void
-ipc_port_release_receive(/* ipc_port_t */);
+extern void ipc_port_release_receive(ipc_port_t);
 
-extern ipc_port_t
-ipc_port_alloc_special(/* ipc_space_t */);
+extern ipc_port_t ipc_port_alloc_special(ipc_space_t);
 
-extern void
-ipc_port_dealloc_special(/* ipc_port_t */);
+extern void ipc_port_dealloc_special(ipc_port_t, ipc_space_t);
 
 #define	ipc_port_alloc_kernel()		\
 		ipc_port_alloc_special(ipc_space_kernel)
@@ -372,19 +352,16 @@ ipc_port_dealloc_special(/* ipc_port_t */);
 
 #if	MACH_IPC_COMPAT
 
-extern kern_return_t
-ipc_port_alloc_compat(/* ipc_space_t, mach_port_t *, ipc_port_t * */);
+extern kern_return_t ipc_port_alloc_compat(ipc_space_t, mach_port_t *,
+					   ipc_port_t *);
 
-extern mach_port_t
-ipc_port_copyout_send_compat(/* ipc_port_t, ipc_space_t */);
+extern mach_port_t ipc_port_copyout_send_compat(ipc_port_t, ipc_space_t);
 
-extern mach_port_t
-ipc_port_copyout_receiver(/* ipc_port_t, ipc_space_t */);
+extern mach_port_t ipc_port_copyout_receiver(ipc_port_t, ipc_space_t);
 
 #endif	/* MACH_IPC_COMPAT */
 
-extern void
-ipc_port_print(/* ipc_port_t */);
+extern void ipc_port_print(ipc_port_t);
 
 #if	NORMA_IPC
 
