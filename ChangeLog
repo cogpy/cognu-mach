@@ -1,4 +1,38 @@
-2002-05-27  Roland McGrath  <roland@frob.com>
+2002-05-28  Roland McGrath  <roland@frob.com>
+
+	* alpha/alpha/alpha_cpu.S: Use "alphaasm.h" instead of "assym.s".
+	* alpha/alpha/context.S: Likewise.
+	* alpha/alpha/locore.S: Likewise.
+
+	* Makefile.in (objs): New target.
+
+	* alpha/alpha/alphaasm.sym: New file.
+	* alpha/alpha/task.h: New file.
+	* alpha/alpha/context.h (jmp_buf): Define as `struct jmp_buf' too.
+
+	* kern/zalloc.h: Remove #include <machine/zalloc.h>.
+
+	* alpha/alpha/prom_interface.h: Fix obsolescent #else/#endif syntax.
+	* alpha/alpha/pmap.c: Likewise.
+	* alpha/alpha/pmap.h: Likewise.
+	* alpha/alpha/pcb.c: Likewise.
+	* alpha/alpha/context.h: Likewise.
+	* alpha/alpha/thread.h: Likewise.
+	* alpha/include/mach/alpha/alpha_instruction.h: Likewise.
+	* alpha/include/mach/alpha/vm_param.h: Likewise.
+	* alpha/include/mach/alpha/vm_types.h: Likewise.
+	* alpha/include/mach/alpha/boolean.h: Likewise.
+	* alpha/include/mach/alpha/kern_return.h: Likewise.
+	* alpha/include/mach/alpha/thread_status.h: Likewise.
+	* alpha/include/mach/alpha/syscall_sw.h: Likewise.
+	* alpha/include/mach/alpha/exception.h: Likewise.
+	* alpha/alpha/alpha_copyin.S: Likewise.
+	* alpha/alpha/machspl.h: Likewise.
+	* alpha/alpha/trap.c: Likewise.
+	* alpha/alpha/alpha_instruction.c: Likewise.
+	* alpha/alpha/alpha_init.c: Likewise.
+	* alpha/alpha/setjmp.h: Likewise.
+	* alpha/alpha/vm_tuning.h: Likewise.
 
 	* alpha/Makefrag: New file.
 	* alpha/Files: New file.
