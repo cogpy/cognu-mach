@@ -113,6 +113,7 @@ expr	LDTSZ
 
 expr	KERNEL_CS
 expr	KERNEL_DS
+expr	KERNEL_GS
 expr	KERNEL_TSS
 expr	KERNEL_LDT
 

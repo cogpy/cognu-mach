@@ -43,6 +43,7 @@
 #define	USER_TSS	0x68
 #define	FPE_CS		0x70
 #define	USER_FPREGS	0x78
+#define KERNEL_GS	0x80
 
 #define gdt base_gdt
 

@@ -35,6 +35,8 @@
 #include "vm_param.h"
 #include "gdt.h"
 
+#include "cpu_number.h"
+
 extern void etext();
 
 void
@@ -57,4 +59,15 @@ gdt_init()
 	fill_gdt_descriptor(KERNEL_DS,
 			    LINEAR_MIN_KERNEL_ADDRESS, 0xffffffff,
 			    ACC_PL_K|ACC_DATA_W, SZ_32);
+
+#if MULTIPROCESSOR
+	/*
+	 * Set the %gs segment register to point at
+	 * a word containing the cpu number.
+	 */
+	fill_gdt_descriptor(KERNEL_GS,
+			    kvtolin((oskit_addr_t)&master_cpu),
+			    sizeof(int) - 1,
+			    ACC_PL_K|ACC_DATA, SZ_32);
+#endif
 }

@@ -456,7 +456,9 @@ trap_push_segs:
 	pushl	%ds			/* and the segment registers */
 	pushl	%es
 	pushl	%fs
+#if MULTIPROCESSOR
 	pushl	%gs
+#endif
 
 	/* Note that we have to load the segment registers
 	   even if this is a trap from the kernel,
@@ -644,10 +646,21 @@ ENTRY(all_intrs)
 	cmpl	%ss:EXT(int_stack_high),%esp /* on an interrupt stack? */
 	jb	int_from_intstack	/* if not: */
 
+#if MULTIPROCESSOR
+        mov	$KERNEL_GS,%cx
+#endif
+	mov	%ss,%dx
+
+#if MULTIPROCESSOR
+	pushl	%gs
+#endif
 	pushl	%ds			/* save segment registers */
 	pushl	%es
-	mov	%ss,%dx			/* switch to kernel segments */
-	mov	%dx,%ds
+
+#if MULTIPROCESSOR
+	mov	%cx,%gs		/* needed for cpu_number */
+#endif
+	mov	%dx,%ds		/* switch to kernel segments */
 	mov	%dx,%es
 
 	CPU_NUMBER(%edx)
@@ -688,6 +701,9 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 1:
 	pop	%es			/* restore segment regs */
 	pop	%ds
+#if MULTIPROCESSOR
+	pop	%gs
+#endif
 	pop	%edx
 	pop	%ecx
 	pop	%eax
@@ -718,6 +734,9 @@ _return_to_iret_i:			/* ( label for kdb_kintr) */
 ast_from_interrupt:
 	pop	%es			/* restore all registers ... */
 	pop	%ds
+#if MULTIPROCESSOR
+	pop	%gs
+#endif
 	popl	%edx
 	popl	%ecx
 	popl	%eax
@@ -728,7 +747,13 @@ ast_from_interrupt:
 	push	%es
 	push	%fs
 	push	%gs
+#if MULTIPROCESSOR
+	mov	$KERNEL_GS,%ax
+#endif
 	mov	%ss,%dx			/* switch to kernel segments */
+#if MULTIPROCESSOR
+	mov	%ax,%gs
+#endif
 	mov	%dx,%ds
 	mov	%dx,%es
 
@@ -980,9 +1005,16 @@ syscall_entry_2:
 	pushl	%fs
 	pushl	%gs
 
+#if MULTIPROCESSOR
+	mov	$KERNEL_GS,%cx
+#endif
 	mov	%ss,%dx			/* switch to kernel data segment */
 	mov	%dx,%ds
 	mov	%dx,%es
+#if MULTIPROCESSOR
+	mov	%cx,%gs
+#endif
+
 
 /*
  * Shuffle eflags,eip,cs into proper places
