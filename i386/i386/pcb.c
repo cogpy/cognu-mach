@@ -313,6 +313,19 @@ thread_t switch_context(old, continuation, new)
 				     old, mycpu);
 		PMAP_ACTIVATE_USER(vm_map_pmap(new_task->map),
 				   new, mycpu);
+
+		simple_lock (&new_task->machine.iopb_lock);
+#if NCPUS>1
+#warning SMP support missing (avoid races with io_perm_modify).
+#else
+		/* This optimization only works on a single processor
+		   machine, where old_task's iopb can not change while
+		   we are switching.  */
+		if (old_task->machine.iopb || new_task->machine.iopb)
+#endif
+		  update_ktss_iopb (new_task->machine.iopb,
+				    new_task->machine.iopb_size);
+		simple_unlock (&new_task->machine.iopb_lock);
 	}
     }
 

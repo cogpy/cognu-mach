@@ -1,3 +1,8 @@
+2002-11-09  Marcus Brinkmann  <marcus@gnu.org>
+
+	* i386/i386/pcb.c (switch_context): Update the I/O permission
+	bitmap from stack_handoff() here (not only in stack_handoff()).
+
 2002-11-05  Roland McGrath  <roland@frob.com>
 
 	* oskit/pc/osenv_bell.c (direct_cons_bell): Use a private timer
