@@ -670,7 +670,6 @@ void pmap_bootstrap()
 	   * The processor supports the "global" bit to avoid flushing
 	   * kernel TLB entries, if we turn it on.
 	   */
-	  set_cr4 (get_cr4 () | CR4_PGE);
 	  kernel_pte_global = INTEL_PTE_GLOBAL;
 	}
 

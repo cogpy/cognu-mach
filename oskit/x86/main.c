@@ -90,6 +90,17 @@ main (int argc, char **argv)
   paging_enable((oskit_addr_t) kernel_page_dir);
   set_cr0 (get_cr0 () | CR0_WP);
 
+  if (base_cpuid.feature_flags & CPUF_PAGE_GLOBAL_EXT) {
+    /*
+     * The processor supports the "global" bit to avoid flushing kernel TLB
+     * entries, if we turn it on.  pmap_bootstrap checks this feature flag
+     * and begins use the global bit in page table entries.  But according
+     * to the x86 specs we cannot set this bit before we do enable_paging
+     * above; setting CR4_PGE first doesn't work on some processors, in fact.
+     */
+    set_cr4 (get_cr4 () | CR4_PGE);
+  }
+
   /*
    * Initialize and activate the real i386 protected-mode structures.
    */
