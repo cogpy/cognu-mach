@@ -1,4 +1,4 @@
-/* machine_task.h - Machine specific data for a task on i386.
+/* machine_task.c - Machine specific data for a task on i386.
    Copyright (C) 2002 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -39,7 +39,8 @@ machine_task_module_init (void)
   machine_task_iopb_zone = zinit (IOPB_BYTES,
 				  TASK_MAX * IOPB_BYTES,
 				  IOPB_BYTES,
-				  0, "i386 machine task iopb");
+				  ZONE_COLLECTABLE | ZONE_EXHAUSTIBLE,
+				  "i386 machine task iopb");
 }
 
 

@@ -1,3 +1,9 @@
+2002-03-11  Marcus Brinkmann  <marcus@gnu.org>
+
+	* i386/i386/machine_task.c (machine_task_module_init): Set
+	ZONE_COLLECTABLE and ZONE_EXHAUSTIBLE flags for the iopb zone.
+	Requested by Roland McGrath <roland@frob.com>.
+
 2002-03-05  Roland McGrath  <roland@frob.com>
 
 	* kern/bootstrap.c: Include <alloca.h>.
