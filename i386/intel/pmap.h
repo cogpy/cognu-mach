@@ -109,7 +109,7 @@ void		process_pmap_updates();
 void		pmap_update_interrupt();
 extern	pmap_t	kernel_pmap;
 
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 /*
  *	Machine dependent routines that are used only for i386/i486/i860.
@@ -265,7 +265,7 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 	splx(s);							\
 }
 
-#else	NCPUS > 1
+#else	/* NCPUS > 1 */
 
 /*
  *	With only one CPU, we just have to indicate whether the pmap is
@@ -294,7 +294,7 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 	    (pmap)->cpus_using = FALSE;					\
 }
 
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 #define PMAP_CONTEXT(pmap, thread)
 
@@ -306,6 +306,6 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 #define	pmap_attribute(pmap,addr,size,attr,value) \
 					(KERN_INVALID_ADDRESS)
 
-#endif	ASSEMBLER
+#endif	/* ASSEMBLER */
 
-#endif	_PMAP_MACHINE_
+#endif	/* _PMAP_MACHINE_ */

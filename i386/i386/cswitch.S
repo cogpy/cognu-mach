@@ -138,4 +138,4 @@ ENTRY(switch_to_shutdown_context)
 	call	*%ebx				/* call routine to run */
 	hlt					/* (should never return) */
 
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */

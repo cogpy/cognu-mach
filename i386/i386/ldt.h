@@ -61,6 +61,6 @@ extern struct x86_desc ldt[LDTSZ];
 	fill_gate((struct x86_gate*)&ldt[selector/8], \
 		  offset, dest_selector, access, word_count)
 
-#endif !ASSEMBLER
+#endif /* !ASSEMBLER */
 
-#endif _I386_LDT_
+#endif /* _I386_LDT_ */

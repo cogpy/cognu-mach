@@ -84,8 +84,7 @@ extern struct mp_desc_table *	mp_desc_init (int cpu);
 /* This one loads the tables into the running CPU.  */
 void	mp_desc_load (struct mp_desc_table *);
 
-
-#endif MULTIPROCESSOR
+#endif /* MULTIPROCESSOR */
 
 
 /*

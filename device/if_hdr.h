@@ -149,4 +149,4 @@ struct ifnet {
 
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
 
-#endif	_IF_HDR_
+#endif	/* _IF_HDR_ */

@@ -5,4 +5,4 @@
 
 #define assert_static(x)	assert(x)
 
-#endif	_KERN_ASSERT_H_
+#endif	/* _KERN_ASSERT_H_ */

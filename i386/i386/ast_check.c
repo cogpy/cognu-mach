@@ -44,7 +44,7 @@ init_ast_check(processor)
 {
 #ifdef lint
 	processor++;
-#endif lint
+#endif /* lint */
 }
 
 /*

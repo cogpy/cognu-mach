@@ -98,7 +98,7 @@ picinit()
 #endif	/* defined(AT386) || defined(PS2) */
 #ifdef	iPSC386
 #define SLAVEMASK       (0xFFFF ^ SLAVE_ON_IR7)
-#endif	iPSC386
+#endif	/* iPSC386 */
 
 #define SLAVEACTV	0xFF00
 

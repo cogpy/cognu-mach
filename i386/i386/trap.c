@@ -249,7 +249,6 @@ void kernel_trap(regs)
 				  FALSE,
 				  FALSE,
 				  (void (*)()) 0);
-
 		if ((code & T_PF_WRITE) == 0 &&
 		    result == KERN_PROTECTION_FAILURE)
 		{

@@ -77,7 +77,7 @@ void start_kernel_threads();	/* forward */
 #if	NCPUS > 1
 extern void	start_other_cpus();
 extern void	action_thread();
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 #include <oskit/machine/physmem.h>
 
@@ -126,7 +126,7 @@ void setup_main()
 	swapper_init();
 #if	MACH_HOST
 	pset_sys_init();
-#endif	MACH_HOST
+#endif	/* MACH_HOST */
 
 	/*
 	 *	Kick off the time-out driven routines by calling
@@ -209,7 +209,7 @@ void start_kernel_threads()
 	 *	Allow other CPUs to run.
 	 */
 	start_other_cpus();
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 	/*
 	 *	Create the device service.
@@ -221,14 +221,14 @@ void start_kernel_threads()
 	 */
 #if	NORMA_IPC
 	norma_ipc_init();
-#endif	NORMA_IPC
+#endif	/* NORMA_IPC */
 
 	/*
 	 *	Initialize NORMA vm system.
 	 */
 #if	NORMA_VM
 	norma_vm_init();
-#endif	NORMA_VM
+#endif	/* NORMA_VM */
 
 
 	/*
@@ -258,7 +258,7 @@ void slave_main()
 {
 	cpu_launch_first_thread(THREAD_NULL);
 }
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 /*
  *	Start up the first thread on a CPU.

@@ -86,12 +86,12 @@
 
 #ifdef	ORC
 #define	OLIVETTICACHE	1
-#endif	ORC
+#endif	/* ORC */
 
 #ifndef	OLIVETTICACHE
 #define	WRITE_PTE(pte_p, pte_entry)		*(pte_p) = (pte_entry);
 #define	WRITE_PTE_FAST(pte_p, pte_entry)	*(pte_p) = (pte_entry);
-#else	OLIVETTICACHE
+#else	/* OLIVETTICACHE */
 #error might not work anymore
 
 /* This gross kludgery is needed for Olivetti XP7 & XP9 boxes to get
@@ -128,7 +128,7 @@ pt_entry_t	*pte_p, pte_entry;
 
 #define	WRITE_PTE_FAST(pte_p, pte_entry)*pte_p = pte_entry;
 
-#endif	OLIVETTICACHE
+#endif	/* OLIVETTICACHE */
 
 /*
  *	Private data structures.
@@ -345,7 +345,7 @@ lock_data_t	pmap_system_lock;
 	} \
 }
 
-#else	NCPUS > 1
+#else	/* NCPUS > 1 */
 
 #define SPLVM(spl)
 #define SPLX(spl)
@@ -366,7 +366,7 @@ lock_data_t	pmap_system_lock;
 	} \
 }
 
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 #define MAX_TBIS_SIZE	32		/* > this -> TBIA */ /* XXX */
 
@@ -439,7 +439,7 @@ typedef	struct pmap_update_list	*pmap_update_list_t;
 
 struct pmap_update_list	cpu_update_list[NCPUS];
 
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 /*
  *	Other useful macros.
@@ -474,7 +474,7 @@ pt_entry_t *kernel_page_dir;
 void pmap_remove_range();	/* forward */
 #if	NCPUS > 1
 void signal_cpus();		/* forward */
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 #if	i860
 /*
@@ -544,7 +544,7 @@ void ptep_check(ptep)
 		panic("pte count");
 	}
 }
-#endif	DEBUG_PTE_PAGE
+#endif	/* DEBUG_PTE_PAGE */
 
 /*
  *	Map memory at initialization.  The physical addresses being
@@ -640,7 +640,7 @@ void pmap_bootstrap()
 
 #if	NCPUS > 1
 	lock_init(&pmap_system_lock, FALSE);	/* NOT a sleep lock */
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 	simple_lock_init(&kernel_pmap->lock);
 
@@ -880,7 +880,7 @@ void pmap_init()
 	    simple_lock_init(&up->lock);
 	    up->count = 0;
 	}
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 	/*
 	 * Indicate that the PMAP module is now fully initialized.
@@ -1160,7 +1160,7 @@ void pmap_remove_range(pmap, va, spte, epte)
 #if	DEBUG_PTE_PAGE
 	if (pmap != kernel_pmap)
 		ptep_check(get_pte_page(spte));
-#endif	DEBUG_PTE_PAGE
+#endif	/* DEBUG_PTE_PAGE */
 	num_removed = 0;
 	num_unwired = 0;
 
@@ -1770,7 +1770,7 @@ Retry:
 			    e = e->next;
 			}
 		    }
-#endif	DEBUG
+#endif	/* DEBUG */
 
 		    /*
 		     *	Add new pv_entry after header.
@@ -1928,9 +1928,9 @@ void pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 {
 #ifdef	lint
 	dst_pmap++; src_pmap++; dst_addr++; len++; src_addr++;
-#endif	lint
+#endif	/* lint */
 }
-#endif	0
+#endif	/* 0 */
 
 /*
  *	Routine:	pmap_collect
@@ -2054,7 +2054,7 @@ void pmap_activate(my_pmap, th, my_cpu)
 {
 	PMAP_ACTIVATE(my_pmap, th, my_cpu);
 }
-#endif	0
+#endif	/* 0 */
 
 /*
  *	Routine:	pmap_deactivate
@@ -2071,10 +2071,10 @@ void pmap_deactivate(pmap, th, which_cpu)
 {
 #ifdef	lint
 	pmap++; th++; which_cpu++;
-#endif	lint
+#endif	/* lint */
 	PMAP_DEACTIVATE(pmap, th, which_cpu);
 }
-#endif	0
+#endif	/* 0 */
 
 /*
  *	Routine:	pmap_kernel
@@ -2086,7 +2086,7 @@ pmap_t pmap_kernel()
 {
     	return (kernel_pmap);
 }
-#endif	0
+#endif	/* 0 */
 
 /*
  *	pmap_zero_page zeros the specified (machine independent) page.
@@ -2105,7 +2105,7 @@ pmap_zero_page(phys)
 	while (i--)
 		zero_phys(phys++);
 }
-#endif	0
+#endif	/* 0 */
 
 /*
  *	pmap_copy_page copies the specified (machine independent) page.
@@ -2127,7 +2127,7 @@ pmap_copy_page(src, dst)
 		dst += INTEL_PGBYTES;
 	}
 }
-#endif	0
+#endif	/* 0 */
 
 /*
  *	Routine:	pmap_pageable
@@ -2151,7 +2151,7 @@ pmap_pageable(pmap, start, end, pageable)
 {
 #ifdef	lint
 	pmap++; start++; end++; pageable++;
-#endif	lint
+#endif	/* lint */
 }
 
 /*
@@ -2568,7 +2568,7 @@ void pmap_update_interrupt()
 
 	splx(s);
 }
-#else	NCPUS > 1
+#else	/* NCPUS > 1 */
 /*
  *	Dummy routine to satisfy external reference.
  */
@@ -2576,7 +2576,7 @@ void pmap_update_interrupt()
 {
 	/* should never be called. */
 }
-#endif	NCPUS > 1
+#endif	/* NCPUS > 1 */
 
 #if	i860	/* akp */
 void set_dirbase(dirbase)
@@ -2586,7 +2586,7 @@ void set_dirbase(dirbase)
 	/*flush_tlb();*/
 	flush_and_ctxsw(dirbase);
 }
-#endif	i860
+#endif	/* i860 */
 
 #ifdef i386
 /* Unmap page 0 to trap NULL references.  */
