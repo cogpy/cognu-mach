@@ -48,7 +48,10 @@ ipc_hash_init();
 
 #include <mach_debug/hash_info.h>
 
-extern unsigned int ipc_hash_info(hash_info_bucket_t *, unsigned int);
+typedef natural_t ipc_hash_index_t;
+
+extern ipc_hash_index_t ipc_hash_info(hash_info_bucket_t *,
+				      mach_msg_type_number_t);
 
 #endif	/* MACH_IPC_DEBUG */
 
