@@ -1,3 +1,8 @@
+2002-11-12  Roland McGrath  <roland@frob.com>
+
+	* oskit/ds_routines.c (dev_open_com): Revert last change.
+	The hash table should not hold a reference.
+
 2002-11-09  Roland McGrath  <roland@frob.com>
 
 	* Makefile.in (clib-routines.o): Add `-x none' before -lc.
