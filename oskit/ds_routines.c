@@ -568,8 +568,9 @@ dev_open_com (oskit_device_t *com_device, dev_mode_t mode, device_t *devp,
    starting with the physical memory backing the wired kernel virtual
    address KVA.  See ds_mem.c for the device ops.  */
 static io_return_t
-special_mem_device (device_t *loc, vm_offset_t kva,
-		    vm_size_t size, vm_size_t recsize,
+special_mem_device (device_t *loc,
+		    dev_mode_t mode,
+		    vm_offset_t kva, vm_size_t size, vm_size_t recsize,
 		    device_t *out_dev)
 {
   if (*loc == DEVICE_NULL)
@@ -577,7 +578,7 @@ special_mem_device (device_t *loc, vm_offset_t kva,
       device_t dev = dev_open_alloc ();
       if (dev == DEVICE_NULL)
 	return KERN_RESOURCE_SHORTAGE;
-      dev->mode = D_READ;
+      dev->mode = mode & (D_READ|D_WRITE);
       dev->com_device = 0;
       dev->com.mem.pa = pmap_extract (kernel_pmap, kva);
       dev->com.mem.size = size;
@@ -638,7 +639,7 @@ ds_device_open (ipc_port_t open_port, ipc_port_t reply_port,
       static device_t mapped_time_device;
       if (mode & D_WRITE)	/* No writing of "time" device allowed;  */
 	return D_READ_ONLY;	/* users must do host_set_time instead.  */
-      return special_mem_device (&mapped_time_device,
+      return special_mem_device (&mapped_time_device, D_READ,
 				 (vm_offset_t) mtime,
 				 sizeof *mtime, sizeof mtime->seconds,
 				 devp);
@@ -646,7 +647,7 @@ ds_device_open (ipc_port_t open_port, ipc_port_t reply_port,
   else if (!strcmp (name, "mem")) /* Special case.  */
     {
       static device_t phys_mem_device;
-      return special_mem_device (&phys_mem_device,
+      return special_mem_device (&phys_mem_device, mode,
 				 phystokv (0),
 				 /* We bogusly claim the granularity is
 				    four bytes when in fact we can do one,
