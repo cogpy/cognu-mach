@@ -1,5 +1,9 @@
 2001-12-10  Roland McGrath  <roland@frob.com>
 
+	* oskit/ds_oskit.h (INVALREC): Disable panic definition.
+
+2001-12-10  Roland McGrath  <roland@frob.com>
+
 	* oskit/ds_routines.c (special_mem_device): New argument MODE;
 	use that instead of hardcoding D_READ.
 	(ds_device_open): Changed callers.
