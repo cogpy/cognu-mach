@@ -124,7 +124,7 @@ osenv-overrides = osenv_mem \
 		  osenv_log \
 		  osenv_irq \
 		  osenv_sleep osenv_synch osenv_timer \
-		  osenv_bell
+		  osenv_bell osenv_softirq
 oskit-cfiles = $(osenv-overrides:=.c) \
 	       main.c ds_osenv.c ds_request.c ds_routines.c kmsg.c \
 	       ds_block.c ds_partition.c \
