@@ -45,10 +45,12 @@ vm_offset_t	int_stack_high;
 #if	NCPUS > 1
 
 #include <i386/lock.h>
+#include "vm_param.h"
 
 #include <oskit/x86/base_idt.h>
 #include "gdt.h"
 #include <oskit/x86/base_tss.h>
+#include <oskit/x86/base_stack.h>
 
 
 /*
@@ -80,7 +82,7 @@ struct mp_desc_table	*mp_desc_table[NCPUS];
 /*
  * Pointer to TSS for access in load_context.
  */
-struct i386_tss		*mp_ktss[NCPUS];
+struct x86_tss		*mp_ktss[NCPUS];
 
 /*
  * Pointer to GDT to reset the KTSS busy bit.
@@ -102,7 +104,7 @@ mp_desc_init(mycpu)
 		 * Master CPU uses the tables built at boot time.
 		 * Just set the TSS and GDT pointers.
 		 */
-		mp_ktss[mycpu] = &ktss;
+		mp_ktss[mycpu] = &base_tss;
 		mp_gdt[mycpu] = gdt;
 		return 0;
 	}
@@ -120,9 +122,9 @@ mp_desc_init(mycpu)
 		/*
 		 * Copy the tables
 		 */
-		memcpy (mdp->idt, base_idt, sizeof mdp->idt);
-		memcpy (mdp->gdt, base_gdt, sizeof mdp->gdt);
-		memcpy (mdp->ldt, ldt, sizeof ldt);
+		memcpy (mpt->idt, base_idt, sizeof mpt->idt);
+		memcpy (mpt->gdt, base_gdt, sizeof mpt->gdt);
+		memcpy (mpt->ldt, ldt, sizeof ldt);
 		bzero (&mpt->ktss, sizeof mpt->ktss);
 
 		/*
@@ -135,8 +137,17 @@ mp_desc_init(mycpu)
 			ACC_P|ACC_PL_K|ACC_LDT, 0);
 		fill_descriptor(&mpt->gdt[sel_idx(KERNEL_TSS)],
 			(unsigned)&mpt->ktss,
-			sizeof(struct i386_tss) - 1,
+			sizeof(struct x86_tss) - 1,
 			ACC_P|ACC_PL_K|ACC_TSS, 0);
+
+		/*
+		 * Set the %gs segment register to point at
+		 * a word containing the cpu number.
+		 */
+		mpt->cpu_number = mycpu;
+		fill_descriptor(&mpt->gdt[sel_idx(KERNEL_GS)],
+			(unsigned)&mpt->cpu_number, sizeof(int) - 1,
+			ACC_P|ACC_PL_K|ACC_DATA, 0);
 
 		mpt->ktss.ss0 = KERNEL_DS;
 		mpt->ktss.io_bit_map_offset = 0x0FFF;	/* no IO bitmap */
@@ -214,11 +225,7 @@ interrupt_stack_alloc()
 	/*
 	 * Allocate an interrupt stack for each CPU except for
 	 * the master CPU (which uses the bootstrap stack)
-	 */
-	if (!init_alloc(INTSTACK_SIZE*(cpu_count-1), &stack_start))
-		panic("not enough memory for interrupt stacks");
-
-	/*
+	 *
 	 * Set up pointers to the top of the interrupt stack.
 	 */
 	for (i = 0; i < NCPUS; i++) {
@@ -228,22 +235,17 @@ interrupt_stack_alloc()
 		 have to change, because the init stack will get freed after
 	         bootup.
 	      */
-		interrupt_stack[i] = (vm_offset_t) &base_stack;
+		interrupt_stack[i] = (vm_offset_t) &base_stack_start;
 		int_stack_top[i]   = (vm_offset_t) &base_stack_end;
 	    }
 	    else if (machine_slot[i].is_cpu) {
+	      if (!init_alloc(INTSTACK_SIZE, &stack_start))
+		panic("not enough memory for interrupt stacks");
+
 		interrupt_stack[i] = stack_start;
 		int_stack_top[i]   = stack_start + INTSTACK_SIZE;
-
-		stack_start += INTSTACK_SIZE;
 	    }
 	}
-
-	/*
-	 * Set up the barrier address.  All thread stacks MUST
-	 * be above this address.
-	 */
-	int_stack_high = stack_start;
 }
 
 /* XXX should be adjusted per CPU speed */
