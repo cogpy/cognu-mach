@@ -1,5 +1,61 @@
 2002-05-27  Roland McGrath  <roland@frob.com>
 
+	Alpha support files verbatim from CMU release MK83a.
+	* alpha/include/mach/alpha/alpha_instruction.h: New file.
+	* alpha/include/mach/alpha/asm.h: New file.
+	* alpha/include/mach/alpha/boolean.h: New file.
+	* alpha/include/mach/alpha/exception.h: New file.
+	* alpha/include/mach/alpha/kern_return.h: New file.
+	* alpha/include/mach/alpha/machine_types.defs: New file.
+	* alpha/include/mach/alpha/syscall_sw.h: New file.
+	* alpha/include/mach/alpha/thread_status.h: New file.
+	* alpha/include/mach/alpha/vm_param.h: New file.
+	* alpha/include/mach/alpha/vm_types.h: New file.
+	* alpha/alpha/alpha_cache.S: New file.
+	* alpha/alpha/alpha_copyin.S: New file.
+	* alpha/alpha/alpha_cpu.S: New file.
+	* alpha/alpha/alpha_cpu.h: New file.
+	* alpha/alpha/alpha_init.c: New file.
+	* alpha/alpha/alpha_instruction.c: New file.
+	* alpha/alpha/alpha_lock.S: New file.
+	* alpha/alpha/alpha_mem_ops.c: New file.
+	* alpha/alpha/alpha_misc.c: New file.
+	* alpha/alpha/alpha_scb.c: New file.
+	* alpha/alpha/alpha_scb.h: New file.
+	* alpha/alpha/alpha_startup.c: New file.
+	* alpha/alpha/ast.h: New file.
+	* alpha/alpha/ast_check.c: New file.
+	* alpha/alpha/ast_types.h: New file.
+	* alpha/alpha/autoconf.c: New file.
+	* alpha/alpha/c_misc.c: New file.
+	* alpha/alpha/clock.c: New file.
+	* alpha/alpha/clock.h: New file.
+	* alpha/alpha/context.S: New file.
+	* alpha/alpha/context.h: New file.
+	* alpha/alpha/cpu_number.h: New file.
+	* alpha/alpha/frame.h: New file.
+	* alpha/alpha/lock.h: New file.
+	* alpha/alpha/locore.S: New file.
+	* alpha/alpha/mach_param.h: New file.
+	* alpha/alpha/machspl.h: New file.
+	* alpha/alpha/parse_args.c: New file.
+	* alpha/alpha/pcb.c: New file.
+	* alpha/alpha/pmap.c: New file.
+	* alpha/alpha/pmap.h: New file.
+	* alpha/alpha/prom_interface.S: New file.
+	* alpha/alpha/prom_interface.h: New file.
+	* alpha/alpha/prom_routines.S: New file.
+	* alpha/alpha/prom_routines.h: New file.
+	* alpha/alpha/setjmp.h: New file.
+	* alpha/alpha/start.S: New file.
+	* alpha/alpha/supage.S: New file.
+	* alpha/alpha/thread.h: New file.
+	* alpha/alpha/time_stamp.h: New file.
+	* alpha/alpha/trap.c: New file.
+	* alpha/alpha/trap.h: New file.
+	* alpha/alpha/vm_tuning.h: New file.
+	* alpha/dec/ln_copy.c: New file.
+
 	* configure.in (VERSION): Set to 1.90 for mainlining of OSKit-Mach.
 	* configure: Regenerated.
 
