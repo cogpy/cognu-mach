@@ -17,7 +17,7 @@ Description: A version of the Mach microkernel built using the Flux OSKit.
 Package: gnumach-dev
 Section: devel
 Priority: optional
-Architecture: all
+Architecture: hurd-i386
 Description: The GNU version of the Mach microkernel (development files)
  These are the header files for the Mach microkernel used by the Hurd.
  These headers are compatible between the gnumach and oskit-mach variants.

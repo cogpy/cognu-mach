@@ -1,8 +1,14 @@
 oskit-mach (1:1.2.91) unstable; urgency=low
 
   * First Debian packaging of OSKit-Mach, a new variant based on gnumach.
+    The upstream sources and the Debian source packages are one and the same.
+    The version numbers are starting with the gnumach version numbers.
+  * This package now provides a competing gnumach-dev package that will
+    replace the one from the gnumach source package; it is compatible.
+  * Lintian fixes vs gnumach 1:1.2-2 package: /boot/*.gz not made executable,
+    use /usr/share/doc instead of /usr/doc.
 
- -- Roland McGrath <frob@debian.org>  Sat,  5 Feb 2000 01:22:58 -0500
+ -- Roland McGrath <frob@debian.org>  Sat,  5 Feb 2000 21:51:44 -0500
 
 gnumach (1:1.2-2) unstable; urgency=low
 
@@ -115,5 +121,4 @@ gnumach (1.1.3-1) unstable; urgency=low
 
 Local variables:
 mode: debian-changelog
-add-log-mailing-address: "bug-hurd@gnu.org"
 End:
