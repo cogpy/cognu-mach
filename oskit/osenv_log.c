@@ -18,10 +18,13 @@
 #include "ds_oskit.h"
 
 #include <stdarg.h>
+#include <string.h>
 
 #include <oskit/com.h>
 #include <oskit/dev/dev.h>
 #include <oskit/dev/osenv_log.h>
+#include <oskit/c/stdio.h>
+#include <oskit/base_critical.h>
 
 #include <oskit/com/stream.h>
 #include <oskit/com/trivial_stream.h>
