@@ -1,3 +1,8 @@
+2001-10-19  Roland McGrath  <roland@frob.com>
+
+	* i386/i386/mp_desc.c (mp_desc_init): Use kvtolin on addresses in
+	segment descriptors.
+
 2001-10-10  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_osenv.c (ds_osenv_init): Don't call direct_cons_set_flags.
