@@ -55,6 +55,9 @@ configure: stamp-configure
 stamp-configure:
 	$(checkdir)
 	-mkdir build
+	test mig --version 2>/dev/null || \
+	if test i386-gnu-mig --version 2>/dev/null; then \
+	  MIG=i386-gnu-mig; export MIG; fi; \
 	cd build && ../configure --build=$(BUILDARCH) --host=$(HOSTARCH)
 	touch stamp-configure
 
@@ -109,8 +112,8 @@ binary-arch: build
 	$(make_directory)	debian/tmp/DEBIAN debian/tmp$(DOCDIR)
 
 	pfx=`cd debian/tmp && pwd` && cd build && $(MAKE) install-kernel prefix=$$pfx
-	strip --strip-all	debian/tmp/$(installed-kernel)
-	gzip -9fq		debian/tmp/$(installed-kernel)
+	strip --strip-all	debian/tmp$(installed-kernel)
+	gzip -9fq		debian/tmp$(installed-kernel)
 	-find debian/tmp -type d | xargs chmod g-w
 
 	$(install_file)		README debian/tmp$(DOCDIR)
