@@ -692,7 +692,8 @@ ds_device_close (device_t dev)
 io_return_t
 ds_device_write (device_t dev, ipc_port_t reply_port,
 		 mach_msg_type_name_t reply_port_type, dev_mode_t mode,
-		 recnum_t recnum, io_buf_ptr_t data, mach_msg_number_t count,
+		 recnum_t recnum, io_buf_ptr_t data,
+		 mach_msg_type_number_t count,
 		 int *bytes_written)
 {
   if (dev == DEVICE_NULL)
