@@ -1,3 +1,25 @@
+2001-01-09  Marcus Brinkmann  <marcus@gnu.org>
+
+	* include/device/device_types.h: New get_status call
+	DEV_GET_RECORDS to get the number of records of a device (rather
+	than the number of bytes). Accordingly define
+	DEV_GET_RECORDS_DEVICE_RECORDS, DEV_GET_RECORDS_RECORD_SIZE and
+	DEV_GET_RECORDS_COUNT.
+
+	* linux/dev/glue/block.c (device_get_status): Handle
+	DEV_GET_RECORDS.
+
+2000-11-26  David Welch  <david.welch@seh.ox.ac.uk>
+
+	* i386/Makefrag (i386-installed-headers): Removed dead files 
+	from the list of headers to be installed
+
+2000-11-26  Marcus Brinkmann  <marcus@gnu.org>
+
+	* linux/src/drivers/net/tulip.c: Updated to version
+	from Linux 2.2.17 (I am amazed that 2.2.x drivers work).
+	Suggested by Jason Henry Parker <jasonp@uq.net.au>.
+
 2000-10-29  Roland McGrath  <roland@frob.com>
 
 	Remove numerous dead header files.
@@ -22,6 +44,7 @@
 	* Makefile.in (mach-headers): Remove proc_ops.h.
 	* i386/Makefrag (i386-installed-headers): Likewise.
 	(installed-headers): Don't touch this any more.
+	* i386/Files: Update for removed files.
 
 2000-09-29  Marcus Brinkmann  <marcus@gnu.org>
 
