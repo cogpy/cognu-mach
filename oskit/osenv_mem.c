@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 University of Utah and the Flux Group.
+ * Copyright (c) 1999, 2000 University of Utah and the Flux Group.
  * All rights reserved.
  *
  * This file is part of the Flux OSKit.  The OSKit is free software, also known
@@ -132,44 +132,46 @@ alloc_for_oskit (oskit_size_t size, osenv_memflags_t flags, unsigned align)
      lmm, which might also be used by vm_page_grab.  All users of the lmm
      must go to sploskit or above and take the phys_lmm_lock.  This blocks
      out any interrupts that might go to the oskit (and get us here).  */
-  {
-    spl_t s;
-    void *block;
+  while (1)
+    {
+      spl_t s;
+      void *block;
 
-    s = sploskit ();
-    simple_lock (&phys_lmm_lock);
+      s = sploskit ();
+      simple_lock (&phys_lmm_lock);
 
-    if (align)
-      block = lmm_alloc_aligned (&malloc_lmm, size, lmm_flags,
-				 ffs (align) - 1, 0);
-    else
-      block = lmm_alloc (&malloc_lmm, size, lmm_flags);
+      if (align)
+	block = lmm_alloc_aligned (&malloc_lmm, size, lmm_flags,
+				   ffs (align) - 1, 0);
+      else
+	block = lmm_alloc (&malloc_lmm, size, lmm_flags);
 
-    update_counts ();
+      update_counts ();
 
-    simple_unlock (&phys_lmm_lock);
-    splx (s);
+      simple_unlock (&phys_lmm_lock);
+      splx (s);
 
-    if (block)
-      return block;
+      if (block)
+	return block;
 
-    if (flags & OSENV_NONBLOCKING)
-      return 0;
+      if (flags & OSENV_NONBLOCKING)
+	return 0;
 
-    /* There is no space in the lmm.
-       There may well be pages available on the VM system's free list.
-       If we're sure we are not being called from an interrupt handler here,
-       which we should be guaranteed by checking for OSENV_NONBLOCKING,
-       then we can just access the free list directly here (vm_page_grab).
-       Another approach is to just wake up the pageout daemon to have it
-       find some pages for the lmm and then block until it wakes us up.  */
-    lmm_wants_pages = atop (round_page (size));
-    thread_wakeup_one((event_t)&vm_page_queue_free_count);
-    assert_wait((event_t)&lmm_wants_pages, FALSE);
-    thread_block (0);
-    /* XXX request pages be returned to the lmm */
-    panic (__FUNCTION__);
-  }
+      /* There is no space in the lmm.
+	 There may well be pages available on the VM system's free list.
+	 If we're sure we are not being called from an interrupt handler here,
+	 which we should be guaranteed by checking for OSENV_NONBLOCKING,
+	 then we can just access the free list directly here (vm_page_grab).
+	 Another approach is to just wake up the pageout daemon to have it
+         find some pages for the lmm and then block until it wakes us up.  */
+      lmm_wants_pages = atop (round_page (size));
+      thread_wakeup_one ((event_t)&vm_page_queue_free_count);
+      assert_wait ((event_t)&lmm_wants_pages, FALSE);
+      thread_block (0);
+      /* The pageout daemon woke us up (see consider_lmm_collect)
+	 after putting some memory back into the LMM for us.
+	 XXX make sure we don't loop in livelock? */
+    }
 }
 
 
@@ -275,7 +277,7 @@ void pmap_startup(
 	    vm_page_t mem = pages++;
 	    void *page = lmm_alloc_page (&malloc_lmm, 0);
 	    vm_page_init (mem, (vm_offset_t) page);
-	    debug_protect_page(page);
+	    debug_protect_page (page);
 	    vm_page_release (mem, FALSE);
 	  }
 
@@ -324,7 +326,7 @@ vm_page_grab_oskit_page (void)
 
       update_counts ();
 
-      debug_protect_page(page);
+      debug_protect_page (page);
       simple_unlock (&phys_lmm_lock);
       splx (s);
 
@@ -338,7 +340,7 @@ vm_page_grab_oskit_page (void)
 	     kmem_alloc_wired and wind up recursing down to here trying to
 	     get a page.  So instead we just stuff a physical page directly
 	     into the zone, and loop for a new one to satisfy our caller.  */
-	  debug_unprotect_page(page);
+	  debug_unprotect_page (page);
 	  zcram(vm_page_zone, (vm_offset_t) page, PAGE_SIZE);
 	}
     } while (m == VM_PAGE_NULL);
@@ -374,17 +376,15 @@ consider_lmm_collect (void)
 	      void *pages[PAGE_BATCH];
 	      unsigned int i;
 
-	      i = 0;
-	      do
+	      for (i = 0; i < batch; ++i)
 		{
 		  vm_page_t mem = vm_page_grab (FALSE);
 		  if (mem == VM_PAGE_NULL)
 		    break;
 		  pages[i] = (void *) mem->phys_addr;
 		  zfree (vm_page_zone, (vm_offset_t) mem);
-	    debug_unprotect_page(pages[i]);
+		  debug_unprotect_page (pages[i]);
 		}
-	      while (i++ < batch);
 
 	      s = sploskit ();
 	      simple_lock (&phys_lmm_lock);
@@ -401,6 +401,9 @@ consider_lmm_collect (void)
 		break;
 	      need -= batch;
 	    }
+
+	  /* Wake up any threads blocked in alloc_for_oskit.  */
+	  thread_wakeup ((event_t)&lmm_wants_pages);
 	}
       return;
     }
@@ -437,7 +440,7 @@ consider_lmm_collect (void)
 	  pages[i] = lmm_alloc_page (&malloc_lmm, 0);
 	  if (pages[i] == 0)
 	    panic ("LMM unexpectedly out of physical pages");
-	    debug_protect_page(pages[i]);
+	  debug_protect_page (pages[i]);
 	}
 
       update_counts ();
