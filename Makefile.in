@@ -97,7 +97,7 @@ kern-cfiles = act.c ast.c bootstrap.c counters.c eventcount.c \
 	exception.c host.c ipc_host.c ipc_kobject.c ipc_mig.c ipc_sched.c \
 	ipc_tt.c kalloc.c lock.c lock_mon.c mach_clock.c mach_factor.c \
 	machine.c pc_sample.c priority.c processor.c profile.c \
-	queue.c sched_prim.c startup.c strings.c syscall_emulation.c \
+	queue.c sched_prim.c startup.c syscall_emulation.c \
 	syscall_subr.c syscall_sw.c task.c thread.c thread_swap.c \
 	time_stamp.c timer.c zalloc.c
 kern-files = $(kern-cfiles) \
@@ -105,7 +105,7 @@ kern-files = $(kern-cfiles) \
 	debug.h eventcount.h host.h ipc_host.h ipc_kobject.h ipc_sched.h \
 	ipc_tt.h kalloc.h kern_types.h lock.h mach_param.h macro_help.h \
 	pc_sample.h processor.h queue.h refcount.h sched.h sched_prim.h \
-	shuttle.h strings.h syscall_emulation.h syscall_subr.h syscall_sw.h \
+	shuttle.h syscall_emulation.h syscall_subr.h syscall_sw.h \
 	task.h thread.h thread_swap.h time_out.h time_stamp.h timer.h \
 	zalloc.h \
 	mach.srv mach4.srv mach_debug.srv mach_host.srv
@@ -216,7 +216,7 @@ mach_machine:
 # Compilation flags
 #
 
-DEFINES += -DMACH -DMACH_KERNEL -DKERNEL -DCONTINUATIONS @DEFS@
+DEFINES += -DOSKIT_MACH=1 -DMACH -DMACH_KERNEL -DKERNEL -DCONTINUATIONS @DEFS@
 INCLUDES += -I. -I$(srcdir) -I$(srcdir)/include \
 	    -I$(srcdir)/bogus -I$(srcdir)/kern -I$(srcdir)/device
 
@@ -277,12 +277,12 @@ kernel-unused: kernel.a.list kernel.map.list
 k%nel.o k%nel.map: $(OSKIT_LIBDIR)/multiboot.o $(osenv-overrides:=.o) k%nel.a
 	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r \
 	      -o $(@:.map=.o) -Wl,-Map=$(@:.o=.map) \
-	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
+	      -Wl,-\( $^ -L$(OSKIT_LIBDIR)/.. $(OSKIT_LIBS) -Wl,-\) -lgcc
 # This rule has less overhead, but doesn't produce the intermediate
 # results necessary to compute `kernel-unused'.
 kernel.o: $(OSKIT_LIBDIR)/multiboot.o $(objfiles)
 	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -o $@ \
-	      -Wl,-\( $^ $(OSKIT_LIBS) -Wl,-\) -lgcc
+	      -Wl,-\( $^ -L$(OSKIT_LIBDIR)/.. $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 %-undef: %.o
 	$(NM) -u $< | sed 's/^_*//' | sort -u > $@
@@ -296,7 +296,8 @@ clib-routines.o: kernel-clib
 
 oskit-kern%.o: kern%.o clib-routines.o
 	$(CC) $(CFLAGS) -nostdlib -nostartfiles $(LDFLAGS) -r -o $@ \
-	      -Wl,-\( $^ -loskit_clientos -loskit_c $(OSKIT_LIBS) -Wl,-\) -lgcc
+	      -Wl,-\( $^ -L$(OSKIT_LIBDIR)/.. \
+			 -loskit_clientos -loskit_c $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 %-undef-bad: %-undef Makefile
 	sed '$(foreach r,$(clib-routines) $(magic-symbols),/^$r$$/d;)' $< > $@
@@ -358,19 +359,19 @@ dist:
 #
 # Autoconf support
 #
-$(srcdir)/configure: configure.in
+$(srcdir)/configure: $(srcdir)/configure.in
 	cd $(srcdir) && autoconf
 $(srcdir)/config.h.in: $(srcdir)/acconfig.h
 	cd $(srcdir) && autoheader
 
-Makefile: Makefile.in config.status
+Makefile: $(srcdir)/Makefile.in config.status
 	./config.status
 config.h: stamp-configh ;
-stamp-configh: config.h.in config.status
+stamp-configh: $(srcdir)/config.h.in config.status
 	./config.status
 	touch $@
 
-config.status: configure
+config.status: $(srcdir)/configure
 	./config.status --recheck
 
 vpath %.in $(srcdir)
