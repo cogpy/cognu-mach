@@ -1,3 +1,9 @@
+2001-10-20  Roland McGrath  <roland@frob.com>
+
+	* Merged from gnumach: -j oskit-fork-20011007 -j oskit-fork-20011019.
+	CVS tags oskit-premerge-20011019 and oskit-postmerge-20011019 mark the
+	oskit-branch state before and after this merge.
+
 2001-10-19  Roland McGrath  <roland@frob.com>
 
 	* i386/i386/mp_desc.c (mp_desc_init): Use kvtolin on addresses in
