@@ -317,7 +317,7 @@ out:
 
 io_return_t
 ds_blkio_get_status (device_t dev, dev_flavor_t flavor, dev_status_t status,
-		      mach_msg_type_number_t *status_count)
+		     mach_msg_type_number_t *status_count)
 {
   oskit_error_t rc;
   switch (flavor)
@@ -338,6 +338,31 @@ ds_blkio_get_status (device_t dev, dev_flavor_t flavor, dev_status_t status,
 	  status[DEV_GET_SIZE_DEVICE_SIZE] = size;
 
 	*status_count = 2;
+	return D_SUCCESS;
+      }
+    case DEV_GET_RECORDS:
+      {
+	oskit_off_t size;
+
+	/* DEV->com.blk.size was initialized on open.  */
+ 	status[DEV_GET_RECORDS_RECORD_SIZE] = dev->com.blk.size;
+	assert (dev->com.blk.size > 0);
+
+	rc = oskit_blkio_getsize (dev->com.blk.io, &size);
+	if (rc == OSKIT_E_NOTIMPL)
+	  size = 0;
+	else if (rc)
+	  return oskit_to_mach_error (rc);
+
+	status[DEV_GET_RECORDS_DEVICE_RECORDS]
+	  = (recnum_t) (size / (oskit_off_t) dev->com.blk.size);
+
+	/* Always return DEV_GET_RECORDS_COUNT.  This is what all native
+	   Mach drivers do, and makes it possible to detect the absence
+	   of the call by setting it to a different value on input.  MiG
+	   makes sure that we will never return more integers than the
+	   user asked for.  */
+	*status_count = DEV_GET_RECORDS_COUNT;
 	return D_SUCCESS;
       }
     }
