@@ -36,6 +36,7 @@
 extern int syscall();
 
 struct x86_desc ldt[LDTSZ];
+extern natural_t user_thread_register;
 
 void
 ldt_init()
@@ -56,6 +57,9 @@ ldt_init()
 	fill_ldt_descriptor(USER_DS,
 			    VM_MIN_ADDRESS, VM_MAX_ADDRESS-VM_MIN_ADDRESS,
 			    ACC_PL_U|ACC_DATA_W, SZ_32);
+
+	fill_ldt_descriptor(USER_GS, kvtolin(&user_thread_register),
+			    3, ACC_PL_U|ACC_DATA_W, SZ_32);
 
 	/* Activate the LDT.  */
 	set_ldt(KERNEL_LDT);

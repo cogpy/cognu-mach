@@ -126,16 +126,20 @@ vm_offset_t stack_detach(thread)
 #if	NCPUS > 1
 #define	curr_gdt(mycpu)		(mp_gdt[mycpu])
 #define	curr_ktss(mycpu)	(mp_ktss[mycpu])
+#define curr_user_thread_reg(mycpu)	\
+  (mp_desc_table[mycpu].user_thread_register)
 #else
 #define	curr_gdt(mycpu)		(gdt)
 #define	curr_ktss(mycpu)	((struct task_tss *)&base_tss)
+#define curr_user_thread_reg(mycpu) (user_thread_register)
+natural_t user_thread_register;
 #endif
 
 #define	gdt_desc_p(mycpu,sel) \
 	((struct x86_desc *)&curr_gdt(mycpu)[sel_idx(sel)])
 
-void switch_ktss(pcb)
-	register pcb_t	pcb;
+void
+switch_ktss(pcb_t old_pcb, pcb_t pcb)
 {
 	int			mycpu = cpu_number();
     {
@@ -157,25 +161,31 @@ void switch_ktss(pcb)
 	curr_ktss(mycpu)->tss.esp0 = pcb_stack_top;
     }
 
-    {
+    if (old_pcb && pcb->ims.ldt != old_pcb->ims.ldt)
+      {
 	register user_ldt_t	ldt = pcb->ims.ldt;
 	/*
 	 * Set the thread`s LDT.
 	 */
 	if (ldt == 0) {
-	    /*
-	     * Use system LDT.
-	     */
-	    set_ldt(KERNEL_LDT);
+	  /*
+	   * Use system LDT.
+	   */
+	  set_ldt(KERNEL_LDT);
 	}
 	else {
-	    /*
-	     * Thread has its own LDT.
-	     */
-	    *gdt_desc_p(mycpu,USER_LDT) = ldt->desc;
-	    set_ldt(USER_LDT);
+	  /*
+	   * Thread has its own LDT.
+	   */
+	  *gdt_desc_p(mycpu,USER_LDT) = ldt->desc;
+	  set_ldt(USER_LDT);
 	}
-    }
+      }
+
+    if (old_pcb)
+      old_pcb->ims.user_thread_register = curr_user_thread_reg(mycpu);
+    curr_user_thread_reg(mycpu) = pcb->ims.user_thread_register;
+
 	/*
 	 * Load the floating-point context, if necessary.
 	 */
@@ -249,7 +259,7 @@ void stack_handoff(old, new)
 	/*
 	 *	Load the rest of the user state for the new thread
 	 */
-	switch_ktss(new->pcb);
+	switch_ktss(old->pcb, new->pcb);
 
 	/*
 	 *	Switch to new thread
@@ -274,7 +284,7 @@ void stack_handoff(old, new)
 void load_context(new)
 	register thread_t	new;
 {
-	switch_ktss(new->pcb);
+	switch_ktss(0, new->pcb);
 	Load_context(new);
 }
 
@@ -311,7 +321,7 @@ thread_t switch_context(old, continuation, new)
 	/*
 	 *	Load the rest of the user state for the new thread
 	 */
-	switch_ktss(new->pcb);
+	switch_ktss(old->pcb, new->pcb);
 
 	return Switch_context(old, continuation, new);
 }
@@ -353,7 +363,7 @@ void pcb_init(thread)
 	pcb->iss.ds = USER_DS;
 	pcb->iss.es = USER_DS;
 	pcb->iss.fs = USER_DS;
-	pcb->iss.gs = USER_DS;
+	pcb->iss.gs = USER_GS;
 	pcb->iss.eflags = EFL_USER_SET;
 
 	thread->pcb = pcb;
@@ -487,7 +497,7 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		    saved_state->ds = USER_DS;
 		    saved_state->es = USER_DS;
 		    saved_state->fs = USER_DS;
-		    saved_state->gs = USER_DS;
+		    saved_state->gs = USER_GS;
 		}
 		else {
 		    /*

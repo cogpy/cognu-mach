@@ -45,6 +45,7 @@
 #define	USER_SCALL	0x07		/* system call gate */
 #define	USER_CS		0x17		/* user code segment */
 #define	USER_DS		0x1f		/* user data segment */
+#define	USER_GS		0x0f		/* user thread register segment */
 
 #define	LDTSZ		4
 

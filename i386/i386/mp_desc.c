@@ -142,6 +142,12 @@ mp_desc_init(mycpu)
 			sizeof(struct task_tss) - 1,
 			ACC_P|ACC_PL_K|ACC_TSS, 0);
 
+		/* Fix the LDT's entry for USER_GS to point into
+		   our CPU-specific structure.  */
+		fill_descriptor(&mpt->ldt[sel_idx(USER_GS)],
+				kvtolin(&mpt->user_thread_register),
+				3, ACC_P|ACC_PL_U|ACC_DATA_W, SZ_32);
+
 		/*
 		 * Set the %gs segment register to point at
 		 * a word containing the cpu number.

@@ -170,7 +170,24 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 		case ACC_P | ACC_PL_U | ACC_CODE_CR:
 		case ACC_P | ACC_PL_U | ACC_CALL_GATE_16:
 		case ACC_P | ACC_PL_U | ACC_CALL_GATE:
-		    break;
+		  /* Silently cap the segment's limit at VM_MAX_ADDRESS. */
+		  {
+		    unsigned base = ((dp->base_high << 24)
+				     | (dp->base_med << 16) | dp->base_low);
+		    unsigned limit
+		      = ((dp->limit_high << 16) | dp->limit_low);
+		    if (dp->granularity & SZ_G)
+		      limit <<= 12;
+		    if (base > VM_MAX_ADDRESS)
+		      {
+			fill_descriptor_base(dp, 0);
+			fill_descriptor_limit(dp, 0);
+		      }
+		    else if (base + limit > VM_MAX_ADDRESS
+			     || base + limit < base)
+		      fill_descriptor_limit(dp, VM_MAX_ADDRESS - base);
+		  }
+		  break;
 		default:
 		    return KERN_INVALID_ARGUMENT;
 	    }
@@ -247,7 +264,7 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	     * make sure it is properly set.
 	     */
 	    if (thread == current_thread())
-	        switch_ktss(pcb);
+	        switch_ktss(0, pcb);
 	}
 
 	/*

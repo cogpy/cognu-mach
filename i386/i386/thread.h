@@ -130,6 +130,7 @@ struct i386_machine_state {
 	struct user_ldt	*	ldt;
 	struct i386_fpsave_state *ifps;
 	struct v86_assist_state	v86s;
+  	natural_t user_thread_register;
 };
 
 typedef struct pcb {
