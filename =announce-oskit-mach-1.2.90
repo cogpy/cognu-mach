@@ -1,0 +1,181 @@
+I am pleased to announce the availability of an initial development
+snapshot of a new variant of the Mach kernel, which I am tentatively
+calling OSKit-Mach.  The starting point for this variant is the current GNU
+development version of Mach (aka GNUmach).  The difference between GNUmach
+and OSKit-Mach is that I have entirely ripped out all the old Mach and
+Linux device driver code and several parts of the i386 hardware support
+code and replaced them with uses of the OSKit's hardware support and device
+driver libraries.
+
+Please note that although I am a sometime employee of the University of
+Utah's Flux Group (makers of the OSKit), and I am a Hurd developer and a
+long-time volunteer and former employee of the GNU Project, this is wholly
+a personal project of mine that I began on my own without consulting
+anyone.  I am using the Hurd project's CVS repository for OSKit-Mach
+because it is convenient for me (seeing as it's a branch off the current
+gnumach development) and is a convenient way for me to make my code
+available, and obviously I am encouraging use of the University of Utah's
+OSKit, but that should not be misconstrued as an endorsement of my project
+by the Hurd project, the GNU Project, the FSF, the University of Utah, or
+Major League Baseball.  I just decided this would be a fun thing to do.
+
+For the time being, this is most definitely for kernel hackers and
+dedicated "thrill seekers" only.  If anything or everything in this message
+makes no sense to you, then please just don't worry about it.  Just wait,
+and people to whom it does make sense will decide if and when you want to
+worry about it and give you specific instructions on where to go and what
+to do at that time.
+
+This variant is intended to be completely identical to GNUmach from the
+user-mode perspective (aside from the behavior of the device drivers), and
+I intend to keep Oskit-Mach abreast of all applicable changes to GNUmach on
+a regular basis (not much is changed from GNUmach aside from the drivers).
+
+
+In some respects this project brings the relationship of Mach and the OSKit
+full circle.  When maintenance of Mach 3.0 at CMU waned, the University of
+Utah's Flux Group took over in the form of the Mach4 project, and revamped
+much of the i386 machine support code in the course of their research.
+While at Columbia University, Shantanu Goel worked on using Linux device
+drivers in Mach, and later continued this work at the University of Utah.
+Utah Mach4 became the seat of Mach development on the 3.0-compatible line,
+and the microkernel underyling the GNU/Hurd multiserver operating system.
+When the Flux Group's research moved on from Mach to other systems, they
+wanted to reuse the work they had done in hardware support and device
+drivers; this work (and a whole lot more) eventually evolved into the
+OSKit.  Meanwhile, when the Flux Group stopped maintaining Mach4, the Free
+Software Foundation's GNU Hurd Project had taken it up and produced the
+GNUmach release to go with the Hurd.  Since then, the Hurd has become an
+all-volunteer project whose developers are not paid by the FSF, and later
+GNUmach releases incorporating bug fixes and updating the Goel/Utah
+encapsulation of Linux device drivers have been made by volunteers
+including Okuji Yoshinori and Thomas Bushnell.
+
+This bit of history explains some of why it was so easy to replace a lot of
+the GNUmach/Mach4 hardware support code with OSKit calls--in many cases the
+OSKit code is a direct evolution of the code originally in Mach4 that I was
+replacing, with the names changed and improvements Utah has made since the
+Mach4 days.
+
+
+* What you get vs GNUmach
+
+** All the benefits of an OSKit kernel
+  -> Device drivers from Linux 2.2.12 (IDE, SCSI, and Ethernet)
+     (GNUmach has Linux 2.0.36 drivers with a few fixes.)
+  -> Serial-port console support with a very simple minimal serial driver
+  -> OSKit-style Multiboot support, including "return address" hack
+     for extra-speedy soft reboot when using OSKit's Netboot
+  -> Serial-port GDB support for debugging the microkernel in style
+  -> The University of Utah might maintain the device drivers for you
+
+** A much smaller source tree!  The unpacked OSKit-Mach sources total about
+   a quarter of the GNUmach sources (though the OSKit itself is much larger
+   of course).  The gzip'd tar file of the source tree is about 700k, vs
+   3.6MB for gnumach.  This is because I have wiped out much old cruft, as
+   well as all the old device drivers and the Linux code.
+
+
+* What you lose vs GNUmach
+
+** All the old device drivers are gone, so you only get what the OSKit has.
+   It would not be very hard to support some of the old drivers alongside
+   the OSKit drivers, but I am not interested in working on that.  I am
+   more interested in adding good new drivers to the OSKit.
+*** The PC screen/keyboard console driver is very minimal, and not
+    compatible with the old Mach driver's terminal emulation.
+    The OSKit's PC console emulates an adm3a terminal, and the keyboard
+    input support is very simple.
+*** No real serial drivers at all
+    The serial drivers that provide the serial console and serial GDB
+    are very minimal and not really generally usable serial drivers at all.
+    The oskit's freebsd serial driver might work, but the interface glue
+    for features specific to serial ports (baud rate, modem control, etc)
+    is not there.
+*** No parallel (printer) port driver(?)
+    The oskit's freebsd printer driver might work.
+*** No real drivers for PC keyboard or PS/2 mouse at all.
+    The oskit needs a good clean driver for the low-level keyboard access.
+
+** No DDB.  I ripped it out rather than making it work.  Serial GDB is much
+   better.  It might be useful at some point to resurrect some of DDB's
+   code that prints out kernel data structures in comprehensible form.
+
+* What the hell is the OSKit again?
+
+See <URL:http://www.cs.utah.edu/flux/oskit> to learn all about the OSKit.
+Please don't ask me to tell you all about it, because I won't do it.
+
+* Where to get it
+
+The source is in the Hurd project's CVS repository as a branch of gnumach.
+This is available for anonymous CVS from the GNU Project's server.
+See <URL:http://www.gnu.org/software/devel> about using anonymous CVS.
+You want to check out the gnumach module with the tag `oskit-branch', i.e.:
+
+cvs -d :pserver:anoncvs@anoncvs.gnu.org:/gd/gnu/anoncvsroot co -d oskit-mach -r oskit-branch -P gnumach
+
+I don't expect to do much in the way of distributing this other than by
+anonymous CVS any time soon, until it is ready for some kind of release.
+As I said, at this stage this is for seasoned kernel hackers and masochists
+only, so I will presume anonymous CVS is something you can cope with.
+Since cvs is a bit of a bear for the first checkout, I've put together a
+tar file containing a checkout from anonymous CVS (complete with CVS
+directories) to get you started.  You can find it at
+<URL:ftp://ftp.ai.mit.edu/pub/users/roland/mach/oskit-mach-19991125.tar.gz>.
+
+
+* What you need to build OSKit-Mach
+
+The build is just the same as GNUmach, except that first you will need to
+build and install the OSKit.  You need the 19991124 "Butterball" snapshot
+release of the OSKit, which is at
+<URL:ftp://flux.cs.utah.edu/flux/oskit/oskit-19991124.tar.gz> (or a later
+version).  See <URL:http://www.cs.utah.edu/flux/oskit> for more information
+about the OSKit, including its mailing list and archives (where that
+wildman Okuji had already posted fixes before the sun set on that
+snapshot's first day!).
+
+Please don't ask me about building the OSKit; see the web site and the
+documentation included with the source about what to do and to whom to
+complain.  (And realize that this is an informal bleeding-edge snapshot,
+not a released OSKit version, so you should expect to try to figure out
+your own problems.)  Before you try to build OSKit-Mach, please test your
+OSKit build on your hardware by building and running some of the oskit's
+example programs and making sure they boot and run ok.
+
+The only way that I've actually built oskit-mach is with my i486-gnu (Hurd)
+cross-compilation setup; I just built the oskit with that cross-compiler
+and --prefix=/usr/i486-gnu and installed it.  Then just configure
+oskit-mach normally and build.  All of this should work with any native
+ELF/x86 compiler too (and no --prefix).  It should probably work to
+configure oskit-mach using the oskit's compiler front-end (i386-oskit-gcc),
+but I haven't tried that and don't recommend it.  The only difference
+between using a native compiler or a cross-compilation setup that has glibc
+installed, and using i386-oskit-gcc, should be that a few functions such as
+memcpy will come from the oskit's minimal C library rather than from glibc,
+which has much better-optimized implementations of those
+performance-critical functions.
+
+
+* If you are a rabid Mach kernel hacker
+
+There are a few things to mention about technical details of how I did some
+things, and I will write some notes up sometime soon and stick them in the
+sources someplace.  In the meantime, there are some comments and if you
+grok the kernel already then reading the code should be substantially
+self-explanatory.  Aside from removed files, the diffs between the gnumach
+trunk and the oskit-branch are fairly small (cvs is your friend); all the
+new oskit-related support code is in the new oskit/ subdirectory.
+
+
+Please send bug reports to <bug-hurd@gnu.org>.  If you have a problem with
+device drivers, before you report it to me as a problem with OSKit-Mach,
+please try those drivers on your hardware using some oskit example kernels.
+If your problems show up using those device drivers on your hardware in an
+oskit example kernel, then please report it to <oskit-users@cs.utah.edu> as
+an oskit problem rather than reporting it as Mach problem.
+
+
+Enjoy,
+Roland McGrath <roland@frob.com>
