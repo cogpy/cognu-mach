@@ -648,12 +648,7 @@ ds_device_open (ipc_port_t open_port, ipc_port_t reply_port,
     {
       static device_t phys_mem_device;
       return special_mem_device (&phys_mem_device, mode,
-				 phystokv (0),
-				 /* We bogusly claim the granularity is
-				    four bytes when in fact we can do one,
-				    so that the size stays well below
-				    overflowing the signed dev_status_t.  */
-				 ~(vm_offset_t)0 - 4, 1,
+				 phystokv (0), ~(vm_offset_t)0, 1,
 				 devp);
     }
   else if (bus_walk_from_compat_string (name, constructed)) /* compat hack */
@@ -800,7 +795,6 @@ ds_device_read (device_t dev, ipc_port_t reply_port,
 					     reply_port_type, mode, recnum,
 					     count, data, bytes_read)
 	 : D_INVALID_OPERATION);
-  while (err == D_INVALID_OPERATION) asm volatile ("int $3");
 
   /* The ops->read function can return D_INVALID_OPERATION to tell us that
      it doesn't want to deal with making a copy object for this read.  We
@@ -823,7 +817,6 @@ ds_device_read (device_t dev, ipc_port_t reply_port,
       kr = (*dev->ops->read_inband) (dev, reply_port,
 				     reply_port_type, mode, recnum,
 				     count, (char *) addr, bytes_read);
-  while (kr == D_INVALID_OPERATION) asm volatile ("int $3");
       if (kr == D_SUCCESS)
 	{
 	  vm_size_t result_size = round_page (*bytes_read);
@@ -946,6 +939,9 @@ ds_device_map (device_t dev, vm_prot_t prot, vm_offset_t offset,
   if (dev->mode != (D_READ | ((prot & VM_PROT_WRITE) ? D_WRITE : 0)))
     INVALOP;
 
+  /* This call serves only to verify that this offset and size are valid.
+     It does not do any mapping!  All the real work with the VM system
+     is done by the device pager code (found in device/dev_pager.c).  */
   kr = (*dev->ops->map) (dev, prot, offset, size, 0);
   if (!kr)
     kr = device_pager_setup (dev, prot, offset, size, pager);
