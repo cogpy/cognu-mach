@@ -29,10 +29,12 @@ io_return_t
 ds_mem_map (device_t dev, vm_prot_t prot,
 	    vm_offset_t offset, vm_size_t size, oskit_addr_t *pa)
 {
-  if (offset + size > round_page (dev->com.mem.size))
-    INVALREC;
   if (offset % dev->com.mem.recsize || !page_aligned (offset))
     INVALREC;
+  if (trunc_page (offset) > trunc_page (dev->com.mem.size))
+    INVALREC;
+  if (trunc_page (offset + size - 1) > trunc_page (dev->com.mem.size - 1))
+    INVALSZ;
   if (round_page (size) % dev->com.mem.recsize)
     INVALSZ;
 
@@ -102,24 +104,28 @@ ds_mem_read_inband (device_t dev, ipc_port_t reply_port,
 		    recnum_t recnum, int count, char *data,
 		    unsigned *bytes_read)
 {
+  vm_offset_t pa;
+
   if (count == 0)
     {
       *bytes_read = 0;
       return 0;
     }
   recnum *= dev->com.mem.recsize;
-  if ((oskit_size_t) recnum + count > dev->com.mem.size)
+  if ((oskit_size_t) recnum > dev->com.mem.size)
     INVALREC;
+  if ((oskit_size_t) recnum + count > dev->com.mem.size)
+    INVALSZ;
 
+  pa = dev->com.mem.pa + recnum;
   *bytes_read = count;
-  if (direct_mapped (dev->com.mem.pa))
-    memcpy (data, (char *) phystokv (dev->com.mem.pa) + recnum, count);
+  if (direct_mapped (pa) && direct_mapped (pa + recnum - 1))
+    memcpy (data, (char *) phystokv (pa), count);
   else
     {
       vm_offset_t kva, ofs;
       vm_size_t mapsz;
-      if (! map_phys (dev->com.mem.pa + recnum, bytes_read,
-		      VM_PROT_READ,
+      if (! map_phys (pa, bytes_read, VM_PROT_READ,
 		      &kva, &mapsz, &ofs))
 	return D_NO_MEMORY;
       memcpy (data, (char *) kva + ofs, *bytes_read);
@@ -136,24 +142,28 @@ ds_mem_write_inband (device_t dev, ipc_port_t reply_port,
 		     io_buf_ptr_t data, unsigned int count,
 		     int *bytes_written)
 {
+  vm_offset_t pa;
+
   if (count == 0)
     {
       *bytes_written = 0;
       return 0;
     }
   recnum *= dev->com.mem.recsize;
-  if ((oskit_size_t) recnum + count > dev->com.mem.size)
+  if ((oskit_size_t) recnum > dev->com.mem.size)
     INVALREC;
+  if ((oskit_size_t) recnum + count > dev->com.mem.size)
+    INVALSZ;
 
+  pa = dev->com.mem.pa + recnum;
   *bytes_written = count;
-  if (direct_mapped (dev->com.mem.pa))
-    memcpy ((char *) phystokv (dev->com.mem.pa) + recnum, data, count);
+  if (direct_mapped (pa) && direct_mapped (pa + recnum - 1))
+    memcpy ((char *) phystokv (pa), data, count);
   else
     {
       vm_offset_t kva, ofs;
       vm_size_t mapsz;
-      if (! map_phys (dev->com.mem.pa + recnum,
-		      (unsigned *) bytes_written,
+      if (! map_phys (pa, (unsigned *) bytes_written,
 		      VM_PROT_READ | VM_PROT_WRITE,
 		      &kva, &mapsz, &ofs))
 	return D_NO_MEMORY;
