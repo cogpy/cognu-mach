@@ -1,3 +1,10 @@
+2003-03-05  Roland McGrath  <roland@frob.com>
+
+	* configure.in (HAVE_I8042): New check for oskit_dev_init_i8042.
+	* oskit/ds_osenv.c (ds_osenv_init) [HAVE_I8042]: Call it.
+	* config.h.in: Add #undef.
+	* configure: Regenerated.
+
 2003-02-28  Roland McGrath  <roland@frob.com>
 
 	* oskit/osenv_irq.c (console_irq, console_irq_handler): New variables.
