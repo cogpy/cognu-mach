@@ -1,18 +1,3 @@
-2000-09-17  Roland McGrath  <roland@gateway.sf.frob.com>
-
-	* oskit/x86/main.c (main): Set CR4_PGE bit here, after paging_enable.
-	* i386/intel/pmap.c (pmap_bootstrap): Not here, since it's before
-	paging is enabled, and that is verboten.  Still check the feature
-	flag and initialize kernel_pte_global here.
-
-2000-03-20  Roland McGrath  <roland@baalperazim.frob.com>
-
-	* Makefile.in (oskit-kern%.o): Pattern rule replaces oskit-kernel.o
-	target rule.
-	(kern%): Pattern rule replaces kernel target rule.
-	(kernel-%.o): New pattern rule, like kernel.o rule.
-	(init-%.c): New pattern rule.
-
 1999-10-08  Thomas Bushnell, BSG  <tb@mit.edu>
 
 	* linux/src/drivers/net/3c59x.c: Updated to version 0.99L of the
