@@ -7,3 +7,6 @@
 /* Define this to nonzero to enable the software FPU emulator,
    used on machines that have no FPU.  */
 #undef FPE
+
+/* Define if you have the <oskit/dev/stream.h> header file.  */
+#undef HAVE_OSKIT_DEV_STREAM_H

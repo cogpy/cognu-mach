@@ -96,6 +96,8 @@ else
   AC_MSG_RESULT([yes, ok])
 fi
 
+AC_CHECK_HEADERS(oskit/dev/stream.h)
+
 AC_SUBST(SMP_LIBS)SMP_LIBS=
 if test $MAXCPUS -gt 1; then
   AC_CHECK_LIB(oskit_smp, smp_init, [SMP_LIBS=-loskit_smp], [

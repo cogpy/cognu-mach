@@ -49,6 +49,9 @@
 #include <oskit/unsupp/bus_walk.h>
 #include <oskit/dev/bus.h>
 #include <oskit/dev/blk.h>
+#ifdef HAVE_OSKIT_DEV_STREAM_H
+# include <oskit/dev/stream.h>
+#endif
 #include <oskit/dev/net.h>
 #include <oskit/dev/linux.h>
 #include <oskit/com/stream.h>
@@ -401,6 +404,9 @@ dev_open_com (oskit_device_t *com_device, dev_mode_t mode, device_t *devp,
     oskit_bus_t *bus;
     oskit_blkdev_t *blkdev;
     oskit_netdev_t *netdev;
+#ifdef oskit_streamdev_open
+    oskit_streamdev_t *streamdev;
+#endif
     oskit_error_t rc;
     inline void asyncio_init (device_t dev)
       {
@@ -465,6 +471,29 @@ dev_open_com (oskit_device_t *com_device, dev_mode_t mode, device_t *devp,
 	ops = &net_device_ops;
 	rc = ds_netdev_open (dev, netdev);
       }
+#ifdef oskit_streamdev_open
+    else if (oskit_device_query (com_device, &oskit_streamdev_iid,
+				 (void **) &streamdev) == 0)
+      {
+	rc = oskit_streamdev_open (streamdev,
+				   ((mode & D_READ) ? OSKIT_DEV_OPEN_READ : 0)
+				   | ((mode & D_WRITE)
+				      ? OSKIT_DEV_OPEN_WRITE : 0),
+				   &dev->com.stream.io);
+	oskit_streamdev_release (streamdev);
+	if (OSKIT_SUCCEEDED (rc))
+	  {
+	    if (oskit_stream_query (dev->com.stream.io, &oskit_asyncio_iid,
+				    (void **) &dev->com.stream.aio) == 0)
+	      {
+		asyncio_init (dev);
+		ops = &asyncio_device_ops;
+	      }
+	    else
+	      ops = &stream_device_ops;
+	  }
+      }
+#endif
 
     if (OSKIT_FAILED (rc))
       {
