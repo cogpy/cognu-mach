@@ -1,3 +1,9 @@
+2002-04-23  Roland McGrath  <roland@frob.com>
+
+	* i386/i386/trap.c (user_trap): Change assert that user fault address
+	is below LINEAR_MIN_KERNEL_ADDRESS to allow for USER_GS:0 access too.
+	Reported by Jeroen Dekkers <jeroen@dekkers.cx>.
+
 2002-04-21  Roland McGrath  <roland@frob.com>
 
 	* i386/i386/mp_desc.c (mp_desc_load): Avoid newlines inside strings.
