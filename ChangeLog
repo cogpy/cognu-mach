@@ -1,5 +1,7 @@
 2002-11-09  Roland McGrath  <roland@frob.com>
 
+	* Makefile.in (clib-routines.o): Add `-x none' before -lc.
+
 	* oskit/ds_routines.c (ds_notify): Deallocate two refs, not one.
 	(dev_open_com): Bump the ref_count on a new device to account for
 	the reference held in the hash table as well as the one returned.
