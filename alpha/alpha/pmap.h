@@ -26,6 +26,31 @@
 /*
  * HISTORY
  * $Log: pmap.h,v $
+ * Revision 1.2  2002/05/28 07:35:05  roland
+ * 2002-05-28  Roland McGrath  <roland@frob.com>
+ *
+ * 	* alpha/alpha/prom_interface.h: Fix obsolescent #else/#endif syntax.
+ * 	* alpha/alpha/pmap.c: Likewise.
+ * 	* alpha/alpha/pmap.h: Likewise.
+ * 	* alpha/alpha/pcb.c: Likewise.
+ * 	* alpha/alpha/context.h: Likewise.
+ * 	* alpha/alpha/thread.h: Likewise.
+ * 	* alpha/include/mach/alpha/alpha_instruction.h: Likewise.
+ * 	* alpha/include/mach/alpha/vm_param.h: Likewise.
+ * 	* alpha/include/mach/alpha/vm_types.h: Likewise.
+ * 	* alpha/include/mach/alpha/boolean.h: Likewise.
+ * 	* alpha/include/mach/alpha/kern_return.h: Likewise.
+ * 	* alpha/include/mach/alpha/thread_status.h: Likewise.
+ * 	* alpha/include/mach/alpha/syscall_sw.h: Likewise.
+ * 	* alpha/include/mach/alpha/exception.h: Likewise.
+ * 	* alpha/alpha/alpha_copyin.S: Likewise.
+ * 	* alpha/alpha/machspl.h: Likewise.
+ * 	* alpha/alpha/trap.c: Likewise.
+ * 	* alpha/alpha/alpha_instruction.c: Likewise.
+ * 	* alpha/alpha/alpha_init.c: Likewise.
+ * 	* alpha/alpha/setjmp.h: Likewise.
+ * 	* alpha/alpha/vm_tuning.h: Likewise.
+ *
  * Revision 1.1  2002/05/28 06:27:03  roland
  * Alpha support files verbatim from CMU release MK83a.
  *
@@ -158,7 +183,6 @@ typedef struct pmap	*pmap_t;
 
 #define PMAP_NULL	((pmap_t) 0)
 
-extern vm_offset_t	kvtophys(vm_offset_t);
 extern void		set_ptbr(/* pmap_t map, pcb_t pcb */);
 
 #if	NCPUS > 1
