@@ -1,5 +1,7 @@
 2000-02-06  Roland McGrath  <roland@baalperazim.frob.com>
 
+	* Drivers.macros: File removed; obsolete in this branch.
+
 	* oskit/osenv_mem.c (consider_lmm_collect): Fix fencepost error in
 	loop calling vm_page_grab.  After putting memory back into the LMM,
 	wake up threads blocked on &lmm_wants_pages.
