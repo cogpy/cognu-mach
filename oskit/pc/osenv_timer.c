@@ -54,6 +54,8 @@ softclock_oskit (void)
 	for (th = timer_head; th; th = th->next)
 		(*th->func)();
 	osenv_intr_enable();
+
+	oskit_softint();
 }
 
 /*
