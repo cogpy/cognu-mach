@@ -12,6 +12,7 @@
 #include <kern/lock.h>
 #include <kern/queue.h>
 
+#include <cpus.h>
 
 struct device_ops {
   io_return_t (*write) (device_t, ipc_port_t, mach_msg_type_name_t,
@@ -109,6 +110,15 @@ struct device {
 #define	device_lock(device)	simple_lock(&(device)->lock)
 #define	device_unlock(device)	simple_unlock(&(device)->lock)
 
+/* These macros are used to take a global lock around entering
+   any oskit driver code.  */
+#if ! MULTIPROCESSOR
+#else
+# warning SMP support in oskit-mach is incomplete
+#endif
+#define DEV_LOCK_INIT	((void)0)
+#define DEV_LOCK(dev)	((void)0)
+#define DEV_UNLOCK(dev)	((void)0)
 
 extern const struct device_ops stream_device_ops;
 extern const struct device_ops asyncio_device_ops;
