@@ -53,7 +53,9 @@ extern zone_t io_req_zone;
 extern queue_head_t device_ready_queue;
 decl_simple_lock_data(extern, device_ready_queue_lock)
 
-void ds_device_ready (device_t);
+extern void ds_request_init (void);
+extern void ds_device_ready (device_t);
+extern void ds_asyncio_ready (device_t);
 
 
 

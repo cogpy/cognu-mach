@@ -14,7 +14,8 @@
 oskit_stream_t *kmsg_stream;
 unsigned int kmsg_readers;
 
-kmsg_init()
+void
+kmsg_init (void)
 {
   kmsg_stream = oskit_charqueue_create (KMSG_BUFSIZE,
 					OSKIT_CHARQUEUE_FULL_REPLACE);

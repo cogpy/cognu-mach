@@ -7,6 +7,9 @@
 #include "device_interface.h"
 #include "ds_routines.h"
 
+#include <oskit/dev/error.h>
+#include <oskit/dev/osenv.h>
+
 #include <mach/port.h>
 #include <mach/message.h>
 #include <kern/lock.h>
@@ -49,6 +52,7 @@ struct device_ops {
 #include <oskit/diskpart/diskpart.h>
 #include <oskit/com/stream.h>
 #include <oskit/io/asyncio.h>
+#include <oskit/dev/net.h>
 #include <oskit/io/netio.h>
 
 struct device {
@@ -129,6 +133,8 @@ extern const struct device_ops net_device_ops;
 extern const struct device_ops mem_device_ops;
 extern const struct device_ops bus_device_ops;
 
+extern oskit_error_t ds_netdev_open (device_t dev, oskit_netdev_t *netdev);
+
 
 /* #define INVALOP while (1) asm volatile ("int $3") */
 /* #define INVALSZ while (1) asm volatile ("int $3") */
@@ -137,8 +143,6 @@ extern const struct device_ops bus_device_ops;
 #define INVALREC return D_INVALID_RECNUM
 /*#define INVALREC ({dump_stack_trace();panic("invalid record");})*/
 
-
-#include <oskit/dev/error.h>
 
 static inline io_return_t
 oskit_to_mach_error (oskit_error_t rc)
@@ -160,12 +164,11 @@ oskit_to_mach_error (oskit_error_t rc)
 }
 
 
-#include <oskit/dev/osenv.h>
-
 extern oskit_osenv_t *mach_osenv;
 extern oskit_stream_t *ds_console_stream;
 extern oskit_stream_t *kmsg_stream;
 extern unsigned int kmsg_readers;
+extern void kmsg_init (void);
 
 
 #define splio	spltty		/* XXX */
@@ -176,6 +179,8 @@ extern unsigned int kmsg_readers;
 
 
 extern zone_t io_inband_zone; /* for inband reads */
+
+extern void oskit_softint (void); /* osenv_softirq.c */
 
 
 #endif
