@@ -1,5 +1,9 @@
 2002-05-27  Roland McGrath  <roland@frob.com>
 
+	* alpha/Makefrag: New file.
+	* alpha/Files: New file.
+	* alpha/Subdirs: New file.
+
 	Alpha support files verbatim from CMU release MK83a.
 	* alpha/include/mach/alpha/alpha_instruction.h: New file.
 	* alpha/include/mach/alpha/asm.h: New file.
