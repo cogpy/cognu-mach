@@ -1,0 +1,161 @@
+/*
+ * Mach Operating System
+ * Copyright (c) 1993,1992 Carnegie Mellon University
+ * All Rights Reserved.
+ *
+ * Permission to use, copy, modify and distribute this software and its
+ * documentation is hereby granted, provided that both the copyright
+ * notice and this permission notice appear in all copies of the
+ * software, derivative works or modified versions, and any portions
+ * thereof, and that both notices appear in supporting documentation.
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
+ * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+ *
+ * Carnegie Mellon requests users of this software to return to
+ *
+ *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+ *  School of Computer Science
+ *  Carnegie Mellon University
+ *  Pittsburgh PA 15213-3890
+ *
+ * any improvements or extensions that they make and grant Carnegie Mellon
+ * the rights to redistribute these changes.
+ */
+#include <cpus.h>
+#include <mach_kdb.h>
+#include <stat_time.h>
+
+/*
+ * Pass field offsets to assembly code.
+ */
+#include <sys/reboot.h>
+
+#include <mach/std_types.h>
+#include <mach/alpha/thread_status.h>
+#include <kern/thread.h>
+#include <kern/task.h>
+#include <kern/syscall_emulation.h>
+#include <vm/vm_map.h>
+#include <alpha/pmap.h>
+#include <alpha/context.h>
+#include <alpha/thread.h>
+#include <alpha/prom_interface.h>
+#include <setjmp.h>
+
+
+size	pcb			pcb
+
+size	alpha_kernel_state	mks
+offset	alpha_kernel_state	mks	s0
+offset	alpha_kernel_state	mks	s1
+offset	alpha_kernel_state	mks	s2
+offset	alpha_kernel_state	mks	s3
+offset	alpha_kernel_state	mks	s4
+offset	alpha_kernel_state	mks	s5
+offset	alpha_kernel_state	mks	s6
+offset	alpha_kernel_state	mks	sp
+offset	alpha_kernel_state	mks	pc
+
+size	alpha_machine_state	mms
+offset	alpha_machine_state	mms	mfs
+offset	alpha_machine_state	mms	msss
+
+size	alpha_float_state	mfs
+offset	alpha_float_state	mfs	r0	MFS_REGS
+offset	alpha_float_state	mfs	csr
+
+size	alpha_stack_base	msb
+offset	alpha_stack_base	msb	next
+offset	alpha_stack_base	msb	page
+offset	alpha_stack_base	msb	pcb
+
+/* comistorical note:
+ * This would have been ASS_SIZE, so 'M' is for Machine
+ */
+size	alpha_saved_state	mss
+offset	alpha_saved_state	mss	hw_pcb.ksp	MSS_KSP
+offset	alpha_saved_state	mss	hw_pcb.usp	MSS_USP
+offset	alpha_saved_state	mss	hw_pcb.asn	MSS_ASN
+offset	alpha_saved_state	mss	framep
+offset	alpha_saved_state	mss	v0
+offset	alpha_saved_state	mss	t0
+offset	alpha_saved_state	mss	t7
+offset	alpha_saved_state	mss	s0
+offset	alpha_saved_state	mss	s1
+offset	alpha_saved_state	mss	s2
+offset	alpha_saved_state	mss	s3
+offset	alpha_saved_state	mss	s4
+offset	alpha_saved_state	mss	s5
+offset	alpha_saved_state	mss	s6
+offset	alpha_saved_state	mss	a0
+offset	alpha_saved_state	mss	a1
+offset	alpha_saved_state	mss	a2
+offset	alpha_saved_state	mss	a3
+offset	alpha_saved_state	mss	a4
+offset	alpha_saved_state	mss	a5
+offset	alpha_saved_state	mss	t8
+offset	alpha_saved_state	mss	t9
+offset	alpha_saved_state	mss	t10
+offset	alpha_saved_state	mss	t11
+offset	alpha_saved_state	mss	ra
+offset	alpha_saved_state	mss	t12
+offset	alpha_saved_state	mss	at
+offset	alpha_saved_state	mss	gp
+offset	alpha_saved_state	mss	sp
+offset	alpha_saved_state	mss	bad_address	MSS_BAD
+offset	alpha_saved_state	mss	cause
+offset	alpha_saved_state	mss	saved_frame	MSS_SAVEDF
+offset	alpha_saved_state	mss	saved_frame.saved_r2	MSS_T1
+offset	alpha_saved_state	mss	saved_frame.saved_r3	MSS_T2
+offset	alpha_saved_state	mss	saved_frame.saved_r4	MSS_T3
+offset	alpha_saved_state	mss	saved_frame.saved_r5	MSS_T4
+offset	alpha_saved_state	mss	saved_frame.saved_r6	MSS_T5
+offset	alpha_saved_state	mss	saved_frame.saved_r7	MSS_T6
+offset	alpha_saved_state	mss	saved_frame.saved_pc	MSS_PC
+offset	alpha_saved_state	mss	saved_frame.saved_ps	MSS_PS
+
+size	alpha_exception_link	mel
+offset	alpha_exception_link	mel	eframe
+offset	alpha_exception_link	mel	tf
+
+size	trap_frame		tf
+offset	trap_frame		tf	saved_r2	TF_R2
+offset	trap_frame		tf	saved_r3	TF_R3
+offset	trap_frame		tf	saved_r4	TF_R4
+offset	trap_frame		tf	saved_r5	TF_R5
+offset	trap_frame		tf	saved_r6	TF_R6
+offset	trap_frame		tf	saved_r7	TF_R7
+offset	trap_frame		tf	saved_pc	TF_PC
+offset	trap_frame		tf	saved_ps	TF_PS
+
+size	jmp_buf			jb
+offset	jmp_buf			jb	s0
+offset	jmp_buf			jb	s1
+offset	jmp_buf			jb	s2
+offset	jmp_buf			jb	s3
+offset	jmp_buf			jb	s4
+offset	jmp_buf			jb	s5
+offset	jmp_buf			jb	s6
+offset	jmp_buf			jb	sp
+offset	jmp_buf			jb	pc
+offset	jmp_buf			jb	ps
+
+offset	thread			thread	task
+offset	thread			thread	pcb
+offset	thread			thread	kernel_stack
+offset	thread			thread	swap_func
+offset	thread			thread	recover
+
+offset	pmap			pmap	pid
+offset	vm_map			map	pmap
+
+offset	task			task	map
+offset	task			task	eml_dispatch	EML_DISPATCH
+
+offset	eml_dispatch		disp	disp_count	DISP_COUNT
+offset	eml_dispatch		disp	disp_min	DISP_MIN
+offset	eml_dispatch		disp	disp_vector[0]	DISP_VECTOR
+
+offset	restart_blk		hwrpb	primary_cpu_id	HWRPB_PRIMARY_ID
