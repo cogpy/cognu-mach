@@ -41,6 +41,11 @@
 
 #include <kern/cpu_number.h>
 
+/* As of 2000-12-21 the oskit has an incorrect value for this constant
+   in <oskit/x86/proc_reg.h>, so we redefine it with the correct one.  */
+#undef	CR4_PGE
+#define CR4_PGE	0x80
+
 static void my_exit (int), (*his_exit) (int);
 
 /* XXX move to intel/pmap.h */
