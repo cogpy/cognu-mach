@@ -325,7 +325,6 @@ oskit_error_t
 ds_netdev_open (device_t dev, oskit_netdev_t *netdev)
 {
   oskit_error_t rc;
-  oskit_etherdev_t *eth;
   struct ifnet *const ifp = &dev->com.net.ifnet;
 
   if_init_queues (ifp);

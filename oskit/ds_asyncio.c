@@ -62,9 +62,7 @@ new_request (device_t dev, oskit_s32_t rw, queue_t queue,
 	     oskit_size_t count, oskit_size_t offset,
 	     union device_data u)
 {
-  oskit_s32_t mask;
   struct pending_request *req;
-  int s;
 
   req = request_allocate ();
   if (!req)
@@ -283,7 +281,7 @@ static int
 ds_asyncio_complete_write_inband_1 (device_t dev,
 				    struct pending_request *req, char *data)
 {
-  oskit_u32_t n, wrote;
+  oskit_u32_t wrote;
   oskit_error_t rc;
 
   inline void error (oskit_error_t rc)
@@ -351,7 +349,6 @@ ds_asyncio_write_inband (device_t dev, ipc_port_t reply_port,
   oskit_error_t rc;
   io_return_t err;
   oskit_u32_t wrote;
-  union device_data u;
 
   rc = oskit_stream_write (dev->com.stream.io, data, count, &wrote);
   if (rc && (rc != OSKIT_EWOULDBLOCK || (mode & D_NOWAIT)))

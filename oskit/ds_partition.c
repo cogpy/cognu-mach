@@ -70,7 +70,6 @@ io_return_t
 ds_blkpart_get_status (device_t dev, dev_flavor_t flavor, dev_status_t status,
 		       mach_msg_type_number_t *status_count)
 {
-  oskit_error_t rc;
   switch (flavor)
     {
     case DEV_GET_SIZE:

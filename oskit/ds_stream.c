@@ -32,8 +32,6 @@ ds_stream_read_inband (device_t dev, ipc_port_t reply_port,
 		       unsigned *bytes_read)
 {
   oskit_error_t rc;
-  io_return_t err;
-  oskit_s32_t n;
 
   if (count == 0)
     {
