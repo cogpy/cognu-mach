@@ -129,7 +129,7 @@ void bootstrap_create()
 	panic ("cannot set boot-script variable device-port: %s",
 	       boot_script_error_string (losers));
 
-	losers = boot_script_set_variable ("multiboot-cmdline", VAL_STR,
+	losers = boot_script_set_variable ("kernel-command-line", VAL_STR,
 					   (int) kernel_cmdline);
 	if (losers)
 	  panic ("cannot set boot-script variable %s: %s",
