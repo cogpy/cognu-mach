@@ -109,7 +109,7 @@ binary-arch: build
 	pfx=`cd debian/tmp && pwd` && cd build && $(MAKE) install-kernel prefix=$$pfx
 	strip --strip-all	debian/tmp/boot/$(package)
 	gzip -9fq		debian/tmp/boot/$(package)
- 	chmod a-x		debian/tmp/boot/$(package).gz
+	chmod a-x		debian/tmp/boot/$(package).gz
 	-find debian/tmp -type d | xargs chmod g-w
 
 	$(install_file)		README debian/tmp$(DOCDIR)
