@@ -1,5 +1,10 @@
 2002-03-05  Roland McGrath  <roland@frob.com>
 
+	* oskit/ds_request.h (ds_request_init, ds_asyncio_ready): Declare them.
+	* oskit/ds_oskit.h (oskit_softint, kmsg_init, ds_netdev_open):
+	Declare them.
+	* oskit/kmsg.c (kmsg_init): Fix declaration.
+
 	* oskit/ds_mem.c (ds_mem_map): If OFFSET and SIZE are both zero,
 	map the whole thing.
 
