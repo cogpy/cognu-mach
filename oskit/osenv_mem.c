@@ -102,6 +102,7 @@ alloc_for_oskit (oskit_size_t size, osenv_memflags_t flags, unsigned align)
     flags |= OSENV_VIRT_EQ_PHYS|OSENV_PHYS_WIRED|OSENV_PHYS_CONTIG;
 
   if (in_oskit_interrupt)
+    /* The oskit documentation says an interrupt caller must set the flag.  */
     assert (flags & OSENV_NONBLOCKING);
 
   if (!(flags & (OSENV_NONBLOCKING|OSENV_PHYS_WIRED)))
@@ -188,6 +189,15 @@ free_for_oskit (void *block, osenv_memflags_t flags, oskit_size_t size)
       block = p;
     }
 
+  if (mach_osenv == 0)
+    /* This is early oskit startup code before the kernel is set up.
+       Always go directly to physical memory.  */
+    flags |= OSENV_VIRT_EQ_PHYS|OSENV_PHYS_WIRED|OSENV_PHYS_CONTIG;
+
+  if (in_oskit_interrupt)
+    /* The oskit documentation says an interrupt caller must set the flag.  */
+    assert (flags & OSENV_NONBLOCKING);
+
   if ((oskit_addr_t) block < phys_mem_max)
     {
       /* We got physical memory directly from the lmm.  */
@@ -206,7 +216,10 @@ free_for_oskit (void *block, osenv_memflags_t flags, oskit_size_t size)
     {
       if (in_oskit_interrupt)
 	{
-	  /* oy */
+	  /* This should be impossible if the caller (oskit) is consistent
+	     in its use of OSENV_NONBLOCKING for allocations and
+	     deallocations.  alloc_for_oskit will always get physical
+	     memory when called with the flag set.  */
 	  panic ("free_for_oskit of virtual memory from interrupt level");
 	  /* If this ever happens, make a little free list and have the
 	     pageout daemon run over it doing kfree.  */
