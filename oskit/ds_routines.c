@@ -124,6 +124,9 @@ device_reference(device_t device)
 void
 device_deallocate (device_t device)
 {
+  if (device == DEVICE_NULL)
+    return;
+
   simple_lock (&device->ref_lock);
   if (device->ref_count > 1) {
     --device->ref_count;
