@@ -48,6 +48,8 @@
 #include <oskit/com/stream.h>
 #include <oskit/c/stdlib.h>
 
+#include <oskit/machine/pc/direct_cons.h> /* XXX direct_cons_set_flags */
+
 #include <device/device_port.h>
 
 #include <string.h>
@@ -615,6 +617,12 @@ ds_device_open (ipc_port_t open_port, ipc_port_t reply_port,
     {
       com_device = (oskit_device_t *) ds_console_stream; /* not a device */
       oskit_device_addref (com_device);
+
+      /* Kludge.  We don't do this at bootup so that the printing of any
+	 kernel lossage or panics will be easier to read.  But we need it
+	 set for real use of the console device.  It's harmless to call
+	 this more than once, since it just sets a variable.  */
+      direct_cons_set_flags (DC_NO_ONLCR);
     }
   else if (!strcmp (name, "kmsg")) /* Special case.  */
     {

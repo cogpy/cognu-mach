@@ -3,7 +3,6 @@
 #include <oskit/dev/linux.h>
 #include <oskit/c/stdlib.h>
 
-#include <oskit/machine/pc/direct_cons.h> /* XXX direct_cons_set_flags */
 #include <oskit/c/termios.h>
 #include <oskit/tty.h>
 
@@ -52,7 +51,6 @@ ds_osenv_init (void)
 				   oskit_create_osenv_intr (),
 				   oskit_create_osenv_sleep (),
 				   &ds_console_stream);
-      direct_cons_set_flags (DC_NO_ONLCR);
     }
   if (rc)
     panic ("cannot create interrupt-driven console stream: %x\n", rc);
