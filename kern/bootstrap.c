@@ -62,7 +62,7 @@
 extern struct multiboot_info boot_info;	/* XXX put this in a header! */
 #endif
 
-#include "../../hurd/boot/boot_script.h"
+#include "boot_script.h"
 
 
 static mach_port_t	boot_device_port;	/* local name */
@@ -99,13 +99,24 @@ void bootstrap_create()
 {
   struct multiboot_module *bmods = ((struct multiboot_module *)
 				    phystokv(boot_info.mods_addr));
+  int compat;
 
   if (!(boot_info.flags & MULTIBOOT_MODS)
       || (boot_info.mods_count == 0))
     panic ("No bootstrap code loaded with the kernel!");
 
-  if (boot_info.mods_count == 1
-      && strchr((char*)phystokv(bmods[0].string), ' ') == 0)
+  compat = boot_info.mods_count == 1;
+  if (compat)
+    {
+      char *p = strchr((char*)phystokv(bmods[0].string), ' ');
+      if (p != 0)
+	do
+	  ++p;
+	while (*p == ' ' || *p == '\n');
+      compat = p == 0 || *p == '\0';
+    }
+
+  if (compat)
     {
       printf("Loading single multiboot module in compat mode: %s\n",
 	     (char*)phystokv(bmods[0].string));
@@ -113,7 +124,7 @@ void bootstrap_create()
     }
   else
     {
-      int i, losers;
+      int i, losers, maxlen;
 
       /* Initialize boot script variables.  We leak these send rights.  */
       losers = boot_script_set_variable
@@ -134,6 +145,31 @@ void bootstrap_create()
       if (losers)
 	panic ("cannot set boot-script variable %s: %s",
 	       "kernel-command-line", boot_script_error_string (losers));
+
+      {
+	/* Set the same boot script variables that the old Hurd's
+	   serverboot did, so an old Hurd and boot script previously
+	   used with serverboot can be used directly with this kernel.  */
+
+	char *flag_string = alloca(1024);
+	char *root_string = alloca(1024);
+
+	/*
+	 * Get the (compatibility) boot flags and root name strings.
+	 */
+	get_compat_strings(flag_string, root_string);
+
+	losers = boot_script_set_variable ("boot-args", VAL_STR,
+					   (int) flag_string);
+	if (losers)
+	  panic ("cannot set boot-script variable %s: %s",
+		 "boot-args", boot_script_error_string (losers));
+	losers = boot_script_set_variable ("root-device", VAL_STR,
+					   (int) root_string);
+	if (losers)
+	  panic ("cannot set boot-script variable %s: %s",
+		 "root-device", boot_script_error_string (losers));
+      }
 
 #if OSKIT_MACH
       {
@@ -158,38 +194,44 @@ void bootstrap_create()
       }
 #else  /* GNUmach, not oskit-mach */
       {
-	char *flag_string = alloca(1024);
-	char *root_string = alloca(1024);
+	/* Turn each `FOO=BAR' word in the command line into a boot script
+	   variable ${FOO} with value BAR.  This matches what we get from
+	   oskit's environ in the oskit-mach case (above).  */
 
-	/*
-	 * Get the (compatibility) boot flags and root name strings.
-	 */
-	get_compat_strings(flag_string, root_string);
-
-	losers = boot_script_set_variable ("boot-args", VAL_STR,
-					   (int) flag_string);
-	if (losers)
-	  panic ("cannot set boot-script variable %s: %s",
-		 "boot-args", boot_script_error_string (losers));
-	losers = boot_script_set_variable ("root-device", VAL_STR,
-					   (int) root_string);
-	if (losers)
-	  panic ("cannot set boot-script variable %s: %s",
-		 "root-device", boot_script_error_string (losers));
+	int len = strlen (kernel_cmdline) + 1;
+	char *s = memcpy (alloca (len), kernel_cmdline, len);
+	char *word;
+	while ((word = strsep (&s, " \t")) != 0)
+	  {
+	    char *eq = strchr (word, '=');
+	    if (eq == 0)
+	      continue;
+	    *eq++ = '\0';
+	    losers = boot_script_set_variable (word, VAL_STR, (int) eq);
+	    if (losers)
+	      panic ("cannot set boot-script variable %s: %s",
+		     word, boot_script_error_string (losers));
+	  }
       }
 #endif
 
+      maxlen = 0;
       for (i = 0; i < boot_info.mods_count; ++i)
 	{
+	  int err;
 	  char *line = (char*)phystokv(bmods[i].string);
-	  int err = boot_script_parse_line (&bmods[i], line);
+	  int len = strlen (line) + 1;
+	  if (len > maxlen)
+	    maxlen = len;
+	  printf ("\rmodule %d: %*s", i, -maxlen, line);
+	  err = boot_script_parse_line (&bmods[i], line);
 	  if (err)
 	    {
-	      printf ("ERROR: %s in multiboot module string: %s\n",
-		      boot_script_error_string (err), line);
+	      printf ("\n\tERROR: %s", boot_script_error_string (err));
 	      ++losers;
 	    }
 	}
+      printf ("\r%d multiboot modules %*s", i, -maxlen, "");
       if (losers)
 	panic ("%d of %d boot script commands could not be parsed",
 	       losers, boot_info.mods_count);
@@ -672,6 +714,7 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
 	  thread_sleep ((event_t) &info, simple_lock_addr(info.lock), FALSE);
 	  simple_lock (&info.lock);
 	}
+      printf ("\n");
     }
 
   return 0;
@@ -682,6 +725,7 @@ static void user_bootstrap()
   struct user_bootstrap_info *info = current_thread()->saved.other;
   exec_info_t boot_exec_info;
   int err;
+  char **av;
 
   /* Load this task up from the executable file in the module.  */
   err = exec_load(boot_read, read_exec, info->mod, &boot_exec_info);
@@ -689,8 +733,13 @@ static void user_bootstrap()
     panic ("Cannot load user executable module (error code %d): %s",
 	   err, info->argv[0]);
 
+  printf ("task loaded:");
+
   /* Set up the stack with arguments.  */
   build_args_and_stack(&boot_exec_info, info->argv, 0);
+
+  for (av = info->argv; *av != 0; ++av)
+    printf (" %s", *av);
 
   task_suspend (current_task());
 
@@ -743,6 +792,7 @@ boot_script_task_resume (struct cmd *cmd)
       printf("boot_script_task_resume failed with %x\n", rc);
       return BOOT_SCRIPT_MACH_ERROR;
     }
+  printf ("\nstart %s: ", cmd->path);
   return 0;
 }
 
@@ -777,6 +827,3 @@ boot_script_insert_task_port (struct cmd *cmd, task_t task, mach_port_t *name)
   *name = task_insert_send_right (cmd->task, task->itk_sself);
   return 0;
 }
-
-
-#include "../../hurd/boot/boot_script.c"

@@ -1,5 +1,11 @@
 2001-10-07  Roland McGrath  <roland@frob.com>
 
+	* Merged from gnumach: -j oskit-fork-20010405 -j oskit-fork-20011007.
+	CVS tags oskit-premerge-20011007 and oskit-postmerge-20011007 mark the
+	oskit-branch state before and after this merge.
+
+2001-10-07  Roland McGrath  <roland@frob.com>
+
 	* oskit/osenv_softirq.c: New file,
 	contributed by Daniel Wagner <wagi@gmx.ch>
 	* oskit/pc/osenv_timer.c (softclock_oskit): Call oskit_softint.

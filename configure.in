@@ -99,4 +99,4 @@ AC_SUBST(OSKIT_LIBDIR)
 
 dnl AC_CONFIG_SUBDIRS(linux ${systype})
 
-AC_OUTPUT(Makefile)
+AC_OUTPUT(Makefile doc/Makefile)

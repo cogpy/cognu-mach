@@ -1,3 +1,258 @@
+2001-10-07  Roland McGrath  <roland@frob.com>
+
+	* i386/i386/locore.S: Fix sloppy asm syntax to avoid warnings from
+	newer assembler (%ecx -> %cl in byte insns).
+
+	* kern/bootstrap.c (bootstrap_create): Fix inverted test logic for
+	compatibility case.  Ignore trailing newlines after space for
+	compatibility detection.
+	Reported by Neal H Walfield <neal@cs.uml.edu>.
+
+2001-10-06  Marcus Brinkmann  <marcus@gnu.org>
+
+	* README: Replace `GNU mach' by `GNU Mach', and remove
+	obsolete paragraph about kmsg device.
+
+2001-10-06  Marcus Brinkmann  <marcus@gnu.org>
+
+	* doc/mach.texi: Fix direntry.
+
+2001-10-05  Marcus Brinkmann  <marcus@gnu.org>
+
+	* doc/mach.texi: Replace `path name' by `file name' in one place.
+	Replace `illegal' by `invalid' and `to to' by `to' everwhere.
+
+	* debian/changelog: Prepare for next release.
+
+2001-10-04  Marcus Brinkmann  <marcus@gnu.org>
+
+	* doc: New directory.
+	* doc/Makefile.in: New file.
+	* doc/gpl.texi: Likewise.
+	* doc/fdl.texi: Likewise.
+	* doc/mach.texi: Likewise.
+	* configure.in: Add doc/Makefile to AC_OUTPUT call.
+	* configure: Regenerated.
+
+	* Makefile.in (dist): Create directories doc and debian.
+	(doc-files): New variable with documentation files.
+	(debian-files): New variable with Debian packaging files.
+
+	* debian/rules (stamp-build): Build documentation.
+	(build-gnumach): Install the documentation into the gnumach
+	package.
+	* debian/postrm: New file to install info document.
+	* debian/prerm: New file to install info document.
+
+2001-10-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* i386/i386/locore.S (tenmicrosec): Remove subroutine.
+	* i386/i386/pit.c (delaycount): Remove global variable.
+	(microdata): Likewise.
+	(clkstart): Do not call findspeed() and microfind().
+	(findspeed): Remove function.
+	(spinwait): Likewise.
+	(microfind): Likewise.  This function triggers a division by zero
+	trap on AMD K6 350Mhz+ and Athlon 1.1GHz+ machines (and in general
+	leads to bad results on fast cpus), and nothing uses this code anymore.
+
+2001-09-30  Roland McGrath  <roland@frob.com>
+
+	* kern/bootstrap.c (bootstrap_create): Ignore trailing spaces when
+	checking boot module string for containing none.
+
+2001-09-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	* linux/dev/glue/misc.c: Do not include <linux/types.h> and
+	<linux/string.h>.
+	Remove global variable ___strtok.
+	Remove implementation of strspn, strpbrk, strtok and strstr.
+	* Makefile.in: Add strpbrk and strtok.
+
+2001-08-24  Roland McGrath  <roland@frob.com>
+
+	* kern/bootstrap.c (bootstrap_create): Make setting of boot-args and
+	root-device no longer conditional on [! OSKIT_MACH].
+	(bootstrap_create) [! OSKIT_MACH]: Parse FOO=BAR words out of the
+	multiboot command line and turn those into boot script variables.
+
+	* Makefile.in (clib-routines): Add strsep.
+	* kern/strings.h (strsep, strchr): Declare them.
+
+2001-08-23  Roland McGrath  <roland@frob.com>
+
+	* kern/bootstrap.c (bootstrap_create, user_bootstrap,
+	boot_script_exec_cmd, boot_script_task_resume): Add printfs at
+	various stages of startup.
+
+2001-08-21  Roland McGrath  <roland@frob.com>
+
+	* i386/i386at/model_dep.c (use_all_mem): Turn variable into macro.
+	(init_alloc_aligned): Make this function static.
+	Initially skip memory < 16MB and then wrap around to get it last.
+
+2001-08-20  Roland McGrath  <roland@frob.com>
+
+	Support "boot script" functionality in multiboot module strings.
+	* kern/bootstrap.c: Rewrite merged from oskit-branch.
+	* kern/boot_script.c, kern/boot_script.h: New files,
+	copied from boot/ directory in Hurd sources.
+	* Makefile.in (kern-cfiles): Add boot_script.c here.
+	(kern-files): Add boot_script.h here.
+	* NEWS: Mention the new feature.
+
+2001-08-18  Roland McGrath  <roland@frob.com>
+
+	* i386/i386at/model_dep.c (boot_info): Define a struct, not a pointer.
+	(c_boot_entry): Copy the contents into it rather than setting the ptr.
+	(c_boot_entry, init_alloc_aligned, pmap_valid_page, mem_size_init):
+	Update uses.
+	(init_alloc_aligned): Don't need to skip the boot_info memory.
+	* kern/bootstrap.c (boot_info): Update decl.
+	(bootstrap_create): Update uses.
+
+2001-08-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	* linux/src/drivers/net/eepro100.c: File updated to version in
+	Linux 2.2.19.  This time for real.
+
+2001-08-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	* debian/changelog: Update for next package upload.
+	* debian/control: Add gnumach-dbg package.
+	* debian/rules: New targets to build gnumach-dbg package.
+	Fix various bugs.
+
+2001-08-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	* i386/i386at/kd.c (kdintr): In event mode, make it so that
+	0xE0 scancodes are received.
+	From Kalle Olavi Niemitalo <tosi@ees2.oulu.fi>.
+
+	* i386/i386at/kd.h: New constants KAX_REVERSE, KAX_UNDERLINE,
+	KAX_BLINK, KAX_BOLD, KAX_DIM, KAX_INVISIBLE, KAX_COL_UNDERLINE,
+	KAX_COL_DIM.
+	* i386/i386at/kd.c: Increase K_MAXESC to 32.
+	New global variable color_table to map color values.
+	New globals kd_color and kd_attrflags.
+	(kdinit): Initialize these variables.
+	(kd_update_kd_attr): New function.
+	(kd_parserest): Redone to support more terminal attributes,
+	including colors.
+
+2001-08-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	* linux/src/drivers/net/eepro100.c: File updated to version in
+	Linux 2.2.19.
+	* linux/src/include/asm-i386/spinlock.h: New file from Linux 2.2.19.
+	* linux/src/include/asm-i386/hardirq.h: Likewise.
+	* linux/src/include/linux/spinlock.h: Likewise.
+	* linux/src/include/linux/compatmac.h: Likewise.
+        * linux/dev/drivers/net/eepro100.c: New file, modified version from
+        the above to glue it in gnumach.
+        Submitted by Kapil H. Paranjape <kapil@imsc.ernet.in>.
+
+2001-08-17  Roland McGrath  <roland@frob.com>
+
+	* Makefile.in (clib-routines): Add strchr.
+	(kernel-undef-bad): Depend on Makefile.
+
+	* Makefile.in ($(srcdir)/configure, $(srcdir)/config.h.in):
+	Use $(srcdir) in deps.
+	(Makefile, config.h, config.status): Likewise.
+
+2001-07-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* NEWS: Add items for this and other changes.
+	* configure.in: Define MACH_KMSG by default and document this in
+	the help output.
+	* configure: Regenerated.
+	* debian/rules: Do not enable kmsg explicitely.
+
+2001-07-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	* debian/rules: Add -isp to dpkg-gencontrol invocation.
+	Move documentation to /share/doc.
+	* debian/changelog: Update.
+
+2001-06-28  Marcus Brinkmann  <marcus@gnu.org>
+
+	* linux/dev/drivers/block/ide.c (lba_capacity_is_ok): Do not
+	attempt to correct id->cyls, it is a short and for large disks the
+	number of cylinders necessary would not fit.  Subsequent checks
+	for lba support would fail.
+	(current_capacity): Likewise for drive->cyl.
+	(do_identify): Store value returned by current_capacity in
+	CAPACITY.  The check which corrects the number of bios cylinders
+	is not aggressive enough.  Update it with the check in linux
+	kernel-2.2.19.
+
+2001-06-25  Marcus Brinkmann  <marcus@gnu.org>
+
+	* i386/bogus/fpe.h (FPE): Define FPE to 0, as the floating point
+	emulation is broken anyway and blows up plex86.
+
+2001-06-17  Marcus Brinkmann  <marcus@gnu.org>
+
+	* debian/rules: Update to current version.
+
+2001-06-13  Roland McGrath  <roland@frob.com>
+
+	* linux/dev/glue/block.c (device_get_status: DEV_GET_RECORDS):
+	Always return 512 for DEV_GET_SIZE_RECORD_SIZE as DEV_GET_SIZE does.
+
+2001-05-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* debian/rules: Add --enable-ncr53c8xx to configure.
+
+1999-10-06  OKUJI Yoshinori  <okuji@kuicr.kyoto-u.ac.jp>
+
+	* linux/src/drivers/scsi/tmscsiw.c: Removed.
+	* linux/src/drivers/scsi/tmscsiw.h: Likewise.
+	* linux/src/drivers/scsi/dc390w.h: Likewise.
+	* i386/linux/device-drivers.h.in (CONFIG_SCSI_DC390W): Deleted.
+	* i386/linux/Drivers.in: Remove linux_DRIVER(dc390w, ...). Now
+	dc390w, dc390u, and dc390f are aliases to ncr53c8xx.
+	* i386/linux/configure: Regenerated.
+	* linux/Files: Likewise.
+	* i386/linux/Makefile.in (linux-scsi-files): Delete tmscsiw.c.
+	* linux/dev/drivers/scsi/hosts.c: Do not include dc390w.h.
+	Reported by Andreas Voegele <andreas.voegele@nikocity.de>.
+
+2001-05-20  Roland McGrath  <roland@frob.com>
+
+	* kern/sched_prim.c (state_panic): New function, panic with some
+	info when a thread's state is bogus.
+	(thread_wakeup_prim): Use that instead of uninformative panic.
+	(thread_invoke): Likewise.
+	(thread_dispatch): Likewise.
+
+2001-05-12  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ipc/ipc_object.c (ipc_object_alloc): Remove initialization of
+	*namep, which was without effect.
+
+2001-04-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* debian/changelog: New entries for past Debian uploads.
+	* debian/rules: Disable eatdma driver (breaks AMD K7), do
+	not enable com, lpr (com is redundant, lpr doesn't work),
+	move enabling of kmsg in its own line.
+	* debian/control: Add build dependency on mig and sharutils.
+
+2001-04-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* device/chario.c: Set number of elements of tthiwat and ttlowat
+	to NSPEEDS rather than 16. Initialize the two new elements.
+	(chario_init): Initialize pdma_timeouts and pdma_water_mark for
+	B57600 and B115200.
+
+2001-04-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* include/device/tty_status.h: New macros B57600 and B115200,
+	increase NSPEED accordingly.
+	* i386/i386at/com.c (divisorreg): New divisor 1.
+
 2001-04-04  Roland McGrath  <roland@frob.com>
 
 	* ddb/db_access.h: Fix obsolescent #else/#endif syntax.

@@ -1678,13 +1678,3 @@ _inst_fetch_fault:
  */
 	RECOVER_TABLE_END
 	RETRY_TABLE_END
-
-
-/*
- * Waste 10 microseconds.
- */
-ENTRY(tenmicrosec)
-	movl	EXT(microdata),%ecx		/* cycle count for 10 microsecond loop */
-tenmicroloop:
-	loop	tenmicroloop
-	ret
