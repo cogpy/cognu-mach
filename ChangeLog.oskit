@@ -1,5 +1,10 @@
 2001-10-03  Roland McGrath  <roland@frob.com>
 
+	* oskit/ds_routines.c (no_device_ops): New variable.
+	* oskit/ds_oskit.h: Declare it.
+
+	* oskit/ds_routines.c (ds_device_write_inband): Check for D_WRITE here.
+
 	* configure.in: Check for mbchk, set MBCHK.
 	* Makefile.in (MBCHK): New variable, substituted by configure.
 	(check): Run mbchk on the kernel.
