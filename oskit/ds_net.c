@@ -4,6 +4,7 @@
 #include <device/if_ether.h>
 
 #include <stddef.h>
+#include <string.h>
 #include <oskit/dev/net.h>
 #include <oskit/dev/ethernet.h>
 
@@ -25,7 +26,6 @@ ds_net_get_status (device_t dev, dev_flavor_t flavor, dev_status_t status,
     case NET_ADDRESS:
       {
 #define WORDS ((OSKIT_ETHERDEV_ADDR_SIZE + sizeof (int) - 1) / sizeof (int))
-	unsigned int i;
 
 	if (*status_count < WORDS)
 	  {
