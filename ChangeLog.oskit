@@ -1,3 +1,46 @@
+2002-03-03  Michael Teichgraeber  <gnubert@web.de>
+
+	* oskit/ds_asyncio.c (new_request): Removed unused variable(s).
+	(ds_asyncio_complete_write_inband_1): Likewise.
+	(ds_asyncio_write_inband): Likewise.
+	* oskit/ds_partition.c (ds_blkpart_get_status): Likewise.
+	* oskit/ds_net.c (ds_netdev_open): Likewise.
+	* oskit/ds_stream.c (ds_stream_read_inband): Likewise.
+
+2002-02-28  Roland McGrath  <roland@frob.com>
+
+	* oskit/ds_osenv.c (ds_osenv_init): Pass missing argument to
+	oskit_create_osenv_sleep.
+
+	* oskit/ds_asyncio.c (listener_notify): Add missing return.
+
+	* oskit/ds_net.c (ds_net_get_status): Remove unused variable.
+
+	* oskit/ds_osenv.c: Include <oskit/dev/dev.h>,
+	<oskit/dev/osenv_irq.h>,<oskit/dev/osenv_intr.h>,
+	<oskit/dev/osenv_sleep.h>.
+
+	* oskit/x86/main.c: Include <string.h>.
+	* oskit/ds_block.c: Likewise.
+	* oskit/osenv_irq.c: Likewise.
+	* oskit/ds_mem.c: Likewise.
+	* oskit/ds_net.c: Likewise.
+	* oskit/ds_asyncio.c: Likewise.
+
+	* oskit/osenv_log.c: Include <string.h>, <oskit/c/stdio.h>,
+	<oskit/base_critical.h>.
+
+	* oskit/osenv_mem.c: Include <string.h>.
+	(pmap_startup): Remove unused variable.
+
+	* ipc/ipc_entry.c: Terminate comment.
+	* i386/i386/locore.S: Likewise.
+	* ipc/fipc.c: Likewise.
+
+2002-02-18  Roland McGrath  <roland@frob.com>
+
+	* i386/i386/mp_desc.c (mp_desc_load): Set %gs to KERNEL_GS, not zero.
+
 2001-12-12  Roland McGrath  <roland@frob.com>
 
 	* oskit/ds_routines.c (ds_device_read): Remove old debugging crap.
@@ -365,7 +408,7 @@
 	* oskit/pc/osenv_timer.c: New file.
 	* oskit/x86/main.c: New file.
 	* oskit/kmsg.c: New file.  This is an oskit-based kernel logging
-	device in the style of Linux's /proc/kmsg magical file.  It is the
+	device in the style of Linux's /proc/kmsg magical file.	 It is the
 	backend used for all logging output from oskit components.
 
 	Front-end changes for device and miscellaneous support code changes:
