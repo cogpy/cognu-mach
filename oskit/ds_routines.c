@@ -292,7 +292,7 @@ dev_port_lookup(port)
 /*** Opening devices.  ***/
 
 
-static device_t
+device_t
 dev_open_alloc (void)
 {
   device_t dev = (device_t) zalloc (dev_hdr_zone);
@@ -317,7 +317,7 @@ dev_open_alloc (void)
 }
 
 
-static void
+void
 setup_no_senders (device_t dev)
 {
   ipc_port_t notify;

@@ -46,4 +46,15 @@ struct descriptor {
 typedef struct descriptor descriptor_t;
 typedef	struct descriptor *descriptor_list_t;
 
+/*
+ * i386 I/O port
+ */
+
+#ifdef MACH_KERNEL
+#include <i386/io_perm.h>
+#else
+typedef unsigned short io_port_t;
+typedef mach_port_t io_perm_t;
+#endif
+
 #endif	/* _MACH_MACH_I386_TYPES_H_ */

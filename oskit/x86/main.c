@@ -43,6 +43,13 @@
 
 #include <kern/cpu_number.h>
 
+/* The BASE_TSS in OSKit has no I/O permission bitmap, but we want
+   one.  So we replace it with an extended TSS at link-time.  */
+#include <machine/tss.h>
+#include <machine/io_perm.h>
+static struct task_tss ktss;
+extern struct x86_tss base_tss __attribute__ ((alias ("ktss")));
+
 /* As of 2000-12-21 the oskit has an incorrect value for this constant
    in <oskit/x86/proc_reg.h>, so we redefine it with the correct one.  */
 #undef	CR4_PGE
@@ -145,6 +152,14 @@ main (int argc, char **argv)
   int_init();
   ldt_init();
 
+  /* Set up the BASE_TSS to include an I/O permission bitmap.  */
+  fill_descriptor(&base_gdt[sel_idx(BASE_TSS)],
+		  kvtolin(&ktss),
+		  sizeof(struct task_tss) - 1,
+		  ACC_P|ACC_PL_K|ACC_TSS, 0);
+  ktss.tss.io_bit_map_offset = IOPB_INVAL;
+  ktss.barrier = 0xFF;
+  /* This will also reload the TSS.  */
   base_cpu_load();
 
   /* Arrange a callback to our special exit function below, so we can

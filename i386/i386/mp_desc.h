@@ -43,7 +43,7 @@
 #include <mach/std_types.h>
 
 #include <oskit/x86/base_idt.h>	/* IDTSZ */
-#include <oskit/x86/tss.h>
+#include <machine/tss.h>
 
 #include "gdt.h"
 #include "ldt.h"
@@ -57,7 +57,7 @@ struct mp_desc_table {
 	struct x86_gate	idt[IDTSZ];	/* IDT */
 	struct x86_desc	gdt[GDTSZ];	/* GDT */
 	struct x86_desc	ldt[LDTSZ];	/* LDT */
-	struct x86_tss 	ktss;
+	struct task_tss ktss;
 };
 
 /*
@@ -68,7 +68,7 @@ extern struct mp_desc_table	*mp_desc_table[NCPUS];
 /*
  * The kernel TSS gets its own pointer.
  */
-extern struct x86_tss		*mp_ktss[NCPUS];
+extern struct task_tss	*mp_ktss[NCPUS];
 
 /*
  * So does the GDT.

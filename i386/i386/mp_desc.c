@@ -52,7 +52,8 @@ vm_offset_t	int_stack_high;
 #include <oskit/x86/base_idt.h>
 #include "gdt.h"
 #include <oskit/x86/base_tss.h>
-
+#include <machine/tss.h>
+#include <machine/io_perm.h>
 
 /*
  * The i386 needs an interrupt stack to keep the PCB stack from being
@@ -83,7 +84,7 @@ struct mp_desc_table	*mp_desc_table[NCPUS];
 /*
  * Pointer to TSS for access in load_context.
  */
-struct x86_tss		*mp_ktss[NCPUS];
+struct task_tss	*mp_ktss[NCPUS];
 
 /*
  * Pointer to GDT to reset the KTSS busy bit.
@@ -105,7 +106,7 @@ mp_desc_init(mycpu)
 		 * Master CPU uses the tables built at boot time.
 		 * Just set the TSS and GDT pointers.
 		 */
-		mp_ktss[mycpu] = &base_tss;
+		mp_ktss[mycpu] = (struct task_tss *) &base_tss;
 		mp_gdt[mycpu] = gdt;
 		return 0;
 	}
@@ -138,7 +139,7 @@ mp_desc_init(mycpu)
 			ACC_P|ACC_PL_K|ACC_LDT, 0);
 		fill_descriptor(&mpt->gdt[sel_idx(KERNEL_TSS)],
 			(unsigned)kvtolin(&mpt->ktss),
-			sizeof(struct x86_tss) - 1,
+			sizeof(struct task_tss) - 1,
 			ACC_P|ACC_PL_K|ACC_TSS, 0);
 
 		/*
@@ -150,8 +151,9 @@ mp_desc_init(mycpu)
 			(unsigned)kvtolin(&mpt->cpu_number), sizeof(int) - 1,
 			ACC_P|ACC_PL_K|ACC_DATA, 0);
 
-		mpt->ktss.ss0 = KERNEL_DS;
-		mpt->ktss.io_bit_map_offset = 0x0FFF;	/* no IO bitmap */
+		mpt->ktss.tss.ss0 = KERNEL_DS;
+		mpt->ktss.tss.io_bit_map_offset = IOPB_INVAL;
+		mpt->ktss.barrier = 0xFF;
 
 		return mpt;
 	}

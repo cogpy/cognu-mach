@@ -50,6 +50,7 @@
 #include <kern/processor.h>
 #include <kern/syscall_emulation.h>
 #include <vm/vm_map.h>
+#include <machine/task.h>
 
 #if	NET_ATM
 typedef struct nw_ep_owned {
@@ -117,6 +118,9 @@ struct task {
 #if	NET_ATM
 	nw_ep_owned_t   nw_ep_owned;
 #endif	/* NET_ATM */
+
+	/* Hardware specific data.  */
+	machine_task_t machine;
 };
 
 #define task_lock(task)		simple_lock(&(task)->lock)

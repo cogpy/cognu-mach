@@ -78,6 +78,7 @@ void task_init(void)
 			0, "tasks");
 
 	eml_init();
+	machine_task_module_init ();
 
 	/*
 	 * Create the kernel task as the first task.
@@ -160,6 +161,7 @@ kern_return_t task_create(
 #if	NET_ATM
 	new_task->nw_ep_owned = 0;
 #endif
+	machine_task_init (new_task);
 
 	new_task->total_user_time.seconds = 0;
 	new_task->total_user_time.microseconds = 0;
@@ -246,6 +248,8 @@ void task_deallocate(
 		return;
 	}
 #endif	/* NORMA_TASK */
+
+	machine_task_terminate (task);
 
 	eml_task_deallocate(task);
 
@@ -1126,6 +1130,7 @@ void task_collect_scan(void)
 			pset_unlock(pset);
 			simple_unlock(&all_psets_lock);
 
+			machine_task_collect (task);
 			pmap_collect(task->map->pmap);
 
 			if (prev_task != TASK_NULL)

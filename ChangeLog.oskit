@@ -1,3 +1,65 @@
+2002-02-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* bogus/mach_machine_routines.h (MACH_MACHINE_ROUTINES): Set to 1.
+	* i386/i386/io_perm.h: New file.
+	* i386/i386/io_perm.c: New file.
+	* i386/i386/machine_task.c: New file.
+	* i386/Makefrag (i386-files): Add io_perm.c and machine_task.c.
+	* i386/i386/mp_desc.h: Include `machine/tss.h' instead
+	`oskit/x86/tss.h'.
+	(struct mp_desc_table): Change type of ktss to struct task_tss.
+	(mp_ktss): Likewise for array of pointers to the struct.
+	* i386/i386/mp_desc.c: Include `machine/tss.h' and `machine/io_perm.h'.
+	(mp_ktss): Change type to array of struct task_tss.
+	(mp_desc_init): Cast pointer to x86_tss into pointer to task_tss,
+	and use size of struct task_tss instead size of struct x86_tss.
+	Initialize the task_tss structure.
+	* i386/i386/pcb.c: Include `stddef.h' and `machine/tss.h'.
+	(iopb_create, iopb_destroy): Prototypes removed.
+	(curr_ktss): Cast pointer to base_tss to pointer to struct
+	task_tss.
+	(switch_ktss): Always use kernel TSS.
+	(update_ktss_iopb): New function.
+	(stack_handoff): Call update_ktss_iopb.
+	(pcb_module_init): Do not call iopb_init.
+	(pcb_terminate): Do not call iopb_destroy.
+	(thread_setstatus): Remove local variable tss.
+	(thread_getstatus): Rewrite i386_ISA_PORT_MAP_STATE case handler.
+	* i386/i386/task.h: New file.
+	* i386/i386/thread.h: Do not include `i386/iopb.h'.
+	(struct i386_machine_state): Remove member io_tss.
+	* i386/i386/tss.h: New file.
+	* i386/include/mach/i386/mach_i386.defs: Do not include
+	`mach/machine/mach_i386_types.h'.
+	[KERNEL_SERVER]: Include `machine/io_perm.h'.  Define intran,
+	outtran and destructor.
+	(io_port_t): New type.
+	(io_perm_t): Likewise.
+	(i386_io_port_add): Interface removed.
+	(i386_io_port_removed): Likewise.
+	(i386_io_port_list): Likewise.
+	(i386_io_perm_create): New interface.
+	(i386_io_perm_modify): Likewise.
+	* i386/include/mach/i386/mach_i386_types.h [MACH_KERNEL]: Include
+	`i386/io_perm.h'.
+	[!MACH_KERNEL]: Define types io_port_t and io_perm_t.
+	* kern/task.c (task_init): Call machine_task_module_init.
+	(task_create): Call machine_task_init.
+	(task_deallocate): Call machine_task_terminate.
+	(task_collect_scan): Call machine_task_collect.
+	* task.h: Include `machine/task.h'.
+	(struct task): Add member machine.
+	* oskit/x86/main.c: Include `i386/io_perm.h' and `machine/tss.h'.
+	(ktss): New static global variable that replaces base_tss at link
+	time.
+	(main): Rename base_tss to ktss and set it up to include an I/O
+	permission bitmap.
+	* oskit/ds_oskit.h [__i386__]: Include `machine/io_perm.h'.
+	(struct device) [__i386__]: Add a structure with io_perm range
+	to the com union.
+	* oskit/ds_routines.c (dev_open_alloc): Remove static attribute.
+	(setup_no_senders): Likewise.
+
 2002-02-28  Marcus Brinkmann <marcus@gnu.org>
 
         * oskit/ds_routines.c (device_deallocate): Allow DEVICE->com_device

@@ -20,7 +20,7 @@ DEFINES += -D__ELF__=1 -Di386=1 -DAT386=1
 i386at-files = int_init.c pic_isa.c
 i386-files = ast_check.c fpu.c gdt.c idt.c ldt.c \
 	     mp_desc.c pcb.c phys.c pic.c pit.c trap.c user_ldt.c \
-	     hardclock.c # loose_ends.c
+	     hardclock.c io_perm.c machine_task.c # loose_ends.c
 intel-files = pmap.c read_fault.c
 
 # Assembler source

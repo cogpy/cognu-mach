@@ -54,6 +54,9 @@ struct device_ops {
 #include <oskit/io/asyncio.h>
 #include <oskit/dev/net.h>
 #include <oskit/io/netio.h>
+#if defined(__i386__)
+#include <machine/io_perm.h>
+#endif
 
 struct device {
   const struct device_ops *ops;
@@ -105,6 +108,12 @@ struct device {
       oskit_netio_t recvi;	/* my life as a COM object: incoming packets */
       struct ifnet ifnet;	/* cruft for net_io.c */
     } net;
+#if defined(__i386__)
+    struct
+    {
+      io_port_t from, to;
+    } io_perm;
+#endif
   } com;
 };
 
