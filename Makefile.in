@@ -296,7 +296,7 @@ kernel.o: $(OSKIT_LIBDIR)/multiboot.o $(objfiles)
 	      -Wl,-\( $^ -L$(OSKIT_LIBDIR)/.. $(OSKIT_LIBS) -Wl,-\) -lgcc
 
 %-undef: %.o
-	$(NM) -u $< | sed 's/^_*//' | sort -u > $@
+	$(NM) -u $< | sed 's/  *U  *//;s/^_*//' | sort -u > $@
 
 kernel-clib: kernel-undef Makefile
 	sed -n '$(foreach r,$(clib-routines),/^$r$$/p;)' $< > $@
