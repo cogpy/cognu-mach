@@ -157,14 +157,17 @@ alloc_for_oskit (oskit_size_t size, osenv_memflags_t flags, unsigned align)
       if (flags & OSENV_NONBLOCKING)
 	return 0;
 
-      /* There is no space in the lmm.
-	 There may well be pages available on the VM system's free list.
-	 If we're sure we are not being called from an interrupt handler here,
-	 which we should be guaranteed by checking for OSENV_NONBLOCKING,
-	 then we can just access the free list directly here (vm_page_grab).
-	 Another approach is to just wake up the pageout daemon to have it
-         find some pages for the lmm and then block until it wakes us up.  */
-      lmm_wants_pages = atop (round_page (size));
+      /* There is no space in the lmm.  There may well be pages available on
+	 the VM system's free list.  If we're sure we are not being called
+	 from an interrupt handler here, which we should be guaranteed by
+	 checking for OSENV_NONBLOCKING, then we can just access the free
+	 list directly here (vm_page_grab).  Another approach is to just wake
+	 up the pageout daemon to have it find some pages for the lmm and
+	 then block until it wakes us up.  lmm_wants_pages accumulates the
+	 number of pages wanted by blocked threads like ourselves.
+	 consider_lmm_collect will produce some memory, set lmm_want_pages to
+	 zero, and wake up all blocked threads to retry their allocations.  */
+      lmm_wants_pages += atop (round_page (size));
       thread_wakeup_one ((event_t)&vm_page_queue_free_count);
       assert_wait ((event_t)&lmm_wants_pages, FALSE);
       thread_block (0);
@@ -361,107 +364,112 @@ consider_lmm_collect (void)
   spl_t s;
   unsigned int need;
 
-  if (vm_page_queue_free_count >= vm_page_unqueued_count)
+  /* First check if the LMM needs pages back for alloc_for_oskit calls.  */
+  if (vm_page_unqueued_count < lmm_wants_pages
+      || vm_page_queue_free_count > 8 * vm_page_unqueued_count)	/* random */
     {
-      /* The VM pool doesn't need pages.  */
-      if (vm_page_unqueued_count < lmm_wants_pages
-	  || vm_page_queue_free_count > 8 * vm_page_unqueued_count)
+      /* The LMM needs some physical pages back from the VM pool.  */
+      need = lmm_wants_pages > PAGE_BATCH ? lmm_wants_pages : PAGE_BATCH;
+
+      while (need > 0)
 	{
-	  /* The LMM needs some physical pages back from the VM pool.  */
-	  need = lmm_wants_pages > PAGE_BATCH ? lmm_wants_pages : PAGE_BATCH;
+	  unsigned int batch = need > PAGE_BATCH ? PAGE_BATCH : need;
+	  void *pages[PAGE_BATCH];
+	  unsigned int i;
 
-	  while (need > 0)
+	  for (i = 0; i < batch; ++i)
 	    {
-	      unsigned int batch = need > PAGE_BATCH ? PAGE_BATCH : need;
-	      void *pages[PAGE_BATCH];
-	      unsigned int i;
-
-	      for (i = 0; i < batch; ++i)
-		{
-		  vm_page_t mem = vm_page_grab (FALSE);
-		  if (mem == VM_PAGE_NULL)
-		    break;
-		  pages[i] = (void *) mem->phys_addr;
-		  zfree (vm_page_zone, (vm_offset_t) mem);
-		  debug_unprotect_page (pages[i]);
-		}
-
-	      s = sploskit ();
-	      simple_lock (&phys_lmm_lock);
-
-	      while (i-- > 0)
-		lmm_free_page (&malloc_lmm, (void *) pages[i]);
-
-	      update_counts ();
-
-	      simple_unlock (&phys_lmm_lock);
-	      splx (s);
-
-	      if (i < batch)
+	      vm_page_t mem = vm_page_grab (FALSE);
+	      if (mem == VM_PAGE_NULL)
 		break;
-	      need -= batch;
+	      pages[i] = (void *) mem->phys_addr;
+	      zfree (vm_page_zone, (vm_offset_t) mem);
+	      debug_unprotect_page (pages[i]);
 	    }
 
-	  /* Wake up any threads blocked in alloc_for_oskit.  */
-	  thread_wakeup ((event_t)&lmm_wants_pages);
+	  s = sploskit ();
+	  simple_lock (&phys_lmm_lock);
+
+	  while (i-- > 0)
+	    lmm_free_page (&malloc_lmm, (void *) pages[i]);
+
+	  update_counts ();
+
+	  simple_unlock (&phys_lmm_lock);
+	  splx (s);
+
+	  if (i < batch)
+	    break;
+	  need -= batch;
 	}
-      return;
     }
 
+  /* If lmm_wants_pages is set, then some threads are blocked in
+     alloc_for_oskit.  This might still be the case even if the memory was
+     released to the LMM before we ran so that we didn't do anything above.
+     We need to wake the blocked threads so they will all retry their
+     allocations.  */
+  if (lmm_wants_pages != 0)
+    {
+      lmm_wants_pages = 0;
+      thread_wakeup ((event_t)&lmm_wants_pages);
+    }
 
   /* Any time the VM pool has fewer free pages than the LMM does,
      we give it half the LMM's free pages.  */
 
-  s = sploskit ();
-  simple_lock (&phys_lmm_lock);
-
-  need = vm_page_unqueued_count / 2;
-
-  /* We allocate only a single page at a time from the LMM, since we don't
-     need contiguous pages, and would rather use up fragmented pages
-     so as to leave the contiguous regions for those who need them.
-
-     We must go to sploskit to call into the LMM, but back up to spl0 to
-     deliver the new pages to the VM system.  We don't want to do this for
-     every single page allocation from the LMM, so we allocate individual
-     pages from the LMM in batches of PAGE_BATCH pages and then reenable
-     interrupts to deliver those pages before going back for more.  */
-
-  while (need > 0)
+  if (vm_page_queue_free_count < vm_page_unqueued_count)
     {
-      unsigned int batch = need > PAGE_BATCH ? PAGE_BATCH : need;
-      void *pages[PAGE_BATCH];
-      unsigned int i;
-
-      for (i = 0; i < batch; ++i)
-	{
-	  /* This allocation should never fail, since we keep track
-	     of the number of pages available in the lmm.  */
-	  pages[i] = lmm_alloc_page (&malloc_lmm, 0);
-	  if (pages[i] == 0)
-	    panic ("LMM unexpectedly out of physical pages");
-	  debug_protect_page (pages[i]);
-	}
-
-      update_counts ();
-
-      simple_unlock (&phys_lmm_lock);
-      splx (s);
-
-      while (i-- > 0)
-	vm_page_create ((vm_offset_t) pages[i],
-			(vm_offset_t) pages[i] + PAGE_SIZE);
-
-      need -= batch;
-      if (need == 0)
-	break;
-
       s = sploskit ();
       simple_lock (&phys_lmm_lock);
+
+      need = vm_page_unqueued_count / 2;
+
+      /* We allocate only a single page at a time from the LMM, since we
+	 don't need contiguous pages, and would rather use up fragmented
+	 pages so as to leave the contiguous regions for those who need them.
+
+	 We must go to sploskit to call into the LMM, but back up to spl0 to
+	 deliver the new pages to the VM system.  We don't want to do this
+	 for every single page allocation from the LMM, so we allocate
+	 individual pages from the LMM in batches of PAGE_BATCH pages and
+	 then reenable interrupts to deliver those pages before going back
+	 for more.  */
+
+      while (need > 0)
+	{
+	  unsigned int batch = need > PAGE_BATCH ? PAGE_BATCH : need;
+	  void *pages[PAGE_BATCH];
+	  unsigned int i;
+
+	  for (i = 0; i < batch; ++i)
+	    {
+	      /* This allocation should never fail, since we keep track
+		 of the number of pages available in the lmm.  */
+	      pages[i] = lmm_alloc_page (&malloc_lmm, 0);
+	      if (pages[i] == 0)
+		panic ("LMM unexpectedly out of physical pages");
+	      debug_protect_page (pages[i]);
+	    }
+
+	  update_counts ();
+
+	  simple_unlock (&phys_lmm_lock);
+	  splx (s);
+
+	  while (i-- > 0)
+	    vm_page_create ((vm_offset_t) pages[i],
+			    (vm_offset_t) pages[i] + PAGE_SIZE);
+
+	  need -= batch;
+	  if (need == 0)
+	    break;
+
+	  s = sploskit ();
+	  simple_lock (&phys_lmm_lock);
+	}
     }
 }
-
-
 
 
 /*** oskit_osenv_mem_t COM object implementation ***/
