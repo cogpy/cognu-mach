@@ -1310,7 +1310,8 @@ mach_port_insert_right(
 	if (!IP_VALID(poly))
 		return KERN_INVALID_CAPABILITY;
 
-	return ipc_object_copyout_name(space, poly, polyPoly, FALSE, name);
+	return ipc_object_copyout_name(space, &poly->ip_target.ipt_object,
+				       polyPoly, FALSE, name);
 }
 
 /*
