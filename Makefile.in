@@ -422,7 +422,7 @@ dist:
 #
 $(srcdir)/configure: $(srcdir)/configure.in
 	cd $(srcdir) && autoconf
-$(srcdir)/config.h.in: $(srcdir)/acconfig.h
+$(srcdir)/config.h.in: $(srcdir)/configure.in
 	cd $(srcdir) && autoheader
 
 Makefile: $(srcdir)/Makefile.in config.status
