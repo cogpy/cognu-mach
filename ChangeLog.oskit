@@ -1,3 +1,23 @@
+2001-08-17  Roland McGrath  <roland@frob.com>
+
+	* kern/bootstrap.c: Largely rewritten, using Hurd boot_script code.
+
+	* Makefile.in ($(srcdir)/configure, $(srcdir)/config.h.in):
+	Use $(srcdir) in deps.
+	(Makefile, config.h, config.status): Likewise.
+
+	* kern/strings.c, kern/strings.h: Files removed.
+	* Makefile.in (kern-cfiles): Remove strings.c.
+	(kern-hfiles): Remove strings.h.
+	* kern/bootstrap.c: <kern/strings.h> -> <string.h>
+
+	* Makefile.in (DEFINES): Add -DOSKIT_MACH=1.
+
+2001-08-16  Roland McGrath  <roland@frob.com>
+
+	* Makefile.in (k%nel.o, kernel.o, oskit-kern%.o): Insert a
+	-L$(OSKIT_LIBDIR)/.. switch before the oskit libraries.
+
 2001-06-02  Roland McGrath  <roland@frob.com>
 
 	* i386/i386/locore.S (alltraps): Don't conditionalize pushl %gs
