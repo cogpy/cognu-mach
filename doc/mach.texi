@@ -140,7 +140,7 @@ ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
 @c  @author Richard P. Draves @c (rpd)
 @c  @author Mary R. Thompson @c (mrt)
 @c  @author Joseph S. Barrera @c (jsb)
-@c  @c The following occure rarely in the rcs commit logs of the man pages:
+@c  @c The following occur rarely in the rcs commit logs of the man pages:
 @c  @c Dan Stodolsky, (danner)
 @c  @c David B. Golub, (dbg)
 @c  @c Terri Watson, (elf)
@@ -175,7 +175,7 @@ GNU Mach microkernel.
 * Threads and Tasks::             Handling of threads and tasks.
 * Host Interface::                Interface to a Mach host.
 * Processors and Processor Sets:: Handling processors and sets of processors.
-* Device Interface::              Accesing kernel devices.
+* Device Interface::              Accessing kernel devices.
 * Kernel Debugger::               How to use the built-in kernel debugger.
 
 Appendices
@@ -433,7 +433,7 @@ multi-server operating system, the Hurd.
 @c This paragraph by Gordon Matzigkeit from the Hurd manual.
 An operating system kernel provides a framework for programs to share a
 computer's hardware resources securely and efficiently.  This requires
-that the programs are seperated and protected from each other.  To make
+that the programs are separated and protected from each other.  To make
 running multiple programs in parallel useful, there also needs to be a
 facility for programs to exchange information by communication.
 
@@ -1394,7 +1394,7 @@ positive integers.  Except for the reserved values
 @w{@code{MACH_PORT_NULL (0)}@footnote{In the Hurd system, we don't make
 the assumption that @code{MACH_PORT_NULL} is zero and evaluates to
 false, but rather compare port names to @code{MACH_PORT_NULL}
-explicitely}} and @w{@code{MACH_PORT_DEAD (~0)}}, this is a full 32-bit
+explicitly}} and @w{@code{MACH_PORT_DEAD (~0)}}, this is a full 32-bit
 name space.  When the kernel chooses a name for a new right, it is free
 to pick any unused name (one which denotes no right) in the space.
 
@@ -1611,7 +1611,7 @@ specified, then @code{MACH_SEND_NOTIFY} doesn't take effect until the
 timeout interval elapses.
 
 With @code{MACH_SEND_NOTIFY}, a task can forcibly queue to a send right
-one message at a time.  A msg-accepted notification is sent to the the
+one message at a time.  A msg-accepted notification is sent to the
 notify port when another message can be forcibly queued.  If an attempt
 is made to use @code{MACH_SEND_NOTIFY} before then, the call returns a
 @code{MACH_SEND_NOTIFY_IN_PROGRESS} error.
@@ -2765,7 +2765,7 @@ return codes.
 @c  @code{mach_init} in the child task will acquire these initial ports for
 @c  the child.
 
-@c  Tasks other than the Network Name Server and the Environment Mangager
+@c  Tasks other than the Network Name Server and the Environment Manager
 @c  should not need access to the Service port. The Network Name Server port
 @c  is the same for all tasks on a given machine. The Environment port is
 @c  the only port likely to have different values for different tasks.
@@ -2870,7 +2870,7 @@ virtual page boundaries, more than @var{size} bytes may be deallocated.
 Use @code{vm_page_size} or @code{vm_statistics} to find out the current
 virtual page size.
 
-This call may be used to deallocte memory that was passed to a task in a
+This call may be used to deallocate memory that was passed to a task in a
 message (via out of line data).  In that case, the rounding should cause
 no trouble, since the region of memory was allocated as a set of pages.
 
@@ -2912,7 +2912,7 @@ to be returned.
 @end deftypefun
 
 @deftypefun kern_return_t vm_write (@w{vm_task_t @var{target_task}}, @w{vm_address_t @var{address}}, @w{vm_offset_t @var{data}}, @w{mach_msg_type_number_t @var{data_count}})
-The function @code{vm_write} allows a task to write to the vrtual memory
+The function @code{vm_write} allows a task to write to the virtual memory
 of @var{target_task}.  @var{address} is the starting address in task to
 be affected.  @var{data} is an array of bytes to be written, and
 @var{data_count} the size of the @var{data} array.
@@ -3016,7 +3016,7 @@ The function @code{vm_inherit} specifies how a region of
 @var{target_task}'s address space is to be passed to child tasks at the
 time of task creation.  Inheritance is an attribute of virtual pages, so
 @var{address} to start from will be rounded down to a page boundary and
-@var{size}, the size in bytes of the region for wihch inheritance is to
+@var{size}, the size in bytes of the region for which inheritance is to
 change, will be rounded up to give a page boundary.  How this memory is
 to be inherited in child tasks is specified by @var{new_inheritance}.
 Inheritance is specified by using one of these following three values:
@@ -3034,7 +3034,7 @@ This region will be absent from child tasks.
 
 Setting @code{vm_inherit} to @code{VM_INHERIT_SHARE} and forking a child
 task is the only way two Mach tasks can share physical memory.  Remember
-that all the theads of a given task share all the same memory.
+that all the threads of a given task share all the same memory.
 
 The function returns @code{KERN_SUCCESS} if the memory inheritance was
 successfully set and @code{KERN_INVALID_ADDRESS} if an invalid or
@@ -3178,7 +3178,7 @@ the address of the resulting region in @var{address}.
 by user tasks in @code{vm_map}; used by the make requests for data or
 other management actions.  If this port is @code{MEMORY_OBJECT_NULL},
 then zero-filled memory is allocated instead.  Within a memory object,
-@var{offset} specifes an offset in bytes.  This must be page aligned.
+@var{offset} specifies an offset in bytes.  This must be page aligned.
 If @var{copy} is set, the range of the memory object should be copied to
 the target task, rather than mapped read-write.
 
@@ -3337,7 +3337,7 @@ object data, as supplied to the kernel in a @code{vm_map} call.
 requested.  (In the event that a memory object has been supplied to more
 than one the kernel that has made the request.)
 @var{memory_object_name} is a port used by the kernel to refer to the
-memory object data in reponse to @code{vm_region} calls.
+memory object data in response to @code{vm_region} calls.
 @code{memory_object_page_size} is the page size to be used by this
 kernel.  All data sizes in calls involving this kernel must be an
 integral multiple of the page size.  Note that different kernels,
@@ -3393,7 +3393,7 @@ object data, as supplied to the kernel in a @code{vm_map} call.
 requested.  (In the event that a memory object has been supplied to more
 than one the kernel that has made the request.)
 @var{memory_object_name} is a port used by the kernel to refer to the
-memory object data in reponse to @code{vm_region} calls.
+memory object data in response to @code{vm_region} calls.
 
 The function should return @code{KERN_SUCCESS}, but since this routine
 is called by the kernel, which does not wait for a reply message, this
@@ -3416,7 +3416,7 @@ The argument @var{memory_control} is the port, provided by the kernel in
 a @code{memory_object_init} call, to which cache management requests may
 be issued.  @var{reason} is an error code indicating why the object
 must be destroyed.
-@c The error code is currently ingnored.
+@c The error code is currently ignored.
 
 This routine does not receive a reply message (and consequently has no
 return value), so only message transmission errors apply.
@@ -3491,7 +3491,7 @@ value is ignored.
 @deftypefun kern_return_t memory_object_data_supply (@w{memory_object_control_t @var{memory_control}}, @w{vm_offset_t @var{offset}}, @w{vm_offset_t @var{data}}, @w{vm_size_t @var{data_count}}, @w{vm_prot_t @var{lock_value}}, @w{boolean_t @var{precious}},  @w{mach_port_t @var{reply}})
 The function @code{memory_object_data_supply} supplies the kernel with
 data for the specified memory object.  Ordinarily, memory managers
-should only provide data in reponse to @code{memory_object_data_request}
+should only provide data in response to @code{memory_object_data_request}
 calls from the kernel (but they may provide data in advance as desired).
 When data already held by this kernel is provided again, the new data is
 ignored.  The kernel may not provide any data (or protection)
@@ -3566,8 +3566,8 @@ This must be page aligned.  @var{data} is the data that is being
 provided to the kernel.  This is a pointer to the data.  @var{size} is
 the amount of cached data (starting at @var{offset}) to be handled.
 This must be an integral number of the memory object page size.
-@var{reason} is an error code indicating what type of error occured.
-@c The error code is currently ingnored.
+@var{reason} is an error code indicating what type of error occurred.
+@c The error code is currently ignored.
 
 This routine does not receive a reply message (and consequently has no
 return value), so only message transmission errors apply.
@@ -3649,7 +3649,7 @@ is called by the kernel, which does not wait for a reply message, this
 value is ignored.
 @end deftypefun
 
-The remaining interfaces in this section are obsolet.
+The remaining interfaces in this section are obsolete.
 
 @deftypefun kern_return_t memory_object_data_write (@w{memory_object_t @var{memory_object}}, @w{memory_object_control_t @var{memory_control}}, @w{vm_offset_t @var{offset}}, @w{vm_offset_t @var{data}}, @w{vm_size_t @var{data_count}})
 @deftypefunx kern_return_t seqnos_memory_object_data_write (@w{memory_object_t @var{memory_object}}, @w{mach_port_seqno_t @var{seqno}}, @w{memory_object_control_t @var{memory_control}}, @w{vm_offset_t @var{offset}}, @w{vm_offset_t @var{data}}, @w{vm_size_t @var{data_count}})
@@ -3679,7 +3679,7 @@ value is ignored.
 The function @code{memory_object_data_provided} supplies the kernel with
 data for the specified memory object.  It is the old form of
 @code{memory_object_data_supply}.  Ordinarily, memory managers should
-only provide data in reponse to @code{memory_object_data_request} calls
+only provide data in response to @code{memory_object_data_request} calls
 from the kernel.  The @var{lock_value} specifies what type of access
 will not be allowed to the data range.  The lock values must be one or
 more of the set: @code{VM_PROT_NONE}, @code{VM_PROT_READ},
@@ -3748,7 +3748,7 @@ modified data should be written back to the memory manager.  If
 invalidated, and all uses of that data should be revoked.
 @var{lock_value} is a protection value indicating those forms of access
 that should @strong{not} be permitted to the specified cached data.
-@var{reply_to} is a port on which a @code{memory_object_lock_comleted}
+@var{reply_to} is a port on which a @code{memory_object_lock_completed}
 call should be issued, or @code{MACH_PORT_NULL} if no acknowledgement is
 desired.
 
@@ -3846,7 +3846,7 @@ be issued.  If @var{may_cache_object} is set, the kernel may keep data
 associated with this memory object, even after virtual memory references
 to it are gone.  @var{copy_strategy} tells how the kernel should copy
 regions of the associated memory object.  @var{reply_to} is a port on
-which a @code{memory_object_change_comleted} call will be issued upon
+which a @code{memory_object_change_completed} call will be issued upon
 completion of the attribute change, or @code{MACH_PORT_NULL} if no
 acknowledgement is desired.
 
@@ -3873,7 +3873,7 @@ ready, the kernel will write back data using the old
 @code{memory_object_data_return}..
 
 @deftypefun kern_return_t memory_object_set_attributes (@w{memory_object_control_t @var{memory_control}}, @w{boolean @var{object_ready}}, @w{boolean_t @var{may_cache_object}}, @w{memory_object_copy_strategy_t @var{copy_strategy}})
-The function @code{memory_object_set_attribute} controls how the the
+The function @code{memory_object_set_attribute} controls how the
 memory object.  The kernel will only make data or unlock requests when
 the ready attribute is asserted.  If the caching attribute is asserted,
 the kernel is permitted (and encouraged) to maintain cached data for
@@ -3982,7 +3982,7 @@ call.  @var{memory_control} is the request port to which a response is
 requested.  (In the event that a memory object has been supplied to more
 than one the kernel that has made the request.)  @var{offset} is the
 offset within a memory object to which this call refers.  This will be
-page aligned.  @var{data} os the data which has been modified while
+page aligned.  @var{data} is the data which has been modified while
 cached in physical memory.  @var{data_count} is the amount of data to be
 written, in bytes.  This will be an integral number of memory object
 pages.
@@ -4112,7 +4112,7 @@ run state, and scheduling priority.  The number of integers returned is
 @code{THREAD_BASIC_INFO_COUNT}.
 
 @item THREAD_SCHED_INFO
-The function returns information about the schduling policy for the
+The function returns information about the scheduling policy for the
 thread as defined by @code{thread_sched_info_t}.  The number of integers
 returned is @code{THREAD_SCHED_INFO_COUNT}.
 @end table
@@ -4150,7 +4150,7 @@ The base scheduling priority of the thread.
 The current scheduling priority of the thread.
 
 @item integer_t run_state
-The run state of the thread.  The possible vlues of this field are:
+The run state of the thread.  The possible values of this field are:
 @table @code
 @item TH_STATE_RUNNING
 The thread is running normally.
@@ -4266,9 +4266,9 @@ executing any more user level instructions.  In this context a user
 level instruction is either a machine instruction executed in user mode
 or a system trap instruction including page faults.  Thus if a thread is
 currently executing within a system trap the kernel code may continue to
-execute until it reaches the system return code or it may supend within
+execute until it reaches the system return code or it may suspend within
 the kernel code.  In either case, when the thread is resumed the system
-trap will return.  This could cause unpredictible results if the user
+trap will return.  This could cause unpredictable results if the user
 did a suspend and then altered the user state of the thread in order to
 change its direction upon a resume.  The call @code{thread_abort} is
 provided to allow the user to abort any system call that is in progress
@@ -4283,7 +4283,7 @@ a thread.
 @end deftypefun
 
 @deftypefun kern_return_t thread_resume (@w{thread_t @var{target_thread}})
-Decrements the threads's suspend count.  If the count becomes zero the
+Decrements the thread's suspend count.  If the count becomes zero the
 thread is resumed.  If it is still positive, the thread is left
 suspended.  The suspend count may not become negative.
 
@@ -4297,8 +4297,8 @@ The function @code{thread_abort} aborts the kernel primitives:
 @code{mach_msg}, @code{msg_send}, @code{msg_receive} and @code{msg_rpc}
 and page-faults, making the call return a code indicating that it was
 interrupted.  The call is interrupted whether or not the thread (or task
-containing it) is currently suspended.  If it is supsended, the thread
-receives the interupt when it is resumed.
+containing it) is currently suspended.  If it is suspended, the thread
+receives the interrupt when it is resumed.
 
 A thread will retry an aborted page-fault if its state is not modified
 before it is resumed.  @code{msg_send} returns @code{SEND_INTERRUPTED};
@@ -4375,7 +4375,7 @@ The definition of the state structures can be found in
 
 The function returns @code{KERN_SUCCESS} if the state has been returned,
 @code{KERN_INVALID_ARGUMENT} if @var{target_thread} is not a thread or
-is @code{mach_thread_self} or @var{flavor} is unrecogized for this machine.
+is @code{mach_thread_self} or @var{flavor} is unrecognized for this machine.
 The function returns @code{MIG_ARRAY_TOO_LARGE} if the returned state is
 too large for @var{old_state}.  In this case, @var{old_state} is filled
 as much as possible and @var{old_stateCnt} is set to the number of
@@ -4397,7 +4397,7 @@ The definition of the state structures can be found in
 
 The function returns @code{KERN_SUCCESS} if the state has been set and
 @code{KERN_INVALID_ARGUMENT} if @var{target_thread} is not a thread or
-is @code{mach_thread_self} or @var{flavor} is unrecogized for this
+is @code{mach_thread_self} or @var{flavor} is unrecognized for this
 machine.
 @end deftypefun
 
@@ -4520,7 +4520,7 @@ highly recommended.
 @code{thread_switch} ignores policies.  Users relying on the preemption
 semantics of a fixed time policy should be aware that
 @code{thread_switch} ignores these semantics; it will run the specified
-@var{new_thread} indepent of its priority and the priority of any other
+@var{new_thread} independent of its priority and the priority of any other
 threads that could be run instead.
 
 The function returns @code{KERN_SUCCESS} if the call succeeded,
@@ -4661,7 +4661,7 @@ XXX Fixme
 The system trap @code{evc_wait} makes the calling thread wait for the
 event specified by @var{event}.
 
-The call returns @code{KERN_SUCCESS} if the event has occured,
+The call returns @code{KERN_SUCCESS} if the event has occurred,
 @code{KERN_NO_SPACE} if another thread is waiting for the same event and
 @code{KERN_INVALID_ARGUMENT} if the event object is invalid.
 @end deftypefun
@@ -4757,7 +4757,7 @@ expects to be able to use it.  As the kernel does not make use of the
 number of extant send rights anyway, this is safe to do (the task port
 itself is not destroyed, even when there are no send rights anymore).
 
-The funcion returns @code{MACH_PORT_NULL} if a resource shortage
+The function returns @code{MACH_PORT_NULL} if a resource shortage
 prevented the reception of the send right, @code{MACH_PORT_NULL} if the
 task port is currently null, @code{MACH_PORT_DEAD} if the task port is
 currently dead.
@@ -4971,7 +4971,7 @@ application knows what it's doing.
 A task may have a finite number of atomic sequences that is defined at
 compile time.
 
-The flavor specifices the particular operation that should be applied to
+The flavor specifies the particular operation that should be applied to
 this restartable atomic sequence.  Possible values for flavor can be:
 
 @table @code
@@ -5095,14 +5095,14 @@ handler entry points for all emulated system calls.
 The function @code{task_set_emulation_vector} establishes user-level
 handlers for the specified system calls.  Non-emulated system calls are
 specified with an entry of @code{EML_ROUTINE_NULL}.  System call
-emulation handlers are inherited by the childs of @var{task}.
+emulation handlers are inherited by the children of @var{task}.
 @c XXX Fixme
 @end deftypefun
 
 @deftypefun kern_return_t task_set_emulation (@w{task_t @var{task}}, @w{vm_address_t @var{routine_entry_pt}}, @w{int @var{routine_number}})
 The function @code{task_set_emulation} establishes a user-level handler
 for the specified system call.  System call emulation handlers are
-inherited by the childs of @var{task}.
+inherited by the children of @var{task}.
 @c XXX Fixme
 @end deftypefun
 
@@ -5702,7 +5702,7 @@ or @var{processor_set} is not a processor set on the same host as
 The function @code{task_assign_default} is a variant of
 @code{task_assign} that assigns the task to the default processor set on
 that task's host.  This variant exists because the control port for the
-default processor set is privileged and not ususally available to users.
+default processor set is privileged and not usually available to users.
 
 This function returns @code{KERN_SUCCESS} if the assignment has been
 performed and @code{KERN_INVALID_ARGUMENT} if @var{task} is not a task.
@@ -5739,7 +5739,7 @@ as @var{thread}.
 The function @code{thread_assign_default} is a variant of
 @code{thread_assign} that assigns the thread to the default processor
 set on that thread's host.  This variant exists because the control port
-for the default processor set is privileged and not ususally available
+for the default processor set is privileged and not usually available
 to users.
 
 This function returns @code{KERN_SUCCESS} if the assignment has been
@@ -5838,7 +5838,7 @@ of tasks and threads assigned to the processor set.  The number of
 integers returned is @code{PROCESSOR_SET_BASIC_INFO_COUNT}.
 
 @item PROCESSOR_SET_SCHED_INFO
-The function returns information about the schduling policy for the
+The function returns information about the scheduling policy for the
 processor set as defined by @code{processor_set_sched_info_t}.  The
 number of integers returned is @code{PROCESSOR_SET_SCHED_INFO_COUNT}.
 @end table
@@ -5981,7 +5981,7 @@ likely reason is that it is not supported on this processor),
 @subsection Processors and Sets
 
 @deftypefun kern_return_t processor_assign (@w{processor_t @var{processor}}, @w{processor_set_t @var{processor_set}}, @w{boolean_t @var{wait}})
-The function @code{processor_assign} assigns @var{processor} to the the
+The function @code{processor_assign} assigns @var{processor} to the
 set @var{processor_set}.  After the assignment is completed, the
 processor only executes threads that are assigned to that processor set.
 Any previous assignment of the processor is nullified.  The master
@@ -6122,7 +6122,7 @@ All constants and functions in this chapter are defined in
 
 Beside the usual synchronous interface, an asynchronous interface is
 provided.  For this, the caller has to receive and handle the reply
-messages seperately from the function call.
+messages separately from the function call.
 
 @deftypefun boolean_t device_reply_server (@w{msg_header_t *@var{in_msg}}, @w{msg_header_t *@var{out_msg}})
 The function @code{device_reply_server} is produced by the
