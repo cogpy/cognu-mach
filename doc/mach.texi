@@ -681,78 +681,78 @@ cards, the source code has to be edited.
 @table @code
 @item --enable-ne2000
 @itemx --enable-ne1000
-Enables the NE2000/NE1000 ISA netword card devices eth%d.
+Enables the NE2000/NE1000 ISA network card devices eth%d.
 
 @item --enable-3c503
 @itemx --enable-el2
-Enables the 3Com 503 (Etherlink II) netword card devices eth%d.
+Enables the 3Com 503 (Etherlink II) network card devices eth%d.
 
 @item --enable-3c509
 @itemx --enable-3c579
 @itemx --enable-el3
-Enables the 3Com 509/579 (Etherlink III) netword card devices eth%d.
+Enables the 3Com 509/579 (Etherlink III) network card devices eth%d.
 
 @item --enable-wd80x3
-Enables the WD80X3 netword card devices eth%d.
+Enables the WD80X3 network card devices eth%d.
 
 @item --enable-3c501
 @itemx --enable-el1
-Enables the 3COM 501 netword card devices eth%d.
+Enables the 3COM 501 network card devices eth%d.
 
 @item --enable-ul
-Enables the SMC Ultra netword card devices eth%d.
+Enables the SMC Ultra network card devices eth%d.
 
 @item --enable-ul32
-Enables the SMC Ultra 32 netword card devices eth%d.
+Enables the SMC Ultra 32 network card devices eth%d.
 
 @item --enable-hplanplus
-Enables the HP PCLAN+ (27247B and 27252A) netword card devices eth%d.
+Enables the HP PCLAN+ (27247B and 27252A) network card devices eth%d.
 
 @item --enable-hplan
-Enables the HP PCLAN (27245 and other 27xxx series) netword card devices eth%d.
+Enables the HP PCLAN (27245 and other 27xxx series) network card devices eth%d.
 
 @item --enable-3c59x
 @itemx --enable-3c90x
 @itemx --enable-vortex
 Enables the 3Com 590/900 series (592/595/597/900/905) "Vortex/Boomerang"
-netword card devices eth%d.
+network card devices eth%d.
 
 @item --enable-seeq8005
-Enables the Seeq8005 netword card devices eth%d.
+Enables the Seeq8005 network card devices eth%d.
 
 @item --enable-hp100
 @itemx --enable-hpj2577
 @itemx --enable-hpj2573
 @itemx --enable-hp27248b
 @itemx --enable-hp2585
-Enables the HP 10/100VG PCLAN (ISA, EISA, PCI) netword card devices
+Enables the HP 10/100VG PCLAN (ISA, EISA, PCI) network card devices
 eth%d.
 
 @item --enable-ac3200
-Enables the Ansel Communications EISA 3200 netword card devices eth%d.
+Enables the Ansel Communications EISA 3200 network card devices eth%d.
 
 @item --enable-e2100
-Enables the Cabletron E21xx netword card devices eth%d.
+Enables the Cabletron E21xx network card devices eth%d.
 
 @item --enable-at1700
-Enables the AT1700 (Fujitsu 86965) netword card devices eth%d.
+Enables the AT1700 (Fujitsu 86965) network card devices eth%d.
 
 @item --enable-eth16i
 @itemx --enable-eth32
-Enables the ICL EtherTeam 16i/32 netword card devices eth%d.
+Enables the ICL EtherTeam 16i/32 network card devices eth%d.
 
 @item --enable-znet
 @itemx --enable-znote
-Enables the Zenith Z-Note netword card devices eth%d.
+Enables the Zenith Z-Note network card devices eth%d.
 
 @item --enable-eexpress
-Enables the EtherExpress 16 netword card devices eth%d.
+Enables the EtherExpress 16 network card devices eth%d.
 
 @item --enable-eexpresspro
-Enables the EtherExpressPro netword card devices eth%d.
+Enables the EtherExpressPro network card devices eth%d.
 
 @item --enable-eexpresspro100
-Enables the Intel EtherExpressPro PCI 10+/100B/100+ netword card devices
+Enables the Intel EtherExpressPro PCI 10+/100B/100+ network card devices
 eth%d.
 
 @item --enable-depca
@@ -763,14 +763,14 @@ eth%d.
 @itemx --enable-de202
 @itemx --enable-de210
 @itemx --enable-de422
-Enables the DEPCA, DE10x, DE200, DE201, DE202, DE210, DE422 netword card
+Enables the DEPCA, DE10x, DE200, DE201, DE202, DE210, DE422 network card
 devices eth%d.
 
 @item --enable-ewrk3
 @itemx --enable-de203
 @itemx --enable-de204
 @itemx --enable-de205
-Enables the EtherWORKS 3 (DE203, DE204, DE205) netword card devices
+Enables the EtherWORKS 3 (DE203, DE204, DE205) network card devices
 eth%d.
 
 @item --enable-de4x5
@@ -779,81 +779,81 @@ eth%d.
 @itemx --enable-435
 @itemx --enable-de450
 @itemx --enable-500
-Enables the DE425, DE434, DE435, DE450, DE500 netword card devices
+Enables the DE425, DE434, DE435, DE450, DE500 network card devices
 eth%d.
 
 @item --enable-apricot
-Enables the Apricot XEN-II on board ethernet netword card devices eth%d.
+Enables the Apricot XEN-II on board ethernet network card devices eth%d.
 
 @item --enable-wavelan
-Enables the AT&T WaveLAN & DEC RoamAbout DS netword card devices eth%d.
+Enables the AT&T WaveLAN & DEC RoamAbout DS network card devices eth%d.
 
 @item --enable-3c507
 @itemx --enable-el16
-Enables the 3Com 507 netword card devices eth%d.
+Enables the 3Com 507 network card devices eth%d.
 
 @item --enable-3c505
 @itemx --enable-elplus
-Enables the 3Com 505 netword card devices eth%d.
+Enables the 3Com 505 network card devices eth%d.
 
 @item --enable-de600
-Enables the D-Link DE-600 netword card devices eth%d.
+Enables the D-Link DE-600 network card devices eth%d.
 
 @item --enable-de620
-Enables the D-Link DE-620 netword card devices eth%d.
+Enables the D-Link DE-620 network card devices eth%d.
 
 @item --enable-skg16
-Enables the Schneider & Koch G16 netword card devices eth%d.
+Enables the Schneider & Koch G16 network card devices eth%d.
 
 @item --enable-ni52
-Enables the NI5210 netword card devices eth%d.
+Enables the NI5210 network card devices eth%d.
 
 @item --enable-ni65
-Enables the NI6510 netword card devices eth%d.
+Enables the NI6510 network card devices eth%d.
 
 @item --enable-atp
-Enables the AT-LAN-TEC/RealTek pocket adaptor netword card devices atp%d.
+Enables the AT-LAN-TEC/RealTek pocket adaptor network card devices atp%d.
 
 @item --enable-lance
 @itemx --enable-at1500
 @itemx --enable-ne2100
-Enables the AMD LANCE and PCnet (AT1500 and NE2100) netword card devices eth%d.
+Enables the AMD LANCE and PCnet (AT1500 and NE2100) network card devices eth%d.
 
 @item --enable-elcp
 @itemx --enable-tulip
-Enables the DECchip Tulip (dc21x4x) PCI netword card devices eth%d.
+Enables the DECchip Tulip (dc21x4x) PCI network card devices eth%d.
 
 @item --enable-fmv18x
-Enables the FMV-181/182/183/184 netword card devices eth%d.
+Enables the FMV-181/182/183/184 network card devices eth%d.
 
 @item --enable-3c515
-Enables the 3Com 515 ISA Fast EtherLink netword card devices eth%d.
+Enables the 3Com 515 ISA Fast EtherLink network card devices eth%d.
 
 @item --enable-pcnet32
-Enables the AMD PCI PCnet32 (PCI bus NE2100 cards) netword card devices
+Enables the AMD PCI PCnet32 (PCI bus NE2100 cards) network card devices
 eth%d.
 
 @item --enable-ne2kpci
-Enables the PCI NE2000 netword card devices eth%d.
+Enables the PCI NE2000 network card devices eth%d.
 
 @item --enable-yellowfin
-Enables the Packet Engines Yellowfin Gigabit-NIC netword card devices
+Enables the Packet Engines Yellowfin Gigabit-NIC network card devices
 eth%d.
 
 @item --enable-rtl8139
 @itemx --enable-rtl8129
-Enables the RealTek 8129/8139 (not 8019/8029!)  netword card devices
+Enables the RealTek 8129/8139 (not 8019/8029!)  network card devices
 eth%d.
 
 @item --enable-epic
 @itemx --enable-epic100
-Enables the SMC 83c170/175 EPIC/100 (EtherPower II) netword card devices eth%d.
+Enables the SMC 83c170/175 EPIC/100 (EtherPower II) network card devices eth%d.
 
 @item --enable-tlan
-Enables the TI ThunderLAN netword card devices eth%d.
+Enables the TI ThunderLAN network card devices eth%d.
 
 @item --enable-viarhine
-Enables the VIA Rhine netword card devices eth%d.
+Enables the VIA Rhine network card devices eth%d.
 @end table
 
 
