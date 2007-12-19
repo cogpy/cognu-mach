@@ -149,6 +149,12 @@ libkernel_a_SOURCES += \
 	i386/i386/_setjmp.S
 endif
 
+#
+# GDB stub stupport
+if enable_gdb_stub
+libkernel_a_SOURCES += \
+	i386/i386/gdb-stub.c
+endif
 
 #
 # Files from the generic sources that we want.

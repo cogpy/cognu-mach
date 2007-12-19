@@ -58,6 +58,14 @@ libkernel_a_SOURCES += \
 	ddb/tr.h
 endif
 
+#
+# GDB stub
+#
+
+if enable_gdb_stub
+libkernel_a_SOURCES += \
+	kern/gdb.c
+endif
 
 #
 # IPC implementation.
@@ -291,7 +299,6 @@ libkernel_a_SOURCES += \
 	device/kmsg.c \
 	device/kmsg.h
 endif
-
 
 #
 # Version number.

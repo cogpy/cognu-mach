@@ -164,6 +164,8 @@ panic(const char *s, ...)
 
 #if	MACH_KDB
 	Debugger("panic");
+#elif   MACH_GDB_STUB
+	breakpoint();
 #else
 	halt_all_cpus (1);
 #endif

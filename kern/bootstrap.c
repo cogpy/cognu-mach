@@ -51,6 +51,11 @@
 #include <ddb/db_sym.h>
 #endif
 
+#if MACH_GDB_STUB
+extern void set_debug_traps();
+extern void breakpoint();
+#endif
+
 #if OSKIT_MACH
 #include <stddef.h>
 #include <oskit/machine/base_multiboot.h>
@@ -101,6 +106,17 @@ void bootstrap_create()
   struct multiboot_module *bmods = ((struct multiboot_module *)
 				    phystokv(boot_info.mods_addr));
   int compat;
+
+#ifdef MACH_GDB_STUB
+	/* 
+	 *  FIXME: Change this so its only
+	 * run if -d is passed to mach 
+	 */
+	set_debug_traps();
+	printf("Waiting for debugger connection on com0\n");
+	breakpoint();
+	printf("Back from GDB\n");
+#endif /* MACH_GDB_STUB */
 
   if (!(boot_info.flags & MULTIBOOT_MODS)
       || (boot_info.mods_count == 0))

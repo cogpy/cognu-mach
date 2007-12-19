@@ -860,7 +860,7 @@ comgetc(int unit)
 	return c;
 }
 
-#if RCLINE >= 0
+#if RCLINE >= 0 || MACH_GDB_STUB
 /*
  * Routines for the console
  */
