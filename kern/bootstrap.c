@@ -112,7 +112,7 @@ void bootstrap_create()
 	 *  FIXME: Change this so its only
 	 * run if -d is passed to mach 
 	 */
-	set_debug_traps();
+
 	printf("Waiting for debugger connection on com0\n");
 	breakpoint();
 	printf("Back from GDB\n");

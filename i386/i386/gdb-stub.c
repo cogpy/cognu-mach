@@ -142,8 +142,8 @@ return_to_prog ();
    means we get the right stack and don't have to worry about popping our
    return address and any stack frames and so on) and return.  */
 asm(".text");
-asm(".globl _return_to_prog");
-asm("_return_to_prog:");
+asm(".globl return_to_prog");
+asm("return_to_prog:");
 asm("        movw registers+44, %ss");
 asm("        movl registers+16, %esp");
 asm("        movl registers+4, %ecx");
@@ -165,7 +165,7 @@ asm("        pushl %eax");  /* saved eip */
 asm("        movl registers, %eax");
 /* use iret to restore pc and flags together so
    that trace flag works right.  */
-asm("        iret");
+asm("        ret");
 
 #define BREAKPOINT() asm("   int $3");
 
@@ -431,7 +431,7 @@ asm("		call  handle_exception");    /* this never returns */
 void
 _returnFromException ()
 {
-  _return_to_prog ();
+  return_to_prog ();
 }
 
 int
@@ -746,7 +746,7 @@ handle_exception (int exceptionVector)
   char *ptr;
   int newPC;
 
-  //gdb_i386vector = exceptionVector;
+  gdb_i386vector = exceptionVector;
 
   if (remote_debug)
     {
@@ -918,22 +918,6 @@ set_debug_traps (void)
 {
   stackPtr = &remcomStack[STACKSIZE / sizeof (int) - 1];
 
-  /*  exceptionHandler (0, _catchException0);
-  exceptionHandler (1, _catchException1);
-  exceptionHandler (3, _catchException3);
-  exceptionHandler (4, _catchException4);
-  exceptionHandler (5, _catchException5);
-  exceptionHandler (6, _catchException6);
-  exceptionHandler (7, _catchException7);
-  exceptionHandler (8, _catchException8);
-  exceptionHandler (9, _catchException9);
-  exceptionHandler (10, _catchException10);
-  exceptionHandler (11, _catchException11);
-  exceptionHandler (12, _catchException12);
-  exceptionHandler (13, _catchException13);
-  exceptionHandler (14, _catchException14);
-  exceptionHandler (16, _catchException16);*/
-
   initialized = 1;
 }
 
@@ -945,7 +929,6 @@ set_debug_traps (void)
 void
 breakpoint (void)
 {
-  printf("Waiting for debugger connection\n");
   if (initialized)
     BREAKPOINT ();
 }

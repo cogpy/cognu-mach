@@ -1,5 +1,12 @@
-2007-12-19 Michael Casadevall <sonicmctails@gmail.com>
+2007-12-20 Michael Casadevall <sonicmctails@gmail.com>
+	   * i386/i386/locore.S - Modified a condition to also
+	   include MACH_GDB_STUB
+	   * kern/bootstrap.c - Moved call to set_debug_traps()
+	   * kern/startup.c - Moved call here for set_debug_traps
+	   * i386/i386/gdb-stub.c - Isolated the crash in the stub
+	   to an iret statement
 
+2007-12-19 Michael Casadevall <sonicmctails@gmail.com>
 	   * configfrag.ac - Added GDB stub option.
 	   * Makefrag.am - Likewise.
 	   * i386/Makefrag.am - Likewise.

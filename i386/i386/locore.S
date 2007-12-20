@@ -529,7 +529,7 @@ _kret_iret:
  * Trap from kernel mode.  No need to switch stacks.
  */
 trap_from_kernel:
-#if	MACH_KDB || MACH_TTD
+#if	MACH_KDB || MACH_TTD || MACH_GDB_STUB
 	movl	%esp,%ebx		/* save current stack */
 
 	cmpl	EXT(int_stack_high),%esp	/* on an interrupt stack? */
@@ -605,6 +605,7 @@ ENTRY(call_continuation)
 	movl	$(n),%eax			;\
 	jmp	EXT(all_intrs)
 
+	
 	.data	2
 DATA(int_entry_table)
 	.text

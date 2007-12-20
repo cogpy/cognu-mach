@@ -106,6 +106,10 @@ void setup_main()
 	init_timers();
 	init_timeout();
 
+#ifdef  MACH_GDB_STUB
+	set_debug_traps();
+#endif
+
 #if	XPR_DEBUG
 	xprbootstrap();
 #endif	/* XPR_DEBUG */
