@@ -165,9 +165,11 @@ asm("        pushl %eax");  /* saved eip */
 asm("        movl registers, %eax");
 /* use iret to restore pc and flags together so
    that trace flag works right.  */
-asm("        ret");
+asm("        iret");
 
-#define BREAKPOINT() asm("   int $3");
+/* Changed to int 1 from 3 since this is kernel land,
+   not userland debugging ... */
+#define BREAKPOINT() asm("   int $1");
 
 /* Put the error code here just in case the user cares.  */
 int gdb_i386errcode;

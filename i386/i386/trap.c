@@ -80,11 +80,6 @@ thread_kdb_return()
 }
 #endif	/* MACH_KDB */
 
-#ifdef MACH_GDB_STUB
-extern _catchException1(); /* Debug */
-extern _catchException3(); /* Breakpoint */
-#endif
-
 #if	MACH_TTD
 extern boolean_t kttd_enabled;
 boolean_t debug_all_traps_with_kttd = TRUE;
@@ -175,9 +170,7 @@ boolean_t	brb = TRUE;
 /*
  * Trap from kernel mode.  Only page-fault errors are recoverable,
  * and then only in special circumstances.  All other errors are
- * fatal. If we're using GDB, Debug and Breakpoint traps will pass
- * control to the stub. In all other cases, the debugger will be invoked
- * from panic()
+ * fatal.
  */
 void kernel_trap(regs)
 	register struct i386_saved_state *regs;
@@ -209,25 +202,6 @@ dump_ss(regs);
 		fpnoextflt();
 		return;
 
-#ifdef MACH_GDB_STUB
-		/* 
-	         * We're going to jump exceptionHandler's address
-	         * We're using ASM here to make the jump
-	         * because we don't want to change the stack
-	         * or any registers when we enter the GDB stub ...
-	         */
-	    case T_DEBUG:
-	         __asm__ ("cli"); // Interrupts off ..
-	         __asm__ ("jmp __catchException1");
-		 __asm__ ("sti"); // Interrupts on ..
-	         return;
-	    case T_INT3:
-	         __asm__ ("cli"); // Interrupts off ..
-	         __asm__ ("jmp __catchException3");
-	         __asm__ ("sti"); // Interrupts on ..
-	         return;
-#endif
-	
 	    case T_FPU_FAULT:
 		fpextovrflt();
 		return;
@@ -359,7 +333,7 @@ dump_ss(regs);
 		 */
 		/* fall through */
 
-	default:
+	    default:
 	    badtrap:
 	    	printf("Kernel ");
 		if (type < TRAP_TYPES)
@@ -442,14 +416,6 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		    if (kdb_trap(type, regs->err, regs))
 			return 0;
 		}
-#elif MACH_GDB_STUB
-	    /* 
-	     * Jump to exceptionHandler's address
-	     * We're using ASM here to make the jump
-	     * because we don't want to change the stack
-	     * or any registers when we enter the GDB stub ...
-	     */
-	    __asm__ ("jmp __catchException1");
 #endif
 		exc = EXC_BREAKPOINT;
 		code = EXC_I386_SGL;
@@ -472,16 +438,7 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 			return 0;
 		}
 	    }
-#elif MACH_GDB_STUB
-	    /* 
-	     * Jump to exceptionHandler3's address
-	     * We're using ASM here to make the jump
-	     * because we don't want to change the stack
-	     * or any registers when we enter the GDB stub ...
-	     */
-	    __asm__ ("jmp __catchException3");
 #endif
-
 		exc = EXC_BREAKPOINT;
 		code = EXC_I386_BPT;
 		break;

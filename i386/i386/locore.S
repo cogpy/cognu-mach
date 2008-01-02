@@ -418,8 +418,18 @@ ENTRY(t_debug)
 					/* wants them */
 	addl	$8,%esp			/* remove eip/cs */
 	jmp	syscall_entry_2		/* continue system call entry */
-
-0:	pushl	$0			/* otherwise: */
+	
+0:
+#ifdef MACH_GDB_STUB
+/*
+ * The GDB stub should enter here if its being used alone
+ * and not called through kdb. The reason is that we don't
+ * want our backtrace to have all this overhead on it. The stub
+ * will use iret as it exits
+ */
+	jmp	__catchException1
+#endif
+	pushl	$0			/* otherwise: */
 	pushl	$(T_DEBUG)		/* handle as normal */
 	jmp	EXT(alltraps)		/* debug fault */
 
