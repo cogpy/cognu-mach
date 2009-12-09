@@ -162,7 +162,7 @@ void simple_lock(
 	info = &simple_locks_info[simple_locks_taken++];
 	info->l = l;
 	/* XXX we want our return address, if possible */
-#ifdef	i386
+#if defined(__i386__) || defined(__x86_64__)
 	info->ra = *((unsigned long *)&l - 1);
 #endif	/* i386 */
 }
@@ -180,7 +180,7 @@ boolean_t simple_lock_try(
 	info = &simple_locks_info[simple_locks_taken++];
 	info->l = l;
 	/* XXX we want our return address, if possible */
-#ifdef	i386
+#if defined(__i386__) || defined(__x86_64__)
 	info->ra = *((unsigned long *)&l - 1);
 #endif	/* i386 */
 
@@ -622,7 +622,7 @@ void db_show_all_slocks(void)
 		info = &simple_locks_info[i];
 		db_printf("%d: ", i);
 		db_printsym(info->l, DB_STGY_ANY);
-#if i386
+#if defined(__i386__)
 		db_printf(" locked by ");
 		db_printsym(info->ra, DB_STGY_PROC);
 #endif

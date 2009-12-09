@@ -2840,7 +2840,7 @@ void pmap_update_interrupt()
 }
 #endif	/* NCPUS > 1 */
 
-#if i386 || x86_64
+#if defined(__i386__) || defined (__x86_64__)
 /* Unmap page 0 to trap NULL references.  */
 void
 pmap_unmap_page_zero ()
@@ -2859,4 +2859,4 @@ pmap_unmap_page_zero ()
   INVALIDATE_TLB(kernel_pmap, 0, PAGE_SIZE);
 #endif	/* MACH_XEN */
 }
-#endif /* i386 */
+#endif /* __i386__ */
