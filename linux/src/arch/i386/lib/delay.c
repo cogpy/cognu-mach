@@ -33,7 +33,8 @@ void __delay(unsigned long loops)
 inline void __const_udelay(unsigned long xloops)
 {
 	int d0;
-	__asm__("mull %0"
+
+	__asm__("mull %%edx"
 		:"=d" (xloops), "=&a" (d0)
 		:"1" (xloops),"0" (loops_per_sec));
         __delay(xloops);
