@@ -129,6 +129,8 @@ static struct device_emulation_ops *emulation_list[] =
   &mach_device_emulation_ops,
 };
 
+ipc_port_t intr_rcv_ports[16];
+
 #define NUM_EMULATION (sizeof (emulation_list) / sizeof (emulation_list[0]))
 
 io_return_t
@@ -312,6 +314,21 @@ ds_device_map (device_t dev, vm_prot_t prot, vm_offset_t offset,
 
   return (*dev->emul_ops->map) (dev->emul_data, prot,
 				offset, size, pager, unmap);
+}
+
+io_return_t
+ds_device_intr_notify (ipc_port_t master_port, int irq,
+		       int id, ipc_port_t receive_port)
+{
+  /* Open must be called on the master device port.  */
+  if (master_port != master_device_port)
+    return D_INVALID_OPERATION;
+
+  if (irq < 0 || irq >= 16)
+    return D_INVALID_OPERATION;
+
+  intr_rcv_ports[irq] = receive_port;
+  return 0;
 }
 
 boolean_t
