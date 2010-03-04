@@ -135,9 +135,16 @@ linux_intr (int irq)
 	    {
 	      ipc_port_release (action->delivery_port);
 	      action->delivery_port = NULL;
+	      printk ("irq handler: release an dead delivery port\n");
 	    }
 	  else
-	    queue_intr (irq, action->delivery_port);
+	    {
+	      /* We disable the irq here and it will be enabled
+	       * after the interrupt is handled by the user space driver. */
+	      printk ("disable irq line %d and deliver the interrupt\n", irq);
+	      disable_irq (irq);
+	      queue_intr (irq, action->delivery_port);
+	    }
 
 	}
       else if (action->handler)

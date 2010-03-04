@@ -155,3 +155,11 @@ routine device_intr_notify(
 	in	id		: int;
 	in	receive_port	: mach_port_send_t
 	);
+
+/*
+ *	enable/disable the specified irq.
+ */
+routine device_irq_enable(
+		master_port	: mach_port_t;
+		irq		: int;
+		status		: char);

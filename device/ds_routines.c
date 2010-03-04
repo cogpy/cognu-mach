@@ -1855,6 +1855,20 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 	return (result);
 }
 
+kern_return_t
+ds_device_irq_enable(ipc_port_t master_port, int irq, char status)
+{
+  if (master_port != master_device_port)
+    return D_INVALID_OPERATION;
+
+  printk ("irq line %d is enable? %d\n", irq, status?1:0);
+  if (status)
+    enable_irq (irq);
+  else
+    disable_irq (irq);
+  return 0;
+}
+
 struct device_emulation_ops mach_device_emulation_ops =
 {
   (void*) mach_device_reference,
