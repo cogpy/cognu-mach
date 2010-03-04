@@ -69,6 +69,7 @@ extern void	vm_pageout();
 extern void	reaper_thread();
 extern void	swapin_thread();
 extern void	sched_thread();
+extern void	intr_thread();
 
 extern void	bootstrap_create();
 extern void	device_service_create();
@@ -208,6 +209,7 @@ void start_kernel_threads()
 	(void) kernel_thread(kernel_task, reaper_thread, (char *) 0);
 	(void) kernel_thread(kernel_task, swapin_thread, (char *) 0);
 	(void) kernel_thread(kernel_task, sched_thread, (char *) 0);
+//	(void) kernel_thread(kernel_task, intr_thread, (char *)0);
 
 #if	NCPUS > 1
 	/*

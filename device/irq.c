@@ -1,5 +1,78 @@
 #include <device/irq.h>
 #include <device/ds_routines.h>
+#include <kern/queue.h>
+#include <kern/printf.h>
+
+// TODO this is only for x86 system
+#define sti() __asm__ __volatile__ ("sti": : :"memory")
+#define cli() __asm__ __volatile__ ("cli": : :"memory")
+
+struct intr_entry
+{
+  queue_chain_t chain;
+  int irq;
+};
+
+queue_head_t intr_queue;
+
+
+/* This function can only be used in the interrupt handler. */
+void
+queue_intr (int irq)
+{
+  struct intr_entry *e = (void *) kalloc (sizeof (*e));
+  
+  if (e == NULL)
+    {
+      printf ("queue_intr: no memory available\n");
+      return;
+    }
+
+  e->irq = irq;
+  
+  cli ();
+  queue_enter (&intr_queue, e, struct intr_entry *, chain);
+  sti ();
+
+  // TODO I think I need to notify intr_thread of the occurrence of the interrupt.
+}
+
+struct intr_entry *
+dequeue_intr ()
+{
+  struct intr_entry *e;
+
+  cli ();
+  if (queue_empty (&intr_queue))
+    return NULL;
+
+  queue_remove_first (&intr_queue, e, struct intr_entry *, chain);
+  sti ();
+
+  return e;
+}
+
+void
+intr_thread ()
+{
+  queue_init (&intr_queue);
+  
+  for (;;)
+    {
+      struct intr_entry *e = dequeue_intr ();
+
+      if (e == NULL)
+	{
+	  /* There aren't new interrupts,
+	   * wait until someone wakes us up. */
+	  thread_block (NULL);
+	  continue;
+	}
+      
+      deliver_irq (e->irq);
+      kfree ((vm_offset_t) e, sizeof (*e));
+    }
+}
 
 void
 deliver_irq (int irq)
