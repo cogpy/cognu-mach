@@ -74,7 +74,7 @@ intr_thread ()
     }
 }
 
-void
+boolean_t
 deliver_irq (int irq)
 {
   ipc_kmsg_t kmsg;
@@ -83,11 +83,11 @@ deliver_irq (int irq)
   mach_port_t dest = (mach_port_t) dest_port;
 
   if (dest == MACH_PORT_NULL)
-    return;
+    return FALSE;
 
   kmsg = ikm_alloc(sizeof *n);
   if (kmsg == IKM_NULL) 
-    return;
+    return FALSE;
 
   ikm_init(kmsg, sizeof *n);
   n = (mach_irq_notification_t *) &kmsg->ikm_header;
@@ -114,8 +114,8 @@ deliver_irq (int irq)
   n->irq = irq;
 
   ipc_port_copy_send (dest_port);
-
-  printf ("before delivering a irq\n");
+  printf ("ref num: %d\n", dest_port->ip_srights);
   ipc_mqueue_send_always(kmsg);
 
+  return TRUE;
 }

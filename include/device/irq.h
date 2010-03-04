@@ -4,7 +4,7 @@
 
 #include <device/device_types.h>
 
-void		 deliver_irq (int irq);
+boolean_t	 deliver_irq (int irq);
 
 typedef struct
 {
