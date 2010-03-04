@@ -1861,7 +1861,6 @@ ds_device_irq_enable(ipc_port_t master_port, int irq, char status)
   if (master_port != master_device_port)
     return D_INVALID_OPERATION;
 
-  printk ("irq line %d is enable? %d\n", irq, status?1:0);
   if (status)
     enable_irq (irq);
   else

@@ -117,7 +117,6 @@ deliver_irq (int irq, ipc_port_t dest_port)
   n->irq = irq;
 
   ipc_port_copy_send (dest_port);
-  printf ("ref num: %d\n", dest_port->ip_references);
   ipc_mqueue_send_always(kmsg);
 
   return TRUE;

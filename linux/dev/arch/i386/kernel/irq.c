@@ -141,7 +141,6 @@ linux_intr (int irq)
 	    {
 	      /* We disable the irq here and it will be enabled
 	       * after the interrupt is handled by the user space driver. */
-	      printk ("disable irq line %d and deliver the interrupt\n", irq);
 	      disable_irq (irq);
 	      queue_intr (irq, action->delivery_port);
 	    }
