@@ -316,9 +316,8 @@ ds_device_map (device_t dev, vm_prot_t prot, vm_offset_t offset,
 
 io_return_t
 ds_device_intr_notify (ipc_port_t master_port, int irq,
-		       int id, ipc_port_t receive_port)
+		       int id, int flags, ipc_port_t receive_port)
 {
-#define SA_SHIRQ	0x04000000
   extern int install_user_irq_handler (unsigned int irq,
 				       unsigned long flags,
 				       ipc_port_t dest);
@@ -335,7 +334,7 @@ ds_device_intr_notify (ipc_port_t master_port, int irq,
   // TODO The original port should be replaced
   // when the same device driver calls it again, 
   // in order to handle the case that the device driver crashes and restarts.
-  ret = install_user_irq_handler (irq, SA_SHIRQ, receive_port);
+  ret = install_user_irq_handler (irq, flags, receive_port);
 
   /* If the port is installed successfully, increase its reference by 1.
    * Thus, the port won't be destroyed after its task is terminated. */
