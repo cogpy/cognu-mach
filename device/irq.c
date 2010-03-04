@@ -20,6 +20,7 @@ queue_head_t intr_queue;
 void
 queue_intr (int irq)
 {
+  extern void intr_thread ();
   struct intr_entry *e = (void *) kalloc (sizeof (*e));
   
   if (e == NULL)
@@ -32,9 +33,8 @@ queue_intr (int irq)
   
   cli ();
   queue_enter (&intr_queue, e, struct intr_entry *, chain);
+  thread_wakeup ((event_t) &intr_thread);
   sti ();
-
-  // TODO I think I need to notify intr_thread of the occurrence of the interrupt.
 }
 
 struct intr_entry *
@@ -65,6 +65,7 @@ intr_thread ()
 	{
 	  /* There aren't new interrupts,
 	   * wait until someone wakes us up. */
+	  assert_wait ((event_t) &intr_thread, FALSE);
 	  thread_block (NULL);
 	  continue;
 	}
@@ -118,4 +119,10 @@ deliver_irq (int irq)
   ipc_mqueue_send_always(kmsg);
 
   return TRUE;
+}
+
+boolean_t
+deliver_to_user (int vec)
+{
+  return intr_rcv_ports[vec] != NULL;
 }

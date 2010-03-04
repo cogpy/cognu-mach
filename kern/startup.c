@@ -209,7 +209,7 @@ void start_kernel_threads()
 	(void) kernel_thread(kernel_task, reaper_thread, (char *) 0);
 	(void) kernel_thread(kernel_task, swapin_thread, (char *) 0);
 	(void) kernel_thread(kernel_task, sched_thread, (char *) 0);
-//	(void) kernel_thread(kernel_task, intr_thread, (char *)0);
+	(void) kernel_thread(kernel_task, intr_thread, (char *)0);
 
 #if	NCPUS > 1
 	/*
