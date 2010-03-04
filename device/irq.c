@@ -33,8 +33,9 @@ queue_intr (int irq)
   
   cli ();
   queue_enter (&intr_queue, e, struct intr_entry *, chain);
-  thread_wakeup ((event_t) &intr_thread);
   sti ();
+
+  thread_wakeup ((event_t) &intr_thread);
 }
 
 struct intr_entry *
