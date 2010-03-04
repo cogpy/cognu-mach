@@ -129,8 +129,6 @@ static struct device_emulation_ops *emulation_list[] =
   &mach_device_emulation_ops,
 };
 
-ipc_port_t intr_rcv_ports[16];
-
 #define NUM_EMULATION (sizeof (emulation_list) / sizeof (emulation_list[0]))
 
 io_return_t
@@ -320,6 +318,12 @@ io_return_t
 ds_device_intr_notify (ipc_port_t master_port, int irq,
 		       int id, ipc_port_t receive_port)
 {
+#define SA_SHIRQ	0x04000000
+  extern int install_user_irq_handler (unsigned int irq,
+				       unsigned long flags,
+				       ipc_port_t dest);
+  io_return_t ret;
+
   /* Open must be called on the master device port.  */
   if (master_port != master_device_port)
     return D_INVALID_OPERATION;
@@ -327,8 +331,18 @@ ds_device_intr_notify (ipc_port_t master_port, int irq,
   if (irq < 0 || irq >= 16)
     return D_INVALID_OPERATION;
 
-  intr_rcv_ports[irq] = receive_port;
-  return 0;
+  // TODO the return value should be translate into Mach style.
+  // TODO The original port should be replaced
+  // when the same device driver calls it again, 
+  // in order to handle the case that the device driver crashes and restarts.
+  ret = install_user_irq_handler (irq, SA_SHIRQ, receive_port);
+
+  /* If the port is installed successfully, increase its reference by 1.
+   * Thus, the port won't be destroyed after its task is terminated. */
+  if (ret == 0)
+    ip_reference (receive_port);
+
+  return ret;
 }
 
 boolean_t

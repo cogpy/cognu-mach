@@ -10,6 +10,7 @@
 struct intr_entry
 {
   queue_chain_t chain;
+  ipc_port_t dest;
   int irq;
 };
 
@@ -18,7 +19,7 @@ queue_head_t intr_queue;
 
 /* This function can only be used in the interrupt handler. */
 void
-queue_intr (int irq)
+queue_intr (int irq, ipc_port_t dest)
 {
   extern void intr_thread ();
   struct intr_entry *e = (void *) kalloc (sizeof (*e));
@@ -30,6 +31,7 @@ queue_intr (int irq)
     }
 
   e->irq = irq;
+  e->dest = dest;
   
   cli ();
   queue_enter (&intr_queue, e, struct intr_entry *, chain);
@@ -71,17 +73,16 @@ intr_thread ()
 	  continue;
 	}
       
-      deliver_irq (e->irq);
+      deliver_irq (e->irq, e->dest);
       kfree ((vm_offset_t) e, sizeof (*e));
     }
 }
 
 boolean_t
-deliver_irq (int irq)
+deliver_irq (int irq, ipc_port_t dest_port)
 {
   ipc_kmsg_t kmsg;
   mach_irq_notification_t *n;
-  ipc_port_t dest_port = intr_rcv_ports[irq];
   mach_port_t dest = (mach_port_t) dest_port;
 
   if (dest == MACH_PORT_NULL)
@@ -116,14 +117,8 @@ deliver_irq (int irq)
   n->irq = irq;
 
   ipc_port_copy_send (dest_port);
-  printf ("ref num: %d\n", dest_port->ip_srights);
+  printf ("ref num: %d\n", dest_port->ip_references);
   ipc_mqueue_send_always(kmsg);
 
   return TRUE;
-}
-
-boolean_t
-deliver_to_user (int vec)
-{
-  return intr_rcv_ports[vec] != NULL;
 }
