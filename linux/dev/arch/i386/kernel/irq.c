@@ -111,6 +111,7 @@ linux_intr (int irq)
 {
   struct pt_regs regs;
   struct linux_action *action = *(irq_action + irq);
+  struct linux_action **prev = &irq_action[irq];
   unsigned long flags;
 
   kstat.interrupts[irq]++;
@@ -134,8 +135,11 @@ linux_intr (int irq)
 	      && action->delivery_port->ip_references == 1)
 	    {
 	      ipc_port_release (action->delivery_port);
-	      action->delivery_port = NULL;
-	      printk ("irq handler: release an dead delivery port\n");
+	      *prev = action->next;
+	      printk ("irq handler %d: release an dead delivery port\n", irq);
+	      linux_kfree(action);
+	      action = *prev;
+	      continue;
 	    }
 	  else
 	    {
@@ -148,6 +152,7 @@ linux_intr (int irq)
 	}
       else if (action->handler)
 	action->handler (irq, action->dev_id, &regs);
+      prev = &action->next;
       action = action->next;
     }
 
@@ -263,6 +268,7 @@ setup_x86_irq (int irq, struct linux_action *new)
 	}
       while (old);
       shared = 1;
+      printk("store a new irq %d", irq);
     }
 
   save_flags (flags);
