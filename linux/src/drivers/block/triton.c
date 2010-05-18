@@ -129,7 +129,6 @@
 const char *good_dma_drives[] = {"Micropolis 2112A",
 				 "CONNER CTMA 4000",
 				 "CONNER CTT8000-A",
-				 "QEMU HARDDISK",
 				 NULL};
 
 /*
