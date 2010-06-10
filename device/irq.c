@@ -7,6 +7,8 @@
 #define sti() __asm__ __volatile__ ("sti": : :"memory")
 #define cli() __asm__ __volatile__ ("cli": : :"memory")
 
+static boolean_t deliver_irq (int irq, ipc_port_t dest_port);
+
 struct intr_entry
 {
   queue_chain_t chain;
@@ -14,7 +16,7 @@ struct intr_entry
   int irq;
 };
 
-queue_head_t intr_queue;
+static queue_head_t intr_queue;
 
 
 /* This function can only be used in the interrupt handler. */
@@ -40,7 +42,7 @@ queue_intr (int irq, ipc_port_t dest)
   thread_wakeup ((event_t) &intr_thread);
 }
 
-struct intr_entry *
+static struct intr_entry *
 dequeue_intr ()
 {
   struct intr_entry *e;
@@ -84,7 +86,7 @@ intr_thread ()
     }
 }
 
-boolean_t
+static boolean_t
 deliver_irq (int irq, ipc_port_t dest_port)
 {
   ipc_kmsg_t kmsg;

@@ -4,8 +4,6 @@
 
 #include <device/device_types.h>
 
-boolean_t	 deliver_irq (int irq, ipc_port_t dest);
-
 typedef struct
 {
   mach_msg_header_t irq_header;
