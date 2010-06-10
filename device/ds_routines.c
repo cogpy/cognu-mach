@@ -330,7 +330,6 @@ ds_device_intr_notify (ipc_port_t master_port, int irq,
   if (irq < 0 || irq >= 16)
     return D_INVALID_OPERATION;
 
-  // TODO the return value should be translate into Mach style.
   // TODO The original port should be replaced
   // when the same device driver calls it again, 
   // in order to handle the case that the device driver crashes and restarts.

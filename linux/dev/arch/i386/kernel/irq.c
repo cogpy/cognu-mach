@@ -304,7 +304,7 @@ install_user_irq_handler (unsigned int irq, unsigned long flags,
       if (old->delivery_port == dest)
 	{
 	  printk ("The interrupt handler has been installed on line %d", irq);
-	  return -LINUX_EAGAIN;
+	  return linux_to_mach_error (-LINUX_EAGAIN);
 	}
       old = old->next;
     }
@@ -316,7 +316,7 @@ install_user_irq_handler (unsigned int irq, unsigned long flags,
   action = (struct linux_action *)
     linux_kmalloc (sizeof (struct linux_action), GFP_KERNEL);
   if (action == NULL)
-    return -LINUX_ENOMEM;
+    return linux_to_mach_error (-LINUX_ENOMEM);
   
   action->handler = NULL;
   action->next = NULL;
@@ -328,7 +328,7 @@ install_user_irq_handler (unsigned int irq, unsigned long flags,
   if (retval)
     linux_kfree (action);
   
-  return retval;
+  return linux_to_mach_error (retval);
 }
 
 /*
