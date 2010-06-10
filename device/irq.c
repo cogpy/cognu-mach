@@ -65,16 +65,19 @@ intr_thread ()
   
   for (;;)
     {
-      struct intr_entry *e = dequeue_intr ();
+      struct intr_entry *e;
 
+      assert_wait ((event_t) &intr_thread, FALSE);
+      e = dequeue_intr ();
       if (e == NULL)
 	{
 	  /* There aren't new interrupts,
 	   * wait until someone wakes us up. */
-	  assert_wait ((event_t) &intr_thread, FALSE);
 	  thread_block (NULL);
 	  continue;
 	}
+      else
+	clear_wait (current_thread (), 0, THREAD_AWAKENED);
       
       deliver_irq (e->irq, e->dest);
       kfree ((vm_offset_t) e, sizeof (*e));
