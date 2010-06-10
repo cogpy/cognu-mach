@@ -47,7 +47,10 @@ dequeue_intr ()
 
   cli ();
   if (queue_empty (&intr_queue))
-    return NULL;
+    {
+      sti ();
+      return NULL;
+    }
 
   queue_remove_first (&intr_queue, e, struct intr_entry *, chain);
   sti ();
