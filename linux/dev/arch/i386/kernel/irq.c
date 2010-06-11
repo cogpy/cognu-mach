@@ -134,6 +134,7 @@ linux_intr (int irq)
 	  if (action->delivery_port
 	      && action->delivery_port->ip_references == 1)
 	    {
+	      mark_intr_removed (irq, action->delivery_port);
 	      ipc_port_release (action->delivery_port);
 	      *prev = action->next;
 	      printk ("irq handler %d: release an dead delivery port\n", irq);

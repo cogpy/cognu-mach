@@ -14,75 +14,140 @@ struct intr_entry
   queue_chain_t chain;
   ipc_port_t dest;
   int irq;
+  /* The number of interrupts occur since last run of intr_thread. */
+  int interrupts;
 };
 
 static queue_head_t intr_queue;
+/* The total number of unprocessed interrupts. */
+static int tot_num_intr;
 
+static struct intr_entry *
+search_intr (int irq, ipc_port_t dest)
+{
+  struct intr_entry *e;
+  queue_iterate (&intr_queue, e, struct intr_entry *, chain)
+    {
+      if (e->dest == dest && e->irq == irq)
+	return e;
+    }
+  return NULL;
+}
 
 /* This function can only be used in the interrupt handler. */
 void
 queue_intr (int irq, ipc_port_t dest)
 {
   extern void intr_thread ();
-  struct intr_entry *e = (void *) kalloc (sizeof (*e));
-  
-  if (e == NULL)
-    {
-      printf ("queue_intr: no memory available\n");
-      return;
-    }
-
-  e->irq = irq;
-  e->dest = dest;
+  struct intr_entry *e;
   
   cli ();
-  queue_enter (&intr_queue, e, struct intr_entry *, chain);
+  e = search_intr (irq, dest);
+  assert (e);
+  e->interrupts++;
+  tot_num_intr++;
   sti ();
 
   thread_wakeup ((event_t) &intr_thread);
 }
 
-static struct intr_entry *
-dequeue_intr ()
+/* insert an interrupt entry in the queue.
+ * This entry exists in the queue until
+ * the corresponding interrupt port is removed.*/
+int
+insert_intr_entry (int irq, ipc_port_t dest)
+{
+  int err = 0;
+  struct intr_entry *e, *new;
+  int free = 0;
+
+  new = (struct intr_entry *) kalloc (sizeof (*new));
+  if (new == NULL)
+    return D_NO_MEMORY;
+
+  /* check whether the intr entry has been in the queue. */
+  cli ();
+  e = search_intr (irq, dest);
+  if (e)
+    {
+      printf ("the interrupt entry for irq %d and port %p has been inserted\n",
+	      irq, dest);
+      free = 1;
+      err = D_ALREADY_OPEN;
+      goto out;
+    }
+  new->irq = irq;
+  new->dest = dest;
+  new->interrupts = 0;
+  queue_enter (&intr_queue, new, struct intr_entry *, chain);
+out:
+  sti ();
+  if (free)
+    kfree ((vm_offset_t) new, sizeof (*new));
+  return err;
+}
+
+/* this function should be called when irq is disabled. */
+void mark_intr_removed (int irq, ipc_port_t dest)
 {
   struct intr_entry *e;
 
-  cli ();
-  if (queue_empty (&intr_queue))
-    {
-      sti ();
-      return NULL;
-    }
-
-  queue_remove_first (&intr_queue, e, struct intr_entry *, chain);
-  sti ();
-
-  return e;
+  e = search_intr (irq, dest);
+  if (e)
+    e->dest = NULL;
 }
 
 void
 intr_thread ()
 {
+  struct intr_entry *e;
+  int irq;
+  ipc_port_t dest;
   queue_init (&intr_queue);
   
   for (;;)
     {
-      struct intr_entry *e;
-
       assert_wait ((event_t) &intr_thread, FALSE);
-      e = dequeue_intr ();
-      if (e == NULL)
+      cli ();
+      while (tot_num_intr)
 	{
-	  /* There aren't new interrupts,
-	   * wait until someone wakes us up. */
-	  thread_block (NULL);
-	  continue;
+	  int del = 0;
+
+	  queue_iterate (&intr_queue, e, struct intr_entry *, chain)
+	    {
+	      /* if an entry doesn't have dest port,
+	       * we should remove it. */
+	      if (e->dest == NULL)
+		{
+		  del = 1;
+		  break;
+		}
+
+	      if (e->interrupts)
+		{
+		  irq = e->irq;
+		  dest = e->dest;
+		  e->interrupts--;
+		  tot_num_intr--;
+
+		  sti ();
+		  deliver_irq (irq, dest);
+		  cli ();
+		}
+	    }
+
+	  /* remove the entry without dest port from the queue and free it. */
+	  if (del)
+	    {
+	      assert (!queue_empty (&intr_queue));
+	      queue_remove (&intr_queue, e, struct intr_entry *, chain);
+	      sti ();
+	      kfree ((vm_offset_t) e, sizeof (*e));
+	      cli ();
+	    }
 	}
-      else
-	clear_wait (current_thread (), 0, THREAD_AWAKENED);
-      
-      deliver_irq (e->irq, e->dest);
-      kfree ((vm_offset_t) e, sizeof (*e));
+      sti ();
+      thread_block (NULL);
     }
 }
 
