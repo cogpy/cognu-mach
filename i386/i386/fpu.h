@@ -32,8 +32,9 @@
  * floating-point processor.
  */
 
+#include <sys/types.h>
 #include <i386/proc_reg.h>
-#include <i386/thread.h>
+#include <kern/thread.h>
 
 /*
  * FPU instructions.
@@ -66,6 +67,12 @@
 #define	frstor(state) \
 	asm volatile("frstor %0" : : "m" (state))
 
+#define	fxsave(state) \
+	asm volatile("fxsave %0" : "=m" (*state))
+
+#define	fxrstor(state) \
+	asm volatile("fxrstor %0" : : "m" (state))
+
 #define fwait() \
     	asm("fwait");
 
@@ -85,7 +92,10 @@
 	if (ifps != 0 && !ifps->fp_valid) { \
 	    /* registers are in FPU - save to memory */ \
 	    ifps->fp_valid = TRUE; \
-	    fnsave(&ifps->fp_save_state); \
+	    if (fp_kind == FP_387X) \
+		fxsave(&ifps->xfp_save_state); \
+	    else \
+		fnsave(&ifps->fp_save_state); \
 	    set_ts(); \
 	} \
     }
@@ -99,5 +109,20 @@
 #endif	/* NCPUS == 1 */
 
 extern int	fp_kind;
+extern void fp_save(thread_t thread);
+extern void fp_load(thread_t thread);
+extern void fp_free(struct i386_fpsave_state *fps);
+extern void fpu_module_init(void);
+extern kern_return_t fpu_set_state(
+    thread_t    thread,
+    struct i386_float_state *state);
+extern kern_return_t fpu_get_state(
+    thread_t    thread,
+    struct i386_float_state *state);
+extern void fpnoextflt(void);
+extern void fpextovrflt(void);
+extern void fpexterrflt(void);
+extern void fpastintr(void);
+extern void init_fpu(void);
 
 #endif	/* _I386_FPU_H_ */

@@ -34,6 +34,7 @@
  *	The proverbial page-out daemon.
  */
 
+#include <device/net_io.h>
 #include <mach/mach_types.h>
 #include <mach/memory_object.h>
 #include <vm/memory_object_default.user.h>
@@ -42,12 +43,14 @@
 #include <mach/vm_statistics.h>
 #include <kern/counters.h>
 #include <kern/debug.h>
+#include <kern/task.h>
 #include <kern/thread.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <machine/locore.h>
 #include <machine/vm_tuning.h>
 
 
@@ -548,7 +551,6 @@ void vm_pageout_scan()
 	 *	internal memory even if we never reach vm_page_free_target.
 	 */
 
-    Restart:
 	stack_collect();
 	net_kmsg_collect();
 	consider_task_collect();

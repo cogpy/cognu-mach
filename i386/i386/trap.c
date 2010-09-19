@@ -32,6 +32,9 @@
 
 #include <mach/machine/eflags.h>
 #include <i386/trap.h>
+#include <i386/fpu.h>
+#include <i386/model_dep.h>
+#include <intel/read_fault.h>
 #include <machine/machspl.h>	/* for spl_t */
 
 #include <mach/exception.h>
@@ -39,6 +42,7 @@
 #include "vm_param.h"
 #include <mach/machine/thread_status.h>
 
+#include <vm/vm_fault.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
@@ -57,10 +61,10 @@
 
 #include "debug.h"
 
-extern void exception();
-extern void thread_exception_return();
+extern void exception() __attribute__ ((noreturn));
+extern void thread_exception_return() __attribute__ ((noreturn));
 
-extern void i386_exception();
+extern void i386_exception()  __attribute__ ((noreturn));
 
 #if	MACH_KDB
 boolean_t	debug_all_traps_with_kdb = FALSE;
@@ -242,7 +246,7 @@ dump_ss(regs);
 			assert(thread);
 			map = thread->task->map;
 			if (map == kernel_map) {
-				printf("kernel page fault at %08x:\n");
+				printf("kernel page fault at %08x:\n", subcode);
 				dump_ss(regs);
 				panic("kernel thread accessed user space!\n");
 			}
@@ -366,15 +370,14 @@ dump_ss(regs);
 int user_trap(regs)
 	register struct i386_saved_state *regs;
 {
-	int	exc;
+	int	exc = 0;	/* Suppress gcc warning */
 	int	code;
 	int	subcode;
 	register int	type;
 	register thread_t thread = current_thread();
-	extern vm_offset_t phys_last_addr;
 
 	if ((vm_offset_t)thread < phys_last_addr) {
-		printf("user_trap: bad thread pointer 0x%x\n", thread);
+		printf("user_trap: bad thread pointer 0x%p\n", thread);
 		printf("trap type %d, code 0x%x, va 0x%x, eip 0x%x\n",
 		       regs->trapno, regs->err, regs->cr2, regs->eip);
 		asm volatile ("1: hlt; jmp 1b");
@@ -510,7 +513,8 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		dump_ss (regs);
 
 #endif
-		assert(subcode < LINEAR_MIN_KERNEL_ADDRESS);
+		if (subcode >= LINEAR_MIN_KERNEL_ADDRESS)
+			i386_exception(EXC_BAD_ACCESS, EXC_I386_PGFLT, subcode);
 		(void) vm_fault(thread->task->map,
 				trunc_page((vm_offset_t)subcode),
 				(regs->err & T_PF_WRITE)
@@ -521,6 +525,22 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 				user_page_fault_continue);
 		/*NOTREACHED*/
 		break;
+
+#ifdef MACH_XEN
+	    case 15:
+		{
+			static unsigned count = 0;
+			count++;
+			if (!(count % 10000))
+				printf("%d 4gb segments accesses\n", count);
+			if (count > 1000000) {
+				printf("A million 4gb segment accesses, stopping reporting them.");
+				if (hyp_vm_assist(VMASST_CMD_disable, VMASST_TYPE_4gb_segments_notify))
+					panic("couldn't disable 4gb segments vm assist notify");
+			}
+			return 0;
+		}
+#endif
 
 	    case T_FLOATING_POINT_ERROR:
 		fpexterrflt();
@@ -581,6 +601,7 @@ i386_astintr()
 	int	mycpu = cpu_number();
 
 	(void) splsched();	/* block interrupts to check reasons */
+#ifndef	MACH_XEN
 	if (need_ast[mycpu] & AST_I386_FP) {
 	    /*
 	     * AST was for delayed floating-point exception -
@@ -590,9 +611,11 @@ i386_astintr()
 	    ast_off(mycpu, AST_I386_FP);
 	    (void) spl0();
 
-	    fpexterrflt();
+	    fpastintr();
 	}
-	else {
+	else
+#endif	/* MACH_XEN */
+	{
 	    /*
 	     * Not an FPU trap.  Handle the AST.
 	     * Interrupts are still blocked.

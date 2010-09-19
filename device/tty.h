@@ -52,16 +52,16 @@ struct tty {
 	struct cirbuf	t_outq;		/* output buffer */
 	char *		t_addr;		/* device pointer */
 	int		t_dev;		/* device number */
-	int		(*t_start)(struct tty *);
+	void		(*t_start)(struct tty *);
 					/* routine to start output */
 #define	t_oproc	t_start
-	int		(*t_stop)(struct tty *, int);
+	void		(*t_stop)(struct tty *, int);
 					/* routine to stop output */
 	int		(*t_mctl)(struct tty *, int, int);
 					/* (optional) routine to control
 					   modem signals */
-	char		t_ispeed;	/* input speed */
-	char		t_ospeed;	/* output speed */
+	unsigned char	t_ispeed;	/* input speed */
+	unsigned char	t_ospeed;	/* output speed */
 	char		t_breakc;	/* character to deliver when 'break'
 					   condition received */
 	int		t_flags;	/* mode flags */
@@ -104,9 +104,18 @@ extern void ttyinput(
 	unsigned int	c,
 	struct tty *	tp);
 
+extern void ttyinput_many(
+	struct tty *	tp,
+	char *		chars,
+	int		count);
+
 extern boolean_t ttymodem(
 	struct tty *	tp,
 	boolean_t	carrier_up);
+
+extern void tty_cts(
+	struct tty *	tp,
+	boolean_t	cts_up);
 
 extern void tty_queue_completion(
 	queue_t		queue);
@@ -123,6 +132,35 @@ extern void ttychars(
 short	tthiwat[NSPEEDS], ttlowat[NSPEEDS];
 #define	TTHIWAT(tp)	tthiwat[(tp)->t_ospeed]
 #define	TTLOWAT(tp)	ttlowat[(tp)->t_ospeed]
+
+extern io_return_t tty_get_status(
+	struct tty *	tp,
+	dev_flavor_t	flavor,
+	int *		data,
+	natural_t *	count);
+
+extern io_return_t tty_set_status(
+	struct tty *	tp,
+	dev_flavor_t	flavor,
+	int *		data,
+	natural_t	count);
+
+extern void tty_flush(
+	struct tty *	tp,
+	int		rw);
+
+extern void ttrstrt(
+	struct tty *	tp);
+
+extern void ttstart(
+	struct tty *	tp);
+
+extern void ttyclose(
+	struct tty *	tp);
+
+extern boolean_t tty_portdeath(
+	struct tty *	tp,
+	ipc_port_t	port);
 
 /* internal state bits */
 #define	TS_INIT		0x00000001	/* tty structure initialized */
@@ -199,5 +237,7 @@ struct ldisc_switch {
 };
 
 extern struct ldisc_switch	linesw[];
+
+extern void chario_init(void);
 
 #endif	/* _DEVICE_TTY_H_ */

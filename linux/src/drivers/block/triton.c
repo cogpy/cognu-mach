@@ -129,6 +129,13 @@
 const char *good_dma_drives[] = {"Micropolis 2112A",
 				 "CONNER CTMA 4000",
 				 "CONNER CTT8000-A",
+				 // Should work, but kvm/qemu seem to produce
+				 // issues:
+				 // hd1 irq timeout: status=0xd8 { Busy }
+				 // hd0: disabled DMA
+				 // hd1: disabled DMA
+				 // ide0: reset: success
+				 //"QEMU HARDDISK",
 				 NULL};
 
 /*
@@ -409,7 +416,17 @@ void ide_init_triton (byte bus, byte fn)
 		goto quit;
 	}
 	if ((pcicmd & 4) == 0) {
-		printk("ide: BM-DMA feature is not enabled (BIOS)\n");
+		printk("ide: BM-DMA feature is not enabled (BIOS), enabling\n");
+		pcicmd |= 4;
+		pcibios_write_config_word(bus, fn, 0x04, pcicmd);
+		if ((rc = pcibios_read_config_word(bus, fn, 0x04, &pcicmd))) {
+			printk("ide: Couldn't read back PCI command\n");
+			goto quit;
+		}
+	}
+
+	if ((pcicmd & 4) == 0) {
+		printk("ide: BM-DMA feature couldn't be enabled\n");
 	} else {
 		/*
 		 * Get the bmiba base address

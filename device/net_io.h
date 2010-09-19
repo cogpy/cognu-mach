@@ -65,6 +65,7 @@ extern void net_kmsg_put(ipc_kmsg_t);
  * Network utility routines.
  */
 
+extern void net_ast();
 extern void net_packet(struct ifnet *, ipc_kmsg_t, unsigned int, boolean_t);
 extern void net_filter(ipc_kmsg_t, ipc_kmsg_queue_t);
 extern io_return_t net_getstat(struct ifnet *, dev_flavor_t, dev_status_t,
@@ -76,6 +77,8 @@ extern io_return_t net_write(struct ifnet *, int (*)(), io_req_t);
  */
 
 extern vm_size_t net_kmsg_size;
+
+extern void net_kmsg_collect (void);
 
 #define net_kmsg_alloc()	((ipc_kmsg_t) kalloc(net_kmsg_size))
 #define net_kmsg_free(kmsg)	kfree((vm_offset_t) (kmsg), net_kmsg_size)

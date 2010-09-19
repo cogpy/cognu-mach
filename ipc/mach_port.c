@@ -59,6 +59,7 @@
 #include <ipc/ipc_port.h>
 #include <ipc/ipc_pset.h>
 #include <ipc/ipc_right.h>
+#include <ipc/mach_port.h>
 
 
 
@@ -589,6 +590,7 @@ mach_port_destroy(
  *		KERN_INVALID_RIGHT	The right isn't correct.
  */
 
+static volatile int mach_port_deallocate_debug = 0;
 kern_return_t
 mach_port_deallocate(
 	ipc_space_t	space,
@@ -601,8 +603,14 @@ mach_port_deallocate(
 		return KERN_INVALID_TASK;
 
 	kr = ipc_right_lookup_write(space, name, &entry);
-	if (kr != KERN_SUCCESS)
+	if (kr != KERN_SUCCESS) {
+		if (name != MACH_PORT_NULL && name != MACH_PORT_DEAD) {
+			printf("task %p deallocating an invalid port %u, most probably a bug.\n", current_task(), name);
+			if (mach_port_deallocate_debug)
+				SoftDebugger("mach_port_deallocate");
+		}
 		return kr;
+	}
 	/* space is write-locked */
 
 	kr = ipc_right_dealloc(space, name, entry); /* unlocks space */
@@ -740,6 +748,8 @@ mach_port_mod_refs(
  *		KERN_INVALID_RIGHT	Name doesn't denote receive rights.
  */
 
+kern_return_t
+mach_port_get_receive_status(ipc_space_t, mach_port_t, mach_port_status_t *);
 kern_return_t
 old_mach_port_get_receive_status(space, name, statusp)
 	ipc_space_t space;
@@ -1284,10 +1294,11 @@ mach_port_insert_right(
 	    !MACH_MSG_TYPE_PORT_ANY_RIGHT(polyPoly))
 		return KERN_INVALID_VALUE;
 
-	if (!IO_VALID(poly))
+	if (!IO_VALID((ipc_object_t)poly))
 		return KERN_INVALID_CAPABILITY;
 
-	return ipc_object_copyout_name(space, poly, polyPoly, FALSE, name);
+	return ipc_object_copyout_name(space, (ipc_object_t)poly,
+				       polyPoly, FALSE, name);
 }
 
 /*

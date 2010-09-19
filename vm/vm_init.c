@@ -37,6 +37,7 @@
 #include <mach/machine/vm_types.h>
 #include <kern/zalloc.h>
 #include <kern/kalloc.h>
+#include <vm/vm_fault.h>
 #include <vm/vm_object.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
@@ -81,4 +82,5 @@ void vm_mem_bootstrap()
 void vm_mem_init()
 {
 	vm_object_init();
+	memory_object_proxy_init();
 }

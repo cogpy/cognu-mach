@@ -42,12 +42,15 @@
 #include <kern/ast.h>
 #include <kern/counters.h>
 #include <kern/debug.h>
+#include <kern/eventcount.h>
+#include <kern/ipc_mig.h>
 #include <kern/ipc_tt.h>
 #include <kern/mach_param.h>
 #include <kern/processor.h>
 #include <kern/queue.h>
 #include <kern/sched.h>
 #include <kern/sched_prim.h>
+#include <kern/syscall_subr.h>
 #include <kern/thread.h>
 #include <kern/thread_swap.h>
 #include <kern/host.h>
@@ -696,7 +699,7 @@ void thread_deallocate(
 	 *	Clean up any machine-dependent resources.
 	 */
 	if ((thread->state & TH_SWAPPED) == 0) {
-		spl_t _s_ = splsched();
+		splsched();
 		stack_free(thread);
 		(void) splx(s);
 		thread_deallocate_stack++;

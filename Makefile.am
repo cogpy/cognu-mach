@@ -1,6 +1,6 @@
 # Makefile for GNU Mach.
 
-# Copyright (C) 2006, 2007 Free Software Foundation, Inc.
+# Copyright (C) 2006, 2007, 2008 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -66,10 +66,6 @@ if disable_smashing_stack_protector
 AM_CFLAGS += \
 	-fno-stack-protector
 endif
-
-# For pre Automake 1.10.
-AM_CCASFLAGS += \
-	$(AM_CPPFLAGS)
 
 #
 # MIG Setup.
@@ -80,6 +76,19 @@ MIGCOM = $(MIG) -n -cc cat - /dev/null
 
 # We need this because we use $(CPP) to preprocess MIG .defs files.
 CPP = @CPP@ -x c
+
+#
+# Other Tools' Configuration.
+#
+
+# Don't needlessly overwrite files that whose contents haven't changed.  This
+# helps for avoinding unneccessary recompilation cycles when keeping
+# cross-compilation toolchains up-to-date.  Thus, unconditionally use the
+# `install-sh' that is supplied by GNU Automake 1.10.1, as the GNU Coreutils
+# one doesn't provide this functionality yet (TODO: change that).  TODO:
+# `build-aux' is hardcoded.
+install_sh = $(SHELL) $(abs_srcdir)/build-aux/install-sh -C
+INSTALL = $(install_sh)
 
 #
 # The main kernel functionality.
@@ -124,11 +133,12 @@ noinst_PROGRAMS += \
 	gnumach.o
 
 # This is the list of routines we decide is OK to steal from the C library.
-clib_routines := memcpy memmove memset bcopy bzero		\
+clib_routines := memcmp memcpy memmove memset bcopy bzero	\
 		 strchr strstr strsep strpbrk strtok		\
 		 htonl htons ntohl ntohs			\
 		 udivdi3 __udivdi3				\
-		 etext _edata end _end # actually ld magic, not libc.
+		 __rel_iplt_start __rel_iplt_end		\
+		 _START _start etext _edata end _end # actually ld magic, not libc.
 gnumach-undef: gnumach.$(OBJEXT)
 	$(NM) -u $< | sed 's/  *U  *//' | sort -u > $@
 MOSTLYCLEANFILES += gnumach-undef
@@ -158,11 +168,9 @@ exec_boot_PROGRAMS = \
 #
 
 EXTRA_DIST += \
-	Makefile.correct_output_files_for_.S_files.patch \
 	config.status.dep.patch
 
 EXTRA_DIST += \
-	ChangeLog.0 ChangeLog.00 \
 	DEVELOPMENT
 
 dist-hook:

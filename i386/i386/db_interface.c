@@ -134,7 +134,7 @@ kdb_trap(
 	    /* XXX Should switch to ddb`s own stack here. */
 
 	    ddb_regs = *regs;
-	    if ((regs->cs & 0x3) == 0) {
+	    if ((regs->cs & 0x3) == KERNEL_RING) {
 		/*
 		 * Kernel mode - esp and ss not saved
 		 */
@@ -152,7 +152,7 @@ kdb_trap(
 	    regs->ecx    = ddb_regs.ecx;
 	    regs->edx    = ddb_regs.edx;
 	    regs->ebx    = ddb_regs.ebx;
-	    if (regs->cs & 0x3) {
+	    if ((regs->cs & 0x3) != KERNEL_RING) {
 		/*
 		 * user mode - saved esp and ss valid
 		 */
@@ -205,7 +205,7 @@ kdb_kentry(
 	if (db_enter())
 #endif	/* NCPUS > 1 */
 	{
-	    if (is->cs & 0x3) {
+	    if ((is->cs & 0x3) != KERNEL_RING) {
 		ddb_regs.uesp = ((int *)(is+1))[0];
 		ddb_regs.ss   = ((int *)(is+1))[1];
 	    }
@@ -232,7 +232,7 @@ kdb_kentry(
 	    db_task_trap(-1, 0, (ddb_regs.cs & 0x3) != 0);
 	    cnpollc(FALSE);
 
-	    if (ddb_regs.cs & 0x3) {
+	    if ((ddb_regs.cs & 0x3) != KERNEL_RING) {
 		((int *)(is+1))[0] = ddb_regs.uesp;
 		((int *)(is+1))[1] = ddb_regs.ss & 0xffff;
 	    }
@@ -311,15 +311,16 @@ db_read_bytes(
 	unsigned	kern_addr;
 
 	src = (char *)addr;
-	if (addr >= VM_MIN_KERNEL_ADDRESS || task == TASK_NULL) {
+	if ((addr >= VM_MIN_KERNEL_ADDRESS && addr < VM_MAX_KERNEL_ADDRESS) || task == TASK_NULL) {
 	    if (task == TASK_NULL)
 	        task = db_current_task();
 	    while (--size >= 0) {
-		if (addr++ < VM_MIN_KERNEL_ADDRESS && task == TASK_NULL) {
+		if (addr < VM_MIN_KERNEL_ADDRESS && task == TASK_NULL) {
 		    db_printf("\nbad address %x\n", addr);
 		    db_error(0);
 		    /* NOTREACHED */
 		}
+		addr++;
 		*data++ = *src++;
 	    }
 	    return;
@@ -500,7 +501,7 @@ db_search_null(
 	register unsigned *kaddr;
 
 	kaddr = (unsigned *)*skaddr;
-	for (vaddr = *svaddr; vaddr > evaddr; vaddr -= sizeof(unsigned)) {
+	for (vaddr = *svaddr; vaddr > evaddr; ) {
 	    if (vaddr % INTEL_PGBYTES == 0) {
 		vaddr -= sizeof(unsigned);
 		if (db_user_to_kernel_address(task, vaddr, skaddr, 0) < 0)
@@ -519,6 +520,53 @@ db_search_null(
 	return FALSE;
 }
 
+#define GNU
+
+#ifdef GNU
+static boolean_t
+looks_like_command(
+	task_t		task,
+	char*		kaddr)
+{
+	char *c;
+
+	assert(!((vm_offset_t) kaddr & (INTEL_PGBYTES-1)));
+
+	/*
+	 * Must be the environment.
+	 */
+	if (!memcmp(kaddr, "PATH=", 5) || !memcmp(kaddr, "TERM=", 5) || !memcmp(kaddr, "SHELL=", 6) || !memcmp(kaddr, "LOCAL_PART=", 11) || !memcmp(kaddr, "LC_ALL=", 7))
+		return FALSE;
+
+	/*
+	 * This is purely heuristical but works quite nicely.
+	 * We know that it should look like words separated by \0, and
+	 * eventually only \0s.
+	 */
+	c = kaddr;
+	while (c < kaddr + INTEL_PGBYTES) {
+		if (!*c) {
+			if (c == kaddr)
+				/* Starts by \0.  */
+				return FALSE;
+			break;
+		}
+		while (c < kaddr + INTEL_PGBYTES && *c)
+			c++;
+		if (c < kaddr + INTEL_PGBYTES)
+			c++;	/* Skip \0 */
+	}
+	/*
+	 * Check that the remainder is just \0s.
+	 */
+	while (c < kaddr + INTEL_PGBYTES)
+		if (*c++)
+			return FALSE;
+
+	return TRUE;
+}
+#endif
+
 void
 db_task_name(
 	task_t		task)
@@ -526,7 +574,46 @@ db_task_name(
 	register char *p;
 	register int n;
 	unsigned vaddr, kaddr;
+	unsigned sp;
 
+	if (task->map->pmap == kernel_pmap) {
+		db_printf(DB_GNUMACH_TASK_NAME);
+		return;
+	}
+
+#ifdef GNU
+	/*
+	 * GNU Hurd-specific heuristics.
+	 */
+
+	/* Heuristical address first.  */
+	vaddr = 0x1026000;
+	if (db_user_to_kernel_address(task, vaddr, &kaddr, 0) >= 0 &&
+		looks_like_command(task, (char*) kaddr))
+			goto ok;
+
+	/* Try to catch SP of the main thread.  */
+	thread_t thread;
+
+	task_lock(task);
+	thread = (thread_t) queue_first(&task->thread_list);
+	if (!thread) {
+		task_unlock(task);
+		db_printf(DB_NULL_TASK_NAME);
+		return;
+	}
+	sp = thread->pcb->iss.uesp;
+	task_unlock(task);
+
+	vaddr = (sp & ~(INTEL_PGBYTES - 1)) + INTEL_PGBYTES;
+	while (1) {
+		if (db_user_to_kernel_address(task, vaddr, &kaddr, 0) < 0)
+			return FALSE;
+		if (looks_like_command(task, (char*) kaddr))
+			break;
+		vaddr += INTEL_PGBYTES;
+	}
+#else
 	vaddr = DB_USER_STACK_ADDR;
 	kaddr = 0;
 
@@ -544,11 +631,18 @@ db_task_name(
 	    db_printf(DB_NULL_TASK_NAME);
 	    return;
 	}
+#endif
 
+ok:
 	n = DB_TASK_NAME_LEN-1;
+#ifdef GNU
+	p = (char *)kaddr;
+	for (; n > 0; vaddr++, p++, n--) {
+#else
 	p = (char *)kaddr + sizeof(unsigned);
 	for (vaddr += sizeof(int); vaddr < DB_USER_STACK_ADDR && n > 0;
 							vaddr++, p++, n--) {
+#endif
 	    if (vaddr % INTEL_PGBYTES == 0) {
 		(void)db_user_to_kernel_address(task, vaddr, &kaddr, 0);
 		p = (char*)kaddr;

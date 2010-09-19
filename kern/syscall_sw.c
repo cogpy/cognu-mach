@@ -29,12 +29,14 @@
 
 #include <mach/port.h>
 #include <mach/kern_return.h>
+#include <kern/debug.h>
 #include <kern/syscall_sw.h>
 
 /* Include declarations of the trap functions. */
 #include <mach/mach_traps.h>
 #include <mach/message.h>
 #include <kern/syscall_subr.h>
+#include <ipc/mach_port.h>
 
 
 /*
@@ -58,13 +60,13 @@ int kern_invalid_debug = 0;
 
 mach_port_t	null_port()
 {
-	if (kern_invalid_debug) Debugger("null_port mach trap");
+	if (kern_invalid_debug) SoftDebugger("null_port mach trap");
 	return(MACH_PORT_NULL);
 }
 
 kern_return_t	kern_invalid()
 {
-	if (kern_invalid_debug) Debugger("kern_invalid mach trap");
+	if (kern_invalid_debug) SoftDebugger("kern_invalid mach trap");
 	return(KERN_INVALID_ARGUMENT);
 }
 

@@ -77,9 +77,10 @@ typedef unsigned int ipc_kobject_type_t;
 #define IKOT_LOCK_SET		24
 #define IKOT_CLOCK		25
 #define IKOT_CLOCK_CTRL		26
+#define	IKOT_PAGER_PROXY	27
 					/* << new entries here	*/
-#define	IKOT_UNKNOWN		27	/* magic catchall	*/
-#define	IKOT_MAX_TYPE		28	/* # of IKOT_ types	*/
+#define	IKOT_UNKNOWN		28	/* magic catchall	*/
+#define	IKOT_MAX_TYPE		29	/* # of IKOT_ types	*/
  /* Please keep ipc/ipc_object.c:ikot_print_array up to date	*/
 
 #define is_ipc_kobject(ikot)	(ikot != IKOT_NONE)
@@ -112,6 +113,11 @@ extern void ipc_kobject_set(
 /* Release any kernel object resources associated with a port */
 extern void ipc_kobject_destroy(
 	ipc_port_t		port);
+
+/* Deliver notifications to kobjects that care about them */
+extern boolean_t ipc_kobject_notify (
+	mach_msg_header_t	*request_header,
+	mach_msg_header_t	*reply_header);
 
 #define	null_conversion(port)	(port)
 

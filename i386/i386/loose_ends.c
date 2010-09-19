@@ -40,9 +40,10 @@ int boothowto = 0;
 
 /* Someone with time should write code to set cpuspeed automagically */
 int cpuspeed = 4;
-#define	DELAY(n)	{ register int N = cpuspeed * (n); while (--N > 0); }
+#define	DELAY(n)	{ volatile int N = cpuspeed * (n); while (--N > 0); }
 void
 delay(n)
+	int n;
 {
 	DELAY(n);
 }

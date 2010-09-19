@@ -35,9 +35,7 @@
 #include <mach/machine.h>
 #include <machine/cpu.h>
 #endif	/* MACH_KERNEL */
-#ifdef LINUX_DEV
 #include <i386/pic.h>
-#endif
 #include <i386/ipl.h>
 #include <chips/busses.h>
 
@@ -49,12 +47,12 @@
 
 #if NCOM > 0
 extern	struct	bus_driver	comdriver;
-extern int			comintr();
+extern void			comintr();
 #endif /* NCOM */
 
 #if NLPR > 0
 extern	struct	bus_driver	lprdriver;
-extern int			lprintr();
+extern void			lprintr();
 #endif /* NLPR */
 
 struct	bus_ctlr	bus_master_init[] = {
@@ -62,7 +60,7 @@ struct	bus_ctlr	bus_master_init[] = {
 /* driver    name unit intr    address        len phys_address
      adaptor alive flags spl    pic				 */
 
-  0
+  {0}
 };
 
 
@@ -91,7 +89,7 @@ struct	bus_device	bus_device_init[] = {
 #endif /* NLPR > 0 */
 #endif /* MACH_LPR */
 
-  0
+  {0}
 };
 
 /*

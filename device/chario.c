@@ -43,6 +43,7 @@
 
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_user.h>
 
 #include <device/device_types.h>
 #include <device/io_req.h>
@@ -894,8 +895,9 @@ void tty_output(
  * Send any buffered recvd chars up to user
  */
 void ttypush(
-	register struct tty	*tp)
+	void * _tp)
 {
+	register struct tty	*tp = _tp;
 	spl_t	s = spltty();
 	register int	state;
 
@@ -1006,7 +1008,7 @@ void ttyinput(
  */
 void ttyinput_many(
 	struct tty	*tp,
-	unsigned char	*chars,
+	char		*chars,
 	int		count)
 {
 	/*

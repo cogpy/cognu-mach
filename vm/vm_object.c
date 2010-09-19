@@ -179,7 +179,7 @@ vm_object_t	kernel_object;
  */
 queue_head_t	vm_object_cached_list;
 int		vm_object_cached_count;
-int		vm_object_cached_max = 32768;	/* may be patched*/
+int		vm_object_cached_max = 4000;	/* may be patched*/
 
 decl_simple_lock_data(,vm_object_cached_lock_data)
 
@@ -2539,11 +2539,11 @@ void vm_object_collapse(
 				/* Fall through to... */
 
 			    default:
-				printf("vm_object_collapse: %#x (pager %#x, request %#x) up to %#x\n",
+				printf("vm_object_collapse: %p (pager %p, request %p) up to %p\n",
 					backing_object, backing_object->pager, backing_object->pager_request,
 					object);
 				if (vm_object_collapse_debug > 2)
-				    Debugger("vm_object_collapse");
+				    SoftDebugger("vm_object_collapse");
 			}
 
 			object->pager = backing_object->pager;

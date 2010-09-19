@@ -105,7 +105,7 @@ zone_t		zone_zone;	/* this is the zone containing other zones */
 boolean_t	zone_ignore_overflow = TRUE;
 
 vm_map_t	zone_map = VM_MAP_NULL;
-vm_size_t	zone_map_size = 12 * 1024 * 1024;
+vm_size_t	zone_map_size = 64 * 1024 * 1024;
 
 /*
  *	The VM system gives us an initial chunk of memory.
@@ -214,7 +214,7 @@ zone_t zinit(size, align, max, alloc, memtype, name)
 		max = alloc;
 
 	if (align > 0) {
-		if (align >= PAGE_SIZE)
+		if (PAGE_SIZE % align || align % sizeof(z->free_elements))
 			panic("zinit");
 		ALIGN_SIZE_UP(size, align);
 	}
@@ -828,6 +828,18 @@ static void zone_gc(void)
 
 		free_addr = zone_map_min_address +
 			PAGE_SIZE * (freep - zone_page_table);
+
+		/* Hack Hack */
+		/* Needed to make vm_map_delete's vm_map_clip_end always be
+		 * able to get an element without having to call zget_space and
+		 * hang because zone_map is already locked by vm_map_delete */
+
+		extern zone_t		vm_map_kentry_zone;	/* zone for kernel entry structures */
+		vm_offset_t entry1 = zalloc(vm_map_kentry_zone),
+			    entry2 = zalloc(vm_map_kentry_zone);
+		zfree(vm_map_kentry_zone, entry1);
+		zfree(vm_map_kentry_zone, entry2);
+
 		kmem_free(zone_map, free_addr, PAGE_SIZE);
 	}
 }

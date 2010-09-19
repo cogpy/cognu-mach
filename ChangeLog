@@ -1,9 +1,8 @@
-b09661f614823530846bc6c7c7ac0f503411ab6d is the last commit imported from CVS.
+e227045b06d62ee7d2fbab9d5ade9030ff43170b is the last commit imported from CVS.
 All commits after that one have valid author and committer information.
 
 Use this to examine the change log for earlier changes:
 
-    $ git show b09661f614823530846bc6c7c7ac0f503411ab6d:ChangeLog.gdb
-    $ git show b09661f614823530846bc6c7c7ac0f503411ab6d:ChangeLog
-    $ git show b09661f614823530846bc6c7c7ac0f503411ab6d:ChangeLog.0
-    $ git show b09661f614823530846bc6c7c7ac0f503411ab6d:ChangeLog.00
+    $ git show e227045b06d62ee7d2fbab9d5ade9030ff43170b:ChangeLog
+    $ git show e227045b06d62ee7d2fbab9d5ade9030ff43170b:ChangeLog.0
+    $ git show e227045b06d62ee7d2fbab9d5ade9030ff43170b:ChangeLog.00

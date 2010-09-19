@@ -35,9 +35,11 @@
 
 #include <vm/vm_kern.h>
 
+#include <i386/pcb.h>
 #include <i386/seg.h>
 #include <i386/thread.h>
 #include <i386/user_ldt.h>
+#include <stddef.h>
 #include "ldt.h"
 #include "vm_param.h"
 
@@ -110,7 +112,7 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	pcb_t		pcb;
 	vm_size_t	ldt_size_needed;
 	int		first_desc = sel_idx(first_selector);
-	vm_map_copy_t	old_copy_object;
+	vm_map_copy_t	old_copy_object = NULL;	/* Suppress gcc warning */
 
 	if (thread == THREAD_NULL)
 	    return KERN_INVALID_ARGUMENT;
@@ -194,9 +196,17 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	    if (new_ldt == 0) {
 		simple_unlock(&pcb->lock);
 
+#ifdef	MACH_XEN
+		/* LDT needs to be aligned on a page */
+		vm_offset_t alloc = kalloc(ldt_size_needed + PAGE_SIZE + offsetof(struct user_ldt, ldt));
+		new_ldt = (user_ldt_t) (round_page((alloc + offsetof(struct user_ldt, ldt))) - offsetof(struct user_ldt, ldt));
+		new_ldt->alloc = alloc;
+		
+#else	/* MACH_XEN */
 		new_ldt = (user_ldt_t)
 				kalloc(ldt_size_needed
 				       + sizeof(struct real_descriptor));
+#endif	/* MACH_XEN */
 		/*
 		 *	Build a descriptor that describes the
 		 *	LDT itself
@@ -262,9 +272,19 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	simple_unlock(&pcb->lock);
 
 	if (new_ldt)
+#ifdef	MACH_XEN
+	{
+	    int i;
+	    for (i=0; i<(new_ldt->desc.limit_low + 1)/sizeof(struct real_descriptor); i+=PAGE_SIZE/sizeof(struct real_descriptor))
+		pmap_set_page_readwrite(&new_ldt->ldt[i]);
+	    kfree(new_ldt->alloc, new_ldt->desc.limit_low + 1
+		+ PAGE_SIZE + offsetof(struct user_ldt, ldt));
+	}
+#else	/* MACH_XEN */
 	    kfree((vm_offset_t)new_ldt,
 		  new_ldt->desc.limit_low + 1
 		+ sizeof(struct real_descriptor));
+#endif	/* MACH_XEN */
 
 	/*
 	 * Free the descriptor list, if it was
@@ -397,9 +417,17 @@ void
 user_ldt_free(user_ldt)
 	user_ldt_t	user_ldt;
 {
+#ifdef	MACH_XEN
+	int i;
+	for (i=0; i<(user_ldt->desc.limit_low + 1)/sizeof(struct real_descriptor); i+=PAGE_SIZE/sizeof(struct real_descriptor))
+		pmap_set_page_readwrite(&user_ldt->ldt[i]);
+	kfree(user_ldt->alloc, user_ldt->desc.limit_low + 1
+		+ PAGE_SIZE + offsetof(struct user_ldt, ldt));
+#else	/* MACH_XEN */
 	kfree((vm_offset_t)user_ldt,
 		user_ldt->desc.limit_low + 1
 		+ sizeof(struct real_descriptor));
+#endif	/* MACH_XEN */
 }
 
 

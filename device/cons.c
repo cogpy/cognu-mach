@@ -250,7 +250,7 @@ cnmaygetc()
 
 void
 cnputc(c)
-	int c;
+	char c;
 {
 	if (c == 0)
 		return;
@@ -259,6 +259,15 @@ cnputc(c)
 	/* XXX: Assume that All output routines always use cnputc. */
 	kmsg_putchar (c);
 #endif
+	
+#if defined(MACH_HYP) && 0
+	{
+		/* Also output on hypervisor's emergency console, for
+		 * debugging */
+		unsigned char d = c;
+		hyp_console_write(&d, 1);
+	}
+#endif	/* MACH_HYP */
 	
 	if (cn_tab) {
 		(*cn_tab->cn_putc)(cn_tab->cn_dev, c);

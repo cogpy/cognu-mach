@@ -30,10 +30,10 @@
 
 
 /* These interrupts are always present */
-extern intnull(), fpintr(), hardclock(), kdintr();
-extern prtnull();
+extern void intnull(), fpintr(), hardclock(), kdintr();
+extern void prtnull();
 
-int (*ivect[NINTR])() = {
+void (*ivect[NINTR])() = {
 	/* 00 */	hardclock,	/* always */
 #if RCLINE < 0
 	/* 01 */	kdintr,		/* kdintr, ... */

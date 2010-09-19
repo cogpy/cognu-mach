@@ -41,13 +41,16 @@
 #include <mach/kern_return.h>
 #include <mach/message.h>
 #include <mach/port.h>
+#include <machine/locore.h>
 #include <kern/assert.h>
 #include <kern/kalloc.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_user.h>
 #include <ipc/port.h>
 #include <ipc/ipc_entry.h>
+#include <ipc/ipc_hash.h>
 #include <ipc/ipc_kmsg.h>
 #include <ipc/ipc_thread.h>
 #include <ipc/ipc_marequest.h>
@@ -58,6 +61,8 @@
 #include <ipc/ipc_right.h>
 
 #include <ipc/ipc_machdep.h>
+
+#include <device/net_io.h>
 
 #if MACH_KDB
 #include <ddb/db_output.h>
@@ -526,7 +531,7 @@ ipc_kmsg_get(msg, size, kmsgp)
 		ikm_init(kmsg, size);
 	}
 
-	if (copyinmsg((char *) msg, (char *) &kmsg->ikm_header, size)) {
+	if (copyinmsg(msg, &kmsg->ikm_header, size)) {
 		ikm_free(kmsg);
 		return MACH_SEND_INVALID_DATA;
 	}
@@ -596,7 +601,7 @@ ipc_kmsg_put(msg, kmsg, size)
 
 	ikm_check_initialized(kmsg, kmsg->ikm_size);
 
-	if (copyoutmsg((char *) &kmsg->ikm_header, (char *) msg, size))
+	if (copyoutmsg(&kmsg->ikm_header, msg, size))
 		mr = MACH_RCV_INVALID_DATA;
 	else
 		mr = MACH_MSG_SUCCESS;

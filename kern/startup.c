@@ -34,6 +34,8 @@
 #include <ipc/ipc_init.h>
 #include <kern/cpu_number.h>
 #include <kern/debug.h>
+#include <kern/machine.h>
+#include <kern/mach_factor.h>
 #include <kern/mach_clock.h>
 #include <kern/printf.h>
 #include <kern/processor.h>
@@ -42,13 +44,17 @@
 #include <kern/thread.h>
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
+#include <kern/xpr.h>
+#include <kern/time_stamp.h>
 #include <kern/zalloc.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <machine/machspl.h>
+#include <machine/pcb.h>
 #include <machine/pmap.h>
+#include <machine/model_dep.h>
 #include <mach/version.h>
 
 
@@ -282,7 +288,6 @@ void cpu_launch_first_thread(th)
 	if (th == THREAD_NULL)
 	    panic("cpu_launch_first_thread");
 
-	startrtclock();		/* needs an active thread */
 	PMAP_ACTIVATE_KERNEL(mycpu);
 
 	active_threads[mycpu] = th;
@@ -293,6 +298,8 @@ void cpu_launch_first_thread(th)
 	timer_switch(&th->system_timer);
 
 	PMAP_ACTIVATE_USER(vm_map_pmap(th->task->map), th, mycpu);
+
+	startrtclock();		/* needs an active thread */
 
 	load_context(th);
 	/*NOTREACHED*/

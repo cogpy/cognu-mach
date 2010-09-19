@@ -42,12 +42,27 @@
 #include <kern/assert.h>
 #include <kern/debug.h>
 #include <kern/zalloc.h>
+#include <vm/pmap.h>
 #include <vm/vm_fault.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_resident.h>
 #include <vm/vm_kern.h>
 #include <ipc/ipc_port.h>
+
+/* Forward declarations */
+kern_return_t vm_map_delete(
+    vm_map_t   map,
+    vm_offset_t    start,
+    vm_offset_t    end);
+
+kern_return_t vm_map_copyout_page_list(
+    vm_map_t    dst_map,
+    vm_offset_t *dst_addr,  /* OUT */
+    vm_map_copy_t   copy);
+
+void vm_map_copy_page_discard (vm_map_copy_t copy);
 
 /*
  * Macros to copy a vm_map_entry. We must be careful to correctly
@@ -676,7 +691,7 @@ vm_map_pmap_enter(map, addr, end_addr, object, offset, protection)
 
 		if (vm_map_pmap_enter_print) {
 			printf("vm_map_pmap_enter:");
-			printf("map: %x, addr: %x, object: %x, offset: %x\n",
+			printf("map: %p, addr: %x, object: %p, offset: %x\n",
 				map, addr, object, offset);
 		}
 
@@ -783,7 +798,7 @@ kern_return_t vm_map_enter(
 			 */
 
 			if (((start + mask) & ~mask) < start)
-				return(KERN_NO_SPACE);
+				RETURN(KERN_NO_SPACE);
 			start = ((start + mask) & ~mask);
 			end = start + size;
 
@@ -2131,8 +2146,10 @@ start_pass_1:
 	 *	the copy cannot be interrupted.
 	 */
 
-	if (interruptible && contains_permanent_objects)
+	if (interruptible && contains_permanent_objects) {
+		vm_map_unlock(dst_map);
 		return(KERN_FAILURE);	/* XXX */
+	}
 
 	/*
 	 * XXXO	If there are no permanent objects in the destination,
@@ -4379,12 +4396,13 @@ kern_return_t vm_map_lookup(var_map, vaddr, fault_type, out_version,
 
 	prot = entry->protection;
 
-	if ((fault_type & (prot)) != fault_type)
+	if ((fault_type & (prot)) != fault_type) {
 		if ((prot & VM_PROT_NOTIFY) && (fault_type & VM_PROT_WRITE)) {
 			RETURN(KERN_WRITE_PROTECTION_FAILURE);
 		} else {
 			RETURN(KERN_PROTECTION_FAILURE);
 		}
+	}
 
 	/*
 	 *	If this page is not pageable, we have to get

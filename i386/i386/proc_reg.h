@@ -72,6 +72,11 @@
 #ifndef	__ASSEMBLER__
 #ifdef	__GNUC__
 
+#ifndef	MACH_HYP
+#include <i386/gdt.h>
+#include <i386/ldt.h>
+#endif	/* MACH_HYP */
+
 static inline unsigned
 get_eflags(void)
 {
@@ -102,7 +107,7 @@ set_eflags(unsigned eflags)
 #define	get_cr0() \
     ({ \
 	register unsigned int _temp__; \
-	asm("mov %%cr0, %0" : "=r" (_temp__)); \
+	asm volatile("mov %%cr0, %0" : "=r" (_temp__)); \
 	_temp__; \
     })
 
@@ -115,14 +120,24 @@ set_eflags(unsigned eflags)
 #define	get_cr2() \
     ({ \
 	register unsigned int _temp__; \
-	asm("mov %%cr2, %0" : "=r" (_temp__)); \
+	asm volatile("mov %%cr2, %0" : "=r" (_temp__)); \
 	_temp__; \
     })
 
+#ifdef	MACH_HYP
+extern unsigned long cr3;
+#define get_cr3() (cr3)
+#define	set_cr3(value) \
+    ({ \
+	cr3 = (value); \
+	if (!hyp_set_cr3(value)) \
+		panic("set_cr3"); \
+    })
+#else	/* MACH_HYP */
 #define	get_cr3() \
     ({ \
 	register unsigned int _temp__; \
-	asm("mov %%cr3, %0" : "=r" (_temp__)); \
+	asm volatile("mov %%cr3, %0" : "=r" (_temp__)); \
 	_temp__; \
     })
 
@@ -131,13 +146,44 @@ set_eflags(unsigned eflags)
 	register unsigned int _temp__ = (value); \
 	asm volatile("mov %0, %%cr3" : : "r" (_temp__)); \
      })
+#endif	/* MACH_HYP */
 
 #define flush_tlb() set_cr3(get_cr3())
+
+#ifndef	MACH_HYP
+#define invlpg(addr) \
+    ({ \
+	asm volatile("invlpg (%0)" : : "r" (addr)); \
+    })
+
+#define invlpg_linear(start) \
+    ({ \
+	asm volatile( \
+		    "movw %w1,%%es\n" \
+		  "\tinvlpg %%es:(%0)\n" \
+		  "\tmovw %w2,%%es" \
+		:: "r" (start), "q" (LINEAR_DS), "q" (KERNEL_DS)); \
+    })
+
+#define invlpg_linear_range(start, end) \
+    ({ \
+	register unsigned long var = trunc_page(start); \
+	asm volatile( \
+		    "movw %w2,%%es\n" \
+		"1:\tinvlpg %%es:(%0)\n" \
+		  "\taddl %c4,%0\n" \
+		  "\tcmpl %0,%1\n" \
+		  "\tjb 1b\n" \
+		  "\tmovw %w3,%%es" \
+		: "+r" (var) : "r" (end), \
+		  "q" (LINEAR_DS), "q" (KERNEL_DS), "i" (PAGE_SIZE)); \
+    })
+#endif	/* MACH_HYP */
 
 #define	get_cr4() \
     ({ \
 	register unsigned int _temp__; \
-	asm("mov %%cr4, %0" : "=r" (_temp__)); \
+	asm volatile("mov %%cr4, %0" : "=r" (_temp__)); \
 	_temp__; \
     })
 
@@ -148,16 +194,23 @@ set_eflags(unsigned eflags)
      })
 
 
+#ifdef	MACH_HYP
+#define	set_ts() \
+	hyp_fpu_taskswitch(1)
+#define	clear_ts() \
+	hyp_fpu_taskswitch(0)
+#else	/* MACH_HYP */
 #define	set_ts() \
 	set_cr0(get_cr0() | CR0_TS)
 
 #define	clear_ts() \
 	asm volatile("clts")
+#endif	/* MACH_HYP */
 
 #define	get_tr() \
     ({ \
 	unsigned short _seg__; \
-	asm("str %0" : "=rm" (_seg__) ); \
+	asm volatile("str %0" : "=rm" (_seg__) ); \
 	_seg__; \
     })
 
@@ -167,7 +220,7 @@ set_eflags(unsigned eflags)
 #define	get_ldt() \
     ({ \
 	unsigned short _seg__; \
-	asm("sldt %0" : "=rm" (_seg__) ); \
+	asm volatile("sldt %0" : "=rm" (_seg__) ); \
 	_seg__; \
     })
 

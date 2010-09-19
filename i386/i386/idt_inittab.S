@@ -25,7 +25,8 @@
  */
 #include <mach/machine/asm.h>
 
-#include "seg.h"
+#include <i386/seg.h>
+#include <i386/i386asm.h>
 
 
 /* We'll be using macros to fill in a table in data hunk 2
@@ -38,12 +39,22 @@ ENTRY(idt_inittab)
 /*
  * Interrupt descriptor table and code vectors for it.
  */
+#ifdef	MACH_XEN
+#define	IDT_ENTRY(n,entry,type) \
+	.data	2		;\
+	.byte	n		;\
+	.byte	(((type)&ACC_PL)>>5)|((((type)&(ACC_TYPE|ACC_A))==ACC_INTR_GATE)<<2)	;\
+	.word	KERNEL_CS	;\
+	.long	entry		;\
+	.text
+#else	/* MACH_XEN */
 #define	IDT_ENTRY(n,entry,type) \
 	.data	2		;\
 	.long	entry		;\
 	.word	n		;\
 	.word	type		;\
 	.text
+#endif	/* MACH_XEN */
 
 /*
  * No error code.  Clear error code and push trap number.
@@ -97,7 +108,11 @@ EXCEP_SPC(0x0b,t_segnp)
 EXCEP_ERR(0x0c,t_stack_fault)
 EXCEP_SPC(0x0d,t_gen_prot)
 EXCEP_SPC(0x0e,t_page_fault)
+#ifdef MACH_XEN
+EXCEP_ERR(0x0f,t_trap_0f)
+#else
 EXCEPTION(0x0f,t_trap_0f)
+#endif
 EXCEPTION(0x10,t_fpu_err)
 EXCEPTION(0x11,t_trap_11)
 EXCEPTION(0x12,t_trap_12)
@@ -118,4 +133,7 @@ EXCEPTION(0x1f,t_trap_1f)
 /* Terminator */
 	.data	2
 	.long	0
+#ifdef	MACH_XEN
+	.long	0
+#endif	/* MACH_XEN */
 

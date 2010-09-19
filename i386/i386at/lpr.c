@@ -34,6 +34,7 @@
 #include <mach/std_types.h>
 #include <sys/types.h>
 #include <kern/printf.h>
+#include <kern/mach_clock.h>
 #include <sys/time.h>
 #include <device/conf.h>
 #include <device/errno.h>
@@ -55,20 +56,22 @@
 #include <i386/ipl.h>
 #include <i386/pio.h>
 #include <chips/busses.h>
+#include <i386at/autoconf.h>
 #include <i386at/lprreg.h>
   
-extern void 	timeout();
-extern void 	ttrstrt();
 
 /* 
  * Driver information for auto-configuration stuff.
  */
 
-int 	lprprobe(), lprintr(), lprstart(), lprstop();
+int	lprprobe();
+void	lprstop();
+void	lprintr(), lprstart();
 void	lprattach(struct bus_device *);
 #ifdef	MACH_KERNEL
-int lprstop(), lprgetstat(), lprsetstat();
+int lprgetstat(), lprsetstat();
 #endif	/* MACH_KERNEL */
+void lprpr_addr();
 
 struct bus_device *lprinfo[NLPR];	/* ??? */
 
@@ -201,7 +204,7 @@ lprportdeath(dev, port)
 dev_t		dev;
 mach_port_t	port;
 {
-	return (tty_portdeath(&lpr_tty[minor(dev)], port));
+	return (tty_portdeath(&lpr_tty[minor(dev)], (ipc_port_t)port));
 }
 
 io_return_t
@@ -279,7 +282,7 @@ int lprioctl(dev, cmd, addr, mode)
 }
 #endif	/* MACH_KERNEL */
 
-int lprintr(unit)
+void lprintr(unit)
 int unit;
 {
 	register struct tty *tp = &lpr_tty[unit];
@@ -294,7 +297,7 @@ int unit;
 	lprstart(tp);
 }   
 
-int lprstart(tp)
+void lprstart(tp)
 struct tty *tp;
 {
 	spl_t s = spltty();
@@ -304,13 +307,13 @@ struct tty *tp;
 
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP|TS_BUSY)) {
 		splx(s);
-		return(0);
+		return;
 	}
 
 	if (status & 0x20) {
 		printf("Printer out of paper!\n");
 		splx(s);
-		return(0);
+		return;
 	}
 
 	if (tp->t_outq.c_cc <= TTLOWAT(tp)) {
@@ -330,7 +333,7 @@ struct tty *tp;
 	}
 	if (tp->t_outq.c_cc == 0) {
 		splx(s);
-		return(0);
+		return;
 	}
 #ifdef	MACH_KERNEL
 	nch = getc(&tp->t_outq);
@@ -365,11 +368,11 @@ struct tty *tp;
 	}
 #endif	/* MACH_KERNEL */
 	splx(s);
-	return(0);
+	return;
 }
 
 #ifdef	MACH_KERNEL
-int
+void
 lprstop(tp, flags)
 register struct tty *tp;
 int	flags;
@@ -378,7 +381,7 @@ int	flags;
 		tp->t_state |= TS_FLUSH;
 }
 #else	/* MACH_KERNEL */
-int lprstop(tp, flag)
+void lprstop(tp, flag)
 struct tty *tp;
 {
 	int s = spltty();

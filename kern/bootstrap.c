@@ -35,8 +35,10 @@
 
 #include <mach/port.h>
 #include <mach/message.h>
+#include <machine/locore.h>
 #include <machine/vm_param.h>
 #include <ipc/ipc_port.h>
+#include <ipc/mach_port.h>
 #include <kern/debug.h>
 #include <kern/host.h>
 #include <kern/printf.h>
@@ -44,6 +46,7 @@
 #include <kern/thread.h>
 #include <kern/lock.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_user.h>
 #include <device/device_port.h>
 
 #if	MACH_KDB
@@ -65,7 +68,12 @@ extern void breakpoint();
 #else
 #include <mach/machine/multiboot.h>
 #include <mach/exec/exec.h>
+#ifdef	MACH_XEN
+#include <mach/xen.h>
+extern struct start_info boot_info;	/* XXX put this in a header! */
+#else	/* MACH_XEN */
 extern struct multiboot_info boot_info;	/* XXX put this in a header! */
+#endif	/* MACH_XEN */
 #endif
 
 #include "boot_script.h"
@@ -92,7 +100,7 @@ task_insert_send_right(
 		kern_return_t kr;
 
 		kr = mach_port_insert_right(task->itk_space, name,
-			    (ipc_object_t)port, MACH_MSG_TYPE_PORT_SEND);
+			    port, MACH_MSG_TYPE_PORT_SEND);
 		if (kr == KERN_SUCCESS)
 			break;
 		assert(kr == KERN_NAME_EXISTS);
@@ -103,9 +111,23 @@ task_insert_send_right(
 
 void bootstrap_create()
 {
+  int compat;
+#ifdef	MACH_XEN
+  struct multiboot_module *bmods = ((struct multiboot_module *)
+                                   boot_info.mod_start);
+  int n = 0;
+  if (bmods)
+    for (n = 0; bmods[n].mod_start; n++) {
+      bmods[n].mod_start = kvtophys(bmods[n].mod_start + (vm_offset_t) bmods);
+      bmods[n].mod_end = kvtophys(bmods[n].mod_end + (vm_offset_t) bmods);
+      bmods[n].string = kvtophys(bmods[n].string + (vm_offset_t) bmods);
+    }
+  boot_info.mods_count = n;
+  boot_info.flags |= MULTIBOOT_MODS;
+#else	/* MACH_XEN */
   struct multiboot_module *bmods = ((struct multiboot_module *)
 				    phystokv(boot_info.mods_addr));
-  int compat;
+#endif	/* MACH_XEN */
 
 #ifdef MACH_GDB_STUB
 	/* 
@@ -370,6 +392,7 @@ static void get_compat_strings(char *flags_str, char *root_str)
 	*cp = '\0';
 }
 
+#if 0
 /*
  * Copy boot_data (executable) to the user portion of this task.
  */
@@ -394,6 +417,7 @@ boot_map(
 static boolean_t load_bootstrap_symbols = TRUE;
 #else
 static boolean_t load_bootstrap_symbols = FALSE;
+#endif
 #endif
 
 
@@ -448,7 +472,7 @@ read_exec(void *handle, vm_offset_t file_ofs, vm_size_t file_size,
 	if (file_size > 0)
 	{
 		err = copyout((char *)phystokv (mod->mod_start) + file_ofs,
-			      mem_addr, file_size);
+			      (void *)mem_addr, file_size);
 		assert(err == 0);
 	}
 
@@ -463,7 +487,7 @@ read_exec(void *handle, vm_offset_t file_ofs, vm_size_t file_size,
 
 static void copy_bootstrap(void *e, exec_info_t *boot_exec_info)
 {
-	register vm_map_t	user_map = current_task()->map;
+	//register vm_map_t	user_map = current_task()->map;
 	int err;
 
 	if ((err = exec_load(boot_read, read_exec, e, boot_exec_info)))

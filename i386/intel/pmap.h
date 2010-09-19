@@ -42,6 +42,7 @@
 #include <mach/machine/vm_param.h>
 #include <mach/vm_statistics.h>
 #include <mach/kern_return.h>
+#include <mach/vm_prot.h>
 #include <i386/proc_reg.h>
 
 /*
@@ -64,21 +65,41 @@
  *	i386/i486 Page Table Entry
  */
 
+#if PAE
+typedef unsigned long long	pt_entry_t;
+#else	/* PAE */
 typedef unsigned int	pt_entry_t;
+#endif	/* PAE */
 #define PT_ENTRY_NULL	((pt_entry_t *) 0)
 
 #endif	/* __ASSEMBLER__ */
 
 #define INTEL_OFFMASK	0xfff	/* offset within page */
+#if PAE
+#define PDPSHIFT	30	/* page directory pointer */
+#define PDPNUM		4	/* number of page directory pointers */
+#define PDPMASK		3	/* mask for page directory pointer index */
+#define PDESHIFT	21	/* page descriptor shift */
+#define PDEMASK		0x1ff	/* mask for page descriptor index */
+#define PTESHIFT	12	/* page table shift */
+#define PTEMASK		0x1ff	/* mask for page table index */
+#else	/* PAE */
+#define PDPNUM		1	/* number of page directory pointers */
 #define PDESHIFT	22	/* page descriptor shift */
 #define PDEMASK		0x3ff	/* mask for page descriptor index */
 #define PTESHIFT	12	/* page table shift */
 #define PTEMASK		0x3ff	/* mask for page table index */
+#endif	/* PAE */
 
 /*
  *	Convert linear offset to page descriptor index
  */
+#if PAE
+/* Making it include the page directory pointer table index too */
+#define lin2pdenum(a)	(((a) >> PDESHIFT) & 0x7ff)
+#else
 #define lin2pdenum(a)	(((a) >> PDESHIFT) & PDEMASK)
+#endif
 
 /*
  *	Convert page descriptor index to linear address
@@ -91,7 +112,7 @@ typedef unsigned int	pt_entry_t;
 #define ptenum(a)	(((a) >> PTESHIFT) & PTEMASK)
 
 #define NPTES	(intel_ptob(1)/sizeof(pt_entry_t))
-#define NPDES	(intel_ptob(1)/sizeof(pt_entry_t))
+#define NPDES	(PDPNUM * (intel_ptob(1)/sizeof(pt_entry_t)))
 
 /*
  *	Hardware pte bit definitions (to be used directly on the ptes
@@ -105,12 +126,25 @@ typedef unsigned int	pt_entry_t;
 #define INTEL_PTE_NCACHE 	0x00000010
 #define INTEL_PTE_REF		0x00000020
 #define INTEL_PTE_MOD		0x00000040
+#ifdef	MACH_XEN
+/* Not supported */
+#define INTEL_PTE_GLOBAL	0x00000000
+#else	/* MACH_XEN */
 #define INTEL_PTE_GLOBAL	0x00000100
+#endif	/* MACH_XEN */
 #define INTEL_PTE_WIRED		0x00000200
+#ifdef PAE
+#define INTEL_PTE_PFN		0xfffffffffffff000ULL
+#else
 #define INTEL_PTE_PFN		0xfffff000
+#endif
 
 #define	pa_to_pte(a)		((a) & INTEL_PTE_PFN)
+#ifdef	MACH_PSEUDO_PHYS
+#define	pte_to_pa(p)		ma_to_pa((p) & INTEL_PTE_PFN)
+#else	/* MACH_PSEUDO_PHYS */
 #define	pte_to_pa(p)		((p) & INTEL_PTE_PFN)
+#endif	/* MACH_PSEUDO_PHYS */
 #define	pte_increment_pa(p)	((p) += INTEL_OFFMASK+1)
 
 /*
@@ -123,7 +157,10 @@ typedef	volatile long	cpu_set;	/* set of CPUs - must be <= 32 */
 					/* changed by other processors */
 
 struct pmap {
-	pt_entry_t	*dirbase;	/* page directory pointer register */
+	pt_entry_t	*dirbase;	/* page directory table */
+#if PAE
+	pt_entry_t	*pdpbase;	/* page directory pointer table */
+#endif	/* PAE */
 	int		ref_count;	/* reference count */
 	decl_simple_lock_data(,lock)
 					/* lock on map */
@@ -135,7 +172,19 @@ typedef struct pmap	*pmap_t;
 
 #define PMAP_NULL	((pmap_t) 0)
 
-#define	set_dirbase(dirbase)	set_cr3(dirbase)
+#ifdef	MACH_XEN
+extern void pmap_set_page_readwrite(void *addr);
+extern void pmap_set_page_readonly(void *addr);
+extern void pmap_set_page_readonly_init(void *addr);
+extern void pmap_map_mfn(void *addr, unsigned long mfn);
+extern void pmap_clear_bootstrap_pagetable(pt_entry_t *addr);
+#endif	/* MACH_XEN */
+
+#if PAE
+#define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->pdpbase))
+#else	/* PAE */
+#define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->dirbase))
+#endif	/* PAE */
 
 #if	NCPUS > 1
 /*
@@ -233,7 +282,7 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 	    /*								\
 	     *	If this is the kernel pmap, switch to its page tables.	\
 	     */								\
-	    set_dirbase(kvtophys(tpmap->dirbase));			\
+	    set_pmap(tpmap);						\
 	}								\
 	else {								\
 	    /*								\
@@ -251,7 +300,7 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 	     *	No need to invalidate the TLB - the entire user pmap	\
 	     *	will be invalidated by reloading dirbase.		\
 	     */								\
-	    set_dirbase(kvtophys(tpmap->dirbase));			\
+	    set_pmap(tpmap);						\
 									\
 	    /*								\
 	     *	Mark that this cpu is using the pmap.			\
@@ -330,23 +379,29 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
  */
 
 #define	PMAP_ACTIVATE_KERNEL(my_cpu)	{				\
+	(void) (my_cpu);						\
 	kernel_pmap->cpus_using = TRUE;					\
 }
 
 #define	PMAP_DEACTIVATE_KERNEL(my_cpu)	{				\
+	(void) (my_cpu);						\
 	kernel_pmap->cpus_using = FALSE;				\
 }
 
 #define	PMAP_ACTIVATE_USER(pmap, th, my_cpu)	{			\
 	register pmap_t		tpmap = (pmap);				\
+	(void) (th);							\
+	(void) (my_cpu);						\
 									\
-	set_dirbase(kvtophys(tpmap->dirbase));				\
+	set_pmap(tpmap);						\
 	if (tpmap != kernel_pmap) {					\
 	    tpmap->cpus_using = TRUE;					\
 	}								\
 }
 
 #define PMAP_DEACTIVATE_USER(pmap, thread, cpu)	{			\
+	(void) (thread);						\
+	(void) (cpu);							\
 	if ((pmap) != kernel_pmap)					\
 	    (pmap)->cpus_using = FALSE;					\
 }
@@ -362,6 +417,33 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 #define	pmap_copy(dst_pmap,src_pmap,dst_addr,len,src_addr)
 #define	pmap_attribute(pmap,addr,size,attr,value) \
 					(KERN_INVALID_ADDRESS)
+
+/*
+ *  Bootstrap the system enough to run with virtual memory.
+ *  Allocate the kernel page directory and page tables,
+ *  and direct-map all physical memory.
+ *  Called with mapping off.
+ */
+extern void pmap_bootstrap(void);
+
+extern void pmap_unmap_page_zero (void);
+
+/*
+ *  pmap_zero_page zeros the specified (machine independent) page.
+ */
+extern void pmap_zero_page (vm_offset_t);
+
+/*
+ *  pmap_copy_page copies the specified (machine independent) pages.
+ */
+extern void pmap_copy_page (vm_offset_t, vm_offset_t);
+
+/*
+ *  kvtophys(addr)
+ *
+ *  Convert a kernel virtual address to a physical address
+ */
+extern vm_offset_t kvtophys (vm_offset_t);
 
 #endif	/* __ASSEMBLER__ */
 

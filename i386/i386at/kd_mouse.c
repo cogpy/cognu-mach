@@ -68,8 +68,10 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/types.h>
 #include <kern/printf.h>
 #ifdef	MACH_KERNEL
+#include <device/ds_routines.h>
 #include <device/errno.h>
 #include <device/io_req.h>
+#include <device/subrs.h>
 #else	/* MACH_KERNEL */
 #include <sys/file.h>
 #include <sys/errno.h>
@@ -81,15 +83,17 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/tty.h>
 #endif	/* MACH_KERNEL */
 #include <i386/ipl.h>
+#include <i386/pic.h>
 #include <i386/pio.h>
 #include <chips/busses.h>
+#include <i386at/com.h>
 #include <i386at/kd.h>
 #include <i386at/kd_queue.h>
 #include <i386at/i8250.h>
 
 #include "kd_mouse.h"
 
-static int (*oldvect)();		/* old interrupt vector */
+static void (*oldvect)();		/* old interrupt vector */
 static int oldunit;
 static spl_t oldspl;
 extern	struct	bus_device *cominfo[];
@@ -120,7 +124,7 @@ u_char lastbuttons;		/* previous state of mouse buttons */
 #define MOUSE_DOWN	0
 #define MOUSE_ALL_UP	0x7
 
-int mouseintr();
+void mouseintr();
 void mouse_enqueue();
 int mouse_baud = BCNT1200;
 
@@ -252,7 +256,7 @@ kd_mouse_open(dev, mouse_pic)
 	int mouse_pic;
 {
 	spl_t s = splhi();	/* disable interrupts */
-	extern int kdintr();
+	extern void kdintr();
 
 	oldvect = ivect[mouse_pic];
 	ivect[mouse_pic] = kdintr;
@@ -535,7 +539,7 @@ done:
 /*
  * mouseintr - Get a byte and pass it up for handling.  Called at SPLKD.
  */
-int
+void
 mouseintr(unit)
 {
 	unsigned short base_addr  = cominfo[unit]->address;
@@ -599,7 +603,7 @@ mouse_handle_byte(ch)
 	        mousebuf[mousebufindex++] = ch;
 	    if (mouse_char_wanted) {
 		mouse_char_wanted = FALSE;
-		wakeup(&mousebuf);
+		wakeup((vm_offset_t)&mousebuf);
 	    }
 	    return;
 	}

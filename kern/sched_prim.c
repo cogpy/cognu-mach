@@ -34,6 +34,9 @@
 
 #include <kern/printf.h>
 #include <mach/machine.h>
+#include <machine/locore.h>
+#include <machine/machspl.h>	/* For def'n of splsched() */
+#include <machine/model_dep.h>
 #include <kern/ast.h>
 #include <kern/counters.h>
 #include <kern/cpu_number.h>
@@ -52,7 +55,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
-#include <machine/machspl.h>	/* For def'n of splsched() */
 
 #if	MACH_FIXPRI
 #include <mach/policy.h>
@@ -68,8 +70,6 @@ int		sched_usec;
 
 thread_t	sched_thread_id;
 
-void recompute_priorities(void);	/* forward */
-void update_priority(thread_t);
 void set_pri(thread_t, int, boolean_t);
 void do_thread_scan(void);
 
@@ -160,8 +160,8 @@ void wait_queue_init(void)
 
 void sched_init(void)
 {
-	recompute_priorities_timer.fcn = (int (*)())recompute_priorities;
-	recompute_priorities_timer.param = (char *)0;
+	recompute_priorities_timer.fcn = recompute_priorities;
+	recompute_priorities_timer.param = NULL;
 
 	min_quantum = hz / 10;		/* context switch 10 times/second */
 	wait_queue_init();
@@ -180,8 +180,9 @@ void sched_init(void)
  *	Called at splsoftclock.
  */
 void thread_timeout(
-	thread_t thread)
+	void *_thread)
 {
+	thread_t thread = _thread;
 	assert(thread->timer.set == TELT_UNSET);
 
 	clear_wait(thread, THREAD_TIMED_OUT, FALSE);
@@ -216,10 +217,10 @@ void thread_set_timeout(
 void thread_timeout_setup(
 	register thread_t	thread)
 {
-	thread->timer.fcn = (int (*)())thread_timeout;
-	thread->timer.param = (char *)thread;
-	thread->depress_timer.fcn = (int (*)())thread_depress_timeout;
-	thread->depress_timer.param = (char *)thread;
+	thread->timer.fcn = thread_timeout;
+	thread->timer.param = thread;
+	thread->depress_timer.fcn = (void (*)(void*))thread_depress_timeout;
+	thread->depress_timer.param = thread;
 }
 
 /*
@@ -1094,7 +1095,7 @@ void compute_my_priority(
  *
  *	Update the priorities of all threads periodically.
  */
-void recompute_priorities(void)
+void recompute_priorities(void *param)
 {
 #if	SIMPLE_CLOCK
 	int	new_usec;
@@ -1944,7 +1945,7 @@ do_runq_scan(
 
 			    stuck_threads[stuck_count++] = thread;
 if (do_thread_scan_debug)
-    printf("do_runq_scan: adding thread %#x\n", thread);
+    printf("do_runq_scan: adding thread %p\n", thread);
 		    }
 		    count--;
 		    thread = next;

@@ -533,6 +533,17 @@ static io_return_t
 device_get_status (void *d, dev_flavor_t flavor, dev_status_t status,
 		   mach_msg_type_number_t *count)
 {
+  if (flavor == NET_FLAGS)
+    {
+      struct net_data *net = (struct net_data *) d;
+
+      if (*count != 1)
+	return D_INVALID_SIZE;
+
+      status[0] = net->dev->flags;
+      return D_SUCCESS;
+    }
+
   if(flavor >= SIOCIWFIRST && flavor <= SIOCIWLAST)
     {
       /* handle wireless ioctl */
@@ -592,6 +603,21 @@ static io_return_t
 device_set_status(void *d, dev_flavor_t flavor, dev_status_t status,
 		  mach_msg_type_number_t count)
 {
+  if (flavor == NET_FLAGS)
+    {
+      if (count != 1)
+        return D_INVALID_SIZE;
+
+      short flags = status[0];
+      struct net_data *net = (struct net_data *) d;
+
+      dev_change_flags (net->dev, flags);
+
+      /* Change the flags of the Mach device, too. */
+      net->ifnet.if_flags = net->dev->flags;
+      return D_SUCCESS;
+    }
+
   if(flavor < SIOCIWFIRST || flavor > SIOCIWLAST)
     return D_INVALID_OPERATION;
 

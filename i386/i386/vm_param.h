@@ -25,19 +25,40 @@
 
 /* XXX use xu/vm_param.h */
 #include <mach/vm_param.h>
+#include <xen/public/xen.h>
 
 /* The kernel address space is 1GB, starting at virtual address 0.  */
-#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t) 0x00000000)
-#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t) 0x40000000)
+#ifdef	MACH_XEN
+#define VM_MIN_KERNEL_ADDRESS	0x20000000UL
+#else	/* MACH_XEN */
+#define VM_MIN_KERNEL_ADDRESS	0x00000000UL
+#endif	/* MACH_XEN */
+
+#ifdef	MACH_XEN
+#if	PAE
+#define HYP_VIRT_START	HYPERVISOR_VIRT_START_PAE
+#else	/* PAE */
+#define HYP_VIRT_START	HYPERVISOR_VIRT_START_NONPAE
+#endif	/* PAE */
+#define VM_MAX_KERNEL_ADDRESS	(HYP_VIRT_START - LINEAR_MIN_KERNEL_ADDRESS + VM_MIN_KERNEL_ADDRESS)
+#else	/* MACH_XEN */
+#define VM_MAX_KERNEL_ADDRESS	(LINEAR_MAX_KERNEL_ADDRESS - LINEAR_MIN_KERNEL_ADDRESS + VM_MIN_KERNEL_ADDRESS)
+#endif	/* MACH_XEN */
 
 /* The kernel virtual address space is actually located
    at high linear addresses.
    This is the kernel address range in linear addresses.  */
-#define LINEAR_MIN_KERNEL_ADDRESS	((vm_offset_t) 0xc0000000)
-#define LINEAR_MAX_KERNEL_ADDRESS	((vm_offset_t) 0xffffffff)
+#define LINEAR_MIN_KERNEL_ADDRESS	(VM_MAX_ADDRESS)
+#define LINEAR_MAX_KERNEL_ADDRESS	(0xffffffffUL)
 
+#ifdef	MACH_XEN
+/* need room for mmu updates (2*8bytes) */
+#define KERNEL_STACK_SIZE	(4*I386_PGBYTES)
+#define INTSTACK_SIZE		(4*I386_PGBYTES)
+#else	/* MACH_XEN */
 #define KERNEL_STACK_SIZE	(1*I386_PGBYTES)
 #define INTSTACK_SIZE		(1*I386_PGBYTES)
+#endif	/* MACH_XEN */
 						/* interrupt stack size */
 
 /*
@@ -50,15 +71,18 @@
 
 /*
  *	Physical memory is direct-mapped to virtual memory
- *	starting at virtual address phys_mem_va.
+ *	starting at virtual address VM_MIN_KERNEL_ADDRESS.
  */
-extern vm_offset_t phys_mem_va;
-#define phystokv(a)	((vm_offset_t)(a) + phys_mem_va)
+#define phystokv(a)	((vm_offset_t)(a) + VM_MIN_KERNEL_ADDRESS)
+/*
+ * This can not be used with virtual mappings, but can be used during bootstrap
+ */
+#define _kvtophys(a)	((vm_offset_t)(a) - VM_MIN_KERNEL_ADDRESS)
 
 /*
  *	Kernel virtual memory is actually at 0xc0000000 in linear addresses.
  */
-#define kvtolin(a)	((vm_offset_t)(a) + LINEAR_MIN_KERNEL_ADDRESS)
-#define lintokv(a)	((vm_offset_t)(a) - LINEAR_MIN_KERNEL_ADDRESS)
+#define kvtolin(a)	((vm_offset_t)(a) - VM_MIN_KERNEL_ADDRESS + LINEAR_MIN_KERNEL_ADDRESS)
+#define lintokv(a)	((vm_offset_t)(a) - LINEAR_MIN_KERNEL_ADDRESS + VM_MIN_KERNEL_ADDRESS)
 
 #endif /* _I386_KERNEL_I386_VM_PARAM_ */

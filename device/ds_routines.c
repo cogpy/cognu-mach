@@ -62,6 +62,7 @@
 #include <mach/port.h>
 #include <mach/vm_param.h>
 #include <mach/notify.h>
+#include <machine/locore.h>
 #include <machine/machspl.h>		/* spl definitions */
 
 #include <ipc/ipc_port.h>
@@ -80,6 +81,7 @@
 #include <vm/memory_object.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_user.h>
 
 #include <device/device_types.h>
 #include <device/dev_hdr.h>
@@ -102,6 +104,10 @@ extern struct device_emulation_ops linux_pcmcia_emulation_ops;
 #endif
 #endif
 #endif
+#ifdef MACH_HYP
+extern struct device_emulation_ops hyp_block_emulation_ops;
+extern struct device_emulation_ops hyp_net_emulation_ops;
+#endif
 extern struct device_emulation_ops mach_device_emulation_ops;
 
 /* List of emulations.  */
@@ -115,6 +121,10 @@ static struct device_emulation_ops *emulation_list[] =
   &linux_pcmcia_emulation_ops,
 #endif
 #endif
+#endif
+#ifdef MACH_HYP
+  &hyp_block_emulation_ops,
+  &hyp_net_emulation_ops,
 #endif
   &mach_device_emulation_ops,
 };
@@ -137,7 +147,7 @@ ds_device_open (ipc_port_t open_port, ipc_port_t reply_port,
   if (! IP_VALID (reply_port))
     {
       printf ("ds_* invalid reply port\n");
-      Debugger ("ds_* reply_port");
+      SoftDebugger ("ds_* reply_port");
       return MIG_NO_REPLY;
     }
 
@@ -939,7 +949,7 @@ device_write_dealloc(ior)
 
 	kmem_io_map_deallocate(device_io_map,
 		     	 trunc_page(ior->io_data),
-			(vm_size_t) ior->io_alloc_size);
+			 ior->io_alloc_size);
 
 	if (vm_map_copy_has_cont(io_copy)) {
 
@@ -1082,7 +1092,7 @@ device_read(device, reply_port, reply_port_type, mode, recnum,
 	 */
 	if (!IP_VALID(reply_port)) {
 	    printf("ds_* invalid reply port\n");
-	    Debugger("ds_* reply_port");
+	    SoftDebugger("ds_* reply_port");
 	    return (MIG_NO_REPLY);	/* no sense in doing anything */
 	}
 
@@ -1164,7 +1174,7 @@ device_read_inband(device, reply_port, reply_port_type, mode, recnum,
 	 */
 	if (!IP_VALID(reply_port)) {
 	    printf("ds_* invalid reply port\n");
-	    Debugger("ds_* reply_port");
+	    SoftDebugger("ds_* reply_port");
 	    return (MIG_NO_REPLY);	/* no sense in doing anything */
 	}
 
@@ -1816,9 +1826,9 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 
 struct device_emulation_ops mach_device_emulation_ops =
 {
-  mach_device_reference,
-  mach_device_deallocate,
-  mach_convert_device_to_port,
+  (void*) mach_device_reference,
+  (void*) mach_device_deallocate,
+  (void*) mach_convert_device_to_port,
   device_open,
   device_close,
   device_write,
@@ -1830,6 +1840,6 @@ struct device_emulation_ops mach_device_emulation_ops =
   device_set_filter,
   device_map,
   ds_no_senders,
-  device_write_trap,
-  device_writev_trap
+  (void*) device_write_trap,
+  (void*) device_writev_trap
 };

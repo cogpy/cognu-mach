@@ -45,6 +45,8 @@
 #include <ipc/ipc_kmsg.h>
 #include <ipc/ipc_port.h>
 #include <ipc/ipc_thread.h>
+#include <vm/vm_object.h>
+#include <device/ds_routines.h>
 
 #if	MACH_MACHINE_ROUTINES
 #include <machine/machine_routines.h>
@@ -316,7 +318,7 @@ ipc_kobject_destroy(
 
 	    default:
 #if	MACH_ASSERT
-		printf("ipc_kobject_destroy: port 0x%x, kobj 0x%x, type %d\n",
+		printf("ipc_kobject_destroy: port 0x%p, kobj 0x%x, type %d\n",
 		       port, port->ip_kobject, ip_kotype(port));
 #endif	/* MACH_ASSERT */
 		break;
@@ -352,6 +354,9 @@ ipc_kobject_notify(request_header, reply_header)
 	switch (ip_kotype(port)) {
 		case IKOT_DEVICE:
 		return ds_notify(request_header);
+
+		case IKOT_PAGER_PROXY:
+		return memory_object_proxy_notify(request_header);
 
 		default:
 		return FALSE;

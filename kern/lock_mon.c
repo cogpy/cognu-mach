@@ -281,7 +281,7 @@ struct lock_info *li;
 		   li->masked, (li->masked*100)/sum,
 		   li->stack, li->stack/sum,
 		   li->time, li->time/sum);
-	db_search_symbol(li->lock, 0, &off);
+	db_free_symbol(db_search_symbol(li->lock, 0, &off));
 	if (off < 1024)
 		db_printsym(li->lock, 0);
 	else {
@@ -348,7 +348,7 @@ decl_simple_lock_data(, *lock)
 				return;
 			db_printf("cpu %d looping on simple_lock(%x) called by %x\n",
 				cpu_number(), lock, *(((int *)&lock) -1));
-			Debugger();
+			SoftDebugger("simple_lock timeout");
 			count = 0;
 		}
 }
@@ -362,7 +362,7 @@ retry_bit_lock(index, addr)
 		if (count++ > 1000000) {
 			db_printf("cpu %d looping on bit_lock(%x, %x) called by %x\n",
 				cpu_number(), index, addr, *(((int *)&index) -1));
-			Debugger();
+			SoftDebugger("bit_lock timeout");
 			count = 0;
 		}
 }

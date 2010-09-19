@@ -24,6 +24,8 @@
  * the rights to redistribute these changes.
  */
 
+#include <mach/xen.h>
+
 #include <kern/printf.h>
 #include <stdarg.h>
 
@@ -33,8 +35,10 @@
 
 #include <kern/debug.h>
 
+#include <machine/loose_ends.h>
+#include <machine/model_dep.h>
+
 extern void cnputc();
-void Debugger() __attribute__ ((noreturn));
 
 #if	MACH_KDB
 extern int db_breakpoints_inserted;
@@ -69,16 +73,15 @@ Assert(char *exp, char *file, int line)
 	Debugger("assertion failure");
 }
 
-void Debugger(message)
+void SoftDebugger(message)
 	char *	message;
 {
-#if	!MACH_KDB
-	panic("Debugger invoked, but there isn't one!");
-#endif
+	printf("Debugger invoked: %s\n", message);
 
-#ifdef	lint
-	message++;
-#endif	/* lint */
+#if	!MACH_KDB
+	printf("But no debugger, continuing.\n");
+	return;
+#endif
 
 #if	defined(vax) || defined(PC532)
 	asm("bpt");
@@ -100,6 +103,16 @@ void Debugger(message)
 #ifdef	i386
 	asm("int3");
 #endif
+}
+
+void Debugger(message)
+	char *	message;
+{
+#if	!MACH_KDB
+	panic("Debugger invoked, but there isn't one!");
+#endif
+
+	SoftDebugger(message);
 
 	panic("Debugger returned!");
 }
@@ -123,6 +136,10 @@ panic_init(void)
 		simple_lock_init(&panic_lock);
 	}
 }
+
+#if ! MACH_KBD
+extern boolean_t reboot_on_panic;
+#endif
 
 /*VARARGS1*/
 void
@@ -155,6 +172,14 @@ panic(const char *s, ...)
 	va_end(listp);
 	printf("\n");
 
+#if	MACH_KDB
+	Debugger("panic");
+#elif   MACH_GDB_STUB
+	breakpoint();
+#else
+# ifdef	MACH_HYP
+	hyp_crash();
+# else
 	/* Give the user time to see the message */
 	{
 	  int i = 1000;		/* seconds */
@@ -162,12 +187,8 @@ panic(const char *s, ...)
 	    delay (1000000);	/* microseconds */
 	}
 
-#if	MACH_KDB
-	Debugger("panic");
-#elif   MACH_GDB_STUB
-	breakpoint();
-#else
-	halt_all_cpus (1);
+	halt_all_cpus (reboot_on_panic);
+# endif	/* MACH_HYP */
 #endif
 }
 
@@ -186,4 +207,17 @@ log(int level, const char *fmt, ...)
 	va_start(listp, fmt);
 	_doprnt(fmt, &listp, do_cnputc, 0, 0);
 	va_end(listp);
+}
+
+unsigned char __stack_chk_guard [ sizeof (vm_offset_t) ] =
+{
+	[ sizeof (vm_offset_t) - 3 ] = '\r',
+	[ sizeof (vm_offset_t) - 2 ] = '\n',
+	[ sizeof (vm_offset_t) - 1 ] = 0xff,
+};
+
+void
+__stack_chk_fail (void)
+{
+	panic("stack smashing detected");
 }

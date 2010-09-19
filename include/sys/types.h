@@ -58,6 +58,20 @@ typedef	unsigned int	time_t;
 
 #define RAND_MAX	0x7fffffff
 
+/* Posix types */
+typedef signed8_t	int8_t;
+typedef unsigned8_t	uint8_t;
+typedef unsigned8_t	u_int8_t;
+typedef signed16_t	int16_t;
+typedef unsigned16_t	uint16_t;
+typedef unsigned16_t	u_int16_t;
+typedef signed32_t	int32_t;
+typedef unsigned32_t	uint32_t;
+typedef unsigned32_t	u_int32_t;
+typedef signed64_t	int64_t;
+typedef unsigned64_t	uint64_t;
+typedef unsigned64_t	u_int64_t;
+
 /* Symbols not allowed by POSIX */
 #ifndef _POSIX_SOURCE
 
@@ -69,10 +83,6 @@ typedef	unsigned char	u_char;		/* unsigned char */
 typedef	unsigned short	u_short;	/* unsigned short */
 typedef	unsigned int	u_int;		/* unsigned int */
 typedef unsigned long	u_long;		/* unsigned long */
-
-typedef struct _quad_ {
-	unsigned int	val[2];		/* 2 32-bit values make... */
-} quad;					/* an 8-byte item */
 
 typedef unsigned int	daddr_t;	/* disk address */
 

@@ -29,6 +29,7 @@
 #include <mach/std_types.h>
 #include <sys/types.h>
 #include <kern/printf.h>
+#include <kern/mach_clock.h>
 #include <sys/time.h>
 #include <device/conf.h>
 #include <device/errno.h>
@@ -39,16 +40,17 @@
 #include <i386/pio.h>
 #include <i386/machspl.h>
 #include <chips/busses.h>
+#include <i386at/autoconf.h>
+#include <i386at/com.h>
 #include <i386at/comreg.h>
 
 #include <device/cons.h>
 
-extern void timeout(), ttrstrt();
-
-int comprobe(), comintr(), comstart(), commctl();
-void comattach();
+int comprobe(), commctl();
+void comstart(struct tty *);
+void comstop(), comattach(), comintr();
 static void comparam();
-int comstop(), comgetstat(), comsetstat();
+int comgetstat(), comsetstat();
 
 static vm_offset_t com_std[NCOM] = { 0 };
 struct bus_device *cominfo[NCOM];
@@ -381,7 +383,7 @@ io_return_t comopen(
 
 	if (!comtimer_active) {
 		comtimer_active = TRUE;
-		comtimer();
+		comtimer(NULL);
 	}
 
 	s = spltty();
@@ -431,7 +433,7 @@ io_return_t comportdeath(dev, port)
 dev_t		dev;
 mach_port_t	port;
 {
-	return (tty_portdeath(&com_tty[minor(dev)], port));
+	return (tty_portdeath(&com_tty[minor(dev)], (ipc_port_t)port));
 }
 
 io_return_t
@@ -487,7 +489,7 @@ unsigned int	count;
 	return (D_SUCCESS);
 }
 
-int
+void
 comintr(unit)
 int unit;
 {
@@ -527,7 +529,7 @@ int unit;
 			    ((tp->t_flags&(EVENP|ODDP)) == EVENP ||
 			     (tp->t_flags&(EVENP|ODDP)) == ODDP)) {
 				/* parity error */;
-			} else 	if (line&iOR && !comoverrun) {
+			} else 	if (line_stat&iOR && !comoverrun) {
 				printf("com%d: overrun\n", unit);
 				comoverrun = 1;
 			} else if (line_stat & (iFE | iBRKINTR)) {
@@ -608,7 +610,7 @@ comparm(int unit, int baud, int intr, int mode, int modem)
 
 int comst_1, comst_2, comst_3, comst_4, comst_5 = 14;
 
-int
+void
 comstart(tp)
 struct tty *tp;
 {
@@ -617,7 +619,7 @@ struct tty *tp;
 
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP|TS_BUSY)) {
 comst_1++;
-		return(0);
+		return;
 	}
 	if ((!queue_empty(&tp->t_delayed_write)) &&
 	    (tp->t_outq.c_cc <= TTLOWAT(tp))) {
@@ -626,7 +628,7 @@ comst_2++;
 	}
 	if (!tp->t_outq.c_cc) {
 comst_3++;
-		return(0);
+		return;
 	}
 
 #if 0
@@ -650,19 +652,18 @@ comst_4++;
 	    timeout(ttrstrt, (char *)tp, (nch & 0x7f) + 6);
 	    tp->t_state |= TS_TIMEOUT;
 comst_4++;
-	    return(0);
+	    return;
 	}
 	outb(TXRX((int)tp->t_addr), nch);
 	tp->t_state |= TS_BUSY;
 #endif
-	return(0);
 }
 
 /* Check for stuck xmitters */
 int comtimer_interval = 5;
 
 void
-comtimer()
+comtimer(void * param)
 {
 	spl_t	s = spltty();
 	struct tty *tp = com_tty;
@@ -676,7 +677,7 @@ comtimer()
 		if (++comtimer_state[i] < 2)
 			continue;
 		/* Its stuck */
-printf("Tty %x was stuck\n", tp);
+printf("Tty %p was stuck\n", tp);
 		nch = getc(&tp->t_outq);
 		outb(TXRX((int)tp->t_addr), nch);
 	}
@@ -749,7 +750,7 @@ commctl(
 	spl_t		s;
 	int		unit;
 	vm_offset_t	dev_addr;
-	register int	b;
+	register int	b = 0;	/* Suppress gcc warning */
 
 	unit = minor(tp->t_dev);
 
@@ -807,7 +808,7 @@ commctl(
 	return commodem[unit];
 }
 
-int
+void
 comstop(tp, flags)
 register struct tty *tp;
 int	flags;

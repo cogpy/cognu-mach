@@ -367,6 +367,36 @@ decl_simple_lock_data(,net_hash_header_lock)
 extern boolean_t net_do_filter();	/* CSPF */
 extern int bpf_do_filter();		/* BPF */
 
+int hash_ent_remove (
+   struct ifnet *ifp,
+   net_hash_header_t hp,
+   int used,
+   net_hash_entry_t *head, 
+	net_hash_entry_t entp,
+   queue_entry_t *dead_p);
+
+void net_free_dead_infp (queue_entry_t dead_infp);
+void net_free_dead_entp (queue_entry_t dead_entp);
+
+int bpf_validate(
+    bpf_insn_t f,
+    int bytes,
+    bpf_insn_t *match);
+
+int bpf_eq (
+    bpf_insn_t f1,
+	bpf_insn_t f2,
+    register int bytes);
+
+int net_add_q_info (ipc_port_t rcv_port);
+
+int bpf_match (
+   net_hash_header_t hash,
+   int n_keys,
+   unsigned int *keys,
+   net_hash_entry_t **hash_headpp,
+      net_hash_entry_t *entpp);
+
 
 /*
  *	ethernet_priority:
@@ -478,8 +508,8 @@ boolean_t net_deliver(nonblocking)
 		    MACH_MSGH_BITS(MACH_MSG_TYPE_PORT_SEND, 0);
 	    /* remember message sizes must be rounded up */
 	    kmsg->ikm_header.msgh_size =
-		    ((mach_msg_size_t) (sizeof(struct net_rcv_msg)
-					- NET_RCV_MAX + count))+3 &~ 3;
+		    (((mach_msg_size_t) (sizeof(struct net_rcv_msg)
+					- NET_RCV_MAX + count)) + 3) &~ 3;
 	    kmsg->ikm_header.msgh_local_port = MACH_PORT_NULL;
 	    kmsg->ikm_header.msgh_kind = MACH_MSGH_KIND_NORMAL;
 	    kmsg->ikm_header.msgh_id = NET_RCV_MSG_ID;
@@ -741,13 +771,16 @@ net_filter(kmsg, send_list)
  	    if ((infp->filter[0] & NETF_TYPE_MASK) == NETF_BPF) {
  		ret_count = bpf_do_filter(infp, net_kmsg(kmsg)->packet
 					  + sizeof(struct packet_header),
-					  count, net_kmsg(kmsg)->header,
+					  count - sizeof(struct packet_header),
+					  net_kmsg(kmsg)->header,
 					  ifp->if_header_size, &hash_headp,
 					  &entp);
 		if (entp == (net_hash_entry_t) 0)
 		  dest = infp->rcv_port;
 		else
 		  dest = entp->rcv_port;
+		if (ret_count)
+		  ret_count += sizeof(struct packet_header);
  	    } else {
  		ret_count = net_do_filter(infp, net_kmsg(kmsg)->packet, count,
  					  net_kmsg(kmsg)->header);
@@ -1193,7 +1226,7 @@ net_set_filter(ifp, rcv_port, priority, filter, filter_count)
 		    && my_infp == 0
 		    && (infp->filter_end - infp->filter) == filter_count
 		    && bpf_eq((bpf_insn_t)infp->filter,
-			      filter, filter_bytes))
+			      (bpf_insn_t)filter, filter_bytes))
 		    my_infp = infp;
 
 		for (i = 0; i < NET_HASH_SIZE; i++) {
@@ -1341,10 +1374,10 @@ net_set_filter(ifp, rcv_port, priority, filter, filter_count)
 	
 	/* Not checking for the same key values */
 	if (*p == 0) {
-	    queue_init ((queue_t) hash_entp);
+	    queue_init (&hash_entp->chain);
 	    *p = hash_entp;
 	} else {
-	    enqueue_tail((queue_t)*p, hash_entp);
+	    enqueue_tail(&(*p)->chain, &hash_entp->chain);
 	}
 
 	((net_hash_header_t)my_infp)->ref_count++;
