@@ -431,7 +431,7 @@ void vm_pages_release(npages, pages, external)
 	}
 }
 
-kern_return_t vm_dma_buff_alloc(host_priv, map, size, result_vaddr, result_paddr)
+kern_return_t vm_allocate_contiguous(host_priv, map, size, result_vaddr, result_paddr)
 	host_t			host_priv;
 	vm_map_t		map;
 	vm_size_t		size;
