@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Samuel Thibault <samuel.thibault@ens-lyon.org>
+ *  Copyright (C) 2006, 2009, 2010, 2011 Samuel Thibault <samuel.thibault@ens-lyon.org>
  *
  * This program is free software ; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,9 @@
 	.ascii  ",PAE=no"
 #endif
 	.ascii	",LOADER=generic"
-#ifndef	MACH_PSEUDO_PHYS
+#ifdef	MACH_PSEUDO_PHYS
+	.ascii	",FEATURES=pae_pgdir_above_4gb"
+#else	/* MACH_PSEUDO_PHYS */
 	.ascii	",FEATURES=!auto_translated_physmap"
 #endif
 	.byte	0
@@ -63,8 +65,10 @@
 #endif
 	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,		.asciz, "generic")
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,              .asciz, ""
-#ifndef MACH_PSEUDO_PHYS
-						"!auto_translated_physmap"
+#ifdef MACH_PSEUDO_PHYS
+						"pae_pgdir_above_4gb"
+#else /* MACH_PSEUDO_PHYS */
+						"!auto_translated_physmap|"
 #endif
 	)
 
@@ -120,6 +124,7 @@ hyp_shared_info:
 /* Labels just for debuggers */
 #define hypcall(name, n) \
 	.org	hypcalls + n*32 ; \
+.globl __hyp_##name ; \
 __hyp_##name:
 
 hypcalls:

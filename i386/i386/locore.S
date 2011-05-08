@@ -599,6 +599,7 @@ ENTRY(call_continuation)
 	addl	$(-3-IKS_SIZE),%ecx
 	movl	%ecx,%esp			/* pop the stack */
 	xorl	%ebp,%ebp			/* zero frame pointer */
+	pushl	$0				/* Dummy return address */
 	jmp	*%eax				/* goto continuation */
 
 
@@ -704,12 +705,17 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 	iret				/* return to caller */
 
 int_from_intstack:
+	cmpl	$EXT(_intstack),%esp	/* seemingly looping? */
+	jb	stack_overflowed	/* if not: */
 	call	EXT(interrupt)		/* call interrupt routine */
 _return_to_iret_i:			/* ( label for kdb_kintr) */
 	pop	%edx			/* must have been on kernel segs */
 	pop	%ecx
 	pop	%eax			/* no ASTs */
 	iret
+
+stack_overflowed:
+	ud2
 
 /*
  *	Take an AST from an interrupt.
@@ -805,7 +811,7 @@ ast_from_interrupt:
 #ifdef	MACH_XEN
 #define	RET_OFFSET	8
 #else	/* MACH_XEN */
-#define	RET_OFFSET	16
+#define	RET_OFFSET	20
 #endif	/* MACH_XEN */
 
 ENTRY(kdb_kintr)
@@ -1419,7 +1425,14 @@ _inst_fetch_fault:
 
 
 ENTRY(dr6)
+#ifdef MACH_XEN
+	pushl	%ebx
+	movl	$6, %ebx
+	call	__hyp_get_debugreg
+	popl	%ebx
+#else /* MACH_XEN */
 	movl	%db6, %eax
+#endif /* MACH_XEN */
 	ret
 
 /*	dr<i>(address, type, len, persistence)
@@ -1427,33 +1440,67 @@ ENTRY(dr6)
 ENTRY(dr0)
 	movl	S_ARG0, %eax
 	movl	%eax,EXT(dr_addr)
+#ifdef MACH_XEN
+	pushl	%ebx
+	movl	$0,%ebx
+	movl	%eax,%ecx
+	call	__hyp_set_debugreg
+#else /* MACH_XEN */
 	movl	%eax, %db0
+#endif /* MACH_XEN */
 	movl	$0, %ecx
 	jmp	0f
 ENTRY(dr1)
 	movl	S_ARG0, %eax
 	movl	%eax,EXT(dr_addr)+1*4
+#ifdef MACH_XEN
+	pushl	%ebx
+	movl	$1,%ebx
+	movl	%eax,%ecx
+	call	__hyp_set_debugreg
+#else /* MACH_XEN */
 	movl	%eax, %db1
+#endif /* MACH_XEN */
 	movl	$2, %ecx
 	jmp	0f
 ENTRY(dr2)
 	movl	S_ARG0, %eax
 	movl	%eax,EXT(dr_addr)+2*4
+#ifdef MACH_XEN
+	pushl	%ebx
+	movl	$2,%ebx
+	movl	%eax,%ecx
+	call	__hyp_set_debugreg
+#else /* MACH_XEN */
 	movl	%eax, %db2
+#endif /* MACH_XEN */
 	movl	$4, %ecx
 	jmp	0f
 
 ENTRY(dr3)
 	movl	S_ARG0, %eax
 	movl	%eax,EXT(dr_addr)+3*4
+#ifdef MACH_XEN
+	pushl	%ebx
+	movl	$3,%ebx
+	movl	%eax,%ecx
+	call	__hyp_set_debugreg
+#else /* MACH_XEN */
 	movl	%eax, %db3
+#endif /* MACH_XEN */
 	movl	$6, %ecx
 
 0:
 	pushl	%ebp
 	movl	%esp, %ebp
 
+#ifdef MACH_XEN
+	movl	$7,%ebx
+	call	__hyp_get_debugreg
+	movl	%eax, %edx
+#else /* MACH_XEN */
 	movl	%db7, %edx
+#endif /* MACH_XEN */
 	movl	%edx,EXT(dr_addr)+4*4
 	andl	dr_msk(,%ecx,2),%edx	/* clear out new entry */
 	movl	%edx,EXT(dr_addr)+5*4
@@ -1464,6 +1511,7 @@ ENTRY(dr3)
 
 	movzbl	B_ARG1, %eax
 	andb	$3, %al
+	addb	%cl, %cl
 	addb	$0x10, %cl
 	shll	%cl, %eax
 	orl	%eax, %edx
@@ -1474,7 +1522,14 @@ ENTRY(dr3)
 	shll	%cl, %eax
 	orl	%eax, %edx
 
+#ifdef MACH_XEN
+	movl	$7,%ebx
+	movl	%edx, %ecx
+	call	__hyp_set_debugreg
+	popl	%ebx
+#else /* MACH_XEN */
 	movl	%edx, %db7
+#endif /* MACH_XEN */
 	movl	%edx,EXT(dr_addr)+7*4
 	movl	%edx, %eax
 	leave
