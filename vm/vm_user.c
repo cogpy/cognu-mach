@@ -431,12 +431,12 @@ void vm_pages_release(npages, pages, external)
 	}
 }
 
-kern_return_t vm_allocate_contiguous(host_priv, map, size, result_vaddr, result_paddr)
+kern_return_t vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr, size)
 	host_t			host_priv;
 	vm_map_t		map;
-	vm_size_t		size;
 	vm_address_t		*result_vaddr;
 	vm_address_t		*result_paddr;
+	vm_size_t		size;
 {
 	extern vm_size_t	vm_page_big_pagenum;
 	extern vm_offset_t	phys_first_addr;
