@@ -156,7 +156,7 @@ vm_offset_t kernel_virtual_start;
 vm_offset_t kernel_virtual_end;
 
 /* XXX stupid fixed limit - get rid */
-vm_size_t morevm = 40 * 1024 * 1024;	/* VM space for kernel map */
+vm_size_t morevm = 128 * 1024 * 1024;	/* VM space for kernel map */
 
 /*
  *	Index into pv_head table, its lock bits, and the modify/reference
@@ -654,6 +654,8 @@ void pmap_bootstrap()
 	}
 
 #ifdef	MACH_XEN
+	/* We don't actually deal with the CR3 register content at all */
+	hyp_vm_assist(VMASST_CMD_enable, VMASST_TYPE_pae_extended_cr3);
 	/*
 	 * Xen may only provide as few as 512KB extra bootstrap linear memory,
 	 * which is far from enough to map all available memory, so we need to
@@ -762,11 +764,14 @@ void pmap_bootstrap()
 					else
 					{
 #ifdef	MACH_XEN
+						/* Keep supplementary L1 pages read-only */
 						int i;
 						for (i = 0; i < NSUP_L1; i++)
-							if (va == (vm_offset_t) l1_map[i])
+							if (va == (vm_offset_t) l1_map[i]) {
 								WRITE_PTE(pte, pa_to_pte(_kvtophys(va))
 									| INTEL_PTE_VALID | global);
+								break;
+							}
 						if (i == NSUP_L1)
 #endif	/* MACH_XEN */
 							WRITE_PTE(pte, pa_to_pte(_kvtophys(va))
@@ -1750,8 +1755,10 @@ if (pmap_debug) printf("pmap(%x, %x)\n", v, pa);
 	if (pmap == PMAP_NULL)
 		return;
 
+#if !MACH_KDB
 	if (pmap == kernel_pmap && (v < kernel_virtual_start || v >= kernel_virtual_end))
 	    	panic("pmap_enter(%p, %p) falls in physical memory area!\n", v, pa);
+#endif
 	if (pmap == kernel_pmap && (prot & VM_PROT_WRITE) == 0
 	    && !wired /* hack for io_wire */ ) {
 	    /*
