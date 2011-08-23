@@ -1864,6 +1864,7 @@ ds_device_intr_enable(ipc_port_t master_port, int line, char status)
     return D_INVALID_OPERATION;
 
   if (status)
+    /* TODO: better name for generic-to-arch-specific call */
     enable_irq (line);
   else
     disable_irq (line);
