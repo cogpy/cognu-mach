@@ -315,10 +315,10 @@ ds_device_map (device_t dev, vm_prot_t prot, vm_offset_t offset,
 }
 
 io_return_t
-ds_device_intr_notify (ipc_port_t master_port, int irq,
+ds_device_intr_notify (ipc_port_t master_port, int line,
 		       int id, int flags, ipc_port_t receive_port)
 {
-  extern int install_user_irq_handler (unsigned int irq,
+  extern int install_user_line_handler (unsigned int line,
 				       unsigned long flags,
 				       ipc_port_t dest);
   io_return_t ret;
@@ -327,16 +327,17 @@ ds_device_intr_notify (ipc_port_t master_port, int irq,
   if (master_port != master_device_port)
     return D_INVALID_OPERATION;
 
-  if (irq < 0 || irq >= 16)
+  /* XXX: move to arch-specific */
+  if (line < 0 || line >= 16)
     return D_INVALID_OPERATION;
 
-  ret = insert_intr_entry (irq, receive_port);
+  ret = insert_intr_entry (line, receive_port);
   if (ret)
     return ret;
   // TODO The original port should be replaced
   // when the same device driver calls it again, 
   // in order to handle the case that the device driver crashes and restarts.
-  ret = install_user_irq_handler (irq, flags, receive_port);
+  ret = install_user_line_handler (line, flags, receive_port);
 
   /* If the port is installed successfully, increase its reference by 1.
    * Thus, the port won't be destroyed after its task is terminated. */
