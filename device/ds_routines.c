@@ -1858,15 +1858,15 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 }
 
 kern_return_t
-ds_device_irq_enable(ipc_port_t master_port, int irq, char status)
+ds_device_intr_enable(ipc_port_t master_port, int line, char status)
 {
   if (master_port != master_device_port)
     return D_INVALID_OPERATION;
 
   if (status)
-    enable_irq (irq);
+    enable_irq (line);
   else
-    disable_irq (irq);
+    disable_irq (line);
   return 0;
 }
 
