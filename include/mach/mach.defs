@@ -773,6 +773,13 @@ skip;	/* old host_fpa_counters_reset */
 and maybe phase. We may not use them now, but they're important for
 portability (e.g. if GNU Mach supports PAE, drivers that can't use
 physical memory beyond the 4 GiB limit must be able to express it).
+
+> What do you mean by "phase"?
+
+Offset from the alignment. But I don't think it's useful at all in this
+case. Minimum and maximum addresses and alignment should do. Maybe
+boundary crossing but usually, specifying the right alignment and size
+is enough.
  */
 routine vm_allocate_contiguous(
 		host_priv	: host_priv_t;
