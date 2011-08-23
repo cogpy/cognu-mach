@@ -172,3 +172,14 @@ strlen(
 
 	return string - 1 - ret;
 }
+
+void *memset(void *s, int c, size_t n)
+{
+  unsigned char *p = s;
+  int i;
+
+  for (i = 0; i < n; i++)
+    p[i] = c;
+
+  return s;
+}

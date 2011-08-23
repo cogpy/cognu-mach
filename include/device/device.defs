@@ -160,6 +160,11 @@ routine device_intr_register(
 /*
  *	enable/disable the specified line.
  */
+/* XXX: Naming a function taht can disable something "xxx_enable" is confusing. */
+/* Is the disable part actually used at all? AIUI, the kernel IRQ handler
+should always disable the line; and the userspace driver only has to
+reenable it, after acknowledging and handling the interrupt...
+*/
 routine device_intr_enable(
 		master_port	: mach_port_t;
 		line		: int;
