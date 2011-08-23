@@ -173,10 +173,10 @@ deliver_intr (int line, ipc_port_t dest_port)
 
   m->msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_PORT_SEND, 0);
   m->msgh_size = sizeof *n;
-  m->msgh_seqno = IRQ_NOTIFY_MSGH_SEQNO;
+  m->msgh_seqno = INTR_NOTIFY_MSGH_SEQNO;
   m->msgh_local_port = MACH_PORT_NULL;
   m->msgh_remote_port = MACH_PORT_NULL;
-  m->msgh_id = MACH_NOTIFY_IRQ;
+  m->msgh_id = MACH_INTR_NOTIFY;
 
   t->msgt_name = MACH_MSG_TYPE_INTEGER_32;
   t->msgt_size = 32;

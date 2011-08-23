@@ -1,6 +1,6 @@
-#ifndef __IRQ_H__
+#ifndef __INTR_H__
 
-#define __IRQ_H__
+#define __INTR_H__
 
 #include <device/device_types.h>
 
@@ -11,7 +11,7 @@ typedef struct
   int		    line;
 } mach_intr_notification_t;
 
-#define IRQ_NOTIFY_MSGH_SEQNO 0
-#define MACH_NOTIFY_IRQ 100
+#define INTR_NOTIFY_MSGH_SEQNO 0
+#define MACH_INTR_NOTIFY 100
 
 #endif
