@@ -785,6 +785,8 @@ For upstream
 inclusion, we need to do it properly: the RPC should return a special
 memory object (similar to device_map() ), which can then be mapped into
 the process address space with vm_map() like any other memory object.
+
+phys_address_t?
  */
 routine vm_allocate_contiguous(
 		host_priv	: host_priv_t;
