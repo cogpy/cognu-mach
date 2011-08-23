@@ -279,7 +279,7 @@ libkernel_a_SOURCES += \
 	device/device_types_kernel.h \
 	device/ds_routines.c \
 	device/ds_routines.h \
-	device/irq.c \
+	device/intr.c \
 	device/errno.h \
 	device/if_ether.h \
 	device/if_hdr.h \
