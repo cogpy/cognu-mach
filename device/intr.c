@@ -1,4 +1,4 @@
-#include <device/irq.h>
+#include <device/intr.h>
 #include <device/ds_routines.h>
 #include <kern/queue.h>
 #include <kern/printf.h>
@@ -7,13 +7,13 @@
 #define sti() __asm__ __volatile__ ("sti": : :"memory")
 #define cli() __asm__ __volatile__ ("cli": : :"memory")
 
-static boolean_t deliver_irq (int irq, ipc_port_t dest_port);
+static boolean_t deliver_intr (int line, ipc_port_t dest_port);
 
 struct intr_entry
 {
   queue_chain_t chain;
   ipc_port_t dest;
-  int irq;
+  int line;
   /* The number of interrupts occur since last run of intr_thread. */
   int interrupts;
 };
@@ -23,12 +23,12 @@ static queue_head_t intr_queue;
 static int tot_num_intr;
 
 static struct intr_entry *
-search_intr (int irq, ipc_port_t dest)
+search_intr (int line, ipc_port_t dest)
 {
   struct intr_entry *e;
   queue_iterate (&intr_queue, e, struct intr_entry *, chain)
     {
-      if (e->dest == dest && e->irq == irq)
+      if (e->dest == dest && e->line == line)
 	return e;
     }
   return NULL;
@@ -36,13 +36,13 @@ search_intr (int irq, ipc_port_t dest)
 
 /* This function can only be used in the interrupt handler. */
 void
-queue_intr (int irq, ipc_port_t dest)
+queue_intr (int line, ipc_port_t dest)
 {
   extern void intr_thread ();
   struct intr_entry *e;
   
   cli ();
-  e = search_intr (irq, dest);
+  e = search_intr (line, dest);
   assert (e);
   e->interrupts++;
   tot_num_intr++;
@@ -55,7 +55,7 @@ queue_intr (int irq, ipc_port_t dest)
  * This entry exists in the queue until
  * the corresponding interrupt port is removed.*/
 int
-insert_intr_entry (int irq, ipc_port_t dest)
+insert_intr_entry (int line, ipc_port_t dest)
 {
   int err = 0;
   struct intr_entry *e, *new;
@@ -67,16 +67,16 @@ insert_intr_entry (int irq, ipc_port_t dest)
 
   /* check whether the intr entry has been in the queue. */
   cli ();
-  e = search_intr (irq, dest);
+  e = search_intr (line, dest);
   if (e)
     {
-      printf ("the interrupt entry for irq %d and port %p has been inserted\n",
-	      irq, dest);
+      printf ("the interrupt entry for line %d and port %p has been inserted\n",
+	  line, dest);
       free = 1;
       err = D_ALREADY_OPEN;
       goto out;
     }
-  new->irq = irq;
+  new->line = line;
   new->dest = dest;
   new->interrupts = 0;
   queue_enter (&intr_queue, new, struct intr_entry *, chain);
@@ -87,12 +87,12 @@ out:
   return err;
 }
 
-/* this function should be called when irq is disabled. */
-void mark_intr_removed (int irq, ipc_port_t dest)
+/* this function should be called when line is disabled. */
+void mark_intr_removed (int line, ipc_port_t dest)
 {
   struct intr_entry *e;
 
-  e = search_intr (irq, dest);
+  e = search_intr (line, dest);
   if (e)
     e->dest = NULL;
 }
@@ -101,7 +101,7 @@ void
 intr_thread ()
 {
   struct intr_entry *e;
-  int irq;
+  int line;
   ipc_port_t dest;
   queue_init (&intr_queue);
   
@@ -125,13 +125,13 @@ intr_thread ()
 
 	      if (e->interrupts)
 		{
-		  irq = e->irq;
+		  line = e->line;
 		  dest = e->dest;
 		  e->interrupts--;
 		  tot_num_intr--;
 
 		  sti ();
-		  deliver_irq (irq, dest);
+		  deliver_intr (line, dest);
 		  cli ();
 		}
 	    }
@@ -152,10 +152,10 @@ intr_thread ()
 }
 
 static boolean_t
-deliver_irq (int irq, ipc_port_t dest_port)
+deliver_intr (int line, ipc_port_t dest_port)
 {
   ipc_kmsg_t kmsg;
-  mach_irq_notification_t *n;
+  mach_intr_notification_t *n;
   mach_port_t dest = (mach_port_t) dest_port;
 
   if (dest == MACH_PORT_NULL)
@@ -166,10 +166,10 @@ deliver_irq (int irq, ipc_port_t dest_port)
     return FALSE;
 
   ikm_init(kmsg, sizeof *n);
-  n = (mach_irq_notification_t *) &kmsg->ikm_header;
+  n = (mach_intr_notification_t *) &kmsg->ikm_header;
 
-  mach_msg_header_t *m = &n->irq_header;
-  mach_msg_type_t *t = &n->irq_type;
+  mach_msg_header_t *m = &n->intr_header;
+  mach_msg_type_t *t = &n->intr_type;
 
   m->msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_PORT_SEND, 0);
   m->msgh_size = sizeof *n;
@@ -186,8 +186,8 @@ deliver_irq (int irq, ipc_port_t dest_port)
   t->msgt_deallocate = FALSE;
   t->msgt_unused = 0;
 
-  n->irq_header.msgh_remote_port = dest;
-  n->irq = irq;
+  n->intr_header.msgh_remote_port = dest;
+  n->line = line;
 
   ipc_port_copy_send (dest_port);
   ipc_mqueue_send_always(kmsg);
