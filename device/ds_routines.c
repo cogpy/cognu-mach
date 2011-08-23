@@ -315,7 +315,7 @@ ds_device_map (device_t dev, vm_prot_t prot, vm_offset_t offset,
 }
 
 io_return_t
-ds_device_intr_notify (ipc_port_t master_port, int line,
+ds_device_intr_register (ipc_port_t master_port, int line,
 		       int id, int flags, ipc_port_t receive_port)
 {
   extern int install_user_line_handler (unsigned int line,
