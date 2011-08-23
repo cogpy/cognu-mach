@@ -56,6 +56,7 @@ boolean_t	ds_write_done(io_req_t);
 
 void		iowait (io_req_t ior);
 
+/* XXX arch-specific */
 extern ipc_port_t intr_rcv_ports[16];
 
 #endif	/* DS_ROUTINES_H */

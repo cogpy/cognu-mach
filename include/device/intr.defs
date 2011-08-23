@@ -29,8 +29,8 @@ subsystem notify 100;
 #include <mach/std_types.defs>
 
 serverprefix do_;
-serverdemux notify_irq_server;
+serverdemux intr_notify_server;
 
-simpleroutine mach_notify_irq(
+simpleroutine mach_intr_notify(
 		notify	: notify_port_t;
 		name	: int);
