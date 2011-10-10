@@ -284,7 +284,7 @@ setup_x86_irq (int irq, struct linux_action *new)
 }
 
 int
-install_user_intr_handler (unsigned int line, unsigned long flags,
+install_user_intr_handler (unsigned int irq, unsigned long flags,
 			  ipc_port_t dest)
 {
   struct linux_action *action;
