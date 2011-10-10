@@ -40,6 +40,7 @@
 #include <mach/kern_return.h>
 #include <mach/notify.h>
 #include <mach/vm_prot.h>
+#include <kern/printf.h>
 #include <kern/zalloc.h>
 #include <kern/mach_param.h>
 #include <ipc/ipc_port.h>
@@ -125,7 +126,6 @@ memory_object_create_proxy (ipc_space_t space, vm_prot_t max_protection,
 			    vm_offset_t *len, natural_t len_count,
 			    ipc_port_t *port)
 {
-  kern_return_t kr;
   memory_object_proxy_t proxy;
   ipc_port_t notify;
 

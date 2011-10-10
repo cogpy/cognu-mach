@@ -47,10 +47,8 @@
 #include <asm/io.h>
 #include <asm/hardirq.h>
 
-extern void linux_timer_intr (void);
-extern spl_t splhigh (void);
-extern spl_t spl0 (void);
-extern void form_pic_mask (void);
+#include <linux/dev/glue/glue.h>
+#include <machine/machspl.h>
 
 #if 0
 /* XXX: This is the way it's done in linux 2.2. GNU Mach currently uses intr_count. It should be made using local_{bh/irq}_count instead (through hardirq_enter/exit) for SMP support. */
@@ -95,12 +93,6 @@ static struct linux_action *irq_action[16] =
   NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL
 };
-
-extern spl_t curr_ipl;
-extern int curr_pic_mask;
-extern int pic_mask[];
-
-extern void intnull (), prtnull ();
 
 /*
  * Generic interrupt handler for Linux devices.
@@ -255,15 +247,15 @@ setup_x86_irq (int irq, struct linux_action *new)
     {
       /* Can't share interrupts unless both agree to */
       if (!(old->flags & new->flags & SA_SHIRQ))
-	return (-LINUX_EBUSY);
+	return (-EBUSY);
 
       /* Can't share interrupts unless both are same type */
       if ((old->flags ^ new->flags) & SA_INTERRUPT)
-	return (-LINUX_EBUSY);
+	return (-EBUSY);
 
       /* Can't share at different levels */
       if (intpri[irq] && linux_intr_pri != intpri[irq])
-	return (-LINUX_EBUSY);
+	return (-EBUSY);
 
       /* add new interrupt at end of irq queue */
       do
@@ -309,7 +301,7 @@ install_user_intr_handler (unsigned int line, unsigned long flags,
       if (old->delivery_port == dest)
 	{
 	  printk ("The interrupt handler has been installed on line %d", irq);
-	  return linux_to_mach_error (-LINUX_EAGAIN);
+	  return linux_to_mach_error (-EAGAIN);
 	}
       old = old->next;
     }
@@ -321,7 +313,7 @@ install_user_intr_handler (unsigned int line, unsigned long flags,
   action = (struct linux_action *)
     linux_kmalloc (sizeof (struct linux_action), GFP_KERNEL);
   if (action == NULL)
-    return linux_to_mach_error (-LINUX_ENOMEM);
+    return linux_to_mach_error (-ENOMEM);
   
   action->handler = NULL;
   action->next = NULL;
@@ -349,7 +341,7 @@ request_irq (unsigned int irq, void (*handler) (int, void *, struct pt_regs *),
   assert (irq < 16);
 
   if (!handler)
-    return -LINUX_EINVAL;
+    return -EINVAL;
   
   /*
    * Hmm... Should I use `kalloc()' ?
@@ -358,7 +350,7 @@ request_irq (unsigned int irq, void (*handler) (int, void *, struct pt_regs *),
   action = (struct linux_action *)
     linux_kmalloc (sizeof (struct linux_action), GFP_KERNEL);
   if (action == NULL)
-    return -LINUX_ENOMEM;
+    return -ENOMEM;
   
   action->handler = handler;
   action->next = NULL;
@@ -525,7 +517,6 @@ static void show(char * str)
 	int i;
 	unsigned long *stack;
 	int cpu = smp_processor_id();
-	extern char *get_options(char *str, int *ints);
 
 	printk("\n%s, CPU %d:\n", str, cpu);
 	printk("irq:  %d [%d %d]\n",
