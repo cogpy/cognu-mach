@@ -293,6 +293,7 @@ void vm_object_bootstrap(void)
 	vm_object_template->lock_restart = FALSE;
 	vm_object_template->use_old_pageout = TRUE; /* XXX change later */
 	vm_object_template->last_alloc = (vm_offset_t) 0;
+	vm_object_template->vm_privileged = FALSE;
 
 #if	MACH_PAGEMAP
 	vm_object_template->existence_info = VM_EXTERNAL_NULL;

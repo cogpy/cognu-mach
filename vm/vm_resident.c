@@ -162,6 +162,8 @@ int	vm_page_inactive_target = 0;
 int	vm_page_free_reserved = 0;
 int	vm_page_laundry_count = 0;
 int	vm_page_external_limit = 0;
+int	vm_page_too_dirty = 0;
+int	vm_page_dirty_count = 0;
 
 
 /*
@@ -207,6 +209,7 @@ void vm_page_bootstrap(
 	m->laundry = FALSE;
 	m->free = FALSE;
 	m->external = FALSE;
+	m->overwriting = FALSE;
 
 	m->busy = TRUE;
 	m->wanted = FALSE;
@@ -838,6 +841,7 @@ boolean_t vm_page_convert(
 
 	m->phys_addr = real_m->phys_addr;
 	m->fictitious = FALSE;
+	m->external = external;
 
 	real_m->phys_addr = vm_page_fictitious_addr;
 	real_m->fictitious = TRUE;
@@ -866,10 +870,8 @@ vm_page_t vm_page_grab(
 	 *	for externally-managed pages.
 	 */
 
-	if (((vm_page_free_count < vm_page_free_reserved)
-	     || (external
-		 && (vm_page_external_count > vm_page_external_limit)))
-	    && !current_thread()->vm_privilege) {
+	if ((vm_page_free_count < vm_page_free_reserved) &&
+	    !current_thread()->vm_privilege) {
 		simple_unlock(&vm_page_queue_free_lock);
 		return VM_PAGE_NULL;
 	}
@@ -979,8 +981,7 @@ vm_page_grab_contiguous_pages(
 	 *	Do not dip into the reserved pool.
 	 */
 
-	if ((vm_page_free_count < vm_page_free_reserved)
-	    || (vm_page_external_count >= vm_page_external_limit)) {
+	if (vm_page_free_count < vm_page_free_reserved) {
 		printf_once("no more room for vm_page_grab_contiguous_pages");
 		simple_unlock(&vm_page_queue_free_lock);
 		return KERN_RESOURCE_SHORTAGE;
@@ -1163,8 +1164,6 @@ void vm_page_release(
 	mem->pageq.next = (queue_entry_t) vm_page_queue_free;
 	vm_page_queue_free = mem;
 	vm_page_free_count++;
-	if (external)
-		vm_page_external_count--;
 
 	/*
 	 *	Check if we should wake up someone waiting for page.
@@ -1215,8 +1214,7 @@ void vm_page_wait(
 	 */
 
 	simple_lock(&vm_page_queue_free_lock);
-	if ((vm_page_free_count < vm_page_free_target)
-	    || (vm_page_external_count > vm_page_external_limit)) {
+	if (vm_page_free_count < vm_page_free_target) {
 		if (vm_page_free_wanted++ == 0)
 			thread_wakeup((event_t)&vm_page_free_wanted);
 		assert_wait((event_t)&vm_page_free_count, FALSE);
@@ -1291,6 +1289,19 @@ void vm_page_free(
 
 	if (mem->absent)
 		vm_object_absent_release(mem->object);
+
+	if (mem->external) {
+		vm_page_external_count--;
+		mem->external = FALSE;
+		if (mem->overwriting) {
+			vm_page_dirty_count--;
+			if (vm_page_too_dirty) {
+				vm_page_too_dirty--;
+				if (vm_page_too_dirty == 0)
+					thread_wakeup((event_t)&vm_page_too_dirty);
+			}
+		}
+	}
 
 	/*
 	 *	XXX The calls to vm_page_init here are

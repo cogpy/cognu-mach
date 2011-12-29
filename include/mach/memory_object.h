@@ -70,6 +70,8 @@ typedef	int		memory_object_copy_strategy_t;
 					/* ... Memory manager doesn't ... */
 					/*     change data externally, and */
 					/*     doesn't need to see changes. */
+#define		MEMORY_OBJECT_COPY_VMPRIV 	4
+					/* ... XXX Just for testing ... */
 
 typedef	int		memory_object_return_t;
 					/* Which pages to return to manager

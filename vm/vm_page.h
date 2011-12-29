@@ -183,6 +183,10 @@ extern
 int	vm_page_laundry_count;	/* How many pages being laundered? */
 extern
 int	vm_page_external_limit;	/* Max number of pages for external objects  */
+extern
+int	vm_page_too_dirty;	/* Pages on hold due to dirty limit */
+extern
+int	vm_page_dirty_count;	/* How many pages are (potentially) dirty? */
 
 /* Only objects marked with the extcounted bit are included in this total.
    Pages which we scan for possible pageout, but which are not actually
@@ -190,6 +194,8 @@ int	vm_page_external_limit;	/* Max number of pages for external objects  */
    in this way.  */
 extern
 int	vm_page_external_count;	/* How many pages for external objects? */
+extern
+int	vm_page_external_target;/* How many external pages do we want? */
 
 
 

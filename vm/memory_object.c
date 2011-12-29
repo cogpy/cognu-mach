@@ -217,12 +217,22 @@ retry_lookup:
 		data_m->dirty = FALSE;
 		pmap_clear_modify(data_m->phys_addr);
 
+		if (!object->internal) {
+			data_m->external = TRUE;
+			if (lock_value == VM_PROT_NONE) {
+				/* Be sure we get notified if page
+				   could be potentially dirty */
+				lock_value = VM_PROT_WRITE;
+			}
+		}
+
 		data_m->page_lock = lock_value;
 		data_m->unlock_request = VM_PROT_NONE;
 		data_m->precious = precious;
 
 		vm_page_lock_queues();
 		vm_page_insert(data_m, object, offset);
+		vm_page_external_count++;
 
 		if (was_absent)
 			vm_page_activate(data_m);
@@ -749,11 +759,13 @@ MACRO_BEGIN								\
 									\
 	vm_object_lock(object);						\
 									\
+	vm_page_lock_queues();						\
 	for (i = 0; i < atop(new_offset); i++) {			\
 	    hp = holding_pages[i];					\
 	    if (hp != VM_PAGE_NULL)					\
 		VM_PAGE_FREE(hp);					\
 	}								\
+	vm_page_unlock_queues();					\
 									\
 	new_object = VM_OBJECT_NULL;					\
 MACRO_END
@@ -912,6 +924,7 @@ memory_object_set_attributes_common(object, object_ready, may_cache,
 		case MEMORY_OBJECT_COPY_CALL:
 		case MEMORY_OBJECT_COPY_DELAY:
 		case MEMORY_OBJECT_COPY_TEMPORARY:
+		case MEMORY_OBJECT_COPY_VMPRIV:
 			break;
 		default:
 			vm_object_deallocate(object);
@@ -943,6 +956,10 @@ memory_object_set_attributes_common(object, object_ready, may_cache,
 	object->pager_ready = object_ready;
 	if (copy_strategy == MEMORY_OBJECT_COPY_TEMPORARY) {
 		object->temporary = TRUE;
+	} else if (copy_strategy == MEMORY_OBJECT_COPY_VMPRIV) {
+		object->vm_privileged = TRUE;
+		object->copy_strategy = MEMORY_OBJECT_COPY_NONE;
+		printf("creating an vm_privileged object\n");
 	} else {
 		object->copy_strategy = copy_strategy;
 	}

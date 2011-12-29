@@ -148,7 +148,9 @@ struct vm_object {
 						 */
 	/* boolean_t */		use_shared_copy : 1,/* Use shared (i.e.,
 						 * delayed) copy on write */
-	/* boolean_t */		shadowed: 1;	/* Shadow may exist */
+	/* boolean_t */		shadowed: 1,	/* Shadow may exist */
+	/* boolean_t */		vm_privileged: 1; /* Object is allowed to exceed
+						     dirty pages limit */
 
 	queue_chain_t		cached_list;	/* Attachment point for the list
 						 * of objects cached as a result

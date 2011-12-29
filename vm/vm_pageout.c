@@ -97,7 +97,7 @@
  */
 
 #ifndef	VM_PAGE_FREE_TARGET
-#define	VM_PAGE_FREE_TARGET(free)	(15 + (free) / 80)
+#define	VM_PAGE_FREE_TARGET(free)	(15 + (free) / 20)
 #endif	/* VM_PAGE_FREE_TARGET */
 
 /*
@@ -106,7 +106,7 @@
  */
 
 #ifndef	VM_PAGE_FREE_MIN
-#define	VM_PAGE_FREE_MIN(free)	(10 + (free) / 100)
+#define	VM_PAGE_FREE_MIN(free)	(10 + (free) / 40)
 #endif	/* VM_PAGE_FREE_MIN */
 
 /*      When vm_page_external_count exceeds vm_page_external_limit, 
@@ -114,7 +114,7 @@
  */
 
 #ifndef VM_PAGE_EXTERNAL_LIMIT
-#define VM_PAGE_EXTERNAL_LIMIT(free)		((free) / 2)
+#define VM_PAGE_EXTERNAL_LIMIT(free)		((free) / 10)
 #endif  /* VM_PAGE_EXTERNAL_LIMIT */
 
 /*	Attempt to keep the number of externally paged pages less
@@ -165,7 +165,7 @@ extern void vm_pageout_scan_continue();
 unsigned int vm_pageout_reserved_internal = 0;
 unsigned int vm_pageout_reserved_really = 0;
 
-unsigned int vm_page_external_target = 0;
+int vm_page_external_target = 0;
 
 unsigned int vm_pageout_burst_max = 0;
 unsigned int vm_pageout_burst_min = 0;
@@ -313,10 +313,35 @@ vm_pageout_setup(m, paging_offset, new_object, new_offset, flush)
 		pmap_clear_modify(m->phys_addr);
 
 		/*
+		 *	If this is an external object,
+		 *	write lock the page so a new
+		 *	unlock request is generated if
+		 *	it's going to become dirty.
+		 */
+		if (!old_object->internal)
+			m->page_lock = VM_PROT_WRITE;
+
+		/*
 		 *	Deactivate old page.
 		 */
 		vm_page_lock_queues();
 		vm_page_deactivate(m);
+
+		/*
+		 *	If this is an external page,
+		 *	and we're really keeping track
+		 *	of it, adjust dirty count.
+		 */
+		if (m->external && m->overwriting) {
+			m->overwriting  = FALSE;
+			vm_page_dirty_count--;
+			if (vm_page_too_dirty) {
+				vm_page_too_dirty--;
+				if (vm_page_too_dirty == 0)
+					thread_wakeup((event_t)&vm_page_too_dirty);
+			}
+		}
+
 		vm_page_unlock_queues();
 
 		PAGE_WAKEUP_DONE(m);
@@ -340,6 +365,7 @@ vm_pageout_setup(m, paging_offset, new_object, new_offset, flush)
 		 */
 		m = new_m;
 		m->dirty = TRUE;
+		m->external = FALSE;
 		assert(!m->precious);
 		PAGE_WAKEUP_DONE(m);
 	}
@@ -514,6 +540,10 @@ void vm_pageout_scan()
 {
 	unsigned int burst_count;
 	unsigned int want_pages;
+	unsigned int external_available;
+	int current_target;
+	boolean_t found = FALSE;
+	boolean_t first_run = TRUE;
 
 	/*
 	 *	We want to gradually dribble pages from the active queue
@@ -640,7 +670,91 @@ void vm_pageout_scan()
 		}
 		want_pages = ((free_count < vm_page_free_target) ||
 			      vm_page_free_wanted);
+		current_target = vm_page_free_target - free_count;
+		external_available = vm_page_external_count - vm_page_external_limit;
 		simple_unlock(&vm_page_queue_free_lock);
+
+		if (first_run &&
+		    current_target > 0 &&
+		    external_available > (current_target / 2)) {
+			int target = external_available > current_target ?
+					current_target : external_available;
+			int iters = 0;
+
+			first_run = FALSE;
+			printf("ec: t=%u, ct=%u, ea=%u, td=%d\n", target, current_target,
+				external_available, vm_page_too_dirty);
+			m = (vm_page_t) queue_first(&vm_page_queue_inactive);
+
+			while (target &&
+			       (!queue_end(&vm_page_queue_inactive, (queue_entry_t) m))) {
+				vm_page_t old_page;
+
+				iters++;
+
+				if (!m->external) {
+					m = (vm_page_t) queue_next(&m->pageq);
+					continue;
+				}
+
+				object = m->object;
+				if (!vm_object_lock_try(object)) {
+					m = (vm_page_t) queue_next(&m->pageq);
+					continue;
+				}
+
+				if (!m->dirty)
+					m->dirty = pmap_is_modified(m->phys_addr);
+
+				if (!m->dirty && !m->precious &&
+				    !m->absent && !m->busy) {
+					/* This page can be safely freed */
+
+					old_page = m;
+					m = (vm_page_t) queue_next(&old_page->pageq);
+					old_page->busy = TRUE;
+					pmap_page_protect(old_page->phys_addr, VM_PROT_NONE);
+					VM_PAGE_FREE(old_page);
+					target--;
+					current_target--;
+				}
+				else {
+					/* Page is not ready to be freed. Try next */
+					m = (vm_page_t) queue_next(&m->pageq);
+				}
+				vm_object_unlock(object);
+			}
+
+			printf("external_count: end target=%d, iters=%d, ic=%d\n",
+					target, iters, vm_page_inactive_count);
+
+			if (target || current_target) {
+				printf("Can't free enough external pages. Using old method\n");
+
+				simple_lock(&vm_page_queue_free_lock);
+				free_count = vm_page_free_count;
+				if ((free_count >= vm_page_free_target) &&
+				    (vm_page_external_count <= vm_page_external_target) &&
+				    (vm_page_free_wanted == 0)) {
+					vm_page_unlock_queues();
+					break;
+				}
+
+				want_pages = ((free_count < vm_page_free_target) || vm_page_free_wanted);
+
+				simple_unlock(&vm_page_queue_free_lock);
+			}
+			else {
+				vm_page_unlock_queues();
+				break;
+			}
+		}
+		else {
+			int target = external_available > current_target ?
+				current_target : external_available;
+			printf("INTERNAL ec: t=%u ct=%u ea=%u td=%d\n", target, current_target,
+					external_available, vm_page_too_dirty);
+		}
 
 		/*
 		 * Sometimes we have to pause:
@@ -651,12 +765,18 @@ void vm_pageout_scan()
 		 *	this if the default pager already has work to do.
 		 */
 	pause:
-		if (queue_empty(&vm_page_queue_inactive) ||
+		if (found == 2 ||
+		    queue_empty(&vm_page_queue_inactive) ||
 		    (burst_count >= vm_pageout_burst_max) ||
 		    (vm_page_laundry_count >= vm_pageout_burst_max) ||
 		    ((free_count < vm_pageout_reserved_really) &&
 		     (vm_page_laundry_count > 0))) {
 			unsigned int pages, msecs;
+
+			if (!want_pages) {
+				vm_page_unlock_queues();
+				break;
+			}
 
 			/*
 			 *	vm_pageout_burst_wait is msecs/page.
@@ -687,17 +807,24 @@ void vm_pageout_scan()
 		/* Find a page we are interested in paging out.  If we
 		   need pages, then we'll page anything out; otherwise
 		   we only page out external pages. */
+		found = 0;
 		m = (vm_page_t) queue_first (&vm_page_queue_inactive);
-		while (1)
+		while (!queue_end(&vm_page_queue_inactive, (queue_entry_t) m))
 		  {
 		    assert (!m->active && m->inactive);
-		    if (want_pages || m->external)
+		    if (!m->external) {
+		      found = 1;
 		      break;
+		    }
 		    
-		    m = (vm_page_t) queue_next (m);
-		    if (!m)
-		      goto pause;
+		    m = (vm_page_t) queue_next(&m->pageq);  
 		  }
+
+		if (!found) {
+			printf("Can't find an internal page to flush\n");
+			found = 2;
+			goto pause;
+		}
 		
 		object = m->object;
 
@@ -777,6 +904,7 @@ void vm_pageout_scan()
 		if (!m->dirty)
 			m->dirty = pmap_is_modified(m->phys_addr);
 
+#if 0
 		if (m->external) {
 			/* Figure out if we still care about this
 			page in the limit of externally managed pages.
@@ -804,6 +932,7 @@ void vm_pageout_scan()
 			vm_pageout_inactive_cleaned_external++;
 			continue;
 		}			
+#endif
 
 		/*
 		 *	If it's clean and not precious, we can free the page.

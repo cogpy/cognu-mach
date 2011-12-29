@@ -509,6 +509,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 			if (access_required & m->page_lock) {
 				if ((access_required & m->unlock_request) != access_required) {
 					vm_prot_t	new_unlock_request;
+					vm_size_t	ugly_hack = PAGE_SIZE;
 					kern_return_t	rc;
 
 					if (!object->pager_ready) {
@@ -518,6 +519,25 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 						goto block_and_backoff;
 					}
 
+					/* XXX - These limits should be dynamic */
+					if (vm_page_dirty_count > 3000) {
+						if (!object->vm_privileged) {
+							printf("blocking not vm_privileged object\n");
+							vm_page_too_dirty++;
+							assert_wait((event_t)&vm_page_too_dirty, FALSE);
+							goto block_and_backoff;
+						}
+						else {
+							printf("NOT blocking vm_privileged object\n");
+						}
+					}
+					else if (vm_page_dirty_count > 2700 && !object->vm_privileged) {
+						ugly_hack++;
+					}
+
+					m->overwriting = TRUE;
+					vm_page_dirty_count++;
+
 					new_unlock_request = m->unlock_request =
 						(access_required | m->unlock_request);
 					vm_object_unlock(object);
@@ -525,7 +545,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 						object->pager,
 						object->pager_request,
 						offset + object->paging_offset,
-						PAGE_SIZE,
+						ugly_hack,
 						new_unlock_request))
 					     != KERN_SUCCESS) {
 					     	printf("vm_fault: memory_object_data_unlock failed\n");
@@ -586,6 +606,10 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 			if (m == VM_PAGE_NULL) {
 				vm_fault_cleanup(object, first_m);
 				return(VM_FAULT_FICTITIOUS_SHORTAGE);
+			}
+			else if (m->fictitious && !vm_page_convert(m, TRUE)) {
+				VM_PAGE_FREE(m);
+				vm_fault_cleanup(object, first_m);
 			}
 
 			vm_page_lock_queues();
