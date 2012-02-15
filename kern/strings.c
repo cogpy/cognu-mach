@@ -173,13 +173,21 @@ strlen(
 	return string - 1 - ret;
 }
 
-void *memset(void *s, int c, size_t n)
+/*
+ * Abstract:
+ *	memset writes value "c" in the "n" bytes starting at address "s".
+ *	The return value is a pointer to the "s" string.
+ */
+
+void *
+memset(
+	void *_s, int c, size_t n)
 {
-  unsigned char *p = s;
-  int i;
+	char *s = _s;
+	int i;
 
-  for (i = 0; i < n; i++)
-    p[i] = c;
+	for (i = 0; i < n ; i++)
+		s[i] = c;
 
-  return s;
+	return _s;
 }
