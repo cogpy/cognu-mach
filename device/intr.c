@@ -3,6 +3,7 @@
 #include <kern/queue.h>
 #include <kern/printf.h>
 
+#ifndef MACH_XEN
 // TODO this is only for x86 system
 #define sti() __asm__ __volatile__ ("sti": : :"memory")
 #define cli() __asm__ __volatile__ ("cli": : :"memory")
@@ -194,3 +195,4 @@ deliver_intr (int line, ipc_port_t dest_port)
 
   return TRUE;
 }
+#endif	/* MACH_XEN */

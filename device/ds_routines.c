@@ -322,6 +322,9 @@ io_return_t
 ds_device_intr_register (ipc_port_t master_port, int line,
 		       int id, int flags, ipc_port_t receive_port)
 {
+#ifdef MACH_XEN
+  return D_INVALID_OPERATION;
+#else	/* MACH_XEN */
   extern int install_user_intr_handler (unsigned int line,
 					unsigned long flags,
 					ipc_port_t dest);
@@ -349,6 +352,7 @@ ds_device_intr_register (ipc_port_t master_port, int line,
     ip_reference (receive_port);
 
   return ret;
+#endif	/* MACH_XEN */
 }
 
 boolean_t
@@ -1856,6 +1860,9 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 kern_return_t
 ds_device_intr_enable(ipc_port_t master_port, int line, char status)
 {
+#ifdef MACH_XEN
+  return D_INVALID_OPERATION;
+#else	/* MACH_XEN */
   if (master_port != master_device_port)
     return D_INVALID_OPERATION;
 
@@ -1865,6 +1872,7 @@ ds_device_intr_enable(ipc_port_t master_port, int line, char status)
   else
     disable_irq (line);
   return 0;
+#endif	/* MACH_XEN */
 }
 
 struct device_emulation_ops mach_device_emulation_ops =
