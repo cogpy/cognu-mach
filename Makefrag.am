@@ -332,6 +332,7 @@ include_device_HEADERS = \
 	include/device/device_reply.defs \
 	include/device/device_request.defs \
 	include/device/device_types.defs \
+	include/device/intr.defs \
 	include/device/device_types.h \
 	include/device/disk_status.h \
 	include/device/net_status.h \
