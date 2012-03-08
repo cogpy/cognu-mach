@@ -48,7 +48,7 @@
  * a port in user space as an integer and
  * in kernel space as a pointer.
  */
-typedef unsigned int	natural_t;
+typedef unsigned long	natural_t;
 
 /*
  * An integer_t is the signed counterpart
@@ -57,7 +57,7 @@ typedef unsigned int	natural_t;
  * other types in a machine-independent
  * way.
  */
-typedef int		integer_t;
+typedef long		integer_t;
 
 #ifndef _POSIX_SOURCE
 
@@ -88,11 +88,11 @@ typedef	natural_t	vm_size_t;
  */
 typedef signed char		signed8_t;
 typedef signed short		signed16_t;
-typedef signed long		signed32_t;
+typedef signed int		signed32_t;
 typedef signed long long	signed64_t;
 typedef unsigned char		unsigned8_t;
 typedef unsigned short		unsigned16_t;
-typedef unsigned long		unsigned32_t;
+typedef unsigned int		unsigned32_t;
 typedef unsigned long long	unsigned64_t;
 typedef float			float32_t;
 typedef double			float64_t;
