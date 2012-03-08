@@ -540,6 +540,6 @@ include i386/Makefrag.am
 endif
 
 # x86_64.
-if HOST_x86_64
-include x86_64/Makefrag.am
-endif
+#if HOST_x86_64
+#include x86_64/Makefrag.am
+#endif
