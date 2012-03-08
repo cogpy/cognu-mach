@@ -48,7 +48,7 @@
  * a port in user space as an integer and
  * in kernel space as a pointer.
  */
-typedef unsigned long	natural_t;
+typedef unsigned int	natural_t;
 
 /*
  * An integer_t is the signed counterpart
@@ -57,7 +57,7 @@ typedef unsigned long	natural_t;
  * other types in a machine-independent
  * way.
  */
-typedef long		integer_t;
+typedef int		integer_t;
 
 #ifndef _POSIX_SOURCE
 
@@ -73,7 +73,7 @@ typedef unsigned int	uint32;
  * A vm_offset_t is a type-neutral pointer,
  * e.g. an offset into a virtual memory space.
  */
-typedef	natural_t	vm_offset_t;
+typedef	unsigned long	vm_offset_t;
 typedef	vm_offset_t *	vm_offset_array_t;
 
 /*

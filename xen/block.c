@@ -247,7 +247,7 @@ void hyp_block_init(void) {
 			/* Allocate an event channel and give it to backend.  */
 			bd->evt = evt = hyp_event_channel_alloc(domid);
 			hyp_evt_handler(evt, hyp_block_intr, n, SPL7);
-			i = sprintf(port_name, "%lu", evt);
+			i = sprintf(port_name, "%u", evt);
 			c = hyp_store_write(t, port_name, 5, VBD_PATH, "/", vbds[n], "/", "event-channel");
 			if (!c)
 				panic("%s: couldn't store event channel (%s)", device_name, hyp_store_error);
@@ -517,7 +517,7 @@ device_read (void *d, ipc_port_t reply_port,
       thread_block(NULL);
 
       if (err)
-	printf("error reading %d bytes at sector %d\n", amt,
+	printf("error reading %d bytes at sector %ld\n", amt,
 	  bn + offset / 512);
 
       for (i = 0; i < nbpages; i++)

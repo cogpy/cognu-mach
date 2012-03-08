@@ -395,7 +395,7 @@ void hyp_net_init(void) {
 
 			/* Allocate an event channel and give it to backend.  */
 			nd->evt = evt = hyp_event_channel_alloc(domid);
-			i = sprintf(port_name, "%lu", evt);
+			i = sprintf(port_name, "%u", evt);
 			c = hyp_store_write(t, port_name, 5, VIF_PATH, "/", vifs[n], "/", "event-channel");
 			if (!c)
 				panic("eth: couldn't store event channel for VIF %s (%s)", vifs[n], hyp_store_error);
