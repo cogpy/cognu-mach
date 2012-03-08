@@ -54,7 +54,7 @@ AC_ARG_ENABLE([platform],
 case $host_platform:$host_cpu in
   default:i?86)
     host_platform=at;;
-  at:i?86 | xen:i?86)
+  at:i?86 | xen:i?86 | xen:x86_64)
     :;;
   *)]
     AC_MSG_ERROR([unsupported combination of cpu type `$host_cpu' and platform
