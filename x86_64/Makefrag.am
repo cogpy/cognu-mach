@@ -28,7 +28,7 @@ libkernel_a_SOURCES += \
 
 if PLATFORM_at
 libkernel_a_SOURCES += \
-	i386/i386at/boothdr.S \
+	x86_64/boothdr.S \
 	i386/i386at/com.c \
 	i386/i386at/com.h \
 	i386/i386at/comreg.h \
@@ -38,7 +38,7 @@ libkernel_a_SOURCES += \
 	i386/i386at/immc.c \
 	i386/i386at/int_init.c \
 	i386/i386at/int_init.h \
-	i386/i386at/interrupt.S \
+	x86_64/interrupt.S \
 	i386/i386at/kd.c \
 	i386/i386at/kd.h \
 	i386/i386at/kd_event.c \
@@ -47,13 +47,20 @@ libkernel_a_SOURCES += \
 	i386/i386at/kd_queue.h \
 	i386/i386at/kd_mouse.c \
 	i386/i386at/kd_mouse.h \
-	i386/i386at/kdasm.S \
+	x86_64/kdasm.S \
 	i386/i386at/kdsoft.h \
 	i386/i386at/mem.c \
 	i386/i386at/pic_isa.c \
 	i386/i386at/rtc.c \
 	i386/i386at/rtc.h
 endif
+
+if PLATFORM_xen
+libkernel_a_SOURCES += \
+	x86_64/xen_locore.S \
+	x86_64/xen_boothdr.S
+endif
+
 
 #
 # `lpr' device support.
@@ -75,7 +82,7 @@ libkernel_a_SOURCES += \
 	i386/i386/ast_check.c \
 	i386/i386/ast_types.h \
 	i386/i386/cpu_number.h \
-	i386/i386/cswitch.S \
+	x86_64/cswitch.S \
 	i386/i386/db_disasm.c \
 	i386/i386/db_interface.c \
 	i386/i386/db_interface.h \
@@ -83,7 +90,7 @@ libkernel_a_SOURCES += \
 	i386/i386/db_trace.c \
 	i386/i386/debug.h \
 	i386/i386/debug_i386.c \
-	i386/i386/debug_trace.S \
+	x86_64/debug_trace.S \
 	i386/i386/eflags.h \
 	i386/i386/fpu.c \
 	i386/i386/fpu.h \
@@ -91,7 +98,7 @@ libkernel_a_SOURCES += \
 	i386/i386/gdt.h \
 	i386/i386/idt-gen.h \
 	i386/i386/idt.c \
-	i386/i386/idt_inittab.S \
+	x86_64/idt_inittab.S \
 	i386/i386/io_perm.c \
 	i386/i386/io_perm.h \
 	i386/i386/ipl.h \
@@ -102,7 +109,7 @@ libkernel_a_SOURCES += \
 	i386/i386/ldt.c \
 	i386/i386/ldt.h \
 	i386/i386/lock.h \
-	i386/i386/locore.S \
+	x86_64/locore.S \
 	i386/i386/locore.h \
 	i386/i386/loose_ends.c \
 	i386/i386/loose_ends.h \
@@ -123,7 +130,7 @@ libkernel_a_SOURCES += \
 	i386/i386/seg.c \
 	i386/i386/seg.h \
 	i386/i386/setjmp.h \
-	i386/i386/spl.S \
+	x86_64/spl.S \
 	i386/i386/spl.h \
 	i386/i386/task.h \
 	i386/i386/thread.h \
@@ -159,7 +166,7 @@ endif
 
 if enable_kdb
 libkernel_a_SOURCES += \
-	i386/i386/_setjmp.S
+	x86_64/_setjmp.S
 endif
 
 
@@ -249,9 +256,11 @@ EXTRA_DIST += \
 #
 
 if PLATFORM_xen
-include i386/xen/Makefrag.am
-
 libkernel_a_SOURCES += \
+	x86_64/xen.c \
 	i386/i386/xen.h
 
+gnumach_LINKFLAGS += \
+	--defsym _START=0x20000000 \
+	-T '$(srcdir)'/i386/ldscript
 endif

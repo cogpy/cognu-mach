@@ -2786,7 +2786,7 @@ void pmap_update_interrupt()
 }
 #endif	/* NCPUS > 1 */
 
-#ifdef i386
+#if i386 || x86_64
 /* Unmap page 0 to trap NULL references.  */
 void
 pmap_unmap_page_zero ()
