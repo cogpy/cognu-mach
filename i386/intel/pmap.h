@@ -48,7 +48,7 @@
  *	Define the generic in terms of the specific
  */
 
-#if	i386
+#if	i386 || x86_64
 #define	INTEL_PGBYTES		I386_PGBYTES
 #define INTEL_PGSHIFT		I386_PGSHIFT
 #define	intel_btop(x)		i386_btop(x)
