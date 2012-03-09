@@ -139,7 +139,7 @@ m4_include([xen/configfrag.ac])
 m4_include([i386/configfrag.ac])
 
 # x86_64
-#m4_include([x86_64/configfrag.ac])
+m4_include([x86_64/configfrag.ac])
 
 # General options.
 m4_include([configfrag.ac])
