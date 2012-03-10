@@ -22,8 +22,8 @@
 	.ascii	"GUEST_OS=GNU Mach"
 	.ascii  ",GUEST_VERSION=1.3"
 	.ascii	",XEN_VER=xen-3.0"
-	.ascii  ",VIRT_BASE=0x20000000"
-	.ascii  ",ELF_PADDR_OFFSET=0x20000000"
+	.ascii  ",VIRT_BASE=0x40000000"
+	.ascii  ",ELF_PADDR_OFFSET=0x40000000"
 	.ascii	",HYPERCALL_PAGE=0x2"
 	.ascii	",LOADER=generic"
 	.ascii	",FEATURES=pae_pgdir_above_4gb"
@@ -48,10 +48,10 @@
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,		.asciz, "GNU Mach")
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,		.asciz, "1.3")
 	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,		.asciz, "xen-3.0")
-	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,		.long,  _START)
-	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,		.long,  _START)
-	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,			.long,  start)
-	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE,	.long,  hypcalls)
+	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,		.quad,  _START)
+	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,		.quad,  _START)
+	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,			.quad,  start)
+	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE,	.quad,  hypcalls)
 	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,		.asciz, "generic")
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,              .asciz, ""
 #ifndef MACH_PSEUDO_PHYS
@@ -71,19 +71,21 @@ _start:
 
 	/* Switch to our own interrupt stack.  */
 	movq	$(_intstack+INTSTACK_SIZE),%rax
+	andq	$(~15),%rax
 	movq	%rax,%rsp
 
 	/* Reset EFLAGS to a known state.  */
 	pushq	$0
 	popf
 
-	/* Push the start_info pointer to be the second argument.  */
-	subq    $KERNELBASE,%rsi
-	pushq	%rsi
+	/* Push the start_info pointer to be the argument.  */
+	movabs  $KERNELBASE,%rax
+	subq    %rax,%rsi
+	movq	%rsi,%r8
 
 	/* Fix ifunc entries */
-	movq    $__rel_iplt_start,%rsi
-	movq    $__rel_iplt_end,%rdi
+	movq    $__rela_iplt_start,%rsi
+	movq    $__rela_iplt_end,%rdi
 iplt_cont:
 	cmpq    %rdi,%rsi
 	jae     iplt_done
@@ -98,6 +100,7 @@ iplt_next:
 	jmp     iplt_cont
 iplt_done:
 
+	movq	%r8,%rdi
 	/* Jump into C code.  */
 	call	EXT(c_boot_entry)
 
@@ -171,6 +174,5 @@ ldt:
 	.org	ldt + 0x1000
 
 stack:
-	.long	_intstack+INTSTACK_SIZE,0xe021
 	.comm	_intstack,INTSTACK_SIZE
 

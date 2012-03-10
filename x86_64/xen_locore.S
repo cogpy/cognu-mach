@@ -93,13 +93,14 @@ _hyp_sti:
 /* Hypervisor failed to reload segments. Dump them.  */
 hyp_failsafe_callback:
 #if 1
+/* TODO: FIXME */
 	/* load sane segments */
 	mov	%ss, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs
 	mov	%ax, %gs
-	push	%rsp
+	movq	%rsp, %rdi
 	call	EXT(hyp_failsafe_c_callback)
 #else
 	popl	%ds

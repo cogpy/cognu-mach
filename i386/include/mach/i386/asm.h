@@ -25,6 +25,7 @@
  */
 
 
+#ifdef __i386__
 #define S_ARG0	 4(%esp)
 #define S_ARG1	 8(%esp)
 #define S_ARG2	12(%esp)
@@ -37,6 +38,24 @@
 #define B_ARG1	12(%ebp)
 #define B_ARG2	16(%ebp)
 #define B_ARG3	20(%ebp)
+#endif
+
+#ifdef __x86_64__
+#define S_ARG0	%rdi
+#define S_ARG1	%rsi
+#define S_ARG2	%rdx
+#define S_ARG3	%rcx
+#define S_ARG4	%r8
+#define S_ARG5	%r9
+
+#define FRAME	pushq %rbp; movq %rsp, %rbp
+#define EMARF	leave
+
+#define B_ARG0	S_ARG0
+#define B_ARG1	S_ARG1
+#define B_ARG2	S_ARG2
+#define B_ARG3	S_ARG3
+#endif
 
 #ifdef i486
 #define TEXT_ALIGN	4

@@ -29,7 +29,11 @@
 
 /* The kernel address space is usually 1GB, usually starting at virtual address 0.  */
 #ifdef	MACH_XEN
+#ifdef __x86_64__
+#define VM_MIN_KERNEL_ADDRESS	0x40000000UL
+#else
 #define VM_MIN_KERNEL_ADDRESS	0x20000000UL
+#endif
 #else	/* MACH_XEN */
 #define VM_MIN_KERNEL_ADDRESS	0x00000000UL
 #endif	/* MACH_XEN */
@@ -56,11 +60,16 @@
 #define VM_KERNEL_MAP_SIZE (192 * 1024 * 1024)
 #endif
 
-/* The kernel virtual address space is actually located
-   at high linear addresses.
-   This is the kernel address range in linear addresses.  */
+/* This is the kernel address range in linear addresses.  */
+#ifdef __x86_64__
+#define LINEAR_MIN_KERNEL_ADDRESS	VM_MIN_KERNEL_ADDRESS
+#define LINEAR_MAX_KERNEL_ADDRESS	(0x00007fffffffffffUL)
+#else
+/* On x86, the kernel virtual address space is actually located
+   at high linear addresses. */
 #define LINEAR_MIN_KERNEL_ADDRESS	(VM_MAX_ADDRESS)
 #define LINEAR_MAX_KERNEL_ADDRESS	(0xffffffffUL)
+#endif
 
 #ifdef	MACH_XEN
 /* need room for mmu updates (2*8bytes) */

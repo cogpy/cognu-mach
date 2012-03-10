@@ -35,15 +35,15 @@ ENTRY(_debug_trace)
 	pushq	%rax
 	pushq	%rbx
 	.byte	0x36	/* SS: bug in gas? */
-	movq	%ss:EXT(debug_trace_pos),%rax
-	movq	16(%rsp),%rbx
-	movq	%rbx,%ss:EXT(debug_trace_buf)(,%rax,8)
-	movq	20(%rsp),%rbx
-	movq	%rbx,%ss:EXT(debug_trace_buf)+4(,%rax,8)
-	incq	%rax
-	andq	$DEBUG_TRACE_LEN-1,%rax
+	movl	%ss:EXT(debug_trace_pos),%eax
+	movq	S_ARG0,%rbx
+	movq	%rbx,%ss:EXT(debug_trace_buf)(,%eax,16)
+	movl	S_ARG1,%ebx
+	movl	%ebx,%ss:EXT(debug_trace_buf)+8(,%eax,16)
+	incl	%eax
+	andl	$DEBUG_TRACE_LEN-1,%eax
 	.byte	0x36	/* SS: bug in gas? */
-	movq	%rax,%ss:EXT(debug_trace_pos)
+	movl	%eax,%ss:EXT(debug_trace_pos)
 	popq	%rbx
 	popq	%rax
 	popf

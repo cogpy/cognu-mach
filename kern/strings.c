@@ -191,3 +191,45 @@ memset(
 
 	return _s;
 }
+
+/*
+ * Abstract:
+ *	memcpy copies "n" bytes starting at address "s" to address "d".
+ *	The return value is a pointer to the "d" string.
+ */
+
+void *
+memcpy(
+	void *_d, const void *_s, size_t n)
+{
+	char *s = _s;
+	char *d = _d;
+	int i;
+
+	for (i = 0; i < n ; i++)
+		d[i] = s[i];
+
+	return _d;
+}
+
+/*
+ * Abstract:
+ *	memcmp compares "n" bytes starting at address "s1" with address "s2"
+ *	The return value is negative, nul, or positive if s1 is, respectively,
+ *	less than, the same as, or greater than s2.
+ */
+
+int
+memcmp(
+	const void *_s1, const void *_s2, size_t n)
+{
+	char *s1 = _s1;
+	char *s2 = _s2;
+	int i;
+
+	for (i = 0; i < n ; i++)
+		if (s1[i] != s2[i])
+			return s1[i]-s2[i];
+
+	return 0;
+}

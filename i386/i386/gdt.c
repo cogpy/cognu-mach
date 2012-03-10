@@ -48,6 +48,7 @@ struct real_descriptor gdt[GDTSZ];
 void
 gdt_init()
 {
+#ifndef __x86_64__
 	/* Initialize the kernel code and data segment descriptors.  */
 	fill_gdt_descriptor(KERNEL_CS,
 			    LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
@@ -57,6 +58,7 @@ gdt_init()
 			    LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
 			    LINEAR_MAX_KERNEL_ADDRESS - (LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) - 1,
 			    ACC_PL_K|ACC_DATA_W, SZ_32);
+#endif
 #ifndef	MACH_HYP
 	fill_gdt_descriptor(LINEAR_DS,
 			    0,
@@ -90,9 +92,8 @@ gdt_init()
 	   We must load ds and es with 0 before loading them with KERNEL_DS
 	   because some processors will "optimize out" the loads
 	   if the previous selector values happen to be the same.  */
-	asm volatile(
-	    /* XXX fixme */
-		     //"ljmp	%0,$1f\n"
+#ifndef __x86_64__
+	asm volatile("ljmp	%0,$1f\n"
 		     "1:\n"
 		     "movw	%w2,%%ds\n"
 		     "movw	%w2,%%es\n"
@@ -103,6 +104,7 @@ gdt_init()
 		     "movw	%w1,%%es\n"
 		     "movw	%w1,%%ss\n"
 		     : : "i" (KERNEL_CS), "r" (KERNEL_DS), "r" (0));
+#endif
 #ifdef	MACH_XEN
 #if VM_MIN_KERNEL_ADDRESS != LINEAR_MIN_KERNEL_ADDRESS
 	/* things now get shifted */

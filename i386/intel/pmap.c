@@ -635,11 +635,18 @@ void pmap_bootstrap()
 		kernel_pmap->dirbase = kernel_page_dir = (pt_entry_t*)phystokv(addr);
 	}
 	kernel_pmap->pdpbase = (pt_entry_t*)phystokv(pmap_grab_page());
+	memset(kernel_pmap->pdpbase, 0, INTEL_PGBYTES);
 	{
 		int i;
 		for (i = 0; i < PDPNUM; i++)
-			WRITE_PTE(&kernel_pmap->pdpbase[i], pa_to_pte(_kvtophys((void *) kernel_pmap->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID);
+			WRITE_PTE(&kernel_pmap->pdpbase[i], pa_to_pte(_kvtophys((void *) kernel_pmap->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
 	}
+#if x86_64
+	kernel_pmap->l4base = (pt_entry_t*)phystokv(pmap_grab_page());
+	memset(kernel_pmap->l4base, 0, INTEL_PGBYTES);
+	WRITE_PTE(&kernel_pmap->l4base[0], pa_to_pte(_kvtophys(kernel_pmap->pdpbase)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
+	pmap_set_page_readonly_init(kernel_pmap->l4base);
+#endif	/* x86_64 */
 #else	/* PAE */
 	kernel_pmap->dirbase = kernel_page_dir = (pt_entry_t*)phystokv(pmap_grab_page());
 #endif	/* PAE */
@@ -652,6 +659,7 @@ void pmap_bootstrap()
 #ifdef	MACH_XEN
 	/* We don't actually deal with the CR3 register content at all */
 	hyp_vm_assist(VMASST_CMD_enable, VMASST_TYPE_pae_extended_cr3);
+
 	/*
 	 * Xen may only provide as few as 512KB extra bootstrap linear memory,
 	 * which is far from enough to map all available memory, so we need to
@@ -670,6 +678,9 @@ void pmap_bootstrap()
 		int i;
 		int n_l1map;
 #ifdef	PAE
+#if x86_64
+		base = (pt_entry_t*) ptetokv(base[0]);
+#endif /* x86_64 */
 		pt_entry_t *l2_map = (pt_entry_t*) ptetokv(base[0]);
 #else	/* PAE */
 		pt_entry_t *l2_map = base;
@@ -831,7 +842,10 @@ void pmap_set_page_readonly_init(void *_vaddr) {
 	vm_offset_t vaddr = (vm_offset_t) _vaddr;
 #if PAE
 	pt_entry_t *pdpbase = (void*) boot_info.pt_base;
-	vm_offset_t dirbase = ptetokv(pdpbase[0]);
+#ifdef __x86_64__
+	pdpbase = (pt_entry_t *) ptetokv(pdpbase[lin2l4num(vaddr)]);
+#endif
+	vm_offset_t dirbase = ptetokv(pdpbase[lin2pdpnum(vaddr)]);
 #else
 	vm_offset_t dirbase = boot_info.pt_base;
 #endif
@@ -852,38 +866,68 @@ void pmap_clear_bootstrap_pagetable(pt_entry_t *base) {
 	int i;
 	pt_entry_t *dir;
 	vm_offset_t va = 0;
+#ifdef __x86_64__
+	int l4i, l3i;
+#else
 #if PAE
 	int j;
 #endif	/* PAE */
+#endif
 	if (!hyp_mmuext_op_mfn (MMUEXT_UNPIN_TABLE, kv_to_mfn(base)))
 		panic("pmap_clear_bootstrap_pagetable: couldn't unpin page %p(%p)\n", base, (vm_offset_t) kv_to_ma(base));
+#ifdef __x86_64__
+	/* 4-level page table */
+	for (l4i = 0; l4i < NPTES && va < HYP_VIRT_START && va < 0x0000800000000000UL; l4i++) {
+		pt_entry_t l4e = base[l4i];
+		pt_entry_t *l3;
+		if (!(l4e & INTEL_PTE_VALID)) {
+			va += NPTES * NPTES * NPTES * INTEL_PGBYTES;
+			continue;
+		}
+		l3 = (pt_entry_t *) ptetokv(l4e);
+
+		for (l3i = 0; l3i < NPTES && va < HYP_VIRT_START; l3i++) {
+			pt_entry_t l3e = l3[l3i];
+			if (!(l3e & INTEL_PTE_VALID)) {
+				va += NPTES * NPTES * INTEL_PGBYTES;
+				continue;
+			}
+			dir = (pt_entry_t *) ptetokv(l3e);
+#else
 #if PAE
-	for (j = 0; j < PDPNUM; j++)
+	/* 3-level page table */
+	for (j = 0; j < PDPNUM && va < HYP_VIRT_START; j++)
 	{
-		pt_entry_t pdpe = base[j];
-		if (pdpe & INTEL_PTE_VALID) {
+			pt_entry_t pdpe = base[j];
+			if (!(pdpe & INTEL_PTE_VALID)) {
+				va += NPTES * NPTES * INTEL_PGBYTES;
+				continue;
+			}
 			dir = (pt_entry_t *) ptetokv(pdpe);
 #else	/* PAE */
+			/* 2-level page table */
 			dir = base;
 #endif	/* PAE */
-			for (i = 0; i < NPTES; i++) {
+#endif
+			for (i = 0; i < NPTES && va < HYP_VIRT_START; i++) {
 				pt_entry_t pde = dir[i];
 				unsigned long pfn = atop(pte_to_pa(pde));
 				void *pgt = (void*) phystokv(ptoa(pfn));
 				if (pde & INTEL_PTE_VALID)
 					hyp_free_page(pfn, pgt);
 				va += NPTES * INTEL_PGBYTES;
-				if (va >= HYP_VIRT_START)
-					break;
 			}
+#ifndef __x86_64__
 #if PAE
 			hyp_free_page(atop(_kvtophys(dir)), dir);
-		} else
-			va += NPTES * NPTES * INTEL_PGBYTES;
-		if (va >= HYP_VIRT_START)
-			break;
 	}
 #endif	/* PAE */
+#else
+			hyp_free_page(atop(_kvtophys(dir)), dir);
+		}
+		hyp_free_page(atop(_kvtophys(l3)), l3);
+	}
+#endif
 	hyp_free_page(atop(_kvtophys(base)), base);
 }
 #endif	/* MACH_XEN */
@@ -1136,6 +1180,13 @@ pmap_t pmap_create(size)
 #endif	/* MACH_XEN */
 
 #if PAE
+#ifdef __x86_64__
+	if (kmem_alloc_wired(kernel_map,
+			     (vm_offset_t *)&p->l4base, INTEL_PGBYTES)
+							!= KERN_SUCCESS)
+		panic("pmap_create");
+	WRITE_PTE(&p->l4base[0], pa_to_pte(kvtophys((vm_offset_t) p->pdpbase)) | INTEL_PTE_VALID);
+#endif
 	if (kmem_alloc_wired(kernel_map,
 			     (vm_offset_t *)&p->pdpbase, INTEL_PGBYTES)
 							!= KERN_SUCCESS)
@@ -1146,6 +1197,9 @@ pmap_t pmap_create(size)
 			WRITE_PTE(&p->pdpbase[i], pa_to_pte(kvtophys((vm_offset_t) p->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID);
 	}
 #ifdef	MACH_XEN
+#ifdef __x86_64__
+	pmap_set_page_readonly(p->l4base);
+#endif
 	pmap_set_page_readonly(p->pdpbase);
 #endif	/* MACH_XEN */
 #endif	/* PAE */

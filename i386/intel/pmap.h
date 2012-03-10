@@ -75,9 +75,18 @@ typedef unsigned int	pt_entry_t;
 
 #define INTEL_OFFMASK	0xfff	/* offset within page */
 #if PAE
+#if x86_64
+#define L4SHIFT		39	/* L4 shift */
+#define L4MASK		0x1ff	/* mask for L4 index */
+#endif
 #define PDPSHIFT	30	/* page directory pointer */
+#if x86_64
+/* Enough for 8GiB addressing space. */
+#define PDPNUM		8	/* number of page directory pointers */
+#else
 #define PDPNUM		4	/* number of page directory pointers */
-#define PDPMASK		3	/* mask for page directory pointer index */
+#endif
+#define PDPMASK		0x1ff	/* mask for page directory pointer index */
 #define PDESHIFT	21	/* page descriptor shift */
 #define PDEMASK		0x1ff	/* mask for page descriptor index */
 #define PTESHIFT	12	/* page table shift */
@@ -89,6 +98,20 @@ typedef unsigned int	pt_entry_t;
 #define PTESHIFT	12	/* page table shift */
 #define PTEMASK		0x3ff	/* mask for page table index */
 #endif	/* PAE */
+
+/*
+ *	Convert linear offset to L4 pointer index
+ */
+#if x86_64
+#define lin2l4num(a)	(((a) >> L4SHIFT) & L4MASK)
+#endif
+
+/*
+ *	Convert linear offset to page directory pointer index
+ */
+#if PAE
+#define lin2pdpnum(a)	(((a) >> PDPSHIFT) & PDPMASK)
+#endif
 
 /*
  *	Convert linear offset to page descriptor index
@@ -133,7 +156,7 @@ typedef unsigned int	pt_entry_t;
 #endif	/* MACH_XEN */
 #define INTEL_PTE_WIRED		0x00000200
 #ifdef PAE
-#define INTEL_PTE_PFN		0xfffffffffffff000ULL
+#define INTEL_PTE_PFN		0x00007ffffffff000ULL
 #else
 #define INTEL_PTE_PFN		0xfffff000
 #endif
@@ -160,6 +183,9 @@ struct pmap {
 #if PAE
 	pt_entry_t	*pdpbase;	/* page directory pointer table */
 #endif	/* PAE */
+#if x86_64
+	pt_entry_t	*l4base;	/* l4 table */
+#endif	/* x86_64 */
 	int		ref_count;	/* reference count */
 	decl_simple_lock_data(,lock)
 					/* lock on map */

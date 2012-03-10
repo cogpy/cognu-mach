@@ -112,7 +112,7 @@ void setup_main()
 	    SoftDebugger("init");
 	}
 #else	/* MACH_KDB */
-	if (strstr (kernel_cmdline, "-H ")) {
+	if (0 && strstr (kernel_cmdline, "-H ")) {
 	    reboot_on_panic = 0;
 	}
 #endif	/* MACH_KDB */
@@ -155,6 +155,8 @@ void setup_main()
 	 *	Initialize the IPC, task, and thread subsystems.
 	 */
 	task_init();
+	asm volatile ("ud2");
+
 	thread_init();
 	swapper_init();
 #if	MACH_HOST

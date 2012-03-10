@@ -203,17 +203,20 @@ nodist_libkernel_a_SOURCES += \
 #
 
 EXTRA_DIST += \
-	i386/ldscript
-if PLATFORM_at
-gnumach_LINKFLAGS += \
-	--defsym _START=0x100000 \
-	-T '$(srcdir)'/i386/ldscript
-endif
+	x86_64/ldscript
 
 AM_CPPFLAGS += \
 	-I$(top_srcdir)/i386 \
 	-I$(top_srcdir)/i386/i386 \
 	-I$(top_srcdir)/i386/include/mach/sa
+
+AM_CFLAGS += \
+	-mno-red-zone \
+	-mcmodel=kernel \
+	-mno-sse \
+	-mno-mmx \
+	-mno-sse2 \
+	-mno-3dnow
 
 #
 # Installation.
@@ -261,6 +264,6 @@ libkernel_a_SOURCES += \
 	i386/i386/xen.h
 
 gnumach_LINKFLAGS += \
-	--defsym _START=0x20000000 \
-	-T '$(srcdir)'/i386/ldscript
+	--defsym _START=0x40000000 \
+	-T '$(srcdir)'/x86_64/ldscript
 endif

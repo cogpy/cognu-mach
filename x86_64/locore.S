@@ -51,8 +51,8 @@ DATA(recover_table)		;\
 
 #define	RECOVER(addr)		\
 	.text	2		;\
-	.long	9f		;\
-	.long	addr		;\
+	.quad	9f		;\
+	.quad	addr		;\
 	.text			;\
 9:
 
@@ -72,8 +72,8 @@ DATA(retry_table)		;\
 
 #define	RETRY(addr)		\
 	.text	3		;\
-	.long	9f		;\
-	.long	addr		;\
+	.quad	9f		;\
+	.quad	addr		;\
 	.text			;\
 9:
 
@@ -310,11 +310,11 @@ ENTRY(start_timer)
  * sequence; if there, report it as a GP/NP fault on the user's instruction.
  *
  * rsp->     0:	trap code (NP or GP)
- *	     4:	segment number in error
- *	     8	eip
- *	    12	cs
- *	    16	eflags
- *	    20	old registers (trap is from kernel)
+ *	     8:	segment number in error
+ *	    16	eip
+ *	    24	cs
+ *	    32	eflags
+ *	    40	old registers (trap is from kernel)
  */
 ENTRY(t_gen_prot)
 	pushq	$(T_GENERAL_PROTECTION)	/* indicate fault type  */
@@ -325,21 +325,21 @@ ENTRY(t_segnp)
 					/* indicate fault type */
 
 trap_check_kernel_exit:
-	testl	$(EFL_VM),16(%rsp)	/* is trap from V86 mode? */
+	testq	$(EFL_VM),32(%rsp)	/* is trap from V86 mode? */
 	jnz	EXT(alltraps)		/* isn`t kernel trap if so */
 	/* Note: handling KERNEL_RING value by hand */
-	testl	$2,12(%rsp)		/* is trap from kernel mode? */
+	testq	$2,24(%rsp)		/* is trap from kernel mode? */
 	jnz	EXT(alltraps)		/* if so:  */
 					/* check for the kernel exit sequence */
-	cmpl	$_kret_iret,8(%rsp)	/* on IRET? */
+	cmpq	$_kret_iret,16(%rsp)	/* on IRET? */
 	je	fault_iret
-	cmpl	$_kret_popl_ds,8(%rsp)	/* popping DS? */
+	cmpq	$_kret_popl_ds,16(%rsp)	/* popping DS? */
 	je	fault_popl_ds
-	cmpl	$_kret_popl_es,8(%rsp)	/* popping ES? */
+	cmpq	$_kret_popl_es,16(%rsp)	/* popping ES? */
 	je	fault_popl_es
-	cmpl	$_kret_popl_fs,8(%rsp)	/* popping FS? */
+	cmpq	$_kret_popl_fs,16(%rsp)	/* popping FS? */
 	je	fault_popl_fs
-	cmpl	$_kret_popl_gs,8(%rsp)	/* popping GS? */
+	cmpq	$_kret_popl_gs,16(%rsp)	/* popping GS? */
 	je	fault_popl_gs
 take_fault:				/* if none of the above: */
 	jmp	EXT(alltraps)		/* treat as normal trap. */
@@ -350,22 +350,22 @@ take_fault:				/* if none of the above: */
  *
  * on SP is
  *  0	trap number
- *  4	errcode
- *  8	eip
- * 12	cs		--> trapno
- * 16	efl		--> errcode
- * 20	user eip
- * 24	user cs
- * 28	user eflags
- * 32	user rsp
- * 36	user ss
+ *  8	errcode
+ * 16	eip
+ * 24	cs		--> trapno
+ * 32	efl		--> errcode
+ * 40	user eip
+ * 48	user cs
+ * 56	user eflags
+ * 64	user rsp
+ * 72	user ss
  */
 fault_iret:
-	movq	%rax,8(%rsp)		/* save eax (we don`t need saved eip) */
+	movq	%rax,16(%rsp)		/* save eax (we don`t need saved eip) */
 	popq	%rax			/* get trap number */
-	movq	%rax,12-4(%rsp)		/* put in user trap number */
+	movq	%rax,24-8(%rsp)		/* put in user trap number */
 	popq	%rax			/* get error code */
-	movq	%rax,16-8(%rsp)		/* put in user errcode */
+	movq	%rax,32-16(%rsp)	/* put in user errcode */
 	popq	%rax			/* restore eax */
 	jmp	EXT(alltraps)		/* take fault */
 
@@ -377,22 +377,22 @@ fault_iret:
 fault_popl_ds:
 	popq	%rax			/* get trap number  */
 	popq	%rdx			/* get error code */
-	addq	$12,%rsp		/* pop stack to user regs */
+	addq	$24,%rsp		/* pop stack to user regs */
 	jmp	push_es			/* (DS on top of stack) */
 fault_popl_es:
 	popq	%rax			/* get trap number */
 	popq	%rdx			/* get error code */
-	addq	$12,%rsp		/* pop stack to user regs */
+	addq	$24,%rsp		/* pop stack to user regs */
 	jmp	push_fs			/* (ES on top of stack) */
 fault_popl_fs:
 	popq	%rax			/* get trap number */
 	popq	%rdx			/* get error code */
-	addq	$12,%rsp		/* pop stack to user regs */
+	addq	$24,%rsp		/* pop stack to user regs */
 	jmp	push_gs			/* (FS on top of stack) */
 fault_popl_gs:
 	popq	%rax			/* get trap number */
 	popq	%rdx			/* get error code */
-	addq	$12,%rsp		/* pop stack to user regs */
+	addq	$24,%rsp		/* pop stack to user regs */
 	jmp	push_segregs		/* (GS on top of stack) */
 
 push_es:
@@ -413,16 +413,16 @@ push_segregs:
  * bit set.
  */
 ENTRY(t_debug)
-	testl	$(EFL_VM),8(%rsp)	/* is trap from V86 mode? */
+	testq	$(EFL_VM),16(%rsp)	/* is trap from V86 mode? */
 	jnz	0f			/* isn`t kernel trap if so */
 	/* Note: handling KERNEL_RING value by hand */
-	testl	$2,4(%rsp)		/* is trap from kernel mode? */
+	testq	$2,8(%rsp)		/* is trap from kernel mode? */
 	jnz	0f			/* if so: */
-	cmpl	$syscall_entry,(%rsp)	/* system call entry? */
+	cmpq	$syscall_entry,(%rsp)	/* system call entry? */
 	jne	0f			/* if so: */
 					/* flags are sitting where syscall */
 					/* wants them */
-	addq	$16,%rsp		/* remove eip/cs */
+	addq	$32,%rsp		/* remove eip/cs */
 	jmp	syscall_entry_2		/* continue system call entry */
 
 0:	pushq	$0			/* otherwise: */
@@ -440,7 +440,7 @@ ENTRY(t_page_fault)
 #else	/* MACH_XEN */
 	movq	%cr2,%rax		/* get the faulting address */
 #endif	/* MACH_XEN */
-	movq	%rax,12(%rsp)		/* save in rsp save slot */
+	movq	%rax,24(%rsp)		/* save in rsp save slot */
 	jmp	trap_push_segs		/* continue fault */
 
 /*
@@ -489,7 +489,7 @@ trap_from_user:
 _take_trap:
 	pushq	%rbx			/* pass register save area to trap */
 	call	EXT(user_trap)		/* call user trap routine */
-	movq	4(%rsp),%rsp		/* switch back to PCB stack */
+	movq	8(%rsp),%rsp		/* switch back to PCB stack */
 
 	orq     %rax,%rax               /* emulated syscall? */
 	jz      _return_from_trap       /* no, just return */
@@ -609,7 +609,7 @@ ENTRY(call_continuation)
 
 #define INTERRUPT(n)				\
 	.data	2				;\
-	.long	0f				;\
+	.quad	0f				;\
 	.text					;\
 	P2ALIGN(TEXT_ALIGN)			;\
 0:						;\
@@ -684,7 +684,7 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 #if	STAT_TIME
 #else
 	TIME_INT_EXIT			/* do timing */
-	movq	4(%rsp),%rbx		/* restore the extra reg we saved */
+	movq	8(%rsp),%rbx		/* restore the extra reg we saved */
 #endif
 
 	popq	%rsp			/* switch back to old stack */
@@ -695,7 +695,7 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 	testb	$2,I_CS(%rsp)		/* user mode, */
 	jz	1f			/* check for ASTs */
 0:
-	cmpl	$0,CX(EXT(need_ast),%edx)
+	cmpq	$0,CX(EXT(need_ast),%edx)
 	jnz	ast_from_interrupt	/* take it if so */
 1:
 	pop	%gs			/* restore segment regs */
@@ -814,9 +814,9 @@ ast_from_interrupt:
  */
 
 #ifdef	MACH_XEN
-#define	RET_OFFSET	8
+#define	RET_OFFSET	16
 #else	/* MACH_XEN */
-#define	RET_OFFSET	20
+#define	RET_OFFSET	40
 #endif	/* MACH_XEN */
 
 ENTRY(kdb_kintr)
@@ -851,7 +851,7 @@ kdb_from_iret:
 #if	STAT_TIME
 	pushq	%rbx			/* caller`s %ebx is in reg */
 #else
-	movq	4(%rsp),%rax		/* get caller`s %ebx */
+	movq	8(%rsp),%rax		/* get caller`s %ebx */
 	pushq	%rax			/* push on stack */
 #endif
 	pushq	%rbp
@@ -867,7 +867,7 @@ kdb_from_iret:
 	popq	%rbx
 #else
 	popq	%rax
-	movq	%rax,4(%rsp)
+	movq	%rax,8(%rsp)
 #endif
 	jmp	EXT(return_to_iret)	/* normal interrupt return */
 
@@ -906,18 +906,18 @@ ENTRY(kttd_intr)
 	movq	$EXT(return_to_iret),%rcx	/* interrupt return address 1 */
 	movq	$_return_to_iret_i,%rdx	/* interrupt return address 2 */
 
-0:	cmpq	16(%rax),%rcx		/* does this frame return to */
+0:	cmpq	32(%rax),%rcx		/* does this frame return to */
 					/* interrupt handler (1)? */
 	je	1f
-	cmpq	16(%rax),%rdx		/* interrupt handler (2)? */
+	cmpq	32(%rax),%rdx		/* interrupt handler (2)? */
 	je	2f			/* if not: */
 	movq	(%rax),%rax		/* try next frame */
 	jmp	0b
 
-1:	movq	$ttd_from_iret,16(%rax)	/* returns to kernel/user stack */
+1:	movq	$ttd_from_iret,32(%rax)	/* returns to kernel/user stack */
 	ret
 
-2:	movq	$ttd_from_iret_i,16(%rax)
+2:	movq	$ttd_from_iret_i,32(%rax)
 					/* returns to interrupt stack */
 	ret
 
@@ -933,7 +933,7 @@ ttd_from_iret:
 #if	STAT_TIME
 	pushq	%rbx			/* caller`s %ebx is in reg */
 #else
-	movq	4(%rsp),%rax		/* get caller`s %ebx */
+	movq	8(%rsp),%rax		/* get caller`s %ebx */
 	pushq	%rax			/* push on stack */
 #endif
 	pushq	%rbp
@@ -949,7 +949,7 @@ ttd_from_iret:
 	popq	%rbx
 #else
 	popq	%rax
-	movq	%rax,4(%rsp)
+	movq	%rax,8(%rsp)
 #endif
 	jmp	EXT(return_to_iret)	/* normal interrupt return */
 
@@ -1072,19 +1072,19 @@ syscall_native:
 	movb	$0xf,%dh
 	movw	%dx,0xb800c
 #endif
-	shlq	$4,%rax			/* manual indexing */
+	shlq	$8,%rax			/* manual indexing */
 	movq	EXT(mach_trap_table)(%rax),%rcx
 					/* get number of arguments */
 	jecxz	mach_call_call		/* skip argument copy if none */
 
 	movq	R_UESP(%rbx),%rsi	/* get user stack pointer */
-	lea	4(%rsi,%rcx,4),%rsi	/* skip user return address, */
+	lea	8(%rsi,%rcx,8),%rsi	/* skip user return address, */
 					/* and point past last argument */
 	movq	$USER_DS,%rdx		/* use user data segment for accesses */
 	mov	%dx,%fs
 	movq	%rsp,%rdx		/* save kernel ESP for error recovery */
 
-0:	subq	$4,%rsi
+0:	subq	$8,%rsi
 	RECOVER(mach_call_addr_push)
 	pushq	%fs:(%rsi)		/* push argument on stack */
 	loop	0b			/* loop for all arguments */
@@ -1101,7 +1101,7 @@ mach_call_call:
 0:
 #endif /* DEBUG */
 
-	call	*EXT(mach_trap_table)+4(%eax)
+	call	*EXT(mach_trap_table)+8(%rax)
 					/* call procedure */
 	movq	%rsp,%rcx		/* get kernel stack */
 	or	$(KERNEL_STACK_SIZE-1),%ecx
@@ -1148,13 +1148,13 @@ syscall_emul:
 
 /* XXX what about write-protected pages? */
 	movq	R_UESP(%rbx),%rdi	/* get user stack pointer */
-	subq	$8,%rdi			/* push space for new arguments */
+	subq	$16,%rdi		/* push space for new arguments */
 	movq	R_EFLAGS(%rbx),%rax	/* move flags */
 	RECOVER(syscall_addr)
-	movq	%rax,%fs:0(%rdi)	/* to user stack */
-	movq	R_EIP(%rbx),%rax	/* move eip */
+	movl	%eax,%fs:0(%rdi)	/* to user stack */
+	movl	R_EIP(%rbx),%eax	/* move eip */
 	RECOVER(syscall_addr)
-	movq	%rax,%fs:4(%rdi)	/* to user stack */
+	movl	%eax,%fs:4(%rdi)	/* to user stack */
 	movq	%rdi,R_UESP(%rbx)	/* set new user stack pointer */
 	movq	%rdx,R_EIP(%rbx)	/* change return address to trap */
 	movq	%rbx,%rsp		/* back to PCB stack */
@@ -1203,12 +1203,7 @@ ENTRY(discover_x86_cpu_type)
  */
 ENTRY(copyin)
 Entry(copyinmsg)
-	pushq	%rsi
-	pushq	%rdi			/* save registers */
-
-	movq	8+S_ARG0,%rsi		/* get user start address */
-	movq	8+S_ARG1,%rdi		/* get kernel destination address */
-	movq	8+S_ARG2,%rdx		/* get count */
+	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
 	movq	$USER_DS,%rax		/* use user data segment for accesses */
 	mov	%ax,%ds
@@ -1230,8 +1225,6 @@ copyin_ret:
 	mov	%ss,%di			/* restore DS to kernel segment */
 	mov	%di,%ds
 
-	popq	%rdi			/* restore registers */
-	popq	%rsi
 	ret				/* and return */
 
 copyin_fail:
@@ -1246,20 +1239,10 @@ copyin_fail:
  */
 ENTRY(copyout)
 Entry(copyoutmsg)
-	pushq	%rsi
-	pushq	%rdi			/* save registers */
-
-	movq	8+S_ARG0,%rsi		/* get kernel start address */
-	movq	8+S_ARG1,%rdi		/* get user start address */
-	movq	8+S_ARG2,%rdx		/* get count */
+	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
 	movq	$USER_DS,%rax		/* use user data segment for accesses */
 	mov	%ax,%es
-
-#if !defined(MACH_HYP) && !PAE
-	cmpl	$3,machine_slot+SUB_TYPE_CPU_TYPE
-	jbe	copyout_retry		/* Use slow version on i386 */
-#endif /* !defined(MACH_HYP) && !PAE */
 
 	movq	%rdx,%rax		/* use count */
 	/*cld*/				/* count up: always this way in GCC code */
@@ -1279,78 +1262,11 @@ copyout_ret:
 	mov	%ss,%di			/* restore ES to kernel segment */
 	mov	%di,%es
 
-	popq	%rdi			/* restore registers */
-	popq	%rsi
 	ret				/* and return */
 
 copyout_fail:
 	movq	$1,%rax			/* return 1 for failure */
 	jmp	copyout_ret		/* pop frame and return */
-
-#if !defined(MACH_HYP) && !PAE
-/*
- * Check whether user address space is writable
- * before writing to it - i386 hardware is broken.
- */
-copyout_retry:
-	movq	%cr3,%rcx		/* point to page directory */
-	movq	%rdi,%rax		/* get page directory bits */
-	shrq	$(PDESHIFT),%rax	/* from user address */
-	movq	KERNELBASE(%rcx,%rax,PTE_SIZE),%rcx
-
-	/* XXX: 4th level */
-					/* get page directory pointer */
-	testq	$(PTE_V),%rcx		/* present? */
-	jz	0f			/* if not, fault is OK */
-	andq	$(PTE_PFN),%rcx		/* isolate page frame address */
-	movq	%rdi,%rax		/* get page table bits */
-	shrq	$(PTESHIFT),%rax
-	andq	$(PTEMASK),%rax		/* from user address */
-	leaq	KERNELBASE(%rcx,%rax,PTE_SIZE),%rcx
-					/* point to page table entry */
-	movq	(%rcx),%rax		/* get it */
-	testq	$(PTE_V),%rax		/* present? */
-	jz	0f			/* if not, fault is OK */
-	testq	$(PTE_W),%rax		/* writable? */
-	jnz	0f			/* OK if so */
-/*
- * Not writable - must fake a fault.  Turn off access to the page.
- */
-	andq	$(PTE_INVALID),(%rcx)	/* turn off valid bit */
-	movq	%cr3,%rax		/* invalidate TLB */
-	movq	%rax,%cr3
-0:
-
-/*
- * Copy only what fits on the current destination page.
- * Check for write-fault again on the next page.
- */
-	leaq	NBPG(%rdi),%rax		/* point to */
-	andq	$(-NBPG),%rax		/* start of next page */
-	subq	%rdi,%rax		/* get number of bytes to that point */
-	cmpq	%rdx,%rax		/* bigger than count? */
-	jle	1f			/* if so, */
-	movq	%rdx,%rax		/* use count */
-1:
-
-	/*cld*/				/* count up: always this way in GCC code */
-	movq	%rax,%rcx		/* move by longwords first */
-	shrq	$3,%rcx
-	RECOVER(copyout_fail)
-	RETRY(copyout_retry)
-	rep
-	movsq
-	movq	%rax,%rcx		/* now move remaining bytes */
-	andq	$7,%rcx
-	RECOVER(copyout_fail)
-	RETRY(copyout_retry)
-	rep
-	movsb				/* move */
-	subq	%rax,%rdx		/* decrement count */
-	jg	copyout_retry		/* restart on next page if not done */
-	xorq	%rax,%rax		/* return 0 for success */
-	jmp	copyout_ret
-#endif /* !defined(MACH_HYP) && !PAE */
 
 /*
  * int inst_fetch(int eip, int cs);
@@ -1459,19 +1375,19 @@ ENTRY(dr3)
 	movq	%rdx,EXT(dr_addr)+4*4
 	andq	dr_msk(,%rcx,2),%rdx	/* clear out new entry */
 	movq	%rdx,EXT(dr_addr)+5*4
-	movzbq	B_ARG3, %rax
+	movq	B_ARG3, %rax
 	andb	$3, %al
 	shlq	%cl, %rax
 	orq	%rax, %rdx
 
-	movzbq	B_ARG1, %rax
+	movq	B_ARG1, %rax
 	andb	$3, %al
 	addb	%cl, %cl
 	addb	$0x10, %cl
 	shlq	%cl, %rax
 	orq	%rax, %rdx
 
-	movzbq	B_ARG2, %rax
+	movq	B_ARG2, %rax
 	andb	$3, %al
 	addb	$0x2, %cl
 	shlq	%cl, %rax
@@ -1510,7 +1426,7 @@ null_idt:
 
 null_idtr:
         .word   8 * 32 - 1
-        .long   null_idt
+        .quad   null_idt
 
 Entry(cpu_shutdown)
         lidt    null_idtr       /* disable the interrupt handler */

@@ -51,31 +51,34 @@
  */
 
 struct i386_saved_state {
-	unsigned int	gs;
-	unsigned int	fs;
-	unsigned int	es;
-	unsigned int	ds;
-	unsigned int	edi;
-	unsigned int	esi;
-	unsigned int	ebp;
-	unsigned int	cr2;		/* kernel esp stored by pusha -
+	unsigned long	gs;
+	unsigned long	fs;
+	/* TODO: x86_64 registers */
+#ifdef __i386__
+	unsigned long	es;
+	unsigned long	ds;
+#endif
+	unsigned long	edi;
+	unsigned long	esi;
+	unsigned long	ebp;
+	unsigned long	cr2;		/* kernel esp stored by pusha -
 					   we save cr2 here later */
-	unsigned int	ebx;
-	unsigned int	edx;
-	unsigned int	ecx;
-	unsigned int	eax;
-	unsigned int	trapno;
-	unsigned int	err;
-	unsigned int	eip;
-	unsigned int	cs;
-	unsigned int	efl;
-	unsigned int	uesp;
-	unsigned int	ss;
+	unsigned long	ebx;
+	unsigned long	edx;
+	unsigned long	ecx;
+	unsigned long	eax;
+	unsigned long	trapno;
+	unsigned long	err;
+	unsigned long	eip;
+	unsigned long	cs;
+	unsigned long	efl;
+	unsigned long	uesp;
+	unsigned long	ss;
 	struct v86_segs {
-	    unsigned int v86_es;	/* virtual 8086 segment registers */
-	    unsigned int v86_ds;
-	    unsigned int v86_fs;
-	    unsigned int v86_gs;
+	    unsigned long v86_es;	/* virtual 8086 segment registers */
+	    unsigned long v86_ds;
+	    unsigned long v86_fs;
+	    unsigned long v86_gs;
 	} v86_segs;
 };
 
@@ -97,12 +100,20 @@ struct i386_exception_link {
  */
 
 struct i386_kernel_state {
-	int			k_ebx;	/* kernel context */
-	int			k_esp;
-	int			k_ebp;
-	int			k_edi;
-	int			k_esi;
-	int			k_eip;
+	long			k_ebx;	/* kernel context */
+	long			k_esp;
+	long			k_ebp;
+#ifdef __i386__
+	long			k_edi;
+	long			k_esi;
+#endif
+	long			k_eip;
+#ifdef __x86_64__
+	long			k_r12;
+	long			k_r13;
+	long			k_r14;
+	long			k_r15;
+#endif
 };
 
 /*
@@ -144,16 +155,18 @@ struct v86_assist_state {
  */
 
 struct i386_interrupt_state {
-	int	gs;
-	int	fs;
-	int	es;
-	int	ds;
-	int	edx;
-	int	ecx;
-	int	eax;
-	int	eip;
-	int	cs;
-	int	efl;
+	long	gs;
+	long	fs;
+#ifdef __i386__
+	long	es;
+	long	ds;
+#endif
+	long	edx;
+	long	ecx;
+	long	eax;
+	long	eip;
+	long	cs;
+	long	efl;
 };
 
 /*

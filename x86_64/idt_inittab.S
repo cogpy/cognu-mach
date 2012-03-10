@@ -45,9 +45,10 @@ ENTRY(idt_inittab)
 	.byte	n		;\
 	.byte	(((type)&ACC_PL)>>5)|((((type)&(ACC_TYPE|ACC_A))==ACC_INTR_GATE)<<2)	;\
 	.word	KERNEL_CS	;\
-	.long	entry		;\
+	.quad	entry		;\
 	.text
 #else	/* MACH_XEN */
+/* TODO */
 #define	IDT_ENTRY(n,entry,type) \
 	.data	2		;\
 	.long	entry		;\

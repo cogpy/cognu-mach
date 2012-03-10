@@ -31,7 +31,7 @@
 #include <i386/cpu_number.h>
 
 /*
- * Context switch routines for i386.
+ * Context switch routines for x86_64.
  */
 
 ENTRY(Load_context)
@@ -39,17 +39,19 @@ ENTRY(Load_context)
 	movq	TH_KERNEL_STACK(%rcx),%rcx	/* get kernel stack */
 	lea	KERNEL_STACK_SIZE-IKS_SIZE-IEL_SIZE(%rcx),%rdx
 						/* point to stack top */
-	CPU_NUMBER(%rax)
-	movq	%rcx,CX(EXT(active_stacks),%rax)	/* store stack address */
-	movq	%rdx,CX(EXT(kernel_stack),%rax)	/* store stack top */
+	CPU_NUMBER(%eax)
+	movq	%rcx,CX(EXT(active_stacks),%eax)	/* store stack address */
+	movq	%rdx,CX(EXT(kernel_stack),%eax)	/* store stack top */
 
 /* XXX complete */
 
 	movq	KSS_ESP(%rcx),%rsp		/* switch stacks */
-	movq	KSS_ESI(%rcx),%rsi		/* restore registers */
-	movq	KSS_EDI(%rcx),%rdi
-	movq	KSS_EBP(%rcx),%rbp
+	movq	KSS_EBP(%rcx),%rbp		/* restore registers */
 	movq	KSS_EBX(%rcx),%rbx
+	movq	KSS_R12(%rcx),%r12
+	movq	KSS_R13(%rcx),%r13
+	movq	KSS_R14(%rcx),%r14
+	movq	KSS_R15(%rcx),%r15
 	xorq	%rax,%rax			/* return zero (no old thread) */
 	jmp	*KSS_EIP(%rcx)			/* resume thread */
 
@@ -59,36 +61,41 @@ ENTRY(Load_context)
  */
 
 ENTRY(Switch_context)
-	CPU_NUMBER(%rdx)
-	movq	CX(EXT(active_stacks),%rdx),%rcx	/* get old kernel stack */
+	CPU_NUMBER(%eax)
+	movq	CX(EXT(active_stacks),%eax),%rcx	/* get old kernel stack */
 
-	movq	%rbx,KSS_EBX(%rcx)		/* save registers */
+	movq	%r12,KSS_R12(%rcx)		/* save registers */
+	movq	%r13,KSS_R13(%rcx)
+	movq	%r14,KSS_R14(%rcx)
+	movq	%r15,KSS_R15(%rcx)
+	movq	%rbx,KSS_EBX(%rcx)
 	movq	%rbp,KSS_EBP(%rcx)
-	movq	%rdi,KSS_EDI(%rcx)
-	movq	%rsi,KSS_ESI(%rcx)
 	popq	KSS_EIP(%rcx)			/* save return PC */
 	movq	%rsp,KSS_ESP(%rcx)		/* save SP */
 
-	movq	0(%rsp),%rax			/* get old thread */
+	movq	S_ARG0,%rax			/* get old thread */
 	movq	%rcx,TH_KERNEL_STACK(%rax)	/* save old stack */
-	movq	4(%rsp),%rbx			/* get continuation */
+	movq	S_ARG1,%rbx			/* get continuation */
 	movq	%rbx,TH_SWAP_FUNC(%rax)		/* save continuation */
 
-	movq	8(%rsp),%rsi			/* get new thread */
+	movq	S_ARG2,%rsi			/* get new thread */
 
 	movq	TH_KERNEL_STACK(%rsi),%rcx	/* get its kernel stack */
 	lea     KERNEL_STACK_SIZE-IKS_SIZE-IEL_SIZE(%rcx),%rbx
 	        				/* point to stack top */
 
-	movq	%rsi,CX(EXT(active_threads),%rdx)	/* new thread is active */
-	movq	%rcx,CX(EXT(active_stacks),%rdx)	/* set current stack */
-	movq	%rbx,CX(EXT(kernel_stack),%rdx)	/* set stack top */
+	CPU_NUMBER(%eax)
+	movq	%rsi,CX(EXT(active_threads),%eax)	/* new thread is active */
+	movq	%rcx,CX(EXT(active_stacks),%eax)	/* set current stack */
+	movq	%rbx,CX(EXT(kernel_stack),%eax)	/* set stack top */
 
 	movq	KSS_ESP(%rcx),%rsp		/* switch stacks */
-	movq	KSS_ESI(%rcx),%rsi		/* restore registers */
-	movq	KSS_EDI(%rcx),%rdi
-	movq	KSS_EBP(%rcx),%rbp
+	movq	KSS_EBP(%rcx),%rbp		/* restore registers */
 	movq	KSS_EBX(%rcx),%rbx
+	movq	KSS_R12(%rcx),%r12
+	movq	KSS_R13(%rcx),%r13
+	movq	KSS_R14(%rcx),%r14
+	movq	KSS_R15(%rcx),%r15
 	jmp	*KSS_EIP(%rcx)			/* return old thread */
 
 ENTRY(Thread_continue)
@@ -111,22 +118,25 @@ ENTRY(Thread_continue)
  * has no FPU state)
  */
 ENTRY(switch_to_shutdown_context)
-	CPU_NUMBER(%rdx)
-	movq	EXT(active_stacks)(,%rdx,4),%rcx	/* get old kernel stack */
-	movq	%rbx,KSS_EBX(%rcx)		/* save registers */
+	CPU_NUMBER(%eax)
+	movq	EXT(active_stacks)(,%eax,8),%rcx	/* get old kernel stack */
+	movq	%r12,KSS_R12(%rcx)		/* save registers */
+	movq	%r13,KSS_R13(%rcx)
+	movq	%r14,KSS_R14(%rcx)
+	movq	%r15,KSS_R15(%rcx)
+	movq	%rbx,KSS_EBX(%rcx)
 	movq	%rbp,KSS_EBP(%rcx)
-	movq	%rdi,KSS_EDI(%rcx)
-	movq	%rsi,KSS_ESI(%rcx)
 	popq	KSS_EIP(%rcx)   		/* save return PC */
 	movq	%rsp,KSS_ESP(%rcx)		/* save SP */
 
-	movq	0(%rsp),%rax			/* get old thread */
+	movq	S_ARG0,%rax			/* get old thread */
 	movq	%rcx,TH_KERNEL_STACK(%rax)	/* save old stack */
 	movq	$0,TH_SWAP_FUNC(%rax)		/* clear continuation */
-	movq	4(%rsp),%rbx			/* get routine to run next */
-	movq	8(%rsp),%rsi			/* get its argument */
+	movq	S_ARG1,%rbx			/* get routine to run next */
+	movq	S_ARG2,%rsi			/* get its argument */
 
-	movq	EXT(interrupt_stack)(,%rdx,4),%rcx	/* point to its interrupt stack */
+	CPU_NUMBER(%eax)
+	movq	EXT(interrupt_stack)(,%eax,8),%rcx	/* point to its interrupt stack */
 	lea	INTSTACK_SIZE(%rcx),%rsp	/* switch to it (top) */
 
 	pushq	%rax				/* push thread */

@@ -38,27 +38,28 @@
 #include <mach/machine/asm.h>
 
 ENTRY(_setjmp)
-/* XXX complete */
-	movq	4(%rsp),%rcx		/* fetch buffer */
-	movq	%rbx,0(%rcx)
-	movq	%rsi,4(%rcx)
-	movq	%rdi,8(%rcx)
-	movq	%rbp,12(%rcx)		/* save frame pointer of caller */
+	movq	%rbx,0(%rdi)
+	movq	%rbp,8(%rdi)		/* save frame pointer of caller */
+	movq	%r12,16(%rdi)
+	movq	%r13,24(%rdi)
+	movq	%r14,32(%rdi)
+	movq	%r15,40(%rdi)
 	popq	%rdx
-	movq	%rsp,16(%rcx)		/* save stack pointer of caller */
-	movq	%rdx,20(%rcx)		/* save pc of caller */
+	movq	%rsp,48(%rdi)		/* save stack pointer of caller */
+	movq	%rdx,56(%rdi)		/* save pc of caller */
 	xorq	%rax,%rax
         jmp     *%rdx
 
 ENTRY(_longjmp)
-	movq	8(%rsp),%rax		/* return(v) */
-	movq	4(%rsp),%rcx		/* fetch buffer */
-	movq	0(%rcx),%rbx
-	movq	4(%rcx),%rsi
-	movq	8(%rcx),%rdi
-	movq	12(%rcx),%rbp
-	movq	16(%rcx),%rsp
+	movq	%rsi,%rax		/* return(v) */
+	movq	0(%rdi),%rbx
+	movq	8(%rdi),%rbp
+	movq	16(%rdi),%r12
+	movq	24(%rdi),%r13
+	movq	32(%rdi),%r14
+	movq	40(%rdi),%r15
+	movq	48(%rdi),%rsp
 	orq	%rax,%rax
 	jnz	0f
 	incq	%rax
-0:	jmp	*20(%rcx)		/* done, return.... */
+0:	jmp	*56(%rdi)		/* done, return.... */

@@ -399,8 +399,10 @@ void pcb_init(thread)
 	 */
 	pcb->iss.cs = USER_CS;
 	pcb->iss.ss = USER_DS;
+#ifdef __i386__
 	pcb->iss.ds = USER_DS;
 	pcb->iss.es = USER_DS;
+#endif
 	pcb->iss.fs = USER_DS;
 	pcb->iss.gs = USER_DS;
 	pcb->iss.efl = EFL_USER_SET;
@@ -513,8 +515,10 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		    /*
 		     * Zero protected mode segment registers.
 		     */
+#ifdef __i386__
 		    saved_state->ds = 0;
 		    saved_state->es = 0;
+#endif
 		    saved_state->fs = 0;
 		    saved_state->gs = 0;
 
@@ -533,8 +537,10 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		     */
 		    saved_state->cs = USER_CS;
 		    saved_state->ss = USER_DS;
+#ifdef __i386__
 		    saved_state->ds = USER_DS;
 		    saved_state->es = USER_DS;
+#endif
 		    saved_state->fs = USER_DS;
 		    saved_state->gs = USER_DS;
 		}
@@ -547,8 +553,10 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		     */
 		    saved_state->cs = state->cs;
 		    saved_state->ss = state->ss;
+#ifdef __i386__
 		    saved_state->ds = state->ds;
 		    saved_state->es = state->es;
+#endif
 		    saved_state->fs = state->fs;
 		    saved_state->gs = state->gs;
 		}
@@ -701,8 +709,10 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
 		    /*
 		     * 386 mode.
 		     */
+#ifdef __i386__
 		    state->ds = saved_state->ds & 0xffff;
 		    state->es = saved_state->es & 0xffff;
+#endif
 		    state->fs = saved_state->fs & 0xffff;
 		    state->gs = saved_state->gs & 0xffff;
 		}
