@@ -67,6 +67,8 @@ libkernel_a_SOURCES += \
 AM_CFLAGS += -fno-omit-frame-pointer
 endif
 
+AM_CCASFLAGS += -D__ASSEMBLY__
+
 
 #
 # IPC implementation.

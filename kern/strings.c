@@ -175,6 +175,51 @@ strlen(
 
 /*
  * Abstract:
+ *	strsep splits "string" into tokens separated by "delim", by putting a
+ *	\0 at the first occurrence of some of the characters of delim, and
+ *	advancing the pointer past it. It returns a pointer to the start of the
+ *	string.
+ */
+
+char *
+strsep(
+	char **stringp, const char *delim)
+{
+	char *c, *orig = *stringp;
+	if (orig == NULL)
+		return NULL;
+
+	for (c = *stringp; *c; c++)
+		if (strchr(delim, *c)) {
+			*c = 0;
+			*stringp = c+1;
+			return orig;
+		}
+
+	*stringp = NULL;
+	return orig;
+}
+
+/*
+ * Abstract:
+ *	strstr returns the first occurrence of "needle" in the "haystack"
+ *	string, or NULL if there is none.
+ */
+
+char *
+strstr(
+	const char *haystack, const char *needle)
+{
+	int n = strlen(needle);
+
+	for (; *haystack; haystack++) {
+		if (!strncmp(haystack, needle, n))
+			return (char*) haystack;
+	}
+}
+
+/*
+ * Abstract:
  *	memset writes value "c" in the "n" bytes starting at address "s".
  *	The return value is a pointer to the "s" string.
  */

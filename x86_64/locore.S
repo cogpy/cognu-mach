@@ -333,10 +333,12 @@ trap_check_kernel_exit:
 					/* check for the kernel exit sequence */
 	cmpq	$_kret_iret,16(%rsp)	/* on IRET? */
 	je	fault_iret
+#if 0
 	cmpq	$_kret_popl_ds,16(%rsp)	/* popping DS? */
 	je	fault_popl_ds
 	cmpq	$_kret_popl_es,16(%rsp)	/* popping ES? */
 	je	fault_popl_es
+#endif
 	cmpq	$_kret_popl_fs,16(%rsp)	/* popping FS? */
 	je	fault_popl_fs
 	cmpq	$_kret_popl_gs,16(%rsp)	/* popping GS? */

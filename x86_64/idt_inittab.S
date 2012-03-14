@@ -28,6 +28,7 @@
 #include <i386/seg.h>
 #include <i386/i386asm.h>
 
+#include <xen/public/arch-x86/xen-x86_64.h>
 
 /* We'll be using macros to fill in a table in data hunk 2
    while writing trap entrypoint routines at the same time.
@@ -44,7 +45,7 @@ ENTRY(idt_inittab)
 	.data	2		;\
 	.byte	n		;\
 	.byte	(((type)&ACC_PL)>>5)|((((type)&(ACC_TYPE|ACC_A))==ACC_INTR_GATE)<<2)	;\
-	.word	KERNEL_CS	;\
+	.word	FLAT_KERNEL_CS	;\
 	.quad	entry		;\
 	.text
 #else	/* MACH_XEN */

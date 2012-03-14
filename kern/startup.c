@@ -112,7 +112,7 @@ void setup_main()
 	    SoftDebugger("init");
 	}
 #else	/* MACH_KDB */
-	if (0 && strstr (kernel_cmdline, "-H ")) {
+	if (strstr (kernel_cmdline, "-H ")) {
 	    reboot_on_panic = 0;
 	}
 #endif	/* MACH_KDB */
@@ -155,7 +155,6 @@ void setup_main()
 	 *	Initialize the IPC, task, and thread subsystems.
 	 */
 	task_init();
-	asm volatile ("ud2");
 
 	thread_init();
 	swapper_init();
@@ -181,6 +180,7 @@ void setup_main()
 	 * Create the thread, and point it at the routine.
 	 */
 	(void) thread_create(kernel_task, &startup_thread);
+	asm volatile ("ud2");
 	thread_start(startup_thread, start_kernel_threads);
 
 	/*
@@ -213,6 +213,8 @@ void setup_main()
 void start_kernel_threads()
 {
 	register int	i;
+
+	asm volatile ("ud2");
 
 	/*
 	 *	Create the idle threads and the other
