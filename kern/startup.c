@@ -155,7 +155,6 @@ void setup_main()
 	 *	Initialize the IPC, task, and thread subsystems.
 	 */
 	task_init();
-
 	thread_init();
 	swapper_init();
 #if	MACH_HOST
