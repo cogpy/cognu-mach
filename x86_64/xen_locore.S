@@ -31,6 +31,8 @@ int_active:
 	.globl	hyp_callback, hyp_failsafe_callback
 	P2ALIGN(TEXT_ALIGN)
 hyp_callback:
+	popq	%rcx
+	popq	%r11
 	pushq	%rax
 	jmp	EXT(all_intrs)
 
@@ -74,14 +76,25 @@ _hyp_sti:
 	pushq	%rax
 	pushq	%rcx
 	pushq	%rdx
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%r11
 	incl	int_active		/* currently handling interrupts */
 
 	pushq	$0
 	pushq	$0
 	call	EXT(hyp_c_callback)
-	popq	%rdx
-	popq	%rdx
+	addq	$0x10,%rsp
 
+	popq	%r11
+	popq	%r10
+	popq	%r9
+	popq	%r8
+	popq	%rsi
+	popq	%rdi
 	popq	%rdx
 	popq	%rcx
 	popq	%rax
@@ -92,20 +105,28 @@ _hyp_sti:
 
 /* Hypervisor failed to reload segments. Dump them.  */
 hyp_failsafe_callback:
+ud2
 #if 1
 /* TODO: FIXME */
 	/* load sane segments */
 	mov	%ss, %ax
+#if 0
 	mov	%ax, %ds
 	mov	%ax, %es
+#endif
 	mov	%ax, %fs
 	mov	%ax, %gs
 	movq	%rsp, %rdi
 	call	EXT(hyp_failsafe_c_callback)
 #else
-	popl	%ds
-	popl	%es
+	//popl	%ds
+	//popl	%es
 	popl	%fs
 	popl	%gs
-	iret
+
+movq (%rsp),%rax
+ud2
+	orb	$3,1*8(%rsp)
+	orb	$3,4*8(%rsp)
+	iretq
 #endif

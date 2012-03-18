@@ -58,12 +58,21 @@ ENTRY(idt_inittab)
 	.text
 #endif	/* MACH_XEN */
 
+#ifdef MACH_XEN
+#define INT_FIX	\
+	popq	%rcx				;\
+	popq	%r11
+#else
+#define INT_FIX
+#endif
+
 /*
  * No error code.  Clear error code and push trap number.
  */
 #define	EXCEPTION(n,name) \
 	IDT_ENTRY(n,EXT(name),ACC_PL_K|ACC_TRAP_GATE);\
 ENTRY(name)				;\
+	INT_FIX				;\
 	pushq	$(0)			;\
 	pushq	$(n)			;\
 	jmp	EXT(alltraps)
@@ -74,6 +83,7 @@ ENTRY(name)				;\
 #define	EXCEP_USR(n,name) \
 	IDT_ENTRY(n,EXT(name),ACC_PL_U|ACC_TRAP_GATE);\
 ENTRY(name)				;\
+	INT_FIX				;\
 	pushq	$(0)			;\
 	pushq	$(n)			;\
 	jmp	EXT(alltraps)
@@ -84,6 +94,7 @@ ENTRY(name)				;\
 #define	EXCEP_ERR(n,name) \
 	IDT_ENTRY(n,EXT(name),ACC_PL_K|ACC_INTR_GATE);\
 ENTRY(name)				;\
+	INT_FIX				;\
 	pushq	$(n)			;\
 	jmp	EXT(alltraps)
 

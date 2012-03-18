@@ -213,7 +213,11 @@ extern void pmap_clear_bootstrap_pagetable(pt_entry_t *addr);
 #endif	/* MACH_XEN */
 
 #if PAE
+#ifdef __x86_64__
+#define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->l4base))
+#else
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->pdpbase))
+#endif
 #else	/* PAE */
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->dirbase))
 #endif	/* PAE */

@@ -38,8 +38,8 @@
 #include <i386/cpu_number.h>
 #include <i386/xen.h>
 
-#define pusha pushq %rax ; pushq %rcx ; pushq %rdx ; pushq %rbx ; pushq %rsp ; pushq %rbp ; pushq %rsi ; pushq %rdi
-#define popa popq %rdi ; popq %rsi ; popq %rbp ; popq %rsp ; popq %rbx ; popq %rdx ; popq %rcx ; popq %rax
+#define pusha pushq %rax ; pushq %rcx ; pushq %rdx ; pushq %rbx ; pushq %rsp ; pushq %rbp ; pushq %rsi ; pushq %rdi ; pushq %r8 ; pushq %r9 ; pushq %r10 ; pushq %r11 ; pushq %r12 ; pushq %r13 ; pushq %r14 ; pushq %r15
+#define popa popq %r15 ; popq %r14 ; popq %r13 ; popq %r12 ; popq %r11 ; popq %r10 ; popq %r9 ; popq %r8 ; popq %rdi ; popq %rsi ; popq %rbp ; popq %rsp ; popq %rbx ; popq %rdx ; popq %rcx ; popq %rax
 
 /*
  * Fault recovery.
@@ -442,7 +442,7 @@ ENTRY(t_page_fault)
 #else	/* MACH_XEN */
 	movq	%cr2,%rax		/* get the faulting address */
 #endif	/* MACH_XEN */
-	movq	%rax,24(%rsp)		/* save in rsp save slot */
+	movq	%rax,R_CR2-R_R15(%rsp)	/* save in rsp save slot */
 	jmp	trap_push_segs		/* continue fault */
 
 /*
@@ -458,6 +458,7 @@ ENTRY(t_page_fault)
 ENTRY(alltraps)
 	pusha				/* save the general registers */
 trap_push_segs:
+ud2
 	//pushq	%ds			/* and the segment registers */
 	//pushq	%es
 	pushq	%fs
@@ -468,8 +469,10 @@ trap_push_segs:
 	   because the kernel uses user segment registers for copyin/copyout.
 	   (XXX Would it be smarter just to use fs or gs for that?)  */
 	mov	%ss,%ax			/* switch to kernel data segment */
+#if 0
 	mov	%ax,%ds			/* (same as kernel stack segment) */
 	mov	%ax,%es
+#endif
 	mov	%ax,%fs
 	mov	%ax,%gs
 
@@ -535,7 +538,14 @@ _kret_popl_ds:
 	popa				/* restore general registers */
 	addq	$16,%rsp		/* discard trap number and error code */
 _kret_iret:
-	iret				/* return from interrupt */
+	
+movq (%rsp),%rax
+ud2
+#ifdef MACH_XEN
+	orb	$3,1*8(%rsp)
+	orb	$3,4*8(%rsp)
+#endif
+	iretq				/* return from interrupt */
 
 
 /*
@@ -608,6 +618,13 @@ ENTRY(call_continuation)
 	jmp	*%rax				/* goto continuation */
 
 
+#ifdef MACH_XEN
+#define INT_FIX	\
+	popq	%rcx				;\
+	popq	%r11
+#else
+#define INT_FIX
+#endif
 
 #define INTERRUPT(n)				\
 	.data	2				;\
@@ -615,6 +632,7 @@ ENTRY(call_continuation)
 	.text					;\
 	P2ALIGN(TEXT_ALIGN)			;\
 0:						;\
+	INT_FIX					;\
 	pushq	%rax				;\
 	movq	$(n),%rax			;\
 	jmp	EXT(all_intrs)
@@ -648,6 +666,12 @@ INTERRUPT(15)
 ENTRY(all_intrs)
 	pushq	%rcx			/* save registers */
 	pushq	%rdx
+	pushq	%rsi
+	pushq	%rdi
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%r11
 	cld				/* clear direction flag */
 
 	cmpq	%ss:EXT(int_stack_high),%rsp /* on an interrupt stack? */
@@ -658,14 +682,17 @@ ENTRY(all_intrs)
 	pushq	%fs
 	pushq	%gs
 	mov	%ss,%dx			/* switch to kernel segments */
+#if 0
 	mov	%dx,%ds
 	mov	%dx,%es
+#endif
 	mov	%dx,%fs
 	mov	%dx,%gs
 
 	CPU_NUMBER(%edx)
 
 	movq	CX(EXT(int_stack_top),%edx),%rcx
+
 	xchgq	%rcx,%rsp		/* switch to interrupt stack */
 
 #if	STAT_TIME
@@ -704,20 +731,42 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 	pop	%fs
 	//pop	%es
 	//pop	%ds
+	pop	%r11
+	pop	%r10
+	pop	%r9
+	pop	%r8
+	pop	%rdi
+	pop	%rsi
 	pop	%rdx
 	pop	%rcx
 	pop	%rax
-	iret				/* return to caller */
+
+#ifdef MACH_XEN
+	orb	$3,1*8(%rsp)
+	orb	$3,4*8(%rsp)
+#endif
+	iretq				/* return to caller */
 
 int_from_intstack:
 	cmpq	$EXT(_intstack),%rsp	/* seemingly looping? */
 	jb	stack_overflowed	/* if not: */
 	call	EXT(interrupt)		/* call interrupt routine */
 _return_to_iret_i:			/* ( label for kdb_kintr) */
+	pop	%r11
+	pop	%r10
+	pop	%r9
+	pop	%r8
+	pop	%rdi
+	pop	%rsi
 	pop	%rdx			/* must have been on kernel segs */
 	pop	%rcx
 	pop	%rax			/* no ASTs */
-	iret
+
+#ifdef MACH_XEN
+	orb	$3,1*8(%rsp)
+	orb	$3,4*8(%rsp)
+#endif
+	iretq
 
 stack_overflowed:
 	ud2
@@ -743,6 +792,12 @@ ast_from_interrupt:
 	pop	%fs
 	//pop	%es
 	//pop	%ds
+	popq	%r11
+	popq	%r10
+	popq	%r9
+	popq	%r8
+	popq	%rdi
+	popq	%rsi
 	popq	%rdx
 	popq	%rcx
 	popq	%rax
@@ -754,8 +809,10 @@ ast_from_interrupt:
 	push	%fs
 	push	%gs
 	mov	%ss,%dx			/* switch to kernel segments */
+#if 0
 	mov	%dx,%ds
 	mov	%dx,%es
+#endif
 	mov	%dx,%fs
 	mov	%dx,%gs
 
@@ -880,8 +937,8 @@ kdb_from_iret_i:			/* on interrupt stack */
 	pushq	$0			/* zero error code */
 	pushq	$0			/* zero trap number */
 	pusha				/* save general registers */
-	push	%ds			/* save segment registers */
-	push	%es
+	//push	%ds			/* save segment registers */
+	//push	%es
 	push	%fs
 	push	%gs
 	pushq	%rsp			/* pass regs, */
@@ -895,7 +952,14 @@ kdb_from_iret_i:			/* on interrupt stack */
 	pop	%ds
 	popa				/* restore general registers */
 	addq	$16,%rsp
-	iret
+
+movq (%rsp),%rax
+ud2
+#ifdef MACH_XEN
+	orb	$3,1*8(%rsp)
+	orb	$3,4*8(%rsp)
+#endif
+	iretq
 
 #endif	/* MACH_KDB */
 
@@ -962,8 +1026,8 @@ ttd_from_iret_i:			/* on interrupt stack */
 	pushq	$0			/* zero error code */
 	pushq	$0			/* zero trap number */
 	pusha				/* save general registers */
-	push	%ds			/* save segment registers */
-	push	%es
+	//push	%ds			/* save segment registers */
+	//push	%es
 	push	%fs
 	push	%gs
 	pushq	%rsp			/* pass regs, */
@@ -977,7 +1041,14 @@ ttd_from_iret_i:			/* on interrupt stack */
 	pop	%ds
 	popa				/* restore general registers */
 	addq	$16,%rsp
-	iret
+
+movq (%rsp),%rax
+ud2
+#ifdef MACH_XEN
+	orb	$3,1*8(%rsp)
+	orb	$3,4*8(%rsp)
+#endif
+	iretq
 
 #endif	/* MACH_TTD */
 
@@ -1000,6 +1071,8 @@ syscall_entry_2:
 
 	pushq	%rax			/* save system call number */
 	pushq	$0			/* clear trap number slot */
+
+	ud2
 
 	pusha				/* save the general registers */
 	//pushq	%ds			/* and the segment registers */

@@ -180,7 +180,6 @@ void setup_main()
 	 * Create the thread, and point it at the routine.
 	 */
 	(void) thread_create(kernel_task, &startup_thread);
-	asm volatile ("ud2");
 	thread_start(startup_thread, start_kernel_threads);
 
 	/*
@@ -213,8 +212,6 @@ void setup_main()
 void start_kernel_threads()
 {
 	register int	i;
-
-	asm volatile ("ud2");
 
 	/*
 	 *	Create the idle threads and the other
@@ -252,6 +249,10 @@ void start_kernel_threads()
 	 *	Create the device service.
 	 */
 	device_service_create();
+
+	while(1)
+	  ;
+	asm volatile ("ud2");
 
 	/*
 	 * 	Initialize kernel task's creation time.
