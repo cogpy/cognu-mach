@@ -48,7 +48,6 @@ struct real_descriptor gdt[GDTSZ];
 void
 gdt_init()
 {
-#ifndef __x86_64__
 	/* Initialize the kernel code and data segment descriptors.  */
 	fill_gdt_descriptor(KERNEL_CS,
 			    LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
@@ -58,7 +57,6 @@ gdt_init()
 			    LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
 			    LINEAR_MAX_KERNEL_ADDRESS - (LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) - 1,
 			    ACC_PL_K|ACC_DATA_W, SZ_32);
-#endif
 #ifndef	MACH_HYP
 	fill_gdt_descriptor(LINEAR_DS,
 			    0,
