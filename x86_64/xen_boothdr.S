@@ -26,7 +26,6 @@
 	.ascii  ",ELF_PADDR_OFFSET=0x40000000"
 	.ascii	",HYPERCALL_PAGE=0x2"
 	.ascii	",LOADER=generic"
-	.ascii	",FEATURES=pae_pgdir_above_4gb"
 #ifndef	MACH_PSEUDO_PHYS
 	.ascii	",FEATURES=!auto_translated_physmap"
 #endif
