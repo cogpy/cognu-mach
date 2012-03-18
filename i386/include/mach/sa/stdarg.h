@@ -29,7 +29,7 @@
 #ifndef _MACH_SA_STDARG_H_
 #define _MACH_SA_STDARG_H_
 
-#if __GNUC__ >= 3 || x86_64
+#if __GNUC__ >= 3 || defined(__x86_64__)
 
 typedef __builtin_va_list va_list;
 

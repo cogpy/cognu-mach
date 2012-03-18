@@ -641,7 +641,7 @@ void pmap_bootstrap()
 		for (i = 0; i < PDPNUM; i++)
 			WRITE_PTE(&kernel_pmap->pdpbase[i], pa_to_pte(_kvtophys((void *) kernel_pmap->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
 	}
-#if x86_64
+#ifdef __x86_64__
 	kernel_pmap->l4base = (pt_entry_t*)phystokv(pmap_grab_page());
 	memset(kernel_pmap->l4base, 0, INTEL_PGBYTES);
 	WRITE_PTE(&kernel_pmap->l4base[0], pa_to_pte(_kvtophys(kernel_pmap->pdpbase)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
@@ -678,7 +678,7 @@ void pmap_bootstrap()
 		int i;
 		int n_l1map;
 #ifdef	PAE
-#if x86_64
+#ifdef __x86_64__
 		base = (pt_entry_t*) ptetokv(base[0]);
 #endif /* x86_64 */
 		pt_entry_t *l2_map = (pt_entry_t*) ptetokv(base[0]);

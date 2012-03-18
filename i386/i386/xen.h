@@ -46,7 +46,7 @@ MACH_INLINE unsigned long xchgl(volatile unsigned long *ptr, unsigned long x)
 #define _TOSTR(x) #x
 #define TOSTR(x) _TOSTR (x)
 
-#if i386
+#ifdef __i386__
 #define _hypcall_ret "=a"
 #define _hypcall_arg1 "ebx"
 #define _hypcall_arg2 "ecx"
@@ -54,7 +54,7 @@ MACH_INLINE unsigned long xchgl(volatile unsigned long *ptr, unsigned long x)
 #define _hypcall_arg4 "esi"
 #define _hypcall_arg5 "edi"
 #endif
-#if x86_64
+#ifdef __x86_64__
 #define _hypcall_ret "=a"
 #define _hypcall_arg1 "rdi"
 #define _hypcall_arg2 "rsi"
