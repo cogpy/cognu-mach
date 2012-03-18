@@ -75,12 +75,12 @@ typedef unsigned int	pt_entry_t;
 
 #define INTEL_OFFMASK	0xfff	/* offset within page */
 #if PAE
-#if x86_64
+#ifdef __x86_64__
 #define L4SHIFT		39	/* L4 shift */
 #define L4MASK		0x1ff	/* mask for L4 index */
 #endif
 #define PDPSHIFT	30	/* page directory pointer */
-#if x86_64
+#ifdef __x86_64__
 /* Enough for 8GiB addressing space. */
 #define PDPNUM		8	/* number of page directory pointers */
 #else
@@ -102,7 +102,7 @@ typedef unsigned int	pt_entry_t;
 /*
  *	Convert linear offset to L4 pointer index
  */
-#if x86_64
+#ifdef __x86_64__
 #define lin2l4num(a)	(((a) >> L4SHIFT) & L4MASK)
 #endif
 
@@ -190,7 +190,7 @@ struct pmap {
 #if PAE
 	pt_entry_t	*pdpbase;	/* page directory pointer table */
 #endif	/* PAE */
-#if x86_64
+#ifdef __x86_64__
 	pt_entry_t	*l4base;	/* l4 table */
 #endif	/* x86_64 */
 	int		ref_count;	/* reference count */
