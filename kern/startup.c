@@ -249,10 +249,6 @@ void start_kernel_threads()
 	 */
 	device_service_create();
 
-	while(1)
-	  ;
-	asm volatile ("ud2");
-
 	/*
 	 * 	Initialize kernel task's creation time.
 	 * When we created the kernel task in task_init, the mapped

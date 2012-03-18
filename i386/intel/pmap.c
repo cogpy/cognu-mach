@@ -1180,22 +1180,24 @@ pmap_t pmap_create(size)
 #endif	/* MACH_XEN */
 
 #if PAE
+	if (kmem_alloc_wired(kernel_map,
+			     (vm_offset_t *)&p->pdpbase, INTEL_PGBYTES)
+							!= KERN_SUCCESS)
+		panic("pmap_create");
+	memset(p->pdpbase, 0, INTEL_PGBYTES);
+	{
+		int i;
+		for (i = 0; i < PDPNUM; i++)
+			WRITE_PTE(&p->pdpbase[i], pa_to_pte(kvtophys((vm_offset_t) p->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
+	}
 #ifdef __x86_64__
 	if (kmem_alloc_wired(kernel_map,
 			     (vm_offset_t *)&p->l4base, INTEL_PGBYTES)
 							!= KERN_SUCCESS)
 		panic("pmap_create");
-	WRITE_PTE(&p->l4base[0], pa_to_pte(kvtophys((vm_offset_t) p->pdpbase)) | INTEL_PTE_VALID);
+	memset(p->l4base, 0, INTEL_PGBYTES);
+	WRITE_PTE(&p->l4base[0], pa_to_pte(kvtophys((vm_offset_t) p->pdpbase)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
 #endif
-	if (kmem_alloc_wired(kernel_map,
-			     (vm_offset_t *)&p->pdpbase, INTEL_PGBYTES)
-							!= KERN_SUCCESS)
-		panic("pmap_create");
-	{
-		int i;
-		for (i = 0; i < PDPNUM; i++)
-			WRITE_PTE(&p->pdpbase[i], pa_to_pte(kvtophys((vm_offset_t) p->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID);
-	}
 #ifdef	MACH_XEN
 #ifdef __x86_64__
 	pmap_set_page_readonly(p->l4base);
@@ -1282,8 +1284,14 @@ void pmap_destroy(p)
 	kmem_free(kernel_map, (vm_offset_t)p->dirbase, PDPNUM * INTEL_PGBYTES);
 #if PAE
 #ifdef	MACH_XEN
+#ifdef __x86_64__
+	pmap_set_page_readwrite(p->l4base);
+#endif
 	pmap_set_page_readwrite(p->pdpbase);
 #endif	/* MACH_XEN */
+#ifdef __x86_64__
+	kmem_free(kernel_map, (vm_offset_t)p->l4base, INTEL_PGBYTES);
+#endif
 	kmem_free(kernel_map, (vm_offset_t)p->pdpbase, INTEL_PGBYTES);
 #endif	/* PAE */
 	kmem_cache_free(&pmap_cache, (vm_offset_t) p);

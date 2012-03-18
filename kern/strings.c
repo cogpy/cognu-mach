@@ -173,6 +173,13 @@ strlen(
 	return string - 1 - ret;
 }
 
+char *strchr(const char *s, int c)
+{
+	for (; *s; s++)
+		if (*s == c)
+			return s;
+}
+
 /*
  * Abstract:
  *	strsep splits "string" into tokens separated by "delim", by putting a

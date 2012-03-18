@@ -99,7 +99,7 @@ ENTRY(Switch_context)
 	jmp	*KSS_EIP(%rcx)			/* return old thread */
 
 ENTRY(Thread_continue)
-	pushq	%rax				/* push the thread argument */
+	movq	%rax,%rdi			/* push the thread argument */
 	xorq	%rbp,%rbp			/* zero frame pointer */
 	call	*%rbx				/* call real continuation */
 
@@ -118,6 +118,7 @@ ENTRY(Thread_continue)
  * has no FPU state)
  */
 ENTRY(switch_to_shutdown_context)
+ud2
 	CPU_NUMBER(%eax)
 	movq	EXT(active_stacks)(,%eax,8),%rcx	/* get old kernel stack */
 	movq	%r12,KSS_R12(%rcx)		/* save registers */

@@ -1280,8 +1280,8 @@ ENTRY(copyin)
 Entry(copyinmsg)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
-	movq	$USER_DS,%rax		/* use user data segment for accesses */
-	mov	%ax,%ds
+	//movq	$USER_DS,%rax		/* use user data segment for accesses */
+	//mov	%ax,%ds
 
 	/*cld*/				/* count up: default mode in all GCC code */
 	movq	%rdx,%rcx		/* move by longwords first */
@@ -1297,8 +1297,8 @@ Entry(copyinmsg)
 	xorq	%rax,%rax		/* return 0 for success */
 
 copyin_ret:
-	mov	%ss,%di			/* restore DS to kernel segment */
-	mov	%di,%ds
+	//mov	%ss,%di			/* restore DS to kernel segment */
+	//mov	%di,%ds
 
 	ret				/* and return */
 
@@ -1316,8 +1316,8 @@ ENTRY(copyout)
 Entry(copyoutmsg)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
-	movq	$USER_DS,%rax		/* use user data segment for accesses */
-	mov	%ax,%es
+	//movq	$USER_DS,%rax		/* use user data segment for accesses */
+	//mov	%ax,%es
 
 	movq	%rdx,%rax		/* use count */
 	/*cld*/				/* count up: always this way in GCC code */
@@ -1334,8 +1334,8 @@ Entry(copyoutmsg)
 	xorq	%rax,%rax		/* return 0 for success */
 
 copyout_ret:
-	mov	%ss,%di			/* restore ES to kernel segment */
-	mov	%di,%es
+	//mov	%ss,%di			/* restore ES to kernel segment */
+	//mov	%di,%es
 
 	ret				/* and return */
 
