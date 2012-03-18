@@ -163,7 +163,7 @@ void simple_lock(
 	info->l = l;
 	/* XXX we want our return address, if possible */
 #ifdef	i386
-	info->ra = *((unsigned int *)&l - 1);
+	info->ra = *((unsigned long *)&l - 1);
 #endif	/* i386 */
 }
 
@@ -181,7 +181,7 @@ boolean_t simple_lock_try(
 	info->l = l;
 	/* XXX we want our return address, if possible */
 #ifdef	i386
-	info->ra = *((unsigned int *)&l - 1);
+	info->ra = *((unsigned long *)&l - 1);
 #endif	/* i386 */
 
 	return TRUE;
