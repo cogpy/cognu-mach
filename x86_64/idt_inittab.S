@@ -46,6 +46,7 @@ ENTRY(idt_inittab)
 	.byte	n		;\
 	.byte	(((type)&ACC_PL)>>5)|((((type)&(ACC_TYPE|ACC_A))==ACC_INTR_GATE)<<2)	;\
 	.word	FLAT_KERNEL_CS	;\
+	.long	0	/*pad*/	;\
 	.quad	entry		;\
 	.text
 #else	/* MACH_XEN */
@@ -57,14 +58,6 @@ ENTRY(idt_inittab)
 	.word	type		;\
 	.text
 #endif	/* MACH_XEN */
-
-#ifdef MACH_XEN
-#define INT_FIX	\
-	popq	%rcx				;\
-	popq	%r11
-#else
-#define INT_FIX
-#endif
 
 /*
  * No error code.  Clear error code and push trap number.
@@ -148,5 +141,6 @@ EXCEPTION(0x1f,t_trap_1f)
 	.long	0
 #ifdef	MACH_XEN
 	.long	0
+	.quad	0
 #endif	/* MACH_XEN */
 

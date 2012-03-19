@@ -140,11 +140,10 @@ ud2
 	movq	EXT(interrupt_stack)(,%eax,8),%rcx	/* point to its interrupt stack */
 	lea	INTSTACK_SIZE(%rcx),%rsp	/* switch to it (top) */
 
-	pushq	%rax				/* push thread */
+	movq	%rax,%rdi			/* push thread */
 	call	EXT(thread_dispatch)		/* reschedule thread */
-	addq	$8,%rsp				/* clean stack */
 
-	pushq	%rsi				/* push argument */
+	movq	%rsi,%rdi			/* push argument */
 	call	*%rbx				/* call routine to run */
 	hlt					/* (should never return) */
 

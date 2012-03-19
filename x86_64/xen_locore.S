@@ -84,10 +84,9 @@ _hyp_sti:
 	pushq	%r11
 	incl	int_active		/* currently handling interrupts */
 
-	pushq	$0
-	pushq	$0
+	xorq	%rdi,%rdi
+	xorq	%rsi,%rsi
 	call	EXT(hyp_c_callback)
-	addq	$0x10,%rsp
 
 	popq	%r11
 	popq	%r10
@@ -126,7 +125,17 @@ ud2
 
 movq (%rsp),%rax
 ud2
-	orb	$3,1*8(%rsp)
-	orb	$3,4*8(%rsp)
 	iretq
 #endif
+
+#undef iretq
+ENTRY(hyp_iretq)
+	testb	$2,1*8(%rsp)
+	jz	slow
+	iretq
+
+slow:
+/* There is no ring 1/2 on x86_64, so going back to kernel needs to go through
+ * hypervisor */
+	pushq	$0
+	jmp	__hyp_iret

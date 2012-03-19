@@ -38,8 +38,8 @@
 #include <i386/cpu_number.h>
 #include <i386/xen.h>
 
-#define pusha pushq %rax ; pushq %rcx ; pushq %rdx ; pushq %rbx ; pushq %rsp ; pushq %rbp ; pushq %rsi ; pushq %rdi ; pushq %r8 ; pushq %r9 ; pushq %r10 ; pushq %r11 ; pushq %r12 ; pushq %r13 ; pushq %r14 ; pushq %r15
-#define popa popq %r15 ; popq %r14 ; popq %r13 ; popq %r12 ; popq %r11 ; popq %r10 ; popq %r9 ; popq %r8 ; popq %rdi ; popq %rsi ; popq %rbp ; popq %rsp ; popq %rbx ; popq %rdx ; popq %rcx ; popq %rax
+#define pusha pushq %rax ; pushq %rcx ; pushq %rdx ; pushq %rbx ; subq $8,%rsp ; pushq %rbp ; pushq %rsi ; pushq %rdi ; pushq %r8 ; pushq %r9 ; pushq %r10 ; pushq %r11 ; pushq %r12 ; pushq %r13 ; pushq %r14 ; pushq %r15
+#define popa popq %r15 ; popq %r14 ; popq %r13 ; popq %r12 ; popq %r11 ; popq %r10 ; popq %r9 ; popq %r8 ; popq %rdi ; popq %rsi ; popq %rbp ; addq $8,%rsp ; popq %rbx ; popq %rdx ; popq %rcx ; popq %rax
 
 /*
  * Fault recovery.
@@ -317,14 +317,17 @@ ENTRY(start_timer)
  *	    40	old registers (trap is from kernel)
  */
 ENTRY(t_gen_prot)
+	INT_FIX
 	pushq	$(T_GENERAL_PROTECTION)	/* indicate fault type  */
 	jmp	trap_check_kernel_exit	/* check for kernel exit sequence */
 
 ENTRY(t_segnp)
+	INT_FIX
 	pushq	$(T_SEGMENT_NOT_PRESENT)
 					/* indicate fault type */
 
 trap_check_kernel_exit:
+ud2
 	testq	$(EFL_VM),32(%rsp)	/* is trap from V86 mode? */
 	jnz	EXT(alltraps)		/* isn`t kernel trap if so */
 	/* Note: handling KERNEL_RING value by hand */
@@ -415,6 +418,7 @@ push_segregs:
  * bit set.
  */
 ENTRY(t_debug)
+	INT_FIX
 	testq	$(EFL_VM),16(%rsp)	/* is trap from V86 mode? */
 	jnz	0f			/* isn`t kernel trap if so */
 	/* Note: handling KERNEL_RING value by hand */
@@ -435,6 +439,7 @@ ENTRY(t_debug)
  * Page fault traps save cr2.
  */
 ENTRY(t_page_fault)
+	INT_FIX
 	pushq	$(T_PAGE_FAULT)		/* mark a page fault trap */
 	pusha				/* save the general registers */
 #ifdef	MACH_XEN
@@ -458,7 +463,6 @@ ENTRY(t_page_fault)
 ENTRY(alltraps)
 	pusha				/* save the general registers */
 trap_push_segs:
-ud2
 	//pushq	%ds			/* and the segment registers */
 	//pushq	%es
 	pushq	%fs
@@ -492,9 +496,9 @@ trap_from_user:
 	xchgq	%rbx,%rsp		/* switch to kernel stack */
 					/* user regs pointer already set */
 _take_trap:
-	pushq	%rbx			/* pass register save area to trap */
+	movq	%rbx,%rdi		/* pass register save area to trap */
 	call	EXT(user_trap)		/* call user trap routine */
-	movq	8(%rsp),%rsp		/* switch back to PCB stack */
+	movq	(%rsp),%rsp		/* switch back to PCB stack */
 
 	orq     %rax,%rax               /* emulated syscall? */
 	jz      _return_from_trap       /* no, just return */
@@ -538,13 +542,6 @@ _kret_popl_ds:
 	popa				/* restore general registers */
 	addq	$16,%rsp		/* discard trap number and error code */
 _kret_iret:
-	
-movq (%rsp),%rax
-ud2
-#ifdef MACH_XEN
-	orb	$3,1*8(%rsp)
-	orb	$3,4*8(%rsp)
-#endif
 	iretq				/* return from interrupt */
 
 
@@ -568,16 +565,15 @@ trap_from_kernel:
 	movq	CX(EXT(kernel_stack),%edx),%rsp
 1:
 	pushq	%rbx			/* save old stack */
-	pushq	%rbx			/* pass as parameter */
+	movq	%rbx,%rdi		/* pass as parameter */
 	call	EXT(kernel_trap)	/* to kernel trap routine */
-	addq	$8,%rsp			/* pop parameter */
 	popq	%rsp			/* return to old stack */
 #else	/* MACH_KDB || MACH_TTD */
 
-	pushq	%rsp			/* pass parameter */
+	movq	%rsp,%rdi		/* pass parameter */
 	call	EXT(kernel_trap)	/* to kernel trap routine */
-	addq	$8,%rsp			/* pop parameter */
 #endif	/* MACH_KDB || MACH_TTD */
+
 	jmp	_return_from_kernel
 
 
@@ -617,14 +613,6 @@ ENTRY(call_continuation)
 	pushq	$0				/* Dummy return address */
 	jmp	*%rax				/* goto continuation */
 
-
-#ifdef MACH_XEN
-#define INT_FIX	\
-	popq	%rcx				;\
-	popq	%r11
-#else
-#define INT_FIX
-#endif
 
 #define INTERRUPT(n)				\
 	.data	2				;\
@@ -741,10 +729,6 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 	pop	%rcx
 	pop	%rax
 
-#ifdef MACH_XEN
-	orb	$3,1*8(%rsp)
-	orb	$3,4*8(%rsp)
-#endif
 	iretq				/* return to caller */
 
 int_from_intstack:
@@ -762,10 +746,6 @@ _return_to_iret_i:			/* ( label for kdb_kintr) */
 	pop	%rcx
 	pop	%rax			/* no ASTs */
 
-#ifdef MACH_XEN
-	orb	$3,1*8(%rsp)
-	orb	$3,4*8(%rsp)
-#endif
 	iretq
 
 stack_overflowed:
@@ -916,9 +896,8 @@ kdb_from_iret:
 	pushq	%rbp
 	pushq	%rsi
 	pushq	%rdi
-	pushq	%rsp			/* pass regs */
+	movq	%rsp,%rdi		/* pass regs */
 	call	EXT(kdb_kentry)		/* to kdb */
-	addq	$8,%rsp			/* pop parameters */
 	popq	%rdi			/* restore registers */
 	popq	%rsi
 	popq	%rbp
@@ -941,11 +920,10 @@ kdb_from_iret_i:			/* on interrupt stack */
 	//push	%es
 	push	%fs
 	push	%gs
-	pushq	%rsp			/* pass regs, */
-	pushq	$0			/* code, */
-	pushq	$-1			/* type to kdb */
+	movq	%rsp,%rdx		/* pass regs, */
+	movq	$0,%rsi			/* code, */
+	movq	$-1,%rdi		/* type to kdb */
 	call	EXT(kdb_trap)
-	addq	$24,%rsp		/* remove parameters */
 	pop	%gs			/* restore segment registers */
 	pop	%fs
 	pop	%es
@@ -955,10 +933,6 @@ kdb_from_iret_i:			/* on interrupt stack */
 
 movq (%rsp),%rax
 ud2
-#ifdef MACH_XEN
-	orb	$3,1*8(%rsp)
-	orb	$3,4*8(%rsp)
-#endif
 	iretq
 
 #endif	/* MACH_KDB */
@@ -1005,9 +979,8 @@ ttd_from_iret:
 	pushq	%rbp
 	pushq	%rsi
 	pushq	%rdi
-	pushq	%rsp			/* pass regs */
+	movq	%rsp,%rdi		/* pass regs */
 	call	_kttd_netentry		/* to kdb */
-	addq	$8,%rsp			/* pop parameters */
 	popq	%rdi			/* restore registers */
 	popq	%rsi
 	popq	%rbp
@@ -1030,11 +1003,10 @@ ttd_from_iret_i:			/* on interrupt stack */
 	//push	%es
 	push	%fs
 	push	%gs
-	pushq	%rsp			/* pass regs, */
-	pushq	$0			/* code, */
-	pushq	$-1			/* type to kdb */
+	movq	%rsp,%rdx		/* pass regs, */
+	movq	$0,%rsi			/* code, */
+	movq	$-1,%rdi		/* type to kdb */
 	call	_kttd_trap
-	addq	$24,%rsp		/* remove parameters */
 	pop	%gs			/* restore segment registers */
 	pop	%fs
 	pop	%es
@@ -1044,10 +1016,6 @@ ttd_from_iret_i:			/* on interrupt stack */
 
 movq (%rsp),%rax
 ud2
-#ifdef MACH_XEN
-	orb	$3,1*8(%rsp)
-	orb	$3,4*8(%rsp)
-#endif
 	iretq
 
 #endif	/* MACH_TTD */
@@ -1169,13 +1137,13 @@ mach_call_call:
 #ifdef DEBUG
 	testb	$0xff,EXT(syscall_trace)
 	jz	0f
-	pushq	%rax
+	movq	%rax,%rdi
 	call	EXT(syscall_trace_print)
 	/* will return with syscallofs still (or again) in eax */
-	addq	$8,%rsp
 0:
 #endif /* DEBUG */
 
+ud2 /* Fix parameters */
 	call	*EXT(mach_trap_table)+8(%rax)
 					/* call procedure */
 	movq	%rsp,%rcx		/* get kernel stack */

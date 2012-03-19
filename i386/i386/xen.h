@@ -398,6 +398,7 @@ MACH_INLINE unsigned64_t hyp_cpu_clock(void) {
 /* TODO: SMP */
 #define cli movb $0xff,hyp_shared_info+CPU_CLI
 #define sti call hyp_sti
+#define iretq jmp hyp_iretq
 #endif	/* ASSEMBLER */
 #endif	/* MACH_XEN */
 
