@@ -1140,7 +1140,7 @@ syscall_native:
 	jz	mach_call_call		/* skip argument copy if none */
 
 	movq	R_UESP(%rbx),%rbx	/* get user stack pointer */
-	addq	$8,%rbx			/* Skip user return address */
+	addq	$4,%rbx			/* Skip user return address */
 
 	movq	$USER_DS,%rdx		/* use user data segment for accesses */
 	mov	%dx,%fs
