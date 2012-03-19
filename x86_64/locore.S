@@ -818,29 +818,23 @@ ast_from_interrupt:
  * Chase down the stack frames until we find one whose return
  * address is the interrupt handler.   At that point, we have:
  *
- * frame->	saved %ebp
+ * frame->	saved %rbp
  *		return address in interrupt handler
- * #ifndef MACH_XEN
- *		iunit
- *		saved SPL
- *		irq
- * #endif
  *		return address == return_to_iret_i
- *		saved %edx
- *		saved %ecx
- *		saved %eax
- *		saved %eip
+ *		saved %r11
+ *		saved %r10
+ *		saved %r9
+ *		saved %r8
+ *		saved %rdx
+ *		saved %rcx
+ *		saved %rax
+ *		saved %rip
  *		saved %cs
- *		saved %efl
+ *		saved %rfl
  *
  * OR:
- * frame->	saved %ebp
+ * frame->	saved %rbp
  *		return address in interrupt handler
- * #ifndef MACH_XEN
- *		iunit
- *		saved SPL
- *		irq
- * #endif
  *		return address == return_to_iret
  *		pointer to save area on old stack
  *	      [ saved %ebx, if accurate timing ]
@@ -849,21 +843,24 @@ ast_from_interrupt:
  *		saved %fs
  *		saved %es
  *		saved %ds
- *		saved %edx
- *		saved %ecx
+ *		saved %r11
+ *		saved %r10
+ *		saved %r9
+ *		saved %r8
+ *		saved %rdi
+ *		saved %rsi
+ *		saved %rdx
+ *		saved %rcx
  *		saved %eax
- *		saved %eip
+ *		saved %rip
  *		saved %cs
- *		saved %efl
+ *		saved %rfl
  *
  * Call kdb, passing it that register save area.
  */
 
-#ifdef	MACH_XEN
 #define	RET_OFFSET	16
-#else	/* MACH_XEN */
-#define	RET_OFFSET	40
-#endif	/* MACH_XEN */
+
 
 ENTRY(kdb_kintr)
 	movq	%rbp,%rax		/* save caller`s frame pointer */
@@ -901,12 +898,8 @@ kdb_from_iret:
 	pushq	%rax			/* push on stack */
 #endif
 	pushq	%rbp
-	pushq	%rsi
-	pushq	%rdi
 	movq	%rsp,%rdi		/* pass regs */
 	call	EXT(kdb_kentry)		/* to kdb */
-	popq	%rdi			/* restore registers */
-	popq	%rsi
 	popq	%rbp
 #if	STAT_TIME
 	popq	%rbx
@@ -953,6 +946,7 @@ ud2
  * Same code as that above for the keyboard entry into kdb.
  */
 ENTRY(kttd_intr)
+ud2
 	movq	%rbp,%rax		/* save caller`s frame pointer */
 	movq	$EXT(return_to_iret),%rcx	/* interrupt return address 1 */
 	movq	$_return_to_iret_i,%rdx	/* interrupt return address 2 */
@@ -1283,13 +1277,33 @@ ENTRY(discover_x86_cpu_type)
  * arg1:	kernel address
  * arg2:	byte count
  */
-ENTRY(copyin)
 Entry(copyinmsg)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
-	//movq	$USER_DS,%rax		/* use user data segment for accesses */
-	//mov	%ax,%ds
+/* 32 on 64 conversion */
+	subq	$32,%rdx
+	js	bogus
+	/* Copy msgh_bits + msgh_size */
+	RECOVER(copyin_fail)
+	movsq
+	xorq	%rax,%rax
+	/* Copy msgh_remote_port */
+	RECOVER(copyin_fail)
+	lodsl
+	stosq
+	/* Copy msgh_local_port */
+	RECOVER(copyin_fail)
+	lodsl
+	stosq
+	/* Copy msgh_seqno and msgh_id */
+	RECOVER(copyin_fail)
+	movsq
+	jmp	copyin_remainder
 
+ENTRY(copyin)
+	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
+
+copyin_remainder:
 	/*cld*/				/* count up: default mode in all GCC code */
 	movq	%rdx,%rcx		/* move by longwords first */
 	shrq	$3,%rcx
@@ -1304,9 +1318,6 @@ Entry(copyinmsg)
 	xorq	%rax,%rax		/* return 0 for success */
 
 copyin_ret:
-	//mov	%ss,%di			/* restore DS to kernel segment */
-	//mov	%di,%ds
-
 	ret				/* and return */
 
 copyin_fail:
@@ -1319,13 +1330,32 @@ copyin_fail:
  * arg1:	user address
  * arg2:	byte count
  */
-ENTRY(copyout)
 Entry(copyoutmsg)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
-	//movq	$USER_DS,%rax		/* use user data segment for accesses */
-	//mov	%ax,%es
+/* 32 on 64 conversion */
+	subq	$32,%rdx
+	js	bogus
+	/* Copy msgh_bits + msgh_size */
+	RECOVER(copyout_fail)
+	movsq
+	/* Copy msgh_remote_port */
+	lodsq
+	RECOVER(copyout_fail)
+	stosl
+	/* Copy msgh_local_port */
+	lodsq
+	RECOVER(copyout_fail)
+	stosl
+	/* Copy msgh_seqno and msgh_id */
+	RECOVER(copyout_fail)
+	movsq
+	jmp	copyin_remainder
 
+ENTRY(copyout)
+	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
+
+copyout_remainder:
 	movq	%rdx,%rax		/* use count */
 	/*cld*/				/* count up: always this way in GCC code */
 	movq	%rax,%rcx		/* move by longwords first */
@@ -1341,14 +1371,14 @@ Entry(copyoutmsg)
 	xorq	%rax,%rax		/* return 0 for success */
 
 copyout_ret:
-	//mov	%ss,%di			/* restore ES to kernel segment */
-	//mov	%di,%es
-
 	ret				/* and return */
 
 copyout_fail:
 	movq	$1,%rax			/* return 1 for failure */
 	jmp	copyout_ret		/* pop frame and return */
+
+bogus:
+	ud2
 
 /*
  * int inst_fetch(int eip, int cs);
