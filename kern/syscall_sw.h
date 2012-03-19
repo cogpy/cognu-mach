@@ -38,6 +38,9 @@ typedef struct {
 	int		(*mach_trap_function)();
 	boolean_t	mach_trap_stack;
 	int		mach_trap_unused;
+#ifdef __x86_64__
+	long		unused;
+#endif
 } mach_trap_t;
 
 extern mach_trap_t	mach_trap_table[];

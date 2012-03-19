@@ -642,6 +642,10 @@ void pmap_bootstrap()
 			WRITE_PTE(&kernel_pmap->pdpbase[i], pa_to_pte(_kvtophys((void *) kernel_pmap->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
 	}
 #ifdef __x86_64__
+#ifdef MACH_HYP
+	kernel_pmap->user_l4base = NULL;
+	kernel_pmap->user_pdpbase = NULL;
+#endif
 	kernel_pmap->l4base = (pt_entry_t*)phystokv(pmap_grab_page());
 	memset(kernel_pmap->l4base, 0, INTEL_PGBYTES);
 	WRITE_PTE(&kernel_pmap->l4base[0], pa_to_pte(_kvtophys(kernel_pmap->pdpbase)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
@@ -1197,10 +1201,30 @@ pmap_t pmap_create(size)
 		panic("pmap_create");
 	memset(p->l4base, 0, INTEL_PGBYTES);
 	WRITE_PTE(&p->l4base[0], pa_to_pte(kvtophys((vm_offset_t) p->pdpbase)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
+#ifdef MACH_HYP
+	if (kmem_alloc_wired(kernel_map,
+			     (vm_offset_t *)&p->user_pdpbase, INTEL_PGBYTES)
+							!= KERN_SUCCESS)
+		panic("pmap_create");
+	memset(p->user_pdpbase, 0, INTEL_PGBYTES);
+	{
+		int i;
+		for (i = 0; i < lin2pdpnum(VM_MAX_ADDRESS); i++)
+			WRITE_PTE(&p->user_pdpbase[i], pa_to_pte(kvtophys((vm_offset_t) p->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
+	}
+	if (kmem_alloc_wired(kernel_map,
+			     (vm_offset_t *)&p->user_l4base, INTEL_PGBYTES)
+							!= KERN_SUCCESS)
+		panic("pmap_create");
+	memset(p->user_l4base, 0, INTEL_PGBYTES);
+	WRITE_PTE(&p->user_l4base[0], pa_to_pte(kvtophys((vm_offset_t) p->user_pdpbase)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
+#endif	/* MACH_HYP */
 #endif
 #ifdef	MACH_XEN
 #ifdef __x86_64__
 	pmap_set_page_readonly(p->l4base);
+	pmap_set_page_readonly(p->user_l4base);
+	pmap_set_page_readonly(p->user_pdpbase);
 #endif
 	pmap_set_page_readonly(p->pdpbase);
 #endif	/* MACH_XEN */
@@ -1286,11 +1310,17 @@ void pmap_destroy(p)
 #ifdef	MACH_XEN
 #ifdef __x86_64__
 	pmap_set_page_readwrite(p->l4base);
+	pmap_set_page_readwrite(p->user_l4base);
+	pmap_set_page_readwrite(p->user_pdpbase);
 #endif
 	pmap_set_page_readwrite(p->pdpbase);
 #endif	/* MACH_XEN */
 #ifdef __x86_64__
 	kmem_free(kernel_map, (vm_offset_t)p->l4base, INTEL_PGBYTES);
+#ifdef MACH_HYP
+	kmem_free(kernel_map, (vm_offset_t)p->user_l4base, INTEL_PGBYTES);
+	kmem_free(kernel_map, (vm_offset_t)p->user_pdpbase, INTEL_PGBYTES);
+#endif
 #endif
 	kmem_free(kernel_map, (vm_offset_t)p->pdpbase, INTEL_PGBYTES);
 #endif	/* PAE */

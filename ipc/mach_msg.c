@@ -391,6 +391,7 @@ mach_msg_trap(msg, option, send_size, rcv_size, rcv_name, time_out, notify)
 	mach_port_t notify;
 {
 	mach_msg_return_t mr;
+	printf("mach_msg_trap(%p,%x,%x,%x,%x,%x,%x)\n", msg, option, send_size, rcv_size, rcv_name, time_out, notify);
 
 	/* first check for common cases */
 

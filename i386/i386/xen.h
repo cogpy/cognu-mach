@@ -297,6 +297,7 @@ MACH_INLINE void hyp_set_ldt(void *ldt, unsigned long nbentries) {
 		panic("couldn't set LDT\n");
 }
 #define hyp_set_cr3(value) hyp_mmuext_op_mfn(MMUEXT_NEW_BASEPTR, pa_to_mfn(value))
+#define hyp_set_user_cr3(value) hyp_mmuext_op_mfn(MMUEXT_NEW_USER_BASEPTR, pa_to_mfn(value))
 MACH_INLINE void hyp_invlpg(vm_offset_t lin) {
 	struct mmuext_op ops;
 	int n;

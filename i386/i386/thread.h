@@ -53,11 +53,8 @@
 struct i386_saved_state {
 	unsigned long	gs;
 	unsigned long	fs;
-	/* TODO: x86_64 registers */
-#ifdef __i386__
 	unsigned long	es;
 	unsigned long	ds;
-#endif
 #ifdef __x86_64__
 	unsigned long	r15;
 	unsigned long	r14;
@@ -167,10 +164,8 @@ struct v86_assist_state {
 struct i386_interrupt_state {
 	long	gs;
 	long	fs;
-#ifdef __i386__
 	long	es;
 	long	ds;
-#endif
 #ifdef __x86_64__
 	long	r11;
 	long	r10;

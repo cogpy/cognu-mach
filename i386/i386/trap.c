@@ -485,6 +485,23 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 				return 1;
 			}
 		}
+#ifdef __x86_64__
+		{
+			unsigned char opcode, addr[4], seg[2];
+			int i;
+
+			opcode = inst_fetch(regs->eip, regs->cs);
+			for (i = 0; i < 4; i++)
+				addr[i] = inst_fetch(regs->eip+i+1, regs->cs);
+			for (i = 0; i < 2; i++)
+				seg[i] = inst_fetch(regs->eip+i+5, regs->cs);
+			if (opcode == 0x9a && seg[0] == 0x7 && seg[1] == 0) {
+				regs->eip += 7;
+				printf("%lx: lcall 7(%d)\n", regs->eip, -(unsigned)regs->eax);
+				return 1;
+			}
+		}
+#endif
 		exc = EXC_BAD_INSTRUCTION;
 		code = EXC_I386_GPFLT;
 		subcode = regs->err & 0xffff;
@@ -546,6 +563,11 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		panic("trap");
 		return 0;
 	}
+
+#if 1
+	printf("user trap %d error %d\n", type, code);
+	dump_ss(regs);
+#endif
 
 #if	MACH_TTD
 	if (debug_all_traps_with_kttd && kttd_trap(type, regs->err, regs))

@@ -118,10 +118,12 @@ ud2
 	movq	%rsp, %rdi
 	call	EXT(hyp_failsafe_c_callback)
 #else
-	//popl	%ds
-	//popl	%es
-	popl	%fs
-	popl	%gs
+	popq	%rdx
+	movq	%rdx,%ds
+	popq	%rdx
+	movq	%rdx,%es
+	popq	%fs
+	popq	%gs
 
 movq (%rsp),%rax
 ud2
@@ -131,11 +133,14 @@ ud2
 #undef iretq
 ENTRY(hyp_iretq)
 	testb	$2,1*8(%rsp)
-	jz	slow
+	jnz	slow
+	/* There is no ring1 on x86_64, we have to force ring 3 */
+	orb	$3,1*8(%rsp)
+	orb	$3,4*8(%rsp)
 	iretq
 
 slow:
-/* There is no ring 1/2 on x86_64, so going back to kernel needs to go through
+/* There is no ring 1/2 on x86_64, so going back to user needs to go through
  * hypervisor */
 	pushq	$0
 	jmp	__hyp_iret

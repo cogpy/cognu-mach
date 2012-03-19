@@ -185,6 +185,10 @@ struct pmap {
 #endif	/* PAE */
 #ifdef __x86_64__
 	pt_entry_t	*l4base;	/* l4 table */
+#ifdef MACH_HYP
+	pt_entry_t	*user_l4base;	/* Userland l4 table */
+	pt_entry_t	*user_pdpbase;	/* Userland l4 table */
+#endif
 #endif	/* x86_64 */
 	int		ref_count;	/* reference count */
 	decl_simple_lock_data(,lock)
@@ -207,10 +211,20 @@ extern void pmap_clear_bootstrap_pagetable(pt_entry_t *addr);
 
 #if PAE
 #ifdef __x86_64__
+#ifdef MACH_HYP
+#define	set_pmap(pmap)	\
+	MACRO_BEGIN					\
+		set_cr3(kvtophys((vm_offset_t)(pmap)->l4base)); \
+		if (pmap->user_l4base) \
+			if (!hyp_set_user_cr3(kvtophys((vm_offset_t)(pmap)->user_l4base))) \
+				panic("set_user_cr3"); \
+	MACRO_END
+#else	/* MACH_HYP */
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->l4base))
-#else
+#endif	/* MACH_HYP */
+#else	/* x86_64 */
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->pdpbase))
-#endif
+#endif	/* x86_64 */
 #else	/* PAE */
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->dirbase))
 #endif	/* PAE */

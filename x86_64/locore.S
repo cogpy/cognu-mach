@@ -327,7 +327,6 @@ ENTRY(t_segnp)
 					/* indicate fault type */
 
 trap_check_kernel_exit:
-ud2
 	testq	$(EFL_VM),32(%rsp)	/* is trap from V86 mode? */
 	jnz	EXT(alltraps)		/* isn`t kernel trap if so */
 	/* Note: handling KERNEL_RING value by hand */
@@ -463,8 +462,10 @@ ENTRY(t_page_fault)
 ENTRY(alltraps)
 	pusha				/* save the general registers */
 trap_push_segs:
-	//pushq	%ds			/* and the segment registers */
-	//pushq	%es
+	movq	%ds,%rax			/* and the segment registers */
+	pushq	%rax
+	movq	%es,%rax			/* and the segment registers */
+	pushq	%rax
 	pushq	%fs
 	pushq	%gs
 
@@ -473,10 +474,8 @@ trap_push_segs:
 	   because the kernel uses user segment registers for copyin/copyout.
 	   (XXX Would it be smarter just to use fs or gs for that?)  */
 	mov	%ss,%ax			/* switch to kernel data segment */
-#if 0
 	mov	%ax,%ds			/* (same as kernel stack segment) */
 	mov	%ax,%es
-#endif
 	mov	%ax,%fs
 	mov	%ax,%gs
 
@@ -498,12 +497,14 @@ trap_from_user:
 _take_trap:
 	movq	%rbx,%rdi		/* pass register save area to trap */
 	call	EXT(user_trap)		/* call user trap routine */
-	movq	(%rsp),%rsp		/* switch back to PCB stack */
 
 	orq     %rax,%rax               /* emulated syscall? */
-	jz      _return_from_trap       /* no, just return */
+	jz      1f			/* no, just return */
 	movq    R_EAX(%rbx),%rax        /* yes, get syscall number */
 	jmp     syscall_entry_3         /* and emulate it */
+
+1:
+	movq	(%rsp),%rsp		/* switch back to PCB stack */
 
 /*
  * Return from trap or system call, checking for ASTs.
@@ -536,9 +537,11 @@ _kret_popl_gs:
 _kret_popl_fs:
 	popq	%fs
 _kret_popl_es:
-	//popq	%es
+	popq	%rax
+	movq	%rax,%es
 _kret_popl_ds:
-	//popq	%ds
+	popq	%rax
+	movq	%rax,%ds
 	popa				/* restore general registers */
 	addq	$16,%rsp		/* discard trap number and error code */
 _kret_iret:
@@ -665,15 +668,15 @@ ENTRY(all_intrs)
 	cmpq	%ss:EXT(int_stack_high),%rsp /* on an interrupt stack? */
 	jb	int_from_intstack	/* if not: */
 
-	//pushq	%ds			/* save segment registers */
-	//pushq	%es
+	movq	%ds,%rdx			/* save segment registers */
+	pushq	%rdx
+	movq	%es,%rdx
+	pushq	%rdx
 	pushq	%fs
 	pushq	%gs
 	mov	%ss,%dx			/* switch to kernel segments */
-#if 0
 	mov	%dx,%ds
 	mov	%dx,%es
-#endif
 	mov	%dx,%fs
 	mov	%dx,%gs
 
@@ -717,8 +720,10 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 1:
 	pop	%gs			/* restore segment regs */
 	pop	%fs
-	//pop	%es
-	//pop	%ds
+	pop	%rdx
+	mov	%rdx,%es
+	pop	%rdx
+	mov	%rdx,%ds
 	pop	%r11
 	pop	%r10
 	pop	%r9
@@ -770,8 +775,10 @@ stack_overflowed:
 ast_from_interrupt:
 	pop	%gs			/* restore all registers ... */
 	pop	%fs
-	//pop	%es
-	//pop	%ds
+	pop	%rdx
+	mov	%rdx,%es
+	pop	%rdx
+	mov	%rdx,%ds
 	popq	%r11
 	popq	%r10
 	popq	%r9
@@ -784,15 +791,15 @@ ast_from_interrupt:
 	pushq	$0			/* zero code */
 	pushq	$0			/* zero trap number */
 	pusha				/* save general registers */
-	//push	%ds			/* save segment registers */
-	//push	%es
+	mov	%ds,%rdx		/* save segment registers */
+	push	%rdx
+	mov	%es,%rdx
+	push	%rdx
 	push	%fs
 	push	%gs
 	mov	%ss,%dx			/* switch to kernel segments */
-#if 0
 	mov	%dx,%ds
 	mov	%dx,%es
-#endif
 	mov	%dx,%fs
 	mov	%dx,%gs
 
@@ -916,8 +923,10 @@ kdb_from_iret_i:			/* on interrupt stack */
 	pushq	$0			/* zero error code */
 	pushq	$0			/* zero trap number */
 	pusha				/* save general registers */
-	//push	%ds			/* save segment registers */
-	//push	%es
+	mov	%ds,%rdx		/* save segment registers */
+	push	%rdx
+	mov	%es,%rdx
+	push	%rdx
 	push	%fs
 	push	%gs
 	movq	%rsp,%rdx		/* pass regs, */
@@ -926,8 +935,10 @@ kdb_from_iret_i:			/* on interrupt stack */
 	call	EXT(kdb_trap)
 	pop	%gs			/* restore segment registers */
 	pop	%fs
-	pop	%es
-	pop	%ds
+	pop	%rdx
+	mov	%rdx,%es
+	pop	%rdx
+	mov	%rdx,%ds
 	popa				/* restore general registers */
 	addq	$16,%rsp
 
@@ -999,8 +1010,10 @@ ttd_from_iret_i:			/* on interrupt stack */
 	pushq	$0			/* zero error code */
 	pushq	$0			/* zero trap number */
 	pusha				/* save general registers */
-	//push	%ds			/* save segment registers */
-	//push	%es
+	mov	%ds,%rdx		/* save segment registers */
+	push	%rdx
+	mov	%es,%rdx
+	push	%rdx
 	push	%fs
 	push	%gs
 	movq	%rsp,%rdx		/* pass regs, */
@@ -1009,8 +1022,10 @@ ttd_from_iret_i:			/* on interrupt stack */
 	call	_kttd_trap
 	pop	%gs			/* restore segment registers */
 	pop	%fs
-	pop	%es
-	pop	%ds
+	pop	%rdx
+	mov	%rdx,%es
+	pop	%rdx
+	mov	%rdx,%ds
 	popa				/* restore general registers */
 	addq	$16,%rsp
 
@@ -1043,8 +1058,10 @@ syscall_entry_2:
 	ud2
 
 	pusha				/* save the general registers */
-	//pushq	%ds			/* and the segment registers */
-	//pushq	%es
+	movq	%ds,%rdx		/* and the segment registers */
+	pushq	%rdx
+	movq	%es,%rdx
+	pushq	%rdx
 	pushq	%fs
 	pushq	%gs
 
@@ -1099,9 +1116,9 @@ syscall_entry_3:
  * Native system call.
  */
 syscall_native:
-	negq	%rax			/* get system call number */
+	negl	%eax			/* get system call number */
 	jl	mach_call_range		/* out of range if it was positive */
-	cmpq	EXT(mach_trap_count),%rax	/* check system call table bounds */
+	cmpl	EXT(mach_trap_count),%eax	/* check system call table bounds */
 	jg	mach_call_range		/* error if out of range */
 #if 0 /* debug hack to show the syscall number on the screen */
 	movb	%al,%dl
@@ -1115,22 +1132,44 @@ syscall_native:
 	movb	$0xf,%dh
 	movw	%dx,0xb800c
 #endif
-	shlq	$8,%rax			/* manual indexing */
-	movq	EXT(mach_trap_table)(%rax),%rcx
+	shll	$5,%eax			/* manual indexing */
+	xorq	%r10,%r10
+	movl	EXT(mach_trap_table)(%eax),%r10d
 					/* get number of arguments */
-	jecxz	mach_call_call		/* skip argument copy if none */
+	andq	%r10,%r10
+	jz	mach_call_call		/* skip argument copy if none */
 
-	movq	R_UESP(%rbx),%rsi	/* get user stack pointer */
-	lea	8(%rsi,%rcx,8),%rsi	/* skip user return address, */
-					/* and point past last argument */
+	movq	R_UESP(%rbx),%rbx	/* get user stack pointer */
+	addq	$8,%rbx			/* Skip user return address */
+
 	movq	$USER_DS,%rdx		/* use user data segment for accesses */
 	mov	%dx,%fs
-	movq	%rsp,%rdx		/* save kernel ESP for error recovery */
+	movq	%rsp,%r11		/* save kernel ESP for error recovery */
 
-0:	subq	$8,%rsi
+#define PARAM(reg,ereg) \
+	RECOVER(mach_call_addr_push) \
+	xorq	%reg,%reg		;\
+	movl	%fs:(%rbx),%ereg	/* 1st parameter */ ;\
+	addq	$4,%rbx			;\
+	dec	%r10			;\
+	jz	mach_call_call
+
+	PARAM(rdi,edi)			/* 1st parameter */
+	PARAM(rsi,esi)			/* 2nd parameter */
+	PARAM(rdx,edx)			/* 3rd parameter */
+	PARAM(rcx,ecx)			/* 4th parameter */
+	PARAM(r8,r8d)			/* 5th parameter */
+	PARAM(r9,r9d)			/* 6th parameter */
+
+	lea	(%rbx,%r10,4),%rbx	/* point past last argument */
+	xorq	%r12,%r12
+
+0:	subq	$4,%rbx
 	RECOVER(mach_call_addr_push)
-	pushq	%fs:(%rsi)		/* push argument on stack */
-	loop	0b			/* loop for all arguments */
+	movl	%fs:(%rbx),%r12d
+	pushq	%r12			/* push argument on stack */
+	dec	%r10
+	jnz	0b			/* loop for all arguments */
 
 mach_call_call:
 
@@ -1143,11 +1182,10 @@ mach_call_call:
 0:
 #endif /* DEBUG */
 
-ud2 /* Fix parameters */
-	call	*EXT(mach_trap_table)+8(%rax)
+	call	*EXT(mach_trap_table)+8(%eax)
 					/* call procedure */
 	movq	%rsp,%rcx		/* get kernel stack */
-	or	$(KERNEL_STACK_SIZE-1),%ecx
+	or	$(KERNEL_STACK_SIZE-1),%rcx
 	movq	-7-IKS_SIZE(%rcx),%rsp	/* switch back to PCB stack */
 	movq	%rax,R_EAX(%rsp)	/* save return value */
 	jmp	_return_from_trap	/* return to user */
@@ -1157,7 +1195,7 @@ ud2 /* Fix parameters */
  * %esi holds failing address.
  */
 mach_call_addr_push:
-	movq	%rdx,%rsp		/* clean parameters from stack */
+	movq	%r11,%rsp		/* clean parameters from stack */
 mach_call_addr:
 	movq	%rsi,R_CR2(%rbx)	/* set fault address */
 	movq	$(T_PAGE_FAULT),R_TRAPNO(%rbx)
@@ -1201,6 +1239,7 @@ syscall_emul:
 	movq	%rdi,R_UESP(%rbx)	/* set new user stack pointer */
 	movq	%rdx,R_EIP(%rbx)	/* change return address to trap */
 	movq	%rbx,%rsp		/* back to PCB stack */
+ud2
 	jmp	_return_from_trap	/* return to user */
 
 /*
