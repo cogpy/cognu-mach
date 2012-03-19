@@ -38,7 +38,6 @@
 #include <mach/machine/asm.h>
 
 ENTRY(_setjmp)
-ud2
 	movq	%rbx,0(%rdi)
 	movq	%rbp,8(%rdi)		/* save frame pointer of caller */
 	movq	%r12,16(%rdi)
@@ -52,7 +51,6 @@ ud2
         jmp     *%rdx
 
 ENTRY(_longjmp)
-ud2
 	movq	%rsi,%rax		/* return(v) */
 	movq	0(%rdi),%rbx
 	movq	8(%rdi),%rbp
