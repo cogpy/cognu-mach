@@ -586,7 +586,7 @@ ENTRY(thread_exception_return)
 ENTRY(thread_bootstrap_return)
 	movq	%rsp,%rcx			/* get kernel stack */
 	or	$(KERNEL_STACK_SIZE-1),%ecx
-	movq	-3-IKS_SIZE(%rcx),%rsp		/* switch back to PCB stack */
+	movq	-7-IKS_SIZE(%rcx),%rsp		/* switch back to PCB stack */
 	jmp	_return_from_trap
 
 /*
@@ -599,7 +599,7 @@ ENTRY(thread_syscall_return)
 	movq	S_ARG0,%rax			/* get return value */
 	movq	%rsp,%rcx			/* get kernel stack */
 	or	$(KERNEL_STACK_SIZE-1),%ecx
-	movq	-3-IKS_SIZE(%rcx),%rsp		/* switch back to PCB stack */
+	movq	-7-IKS_SIZE(%rcx),%rsp		/* switch back to PCB stack */
 	movq	%rax,R_EAX(%rsp)		/* save return value */
 	jmp	_return_from_trap
 
@@ -607,7 +607,7 @@ ENTRY(call_continuation)
 	movq	S_ARG0,%rax			/* get continuation */
 	movq	%rsp,%rcx			/* get kernel stack */
 	or	$(KERNEL_STACK_SIZE-1),%rcx
-	addq	$(-3-IKS_SIZE),%rcx
+	addq	$(-7-IKS_SIZE),%rcx
 	movq	%rcx,%rsp			/* pop the stack */
 	xorq	%rbp,%rbp			/* zero frame pointer */
 	pushq	$0				/* Dummy return address */
@@ -1148,7 +1148,7 @@ ud2 /* Fix parameters */
 					/* call procedure */
 	movq	%rsp,%rcx		/* get kernel stack */
 	or	$(KERNEL_STACK_SIZE-1),%ecx
-	movq	-3-IKS_SIZE(%rcx),%rsp	/* switch back to PCB stack */
+	movq	-7-IKS_SIZE(%rcx),%rsp	/* switch back to PCB stack */
 	movq	%rax,R_EAX(%rsp)	/* save return value */
 	jmp	_return_from_trap	/* return to user */
 
