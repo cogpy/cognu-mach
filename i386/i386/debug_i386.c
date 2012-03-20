@@ -35,14 +35,10 @@ void dump_ss(struct i386_saved_state *st)
 	printf("ESI %08lx EDI %08lx EBP %08lx ESP %08lx\n",
 		st->esi, st->edi, st->ebp, st->uesp);
 	printf("CS %04lx SS %04lx "
-#ifdef __i386__
 		"DS %04lx ES %04lx "
-#endif
 		"FS %04lx GS %04lx\n",
 		st->cs & 0xffff, st->ss & 0xffff,
-#ifdef __i386__
 		st->ds & 0xffff, st->es & 0xffff,
-#endif
 		st->fs & 0xffff, st->gs & 0xffff);
 	printf("v86:            DS %04lx ES %04lx FS %04lx GS %04lx\n",
 		st->v86_segs.v86_ds & 0xffff, st->v86_segs.v86_es & 0xffff,

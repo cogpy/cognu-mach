@@ -578,7 +578,7 @@ static void db_cproc_state(
 }
 
 /* offsets in a cproc structure */
-/* TODO */
+/* TODO: longs? */
 int db_cproc_next_offset = 0 * 4;
 int db_cproc_incarnation_offset = 1 * 4;
 int db_cproc_list_offset = 2 * 4;
