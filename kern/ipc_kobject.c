@@ -174,7 +174,10 @@ ipc_kobject_server(request)
 	 || (routine = MACHINE_SERVER_ROUTINE(&request->ikm_header)) != 0
 #endif	/* MACH_MACHINE_ROUTINES */
 	) {
+	    request->ikm_header.msgh_size -= 2*(sizeof(mach_port_t) - sizeof(natural_t));
+	    reply->ikm_header.msgh_size -= 2*(sizeof(mach_port_t) - sizeof(natural_t));
 	    (*routine)(&request->ikm_header, &reply->ikm_header);
+	    reply->ikm_header.msgh_size += 2*(sizeof(mach_port_t) - sizeof(natural_t));
 	}
 	else if (!ipc_kobject_notify(&request->ikm_header,&reply->ikm_header)){
 		((mig_reply_header_t *) &reply->ikm_header)->RetCode

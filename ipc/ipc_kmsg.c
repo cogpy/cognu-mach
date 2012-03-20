@@ -237,7 +237,7 @@ ipc_kmsg_clean_body(saddr, eaddr)
 		is_inline = ((mach_msg_type_t*)type)->msgt_inline;
 		if (((mach_msg_type_t*)type)->msgt_longform) {
 			/* This must be aligned */
-			if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
+			if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
 			    (is_misaligned(type))) {
 				saddr = ptr_align(saddr);
 				continue;
@@ -254,8 +254,8 @@ ipc_kmsg_clean_body(saddr, eaddr)
 		}
 
 		/* padding (ptrs and ports) ? */
-		if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
-		    ((size >> 3) == sizeof(natural_t)))
+		if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
+		    ((size >> 3) == sizeof(vm_offset_t)))
 			saddr = ptr_align(saddr);
 
 		/* calculate length of data in bytes, rounding up */
@@ -267,6 +267,8 @@ ipc_kmsg_clean_body(saddr, eaddr)
 		if (is_port) {
 			ipc_object_t *objects;
 			mach_msg_type_number_t i;
+
+			saddr = ptr_align(saddr);
 
 			if (is_inline) {
 				objects = (ipc_object_t *) saddr;
@@ -399,7 +401,7 @@ xxx:		type = (mach_msg_type_long_t *) eaddr;
 		is_inline = ((mach_msg_type_t*)type)->msgt_inline;
 		if (((mach_msg_type_t*)type)->msgt_longform) {
 			/* This must be aligned */
-			if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
+			if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
 			    (is_misaligned(type))) {
 				eaddr = ptr_align(eaddr);
 				goto xxx;
@@ -416,8 +418,8 @@ xxx:		type = (mach_msg_type_long_t *) eaddr;
 		}
 
 		/* padding (ptrs and ports) ? */
-		if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
-		    ((size >> 3) == sizeof(natural_t)))
+		if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
+		    ((size >> 3) == sizeof(vm_offset_t)))
 			eaddr = ptr_align(eaddr);
 
 		/* calculate length of data in bytes, rounding up */
@@ -429,6 +431,8 @@ xxx:		type = (mach_msg_type_long_t *) eaddr;
 		if (is_port) {
 			ipc_object_t *objects;
 			mach_msg_type_number_t i;
+
+			eaddr = ptr_align(eaddr);
 
 			objects = (ipc_object_t *)
 				(is_inline ? eaddr : * (vm_offset_t *) eaddr);
@@ -1384,7 +1388,7 @@ ipc_kmsg_copyin_body(kmsg, space, map)
 		dealloc = ((mach_msg_type_t*)type)->msgt_deallocate;
 		if (longform) {
 			/* This must be aligned */
-			if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
+			if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
 			    (is_misaligned(type))) {
 				saddr = ptr_align(saddr);
 				continue;
@@ -1413,8 +1417,8 @@ ipc_kmsg_copyin_body(kmsg, space, map)
 		}
 
 		/* padding (ptrs and ports) ? */
-		if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
-		    ((size >> 3) == sizeof(natural_t)))
+		if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
+		    ((size >> 3) == sizeof(vm_offset_t)))
 			saddr = ptr_align(saddr);
 
 		/* calculate length of data in bytes, rounding up */
@@ -1652,7 +1656,7 @@ ipc_kmsg_copyin_from_kernel(
 		/* type->msgtl_header.msgt_deallocate not used */
 		if (longform) {
 			/* This must be aligned */
-			if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
+			if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
 			    (is_misaligned(type))) {
 				saddr = ptr_align(saddr);
 				continue;
@@ -1669,8 +1673,8 @@ ipc_kmsg_copyin_from_kernel(
 		}
 
 		/* padding (ptrs and ports) ? */
-		if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
-		    ((size >> 3) == sizeof(natural_t)))
+		if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
+		    ((size >> 3) == sizeof(vm_offset_t)))
 			saddr = ptr_align(saddr);
 
 		/* calculate length of data in bytes, rounding up */
@@ -1699,6 +1703,8 @@ ipc_kmsg_copyin_from_kernel(
 					ipc_object_copyin_type(name);
 			ipc_object_t *objects = (ipc_object_t *) data;
 			mach_msg_type_number_t i;
+
+			saddr = ptr_align(saddr);
 
 			if (longform)
 				type->msgtl_name = newname;
@@ -2390,7 +2396,7 @@ ipc_kmsg_copyout_body(saddr, eaddr, space, map)
 		longform = ((mach_msg_type_t*)type)->msgt_longform;
 		if (longform) {
 			/* This must be aligned */
-			if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
+			if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
 			    (is_misaligned(type))) {
 				saddr = ptr_align(saddr);
 				continue;
@@ -2407,8 +2413,8 @@ ipc_kmsg_copyout_body(saddr, eaddr, space, map)
 		}
 
 		/* padding (ptrs and ports) ? */
-		if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
-		    ((size >> 3) == sizeof(natural_t)))
+		if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
+		    ((size >> 3) == sizeof(vm_offset_t)))
 			saddr = ptr_align(saddr);
 
 		/* calculate length of data in bytes, rounding up */
@@ -2420,6 +2426,8 @@ ipc_kmsg_copyout_body(saddr, eaddr, space, map)
 		if (is_port) {
 			mach_port_t *objects;
 			mach_msg_type_number_t i;
+
+			saddr = ptr_align(saddr);
 
 			if (!is_inline && (length != 0)) {
 				/* first allocate memory in the map */
@@ -2835,7 +2843,7 @@ ipc_msg_print(msgh)
 		dealloc = ((mach_msg_type_t*)type)->msgt_deallocate;
 		if (longform) {
 			/* This must be aligned */
-			if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
+			if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
 			    (is_misaligned(type))) {
 				saddr = ptr_align(saddr);
 				continue;
@@ -2880,8 +2888,8 @@ ipc_msg_print(msgh)
 		}
 
 		/* padding (ptrs and ports) ? */
-		if ((sizeof(natural_t) > sizeof(mach_msg_type_t)) &&
-		    ((size >> 3) == sizeof(natural_t)))
+		if ((sizeof(vm_offset_t) > sizeof(mach_msg_type_t)) &&
+		    ((size >> 3) == sizeof(vm_offset_t)))
 			saddr = ptr_align(saddr);
 
 		/* calculate length of data in bytes, rounding up */

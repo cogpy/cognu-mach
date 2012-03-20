@@ -39,7 +39,14 @@
 #include <mach/machine/vm_types.h>
 
 
+typedef natural_t mach_port_name_t;
+typedef mach_port_name_t *mach_port_name_array_t;
+
+#ifdef	KERNEL
 typedef vm_offset_t mach_port_t;
+#else
+typedef mach_port_name_t mach_port_t;
+#endif
 typedef mach_port_t *mach_port_array_t;
 typedef int *rpc_signature_info_t;
 

@@ -391,7 +391,13 @@ mach_msg_trap(msg, option, send_size, rcv_size, rcv_name, time_out, notify)
 	mach_port_t notify;
 {
 	mach_msg_return_t mr;
+	send_size += 2*(sizeof(mach_port_t) - sizeof(natural_t));
+	rcv_size += 2*(sizeof(mach_port_t) - sizeof(natural_t));
 	printf("mach_msg_trap(%p,%x,%x,%x,%lx,%x,%lx)\n", msg, option, send_size, rcv_size, rcv_name, time_out, notify);
+	mach_msg_header_t khdr;
+	if (copyinmsg(msg, &khdr, sizeof(khdr)))
+	  panic("oops");
+	printf("ID %d, %d %d %x\n", khdr.msgh_id, khdr.msgh_size, khdr.msgh_seqno, khdr.msgh_bits);
 
 	/* first check for common cases */
 

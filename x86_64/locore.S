@@ -1283,21 +1283,32 @@ Entry(copyinmsg)
 /* 32 on 64 conversion */
 	subq	$32,%rdx
 	js	bogus
-	/* Copy msgh_bits + msgh_size */
+
+	/* Copy msgh_bits */
 	RECOVER(copyin_fail)
-	movsq
+	movsl
+
+	/* Copy msgh_size */
+	RECOVER(copyin_fail)
+	lodsl
+	addl	$8,%eax
+	stosl
+
 	xorq	%rax,%rax
 	/* Copy msgh_remote_port */
 	RECOVER(copyin_fail)
 	lodsl
 	stosq
+
 	/* Copy msgh_local_port */
 	RECOVER(copyin_fail)
 	lodsl
 	stosq
+
 	/* Copy msgh_seqno and msgh_id */
 	RECOVER(copyin_fail)
 	movsq
+
 	jmp	copyin_remainder
 
 ENTRY(copyin)
@@ -1336,20 +1347,31 @@ Entry(copyoutmsg)
 /* 32 on 64 conversion */
 	subq	$32,%rdx
 	js	bogus
-	/* Copy msgh_bits + msgh_size */
+
+	/* Copy msgh_bits */
 	RECOVER(copyout_fail)
-	movsq
+	movsl
+
+	/* Copy msgh_size */
+	lodsl
+	subl	$8,%eax
+	RECOVER(copyout_fail)
+	stosl
+
 	/* Copy msgh_remote_port */
 	lodsq
 	RECOVER(copyout_fail)
 	stosl
+
 	/* Copy msgh_local_port */
 	lodsq
 	RECOVER(copyout_fail)
 	stosl
+
 	/* Copy msgh_seqno and msgh_id */
 	RECOVER(copyout_fail)
 	movsq
+
 	jmp	copyin_remainder
 
 ENTRY(copyout)
