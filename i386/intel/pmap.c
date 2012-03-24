@@ -730,7 +730,7 @@ void pmap_bootstrap()
 		 * to allocate new kernel page tables later.
 		 * XX fix this
 		 */
-		for (va = phystokv(phys_first_addr); va < kernel_virtual_end; )
+		for (va = phystokv(phys_first_addr); va >= phystokv(phys_first_addr) && va < kernel_virtual_end; )
 		{
 			pt_entry_t *pde = kernel_page_dir + lin2pdenum(kvtolin(va));
 			pt_entry_t *ptable = (pt_entry_t*)phystokv(pmap_grab_page());
@@ -1175,6 +1175,12 @@ pmap_t pmap_create(size)
 		panic("pmap_create");
 
 	memcpy(p->dirbase, kernel_page_dir, PDPNUM * INTEL_PGBYTES);
+#ifdef LINUX_DEV
+#if VM_MIN_KERNEL_ADDRESS != 0
+	/* Do not map BIOS in user tasks */
+	p->dirbase[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS)] = 0;
+#endif
+#endif
 #ifdef	MACH_XEN
 	{
 		int i;
@@ -1947,9 +1953,9 @@ Retry:
 					      | INTEL_PTE_WRITE))
 			panic("%s:%d could not set pde %p(%p,%p) to %p(%p,%p) %p\n",__FILE__,__LINE__, pdp, kvtophys((vm_offset_t)pdp), (vm_offset_t) pa_to_ma(kvtophys((vm_offset_t)pdp)), ptp, kvtophys(ptp), (vm_offset_t) pa_to_ma(kvtophys(ptp)), (vm_offset_t) pa_to_pte(kv_to_ma(ptp)));
 #else	/* MACH_XEN */
-		*pdp = pa_to_pte(ptp) | INTEL_PTE_VALID
-				      | INTEL_PTE_USER
-				      | INTEL_PTE_WRITE;
+		*pdp = pa_to_pte(kvtophys(ptp)) | INTEL_PTE_VALID
+					        | INTEL_PTE_USER
+					        | INTEL_PTE_WRITE;
 #endif	/* MACH_XEN */
 		pdp++;
 		ptp += INTEL_PGBYTES;

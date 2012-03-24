@@ -323,7 +323,7 @@ i386at_init(void)
 	/* XXX move to intel/pmap.h */
 	extern pt_entry_t *kernel_page_dir;
 	int nb_direct, i;
-	vm_offset_t addr;
+	vm_offset_t addr, delta;
 
 	/*
 	 * Initialize the PIC prior to any possible call to an spl.
@@ -385,19 +385,25 @@ i386at_init(void)
 	pmap_bootstrap();
 
 	/*
-	 * Turn paging on.
 	 * We'll have to temporarily install a direct mapping
 	 * between physical memory and low linear memory,
 	 * until we start using our new kernel segment descriptors.
-	 * Also, set the WP bit so that on 486 or better processors
-	 * page-level write protection works in kernel mode.
 	 */
-#if VM_MIN_KERNEL_ADDRESS != LINEAR_MIN_KERNEL_ADDRESS
-	init_alloc_aligned(0, &addr);
-	nb_direct = (addr + NPTES * PAGE_SIZE - 1) / (NPTES * PAGE_SIZE);
+#if INIT_VM_MIN_KERNEL_ADDRESS != LINEAR_MIN_KERNEL_ADDRESS
+	delta = INIT_VM_MIN_KERNEL_ADDRESS - LINEAR_MIN_KERNEL_ADDRESS;
+	if ((vm_offset_t)(-delta) < delta)
+		delta = (vm_offset_t)(-delta);
+	nb_direct = delta >> PDESHIFT;
 	for (i = 0; i < nb_direct; i++)
-		kernel_page_dir[lin2pdenum(VM_MIN_KERNEL_ADDRESS) + i] =
+		kernel_page_dir[lin2pdenum(INIT_VM_MIN_KERNEL_ADDRESS) + i] =
 			kernel_page_dir[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS) + i];
+#endif
+	/* We need BIOS memory mapped at 0xc0000 & co for Linux drivers */
+#ifdef LINUX_DEV
+#if VM_MIN_KERNEL_ADDRESS != 0
+	kernel_page_dir[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS)] =
+		kernel_page_dir[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS)];
+#endif
 #endif
 
 #ifdef	MACH_XEN
@@ -422,7 +428,10 @@ i386at_init(void)
 	set_cr3((unsigned long)_kvtophys(kernel_page_dir));
 #endif	/* PAE */
 #ifndef	MACH_HYP
-	/* already set by Hypervisor */
+	/* Turn paging on.
+	 * Also set the WP bit so that on 486 or better processors
+	 * page-level write protection works in kernel mode.
+	 */
 	set_cr0(get_cr0() | CR0_PG | CR0_WP);
 	set_cr0(get_cr0() & ~(CR0_CD | CR0_NW));
 	if (CPU_HAS_FEATURE(CPU_FEATURE_PGE))
@@ -449,7 +458,7 @@ i386at_init(void)
 	ldt_init();
 	ktss_init();
 
-#if VM_MIN_KERNEL_ADDRESS != LINEAR_MIN_KERNEL_ADDRESS
+#if INIT_VM_MIN_KERNEL_ADDRESS != LINEAR_MIN_KERNEL_ADDRESS
 	/* Get rid of the temporary direct mapping and flush it out of the TLB.  */
 	for (i = 0 ; i < nb_direct; i++) {
 #ifdef	MACH_XEN
@@ -460,9 +469,16 @@ i386at_init(void)
 #endif	/* MACH_PSEUDO_PHYS */
 			printf("couldn't unmap frame %d\n", i);
 #else	/* MACH_XEN */
-		kernel_page_dir[lin2pdenum(VM_MIN_KERNEL_ADDRESS) + i] = 0;
+		kernel_page_dir[lin2pdenum(INIT_VM_MIN_KERNEL_ADDRESS) + i] = 0;
 #endif	/* MACH_XEN */
 	}
+#endif
+	/* Keep BIOS memory mapped */
+#ifdef LINUX_DEV
+#if VM_MIN_KERNEL_ADDRESS != 0
+	kernel_page_dir[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS)] =
+		kernel_page_dir[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS)];
+#endif
 #endif
 
 	/* Not used after boot, better give it back.  */
@@ -713,9 +729,9 @@ init_alloc_aligned(vm_size_t size, vm_offset_t *addrp)
 	}
 
 	/* Skip our own kernel code, data, and bss.  */
-	if ((avail_next > (vm_offset_t)start) && (addr < (vm_offset_t)end))
+	if ((phystokv(avail_next) > (vm_offset_t)start) && (phystokv(addr) < (vm_offset_t)end))
 	{
-		avail_next = (vm_offset_t)end;
+		avail_next = _kvtophys(end);
 		goto retry;
 	}
 
@@ -730,9 +746,9 @@ init_alloc_aligned(vm_size_t size, vm_offset_t *addrp)
 		avail_next = mods_end_pa;
 		goto retry;
 	}
-	if ((avail_next > kern_sym_start) && (addr < kern_sym_end))
+	if ((phystokv(avail_next) > kern_sym_start) && (phystokv(addr) < kern_sym_end))
 	{
-		avail_next = kern_sym_end;
+		avail_next = _kvtophys(kern_sym_end);
 		goto retry;
 	}
 	if (boot_info.flags & MULTIBOOT_MODS)
