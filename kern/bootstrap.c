@@ -111,7 +111,7 @@ void bootstrap_create()
   int compat;
   int n = 0;
 #ifdef	MACH_XEN
-#ifdef __x86_64__
+#ifdef __x86_64__ // 32_ON_64 actually
   struct multiboot32_module *bmods32 = (struct multiboot32_module *)
                                        boot_info.mod_start;
   struct multiboot_module *bmods;
