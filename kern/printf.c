@@ -515,24 +515,18 @@ void _doprnt(
  * Printing (to console)
  */
 
-#ifndef __x86_64__
 int vprintf(const char *fmt, va_list listp)
 {
 	_doprnt(fmt, listp, (void (*)( char, vm_offset_t)) cnputc, 16, 0);
 	return 0;
 }
-#endif
 
 /*VARARGS1*/
 int printf(const char *fmt, ...)
 {
 	va_list	listp;
 	va_start(listp, fmt);
-#ifdef __x86_64__
-	_doprnt(fmt, &listp, (void (*)( char, vm_offset_t)) cnputc, 16, 0);
-#else
 	vprintf(fmt, listp);
-#endif
 	va_end(listp);
 	return 0;
 }
