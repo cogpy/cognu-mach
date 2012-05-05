@@ -38,7 +38,11 @@
 #endif
 #define INIT_VM_MIN_KERNEL_ADDRESS	VM_MIN_KERNEL_ADDRESS
 #else	/* MACH_XEN */
-#define VM_MIN_KERNEL_ADDRESS	0x00000000UL
+/* This can be changed freely to separate kernel addresses from user addresses
+ * for better trace support in kdb; the _START symbol has to be offset by the
+ * same amount. */
+#define VM_MIN_KERNEL_ADDRESS	0xC0000000UL
+/* This must remain 0 */
 #define INIT_VM_MIN_KERNEL_ADDRESS	0x00000000UL
 #endif	/* MACH_XEN */
 
