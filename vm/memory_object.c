@@ -337,11 +337,6 @@ kern_return_t memory_object_data_error(object, offset, size, error_value)
 	if (size != round_page(size))
 		return(KERN_INVALID_ARGUMENT);
 
-#ifdef	lint
-	/* Error value is ignored at this time */
-	error_value++;
-#endif
-
 	vm_object_lock(object);
 	offset -= object->paging_offset;
 
@@ -349,16 +344,28 @@ kern_return_t memory_object_data_error(object, offset, size, error_value)
 		register vm_page_t m;
 
 		m = vm_page_lookup(object, offset);
-		if ((m != VM_PAGE_NULL) && m->busy && m->absent) {
-			m->error = TRUE;
-			m->absent = FALSE;
-			vm_object_absent_release(object);
 
-			PAGE_WAKEUP_DONE(m);
+		switch (error_value) {
+		    case KERN_NO_DATA:
+			if ((m != VM_PAGE_NULL) && m->busy && m->absent) {
+				vm_page_lock_queues();
+				vm_page_free(m);
+				vm_page_unlock_queues();
+			}
+                        break;
+		    default:
+			if ((m != VM_PAGE_NULL) && m->busy && m->absent) {
+				m->error = TRUE;
+				m->absent = FALSE;
+				vm_object_absent_release(object);
 
-			vm_page_lock_queues();
-			vm_page_activate(m);
-			vm_page_unlock_queues();
+				PAGE_WAKEUP_DONE(m);
+
+				vm_page_lock_queues();
+				vm_page_activate(m);
+				vm_page_unlock_queues();
+			}
+                        break;
 		}
 
 		size -= PAGE_SIZE;
