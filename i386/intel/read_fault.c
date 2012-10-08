@@ -49,6 +49,7 @@ intel_read_fault(map, vaddr)
 	vm_offset_t		offset;		/* Top-level offset */
 	vm_prot_t		prot;		/* Protection for mapping */
 	vm_page_t		result_page;	/* Result of vm_fault_page */
+	vm_map_entry_t		map_entry;	/* Supplied to vm_fault_page */
 	vm_page_t		top_page;	/* Placeholder page */
 	boolean_t		wired;		/* Is map region wired? */
 	kern_return_t		result;
@@ -65,6 +66,10 @@ intel_read_fault(map, vaddr)
 	if (result != KERN_SUCCESS)
 	    return (result);
 
+	result = vm_map_lookup_entry(map, vaddr, &map_entry);
+	if (result != KERN_SUCCESS)
+	    return (result);
+
 	/*
 	 *	Make a reference to this object to prevent its
 	 *	disposal while we are playing with it.
@@ -73,8 +78,8 @@ intel_read_fault(map, vaddr)
 	object->ref_count++;
 	vm_object_paging_begin(object);
 
-	result = vm_fault_page(object, offset, VM_PROT_READ, FALSE, TRUE,
-			       &prot, &result_page, &top_page,
+	result = vm_fault_page(object, offset, map_entry, VM_PROT_READ, FALSE,
+			       TRUE, &prot, &result_page, &top_page,
 			       FALSE, (void (*)()) 0);
 
 	if (result != VM_FAULT_SUCCESS) {
