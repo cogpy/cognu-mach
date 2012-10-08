@@ -157,6 +157,7 @@ mach_vm_region_info(map, address, regionp, portp)
 	regionp->vri_protection = entry->protection;
 	regionp->vri_max_protection = entry->max_protection;
 	regionp->vri_inheritance = entry->inheritance;
+	regionp->vri_advice = entry->advice;
 	regionp->vri_wired_count = entry->wired_count;
 	regionp->vri_user_wired_count = entry->user_wired_count;
 
@@ -229,6 +230,7 @@ mach_vm_object_info(object, infop, shadowp, copyp)
 	info.voi_shadow_offset = object->shadow_offset;
 	info.voi_paging_offset = object->paging_offset;
 	info.voi_copy_strategy = object->copy_strategy;
+	info.voi_advice = object->advice;
 	info.voi_last_alloc = object->last_alloc;
 	info.voi_paging_in_progress = object->paging_in_progress;
 

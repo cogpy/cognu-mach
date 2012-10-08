@@ -52,6 +52,7 @@ typedef struct vm_region_info {
 /*vm_prot_t*/natural_t vri_protection;	/* protection code */
 /*vm_prot_t*/natural_t vri_max_protection;	/* maximum protection */
 /*vm_inherit_t*/natural_t vri_inheritance;	/* inheritance */
+/*vm_advice_t*/natural_t vri_advice;	/* advice */
 	natural_t vri_wired_count;	/* number of times wired */
 	natural_t vri_user_wired_count; /* number of times user has wired */
 
@@ -90,6 +91,7 @@ typedef struct vm_object_info {
 	vm_offset_t voi_paging_offset;	/* offset into memory object */
 /*memory_object_copy_strategy_t*/integer_t voi_copy_strategy;
 					/* how to handle data copy */
+/*vm_advice_t*/natural_t voi_advice;	/* how to handle data copy */
 	vm_offset_t voi_last_alloc;	/* offset of last allocation */
 	natural_t voi_paging_in_progress; /* paging references */
 	vm_object_info_state_t voi_state; /* random state bits */
