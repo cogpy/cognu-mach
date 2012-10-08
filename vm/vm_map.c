@@ -3843,6 +3843,7 @@ retry:
 				result_prot = VM_PROT_READ;
 
 				kr = vm_fault_page(src_object, src_offset,
+						   src_entry,
 						   VM_PROT_READ, FALSE, FALSE,
 						   &result_prot, &m, &top_page,
 						   FALSE, (void (*)()) 0);

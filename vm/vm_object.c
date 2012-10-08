@@ -1120,7 +1120,7 @@ kern_return_t vm_object_copy_slowly(
 			vm_object_lock(src_object);
 			src_object->paging_in_progress++;
 
-			result = vm_fault_page(src_object, src_offset,
+			result = vm_fault_page(src_object, src_offset, NULL,
 				VM_PROT_READ, FALSE, interruptible,
 				&prot, &_result_page, &top_page,
 				FALSE, (void (*)()) 0);

@@ -50,7 +50,8 @@ typedef	kern_return_t	vm_fault_return_t;
 #define VM_FAULT_MEMORY_ERROR		5
 
 extern void vm_fault_init(void);
-extern vm_fault_return_t vm_fault_page(vm_object_t, vm_offset_t, vm_prot_t,
+extern vm_fault_return_t vm_fault_page(vm_object_t, vm_offset_t, 
+				       vm_map_entry_t, vm_prot_t,
 				       boolean_t, boolean_t, vm_prot_t *,
 				       vm_page_t *, vm_page_t *, boolean_t,
 				       void (*)());

@@ -59,6 +59,7 @@
 #endif
 
 
+#define min(a, b) ({typeof (a) t1 = a, t2 = b; t1 < t2 ? t1 : t2;})
 
 /*
  *	State needed by vm_fault_continue.
@@ -68,6 +69,7 @@
 typedef struct vm_fault_state {
 	struct vm_map *vmf_map;
 	vm_offset_t vmf_vaddr;
+	vm_map_entry_t vmf_entry;
 	vm_prot_t vmf_fault_type;
 	boolean_t vmf_change_wiring;
 	void (*vmf_continuation)();
@@ -98,6 +100,16 @@ boolean_t	software_reference_bits = TRUE;
 #if	MACH_KDB
 extern struct db_watchpoint *db_watchpoint_list;
 #endif	/* MACH_KDB */
+
+/* Table for advice for clustered readahead */
+struct vm_advice_entry vm_advice_table[] = {
+	[VM_ADVICE_DEFAULT] = { .read_before = 0, .read_after = 1},
+	[VM_ADVICE_RANDOM] = { .read_before = 0, .read_after = 1},
+	[VM_ADVICE_NORMAL] = { .read_before = VM_ADVICE_MAX_READAHEAD,
+			       .read_after = VM_ADVICE_MAX_READAHEAD},
+	[VM_ADVICE_SEQUENTIAL] = { .read_before = 0,
+				   .read_after = VM_ADVICE_MAX_READAHEAD}
+};
 
 /*
  *	Routine:	vm_fault_init
@@ -164,6 +176,294 @@ vm_fault_cleanup(object, top_page)
 #endif	/* MACH_PCSAMPLE */
 
 
+/*
+ *	Routine:	vm_for_every_page
+ *	Purpose:
+ *       	Applies MAP_FUNCTION to every page in OBJECT between
+ *		offsets  FROM and TO.
+ *	Results:
+ *		If map_function returns not VM_FAULT_SUCCESS, execution
+ *		interrupts, macro sets TO indicating non-erroneous block of
+ *		pages. If last page was absent macro returns
+ *		VM_FAULT_MEMORY_ERROR. If there is no enough memory for
+ *		whole cluster, but at least for one page than
+ *		VM_FAULT_SUCCESS is returned and upper bound is corrected.
+ *
+ */
+typedef union map_function_parameter {
+	boolean_t	interruptible;
+	vm_prot_t	access_required;
+	vm_offset_t	offset;
+} map_function_parameter_t;
+
+static vm_fault_return_t
+vm_for_every_page(vm_object_t object, vm_offset_t from, vm_offset_t *to,
+		  vm_fault_return_t (*map_function)(vm_object_t, vm_page_t,
+						    map_function_parameter_t),
+		  map_function_parameter_t parameter)
+{
+	vm_offset_t		cur;
+	vm_fault_return_t	rc = VM_FAULT_SUCCESS;
+	vm_page_t		m;
+
+	for (cur = from; cur < *(to); cur += PAGE_SIZE) {
+		m = vm_page_lookup(object, cur);
+		if (m != VM_PAGE_NULL)
+			rc = map_function(object, m, parameter);
+		else {
+			/*
+			 *	Allocate a fictitious page for this
+			 *	object/offset pair.
+			 */
+
+			m = vm_page_grab_fictitious();
+			if (m == VM_PAGE_NULL) {
+				vm_page_more_fictitious();
+				m = vm_page_grab_fictitious();
+			}
+			if (m != VM_PAGE_NULL) {
+				vm_page_lock_queues();
+				vm_page_insert(m, object, cur);
+				vm_page_unlock_queues();
+				rc = map_function(object, m, parameter);
+			}
+			else
+				rc = VM_FAULT_FICTITIOUS_SHORTAGE;
+		}
+
+		if (rc != VM_FAULT_SUCCESS) {
+			if (((rc == VM_FAULT_MEMORY_SHORTAGE)
+			     || (rc == VM_FAULT_MEMORY_ERROR))
+			    && (cur > from)) {
+				rc = VM_FAULT_SUCCESS;
+				*(to) = cur;
+			}
+			break;
+		}
+	}
+	return rc;
+}
+
+static vm_fault_return_t
+vm_mark_for_pagein(vm_object_t obj, vm_page_t m,
+		   map_function_parameter_t parameter)
+{
+	if (!m->absent && !m->fictitious)
+		return(VM_FAULT_MEMORY_ERROR);
+
+	if (obj->internal) {
+		/*
+		 *	Requests to the default pager
+		 *	must reserve a real page in advance,
+		 *	because the pager's data-provided
+		 *	won't block for pages.
+		 */
+
+		if (m->fictitious && !vm_page_convert(m, FALSE)) {
+			VM_PAGE_FREE(m);
+			return(VM_FAULT_MEMORY_SHORTAGE);
+		}
+	} else if (obj->absent_count > vm_object_absent_max) {
+		/*
+		 *	If there are too many outstanding page
+		 *	requests pending on this object, we
+		 *	wait for them to be resolved now.
+		 */
+
+		vm_object_absent_assert_wait(obj, parameter.interruptible);
+		VM_PAGE_FREE(m);
+		return(VM_FAULT_RETRY);
+	}
+
+	/*
+	 *	Indicate that the page is waiting for data
+	 *	from the memory manager.
+	 */
+
+	m->absent = TRUE;
+	obj->absent_count++;
+
+	return(VM_FAULT_SUCCESS);
+}
+
+static vm_fault_return_t
+vm_mark_for_unlock(vm_object_t obj, vm_page_t m,
+		   map_function_parameter_t parameter)
+{
+	m->unlock_request |= parameter.access_required;
+	return(VM_FAULT_SUCCESS);
+}
+
+static vm_fault_return_t
+vm_free_after_error(vm_object_t obj, vm_page_t m,
+		    map_function_parameter_t parameter)
+{
+	if (m == vm_page_lookup(obj, parameter.offset) &&
+	    m->absent && m->busy)
+		VM_PAGE_FREE(m);
+	return(VM_FAULT_SUCCESS);
+}
+
+static vm_fault_return_t
+vm_cleanup_after_error (vm_object_t obj, vm_page_t m,
+			map_function_parameter_t parameter)
+{
+	vm_fault_cleanup(obj, m);
+	return(VM_FAULT_SUCCESS);
+}
+
+/*
+ *	Routine:	vm_calculate_clusters
+ *	Purpose:
+ *		Determine bounds of clusters for possible pagein
+ *		and pageout.
+ *	Additional arguments:
+ *		OBJ is object for which clusters' bounds are
+ *		determined. OFFS is base offset in object.
+ *		Function PAGE_IS_NOT_ELIGIBLE is used to determine if
+ *		some page should be added to cluster.
+ *	Results:
+ *		IN_START and IN_END are bounds for pagein.
+ *		OUT_START and OUT_END are bounds for pagein.
+ */
+static void
+vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
+                       vm_map_entry_t map_entry, vm_offset_t *in_start,
+		       vm_offset_t *in_end, vm_offset_t *out_start,
+		       vm_offset_t *out_end,
+		       int (*page_is_not_eligible) (vm_page_t,
+						    map_function_parameter_t),
+		       map_function_parameter_t parameter)
+{
+	/* Choose actual advice according to priority */
+	struct vm_advice_entry *advice_entry;
+	vm_size_t		entry_size;
+	vm_size_t		max_pages, max_size;
+	vm_size_t		try_before, try_after;
+	vm_offset_t		first_before		= offset;
+	vm_offset_t		first_after		= offset + PAGE_SIZE;
+	vm_advice_t		advice;
+	vm_page_t		m;
+	int 			i;
+
+	assert (object);
+
+	if (map_entry && (map_entry->advice != VM_ADVICE_DEFAULT))
+		advice = map_entry->advice;
+	else
+		advice = object->advice;
+	advice_entry = &vm_advice_table [advice];
+
+	entry_size = (map_entry ?
+		      map_entry->vme_end - map_entry->vme_start
+		      : object->internal ?
+		      object->size + object->shadow_offset - offset
+		      : VM_ADVICE_MAX_READAHEAD * PAGE_SIZE);
+
+	/* Find number of pages to be read before, as minimal number
+	 * between:
+	 *    1/ Pages between fault address and start of vm_object
+	 *    2/ Advised number of pages to be read before
+	 *    3/ Pages between fault virtual address and start of vm_entry
+	 */
+	try_before = min ((offset - object->shadow_offset) / PAGE_SIZE,
+			  advice_entry->read_before);
+	if (map_entry)
+		try_before = min ((offset - map_entry->offset) / PAGE_SIZE,
+				  try_before);
+
+	/* Find number of pages to be read before, as minimal number
+	 * between:
+	 *    1/ Pages between fault virtual address and end of vm_entry
+	 *       or vm_object, if there is no vm_entry (see entry_size).
+	 *    2/ Advised number of pages to be read after
+	 */
+	if (map_entry)
+		try_after = min (((entry_size - offset + map_entry->offset)
+                                  / PAGE_SIZE),
+				 advice_entry->read_after);
+	else if (object->internal)
+		/* If there is no entry, than consider offset in object */
+		try_after = min ((entry_size - offset) / PAGE_SIZE,
+				 advice_entry->read_after);
+	else
+		/* If object is external consider predefined maximal value */
+		try_after = min (entry_size / PAGE_SIZE,
+				 advice_entry->read_after);
+
+	max_pages = min (VM_ADVICE_MAX_READAHEAD, vm_page_free_count);
+	max_size = max_pages * PAGE_SIZE;
+
+	/* Look up pages to be in cluster backward */
+	for (i = try_before; i > 0; i--) {
+		m = vm_page_lookup (object, first_before - PAGE_SIZE);
+		if (page_is_not_eligible(m, parameter))
+			break;
+		assert (first_before); /* Should never be 0 */
+		first_before -= PAGE_SIZE;
+	}
+
+	/* Look up pages to be in cluster forward */
+	for (i = try_after - 1; i > 0; i--) {
+		m = vm_page_lookup (object, first_after);
+		if (page_is_not_eligible(m, parameter))
+			break;
+		first_after += PAGE_SIZE;
+	}
+
+	/* Advice specific behavior */
+	switch (advice)	{
+		case VM_ADVICE_DEFAULT:
+		case VM_ADVICE_RANDOM:
+		case VM_ADVICE_SEQUENTIAL:
+			if (first_after - first_before > max_size)
+				first_after = first_before + max_size;
+
+			*in_start = first_before;
+			*in_end = first_after;
+			*out_start = offset;
+			*out_end = offset;
+			break;
+		case VM_ADVICE_NORMAL:
+			if (first_after - first_before > max_size) {
+				if (offset - first_before <= max_size / 2) {
+					first_after = first_before + max_size;
+				}
+				else if (first_after - offset <= max_size / 2) {
+					first_before = first_after - max_size;
+				}
+				else {
+					first_before = offset
+						- trunc_page (max_size / 2);
+					first_after = offset
+						+ round_page (max_size / 2);
+				}
+			}
+
+			*in_start = first_before;
+			*in_end = first_after;
+			*out_start = offset;
+			*out_end = offset;
+			break;
+		default:
+			assert (0);
+	}
+}
+
+static int
+dont_request_page(vm_page_t m, map_function_parameter_t parameter)
+{
+	return !!m;
+}
+
+static int
+dont_unlock_page(vm_page_t m, map_function_parameter_t parameter)
+{
+	if (m)
+		return (~m->unlock_request & parameter.access_required);
+	else
+		return TRUE;
+}
 
 /*
  *	Routine:	vm_fault_page
@@ -204,7 +504,7 @@ vm_fault_cleanup(object, top_page)
  *		The "result_page" is also left busy.  It is not removed
  *		from the pageout queues.
  */
-vm_fault_return_t vm_fault_page(first_object, first_offset,
+vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 				fault_type, must_be_resident, interruptible,
 				protection,
 				result_page, top_page,
@@ -212,6 +512,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
  /* Arguments: */
 	vm_object_t	first_object;	/* Object to begin search */
 	vm_offset_t	first_offset;	/* Offset into object */
+	vm_map_entry_t	map_entry;	/* Advice for page fault policy */
 	vm_prot_t	fault_type;	/* What access is requested */
 	boolean_t	must_be_resident;/* Must page be resident? */
 	boolean_t	interruptible;	/* May fault be interrupted? */
@@ -507,6 +808,12 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 				if ((access_required & m->unlock_request) != access_required) {
 					vm_prot_t	new_unlock_request;
 					kern_return_t	rc;
+					/* Region for pagein */
+					vm_offset_t in_start, in_end, in_range;
+					/* Region for pageout */
+					vm_offset_t out_start, out_end;
+					map_function_parameter_t param = {
+						.access_required = access_required};
 
 					if (!object->pager_ready) {
 						vm_object_assert_wait(object,
@@ -515,19 +822,38 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 						goto block_and_backoff;
 					}
 
-					new_unlock_request = m->unlock_request =
+					new_unlock_request =
 						(access_required | m->unlock_request);
+
+					/* XXX
+					   Probably consider unlock_request
+					   of each page?
+					*/
+					vm_calculate_clusters(object, offset, map_entry,
+							      &in_start, &in_end,
+							      &out_start, &out_end,
+							      &dont_unlock_page,
+							      param);
+					in_range = in_end - in_start;
+
+					vm_for_every_page (object, in_start, &in_end,
+							   vm_mark_for_unlock, param);
+
 					vm_object_unlock(object);
 					if ((rc = memory_object_data_unlock(
 						object->pager,
 						object->pager_request,
-						offset + object->paging_offset,
-						PAGE_SIZE,
+						in_start,
+						in_range,
 						new_unlock_request))
 					     != KERN_SUCCESS) {
+						map_function_parameter_t param = { .offset = 0}; /* Just stub */
 					     	printf("vm_fault: memory_object_data_unlock failed\n");
 						vm_object_lock(object);
-						vm_fault_cleanup(object, first_m);
+						vm_for_every_page (object, in_start, &in_end,
+								   vm_cleanup_after_error,
+								   param);
+
 						return((rc == MACH_SEND_INTERRUPTED) ?
 							VM_FAULT_INTERRUPTED :
 							VM_FAULT_MEMORY_ERROR);
@@ -592,6 +918,11 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 
 		if (look_for_page && !must_be_resident) {
 			kern_return_t	rc;
+			/* Region for pagein */
+			vm_offset_t in_start, in_end, in_range;
+			/* Region for pageout */
+			vm_offset_t out_start, out_end;
+			map_function_parameter_t param = { .offset = 0}; /* Just stub */
 
 			/*
 			 *	If the memory manager is not ready, we
@@ -605,39 +936,25 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 				goto block_and_backoff;
 			}
 
-			if (object->internal) {
-				/*
-				 *	Requests to the default pager
-				 *	must reserve a real page in advance,
-				 *	because the pager's data-provided
-				 *	won't block for pages.
-				 */
+			/* Determine cluster's bounds, considering object's
+			   pagein policy and size. */
+			vm_calculate_clusters(object, offset, map_entry,
+					      &in_start, &in_end,
+					      &out_start, &out_end,
+					      &dont_request_page, param);
 
-				if (m->fictitious && !vm_page_convert(m, FALSE)) {
-					VM_PAGE_FREE(m);
+			param.interruptible = interruptible;
+			rc = vm_for_every_page (object, in_start, &in_end,
+						vm_mark_for_pagein, param);
+			switch (rc) {
+				case VM_FAULT_MEMORY_SHORTAGE:
+				case VM_FAULT_FICTITIOUS_SHORTAGE:
 					vm_fault_cleanup(object, first_m);
-					return(VM_FAULT_MEMORY_SHORTAGE);
-				}
-			} else if (object->absent_count >
-						vm_object_absent_max) {
-				/*
-				 *	If there are too many outstanding page
-				 *	requests pending on this object, we
-				 *	wait for them to be resolved now.
-				 */
-
-				vm_object_absent_assert_wait(object, interruptible);
-				VM_PAGE_FREE(m);
-				goto block_and_backoff;
+					return rc;
+				case VM_FAULT_RETRY:
+					goto block_and_backoff;
 			}
-
-			/*
-			 *	Indicate that the page is waiting for data
-			 *	from the memory manager.
-			 */
-
-			m->absent = TRUE;
-			object->absent_count++;
+			in_range = in_end - in_start;
 
 			/*
 			 *	We have a busy page, so we can
@@ -652,10 +969,17 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 			vm_stat.pageins++;
 		    	vm_stat_sample(SAMPLED_PC_VM_PAGEIN_FAULTS);
 
+			if (!in_range) {
+				rc = KERN_SUCCESS;
+				vm_object_lock(object);
+				continue;
+			}
+
 			if ((rc = memory_object_data_request(object->pager,
 				object->pager_request,
-				m->offset + object->paging_offset,
-				PAGE_SIZE, access_required)) != KERN_SUCCESS) {
+				in_start,
+				in_range, access_required)) != KERN_SUCCESS) {
+				map_function_parameter_t param = { .offset = 0}; /* Just stub */
 				if (rc != MACH_SEND_INTERRUPTED)
 					printf("%s(0x%p, 0x%p, 0x%lx, 0x%x, 0x%x) failed, %x\n",
 						"memory_object_data_request",
@@ -669,14 +993,14 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 				 *	so check if it's still there and busy.
 				 */
 				vm_object_lock(object);
-				if (m == vm_page_lookup(object,offset) &&
-				    m->absent && m->busy)
-					VM_PAGE_FREE(m);
-				vm_fault_cleanup(object, first_m);
+				vm_for_every_page (object, in_start, &in_end,
+						   vm_free_after_error, param);
 				return((rc == MACH_SEND_INTERRUPTED) ?
 					VM_FAULT_INTERRUPTED :
 					VM_FAULT_MEMORY_ERROR);
 			}
+
+			/* We ignore region for pageout pro tempore */
 
 			/*
 			 * Retry with same object/offset, since new data may
@@ -1161,6 +1485,7 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 	boolean_t		wired;		/* Should mapping be wired down? */
 	vm_object_t		object;		/* Top-level object */
 	vm_offset_t		offset;		/* Top-level offset */
+	vm_map_entry_t		map_entry;	/* Advice for page fault policy */
 	vm_prot_t		prot;		/* Protection for mapping */
 	vm_object_t		old_copy_object; /* Saved copy object */
 	vm_page_t		result_page;	/* Result of vm_fault_page */
@@ -1182,12 +1507,13 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 		object = state->vmf_object;
 		if (object == VM_OBJECT_NULL)
 			goto RetryFault;
+		map_entry = state->vmf_entry;
 		version = state->vmf_version;
 		wired = state->vmf_wired;
 		offset = state->vmf_offset;
 		prot = state->vmf_prot;
 
-		kr = vm_fault_page(object, offset, fault_type,
+		kr = vm_fault_page(object, offset, map_entry, fault_type,
 				(change_wiring && !wired), !change_wiring,
 				&prot, &result_page, &top_page,
 				TRUE, vm_fault_continue);
@@ -1226,6 +1552,7 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 		goto done;
 	}
 
+	vm_map_lookup_entry(map, vaddr, &map_entry);
 	/*
 	 *	If the page is wired, we must fault for the current protection
 	 *	value, to avoid further faults.
@@ -1257,6 +1584,7 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 
 		state->vmf_map = map;
 		state->vmf_vaddr = vaddr;
+		state->vmf_entry = map_entry;
 		state->vmf_fault_type = fault_type;
 		state->vmf_change_wiring = change_wiring;
 		state->vmf_continuation = continuation;
@@ -1267,13 +1595,13 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 		state->vmf_offset = offset;
 		state->vmf_prot = prot;
 
-		kr = vm_fault_page(object, offset, fault_type,
+		kr = vm_fault_page(object, offset, map_entry, fault_type,
 				   (change_wiring && !wired), !change_wiring,
 				   &prot, &result_page, &top_page,
 				   FALSE, vm_fault_continue);
 	} else
 	{
-		kr = vm_fault_page(object, offset, fault_type,
+		kr = vm_fault_page(object, offset, map_entry, fault_type,
 				   (change_wiring && !wired), !change_wiring,
 				   &prot, &result_page, &top_page,
 				   FALSE, (void (*)()) 0);
@@ -1311,6 +1639,7 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 
 				state->vmf_map = map;
 				state->vmf_vaddr = vaddr;
+				state->vmf_entry = map_entry;
 				state->vmf_fault_type = fault_type;
 				state->vmf_change_wiring = change_wiring;
 				state->vmf_continuation = continuation;
@@ -1579,7 +1908,7 @@ void vm_fault_unwire(map, entry)
 			 	result = vm_fault_page(object,
 						entry->offset +
 						  (va - entry->vme_start),
-						VM_PROT_NONE, TRUE,
+						entry, VM_PROT_NONE, TRUE,
 						FALSE, &prot,
 						&result_page,
 						&top_page,
@@ -1872,7 +2201,7 @@ kern_return_t	vm_fault_copy(
 			vm_object_lock(src_object);
 			vm_object_paging_begin(src_object);
 
-			switch (vm_fault_page(src_object, src_offset,
+			switch (vm_fault_page(src_object, src_offset, NULL,
 					VM_PROT_READ, FALSE, interruptible,
 					&prot, &result_page, &src_top_page,
 					FALSE, (void (*)()) 0)) {
@@ -1910,8 +2239,9 @@ kern_return_t	vm_fault_copy(
 		vm_object_lock(dst_object);
 		vm_object_paging_begin(dst_object);
 
-		switch (vm_fault_page(dst_object, dst_offset, VM_PROT_WRITE,
-				FALSE, FALSE /* interruptible */,
+		switch (vm_fault_page(dst_object, dst_offset, NULL,
+				VM_PROT_WRITE, FALSE,
+				FALSE /* interruptible */,
 				&prot, &result_page, &dst_top_page,
 				FALSE, (void (*)()) 0)) {
 
