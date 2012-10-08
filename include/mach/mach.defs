@@ -713,7 +713,9 @@ routine vm_machine_attribute(
 		attribute	: vm_machine_attribute_t;
 	inout	value		: vm_machine_attribute_val_t);
 
-skip;	/* old host_fpa_counters_reset */
+routine vm_get_advice_info(
+                target_task     : vm_task_t;
+        out     max_cluster     : vm_size_t);
 
 /*
  *	There is no more room in this interface for additional calls.
