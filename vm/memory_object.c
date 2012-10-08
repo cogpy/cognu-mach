@@ -1037,6 +1037,49 @@ kern_return_t	memory_object_get_attributes(object, object_ready,
 	return(KERN_SUCCESS);
 }
 
+kern_return_t
+memory_object_set_advice(vm_object_t object, vm_advice_t advice)
+{
+	if (object == VM_OBJECT_NULL)
+		return(KERN_INVALID_ARGUMENT);
+
+	switch(advice) {
+		case VM_ADVICE_DEFAULT:
+		case VM_ADVICE_RANDOM:
+		case VM_ADVICE_SEQUENTIAL:
+		case VM_ADVICE_NORMAL:
+		case VM_ADVICE_KEEP:
+			break;
+		default:
+			vm_object_deallocate(object);
+			return(KERN_INVALID_ARGUMENT);
+	}
+
+	vm_object_lock(object);
+	if (advice != VM_ADVICE_KEEP)
+		object->advice = advice;
+	vm_object_unlock(object);
+
+	vm_object_deallocate(object);
+
+	return(KERN_SUCCESS);
+}
+
+kern_return_t
+memory_object_get_advice(vm_object_t object, vm_advice_t *advice)
+{
+	if (object == VM_OBJECT_NULL)
+		return(KERN_INVALID_ARGUMENT);
+
+	vm_object_lock(object);
+	*advice = object->advice;
+	vm_object_unlock(object);
+
+	vm_object_deallocate(object);
+
+	return(KERN_SUCCESS);
+}
+
 /*
  *	If successful, consumes the supplied naked send right.
  */

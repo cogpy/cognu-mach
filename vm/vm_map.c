@@ -1346,6 +1346,46 @@ kern_return_t vm_map_inherit(map, start, end, new_inheritance)
 }
 
 /*
+ *	vm_map_advise:
+ *
+ *	Sets the page fault advice of the specified
+ *	address range in the target map.  Advice
+ *	affects how the page fault will be
+ *	handled at the time of vm_fault.
+ */
+kern_return_t
+vm_map_advise(vm_map_t map, vm_offset_t address,
+	      vm_size_t length, vm_advice_t advice)
+{
+	register vm_map_entry_t	entry;
+	vm_map_entry_t	temp_entry;
+	vm_offset_t	end = address + length;
+
+	vm_map_lock(map);
+
+	VM_MAP_RANGE_CHECK(map, address, end);
+
+	if (vm_map_lookup_entry(map, address, &temp_entry)) {
+		entry = temp_entry;
+		vm_map_clip_start(map, entry, address);
+	}
+	else
+		entry = temp_entry->vme_next;
+
+	while ((entry != vm_map_to_entry(map))
+		&& (entry->vme_start < end)) {
+		vm_map_clip_end(map, entry, end);
+
+		entry->advice = advice;
+
+		entry = entry->vme_next;
+	}
+
+	vm_map_unlock(map);
+	return(KERN_SUCCESS);
+}
+
+/*
  *	vm_map_pageable_common:
  *
  *	Sets the pageability of the specified address

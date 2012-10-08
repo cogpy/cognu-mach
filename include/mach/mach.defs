@@ -282,7 +282,18 @@ routine vm_statistics(
 		target_task	: vm_task_t;
 	out	vm_stats	: vm_statistics_data_t);
 
-skip;	/* old task_by_u*x_pid */
+
+/*
+ *	Set the page fault policy attribute for the specified range
+ *	of the virtual address space of the target task.
+ *	The advice value is either random or sequential, and
+ *	specifies how kernel should consider access to lacking page.
+ */
+routine vm_advise(
+		target_task	: vm_task_t;
+		address		: vm_address_t;
+		size		: vm_size_t;
+		advice		: vm_advice_t);
 skip;	/* old vm_pageable */
 
 /*
@@ -681,8 +692,14 @@ simpleroutine memory_object_change_attributes(
 			MACH_MSG_TYPE_MAKE_SEND_ONCE|polymorphic);
 
 skip;	/* old host_callout_statistics_reset */
-skip;	/* old port_set_select */
-skip;	/* old port_set_backup */
+
+simpleroutine memory_object_set_advice(
+		memory_control	: memory_object_control_t;
+		advice		: vm_advice_t);
+
+routine memory_object_get_advice(
+		memory_control	: memory_object_control_t;
+	out	advice		: vm_advice_t);
 
 /*
  *	Set/Get special properties of memory associated

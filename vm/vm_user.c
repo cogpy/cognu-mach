@@ -171,6 +171,32 @@ kern_return_t vm_protect(map, start, size, set_maximum, new_protection)
 			      set_maximum));
 }
 
+
+/*
+ *	vm_advise sets page fault handling policy of the specified range
+ *	in the specified map.
+ */
+
+kern_return_t
+vm_advise(vm_map_t map, vm_offset_t address,
+	  vm_size_t length, vm_advice_t advice)
+{
+	if (map == VM_MAP_NULL)
+		return(KERN_INVALID_ARGUMENT);
+
+	switch(advice) {
+		case VM_ADVICE_DEFAULT:
+		case VM_ADVICE_RANDOM:
+		case VM_ADVICE_SEQUENTIAL:
+		case VM_ADVICE_NORMAL:
+			break;
+		default:
+			return(KERN_INVALID_ARGUMENT);
+	}
+
+	return(vm_map_advise(map, address, length, advice));
+}
+
 kern_return_t vm_statistics(map, stat)
 	vm_map_t	map;
 	vm_statistics_data_t	*stat;

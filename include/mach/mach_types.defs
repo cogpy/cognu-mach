@@ -117,6 +117,7 @@ type vm_offset_t = natural_t;
 type vm_size_t = natural_t;
 type vm_prot_t = int;
 type vm_inherit_t = int;
+type vm_advice_t = int;
 type vm_statistics_data_t = struct[13] of integer_t;
 type vm_machine_attribute_t = int;
 type vm_machine_attribute_val_t = int;

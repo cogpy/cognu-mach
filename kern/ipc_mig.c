@@ -704,6 +704,26 @@ kern_return_t syscall_vm_deallocate(target_map, start, size)
 	return result;
 }
 
+kern_return_t
+syscall_vm_advise(
+	mach_port_t	target_map,
+	vm_offset_t	address,
+	vm_size_t	length,
+	vm_advice_t	advice,
+	vm_size_t	cluster_size)
+{
+	vm_map_t		map;
+	kern_return_t		result;
+
+	map = port_name_to_map(target_map);
+	if (map == VM_MAP_NULL)
+		return MACH_SEND_INTERRUPTED;
+
+	result = vm_advise(map, address, length, advice, cluster_size);
+
+	return result;
+}
+
 kern_return_t syscall_task_create(parent_task, inherit_memory, child_task)
 	mach_port_t	parent_task;
 	boolean_t	inherit_memory;
