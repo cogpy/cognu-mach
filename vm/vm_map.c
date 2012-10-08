@@ -652,6 +652,7 @@ kern_return_t vm_map_find_entry(map, address, size, mask, object, o_entry)
 		new_entry->needs_copy = FALSE;
 
 		new_entry->inheritance = VM_INHERIT_DEFAULT;
+		new_entry->advice = VM_ADVICE_DEFAULT;
 		new_entry->protection = VM_PROT_DEFAULT;
 		new_entry->max_protection = VM_PROT_ALL;
 		new_entry->wired_count = 1;
@@ -986,6 +987,7 @@ kern_return_t vm_map_enter(
 	new_entry->needs_copy = needs_copy;
 
 	new_entry->inheritance = inheritance;
+	new_entry->advice = VM_ADVICE_DEFAULT;
 	new_entry->protection = cur_protection;
 	new_entry->max_protection = max_protection;
 	new_entry->wired_count = 0;

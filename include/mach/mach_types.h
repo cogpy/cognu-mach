@@ -50,6 +50,7 @@
 #include <mach/time_value.h>
 #include <mach/vm_attributes.h>
 #include <mach/vm_inherit.h>
+#include <mach/vm_advice.h>
 #include <mach/vm_prot.h>
 #include <mach/vm_statistics.h>
 

@@ -46,6 +46,7 @@
 #include <mach/vm_attributes.h>
 #include <mach/vm_prot.h>
 #include <mach/vm_inherit.h>
+#include <mach/vm_advice.h>
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -118,6 +119,7 @@ struct vm_map_entry {
 	vm_prot_t		protection;	/* protection code */
 	vm_prot_t		max_protection;	/* maximum protection */
 	vm_inherit_t		inheritance;	/* inheritance */
+	vm_advice_t		advice;		/* advice */
 	unsigned short		wired_count;	/* can be paged if = 0 */
 	unsigned short		user_wired_count; /* for vm_wire */
 	struct vm_map_entry     *projected_on;  /* 0 for normal map entry

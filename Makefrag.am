@@ -389,6 +389,7 @@ include_mach_HEADERS = \
 	include/mach/version.h \
 	include/mach/vm_attributes.h \
 	include/mach/vm_inherit.h \
+	include/mach/vm_advice.h \
 	include/mach/vm_param.h \
 	include/mach/vm_prot.h \
 	include/mach/vm_statistics.h \

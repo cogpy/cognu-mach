@@ -40,6 +40,7 @@
 #include <mach/memory_object.h>
 #include <mach/port.h>
 #include <mach/vm_prot.h>
+#include <mach/vm_advice.h>
 #include <mach/machine/vm_types.h>
 #include <kern/queue.h>
 #include <kern/lock.h>
@@ -88,6 +89,7 @@ struct vm_object {
 
 	memory_object_copy_strategy_t
 				copy_strategy;	/* How to handle data copy */
+	vm_advice_t		advice;		/* How to handle page faults */
 
 	unsigned int
 				absent_count;	/* The number of pages that

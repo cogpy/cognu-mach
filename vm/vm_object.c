@@ -283,6 +283,7 @@ void vm_object_bootstrap(void)
 		 * permanent object becomes ready */
 	vm_object_template.use_shared_copy = FALSE;
 	vm_object_template.shadowed = FALSE;
+	vm_object_template.advice = VM_ADVICE_DEFAULT;
 
 	vm_object_template.absent_count = 0;
 	vm_object_template.all_wanted = 0; /* all bits FALSE */
