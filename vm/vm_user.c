@@ -241,6 +241,22 @@ kern_return_t vm_machine_attribute(map, address, size, attribute, value)
 	return vm_map_machine_attribute(map, address, size, attribute, value);
 }
 
+/*
+ * Return machine-specific attribute for memory advice, such
+ * as maximal size of requested cluster.
+ */
+kern_return_t vm_get_advice_info(map, max_cluster)
+	vm_map_t	map;
+	vm_size_t* 	max_cluster;		/* OUT */
+{
+	if (map == VM_MAP_NULL)
+		return(KERN_INVALID_ARGUMENT);
+
+        *max_cluster = VM_ADVICE_MAX_READAHEAD * PAGE_SIZE;
+
+	return KERN_SUCCESS;
+}
+
 kern_return_t vm_read(map, address, size, data, data_size)
 	vm_map_t	map;
 	vm_address_t	address;
