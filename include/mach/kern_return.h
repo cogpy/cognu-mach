@@ -157,4 +157,10 @@
 		/* Object has been terminated and is no longer available.
 		 */
 
+#define KERN_NO_DATA			27
+		/* The address range specified does not contain data
+		 * at the moment. This value should be provided after
+		 * m_o_data_request call.
+		 */
+
 #endif	/* _MACH_KERN_RETURN_H_ */
