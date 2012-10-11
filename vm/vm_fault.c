@@ -190,20 +190,17 @@ vm_fault_cleanup(object, top_page)
  *		VM_FAULT_SUCCESS is returned and upper bound is corrected.
  *
  */
-union map_function_parameter {
+typedef union map_function_parameter {
 	boolean_t	interruptible;
 	vm_prot_t	access_required;
 	vm_offset_t	offset;
 } map_function_parameter_t;
 
 static vm_fault_return_t
-vm_for_every_page(object, from, to, map_function, parameter)
-	vm_object_t 		object;
-	vm_offset_t 		from;
-	vm_offset_t 		*to;
-	vm_fault_return_t 	(*map_function)(vm_object_t, vm_page_t,
-						map_function_parameter_t);
-	map_function_parameter_t parameter;
+vm_for_every_page(vm_object_t object, vm_offset_t from, vm_offset_t *to,
+		  vm_fault_return_t (*map_function)(vm_object_t, vm_page_t,
+						    map_function_parameter_t),
+		  map_function_parameter_t parameter)
 {
 	vm_offset_t		cur;
 	vm_fault_return_t	rc = VM_FAULT_SUCCESS;
@@ -248,10 +245,8 @@ vm_for_every_page(object, from, to, map_function, parameter)
 }
 
 static vm_fault_return_t
-vm_mark_for_pagein(obj, m, parameter)
-	vm_object_t		obj;
-	vm_page_t		m;
-	map_function_parameter_t parameter;
+vm_mark_for_pagein(vm_object_t obj, vm_page_t m,
+		   map_function_parameter_t parameter)
 {
 	if (!m->absent && !m->fictitious)
 		return(VM_FAULT_MEMORY_ERROR);
@@ -292,20 +287,16 @@ vm_mark_for_pagein(obj, m, parameter)
 }
 
 static vm_fault_return_t
-vm_mark_for_unlock(obj, m, parameter)
-	vm_object_t		obj;
-	vm_page_t		m;
-	map_function_parameter_t parameter;
+vm_mark_for_unlock(vm_object_t obj, vm_page_t m,
+		   map_function_parameter_t parameter)
 {
 	m->unlock_request |= parameter.access_required;
 	return(VM_FAULT_SUCCESS);
 }
 
 static vm_fault_return_t
-vm_free_after_error(obj, m, parameter)
-	vm_object_t		obj;
-	vm_page_t		m;
-	map_function_parameter_t parameter;
+vm_free_after_error(vm_object_t obj, vm_page_t m,
+		    map_function_parameter_t parameter)
 {
 	if (m == vm_page_lookup(obj, parameter.offset) &&
 	    m->absent && m->busy)
@@ -314,10 +305,8 @@ vm_free_after_error(obj, m, parameter)
 }
 
 static vm_fault_return_t
-vm_cleanup_after_error (obj, m, parameter)
-	vm_object_t		obj;
-	vm_page_t		m;
-	map_function_parameter_t parameter;
+vm_cleanup_after_error (vm_object_t obj, vm_page_t m,
+			map_function_parameter_t parameter)
 {
 	vm_fault_cleanup(obj, m);
 	return(VM_FAULT_SUCCESS);
@@ -338,18 +327,13 @@ vm_cleanup_after_error (obj, m, parameter)
  *		OUT_START and OUT_END are bounds for pagein.
  */
 static void
-vm_calculate_clusters (object, offset, map_entry, in_start, in_end,
-		       out_start, out_end, page_is_not_eligible)
-	vm_object_t	object;
-	vm_offset_t	offset;
-	vm_map_entry_t	map_entry;
-	vm_offset_t	*in_start;
-	vm_offset_t	*in_end;
-	vm_offset_t	*out_start;
-	vm_offset_t	*out_end;
-	int		(*page_is_not_eligible) (vm_page_t,
-						 map_function_parameter_t);
-	map_function_parameter_t parameter;
+vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
+                       vm_map_entry_t map_entry, vm_offset_t *in_start,
+		       vm_offset_t *in_end, vm_offset_t *out_start,
+		       vm_offset_t *out_end,
+		       int (*page_is_not_eligible) (vm_page_t,
+						    map_function_parameter_t),
+		       map_function_parameter_t parameter)
 {
 	/* Choose actual advice according to priority */
 	struct vm_advice_entry *advice_entry;
@@ -467,17 +451,13 @@ vm_calculate_clusters (object, offset, map_entry, in_start, in_end,
 }
 
 static int
-dont_request_page(m, parameter)
-	vm_page_t		m;
-	map_function_parameter_t parameter;
+dont_request_page(vm_page_t m, map_function_parameter_t parameter)
 {
 	return m;
 }
 
 static int
-dont_unlock_page(m, parameter)
-	vm_page_t		m;
-	map_function_parameter_t parameter;
+dont_unlock_page(vm_page_t m, map_function_parameter_t parameter)
 {
 	if (m)
 		return (~m->unlock_request & parameter.access_required);
@@ -832,6 +812,8 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 					vm_offset_t in_start, in_end, in_range;
 					/* Region for pageout */
 					vm_offset_t out_start, out_end;
+					map_function_parameter_t param = {
+						.access_required = access_required};
 
 					if (!object->pager_ready) {
 						vm_object_assert_wait(object,
@@ -850,11 +832,12 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 					vm_calculate_clusters(object, offset, map_entry,
 							      &in_start, &in_end,
 							      &out_start, &out_end,
-							      &dont_unlock_page);
+							      &dont_unlock_page,
+							      param);
 					in_range = in_end - in_start;
 
 					vm_for_every_page (object, in_start, &in_end,
-							   vm_mark_for_unlock);
+							   vm_mark_for_unlock, param);
 
 					vm_object_unlock(object);
 					if ((rc = memory_object_data_unlock(
@@ -864,10 +847,12 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 						in_range,
 						new_unlock_request))
 					     != KERN_SUCCESS) {
+						map_function_parameter_t param = { .offset = 0}; /* Just stub */
 					     	printf("vm_fault: memory_object_data_unlock failed\n");
 						vm_object_lock(object);
 						vm_for_every_page (object, in_start, &in_end,
-								   vm_cleanup_after_error);
+								   vm_cleanup_after_error,
+								   param);
 
 						return((rc == MACH_SEND_INTERRUPTED) ?
 							VM_FAULT_INTERRUPTED :
@@ -937,6 +922,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 			vm_offset_t in_start, in_end, in_range;
 			/* Region for pageout */
 			vm_offset_t out_start, out_end;
+			map_function_parameter_t param = { .offset = 0}; /* Just stub */
 
 			/*
 			 *	If the memory manager is not ready, we
@@ -955,10 +941,11 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 			vm_calculate_clusters(object, offset, map_entry,
 					      &in_start, &in_end,
 					      &out_start, &out_end,
-					      &dont_request_page);
+					      &dont_request_page, param);
 
+			param.interruptible = interruptible;
 			rc = vm_for_every_page (object, in_start, &in_end,
-						vm_mark_for_pagein);
+						vm_mark_for_pagein, param);
 			switch (rc) {
 				case VM_FAULT_MEMORY_SHORTAGE:
 				case VM_FAULT_FICTITIOUS_SHORTAGE:
@@ -992,6 +979,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 				object->pager_request,
 				in_start,
 				in_range, access_required)) != KERN_SUCCESS) {
+				map_function_parameter_t param = { .offset = 0}; /* Just stub */
 				if (rc != MACH_SEND_INTERRUPTED)
 					printf("%s(0x%p, 0x%p, 0x%lx, 0x%x, 0x%x) failed, %x\n",
 						"memory_object_data_request",
@@ -1006,7 +994,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 				 */
 				vm_object_lock(object);
 				vm_for_every_page (object, in_start, &in_end,
-						   vm_free_after_error);
+						   vm_free_after_error, param);
 				return((rc == MACH_SEND_INTERRUPTED) ?
 					VM_FAULT_INTERRUPTED :
 					VM_FAULT_MEMORY_ERROR);
