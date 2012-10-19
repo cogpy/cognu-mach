@@ -453,7 +453,7 @@ vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
 static int
 dont_request_page(vm_page_t m, map_function_parameter_t parameter)
 {
-	return m;
+	return !!m;
 }
 
 static int
