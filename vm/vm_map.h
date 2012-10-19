@@ -398,7 +398,7 @@ extern kern_return_t	vm_map_protect(vm_map_t, vm_offset_t, vm_offset_t,
 extern kern_return_t	vm_map_inherit(vm_map_t, vm_offset_t, vm_offset_t,
 				       vm_inherit_t);
 /* Change page fault policy */
-extern kern_return_t	vm_map_advice(vm_map_t, vm_offset_t, vm_size_t,
+extern kern_return_t	vm_map_advise(vm_map_t, vm_offset_t, vm_size_t,
 				      vm_advice_t, vm_size_t);
 
 /* Debugging: print a map */
