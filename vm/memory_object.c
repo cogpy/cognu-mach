@@ -1045,9 +1045,7 @@ kern_return_t	memory_object_get_attributes(object, object_ready,
 }
 
 kern_return_t
-memory_object_set_advice(object, advice)
-	vm_object_t	object;
-	vm_advice_t	advice;
+memory_object_set_advice(vm_object_t object, vm_advice_t advice)
 {
 	if (object == VM_OBJECT_NULL)
 		return(KERN_INVALID_ARGUMENT);
@@ -1075,9 +1073,7 @@ memory_object_set_advice(object, advice)
 }
 
 kern_return_t
-memory_object_get_advice(object, advice)
-	vm_object_t	object;
-	vm_advice_t	*advice;
+memory_object_get_advice(vm_object_t object, vm_advice_t *advice)
 {
 	if (object == VM_OBJECT_NULL)
 		return(KERN_INVALID_ARGUMENT);

@@ -177,11 +177,9 @@ kern_return_t vm_protect(map, start, size, set_maximum, new_protection)
  *	in the specified map.
  */
 
-kern_return_t vm_advise(map, address, length, advice)
-	vm_map_t	map;
-	vm_offset_t	address;
-	vm_size_t	length;
-	vm_advice_t	advice;
+kern_return_t
+vm_advise(vm_map_t map, vm_offset_t address,
+	  vm_size_t length, vm_advice_t advice)
 {
 	if (map == VM_MAP_NULL)
 		return(KERN_INVALID_ARGUMENT);
@@ -245,9 +243,8 @@ kern_return_t vm_machine_attribute(map, address, size, attribute, value)
  * Return machine-specific attribute for memory advice, such
  * as maximal size of requested cluster.
  */
-kern_return_t vm_get_advice_info(map, max_cluster)
-	vm_map_t	map;
-	vm_size_t* 	max_cluster;		/* OUT */
+kern_return_t
+vm_get_advice_info(vm_map_t map, vm_size_t* max_cluster /* OUT */)
 {
 	if (map == VM_MAP_NULL)
 		return(KERN_INVALID_ARGUMENT);

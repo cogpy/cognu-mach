@@ -1353,11 +1353,9 @@ kern_return_t vm_map_inherit(map, start, end, new_inheritance)
  *	affects how the page fault will be
  *	handled at the time of vm_fault.
  */
-kern_return_t vm_map_advise(map, address, length, advice)
-	vm_map_t	map;
-	vm_offset_t	address;
-	vm_size_t	length;
-	vm_advice_t	advice;
+kern_return_t
+vm_map_advise(vm_map_t map, vm_offset_t address,
+	      vm_size_t length, vm_advice_t advice)
 {
 	register vm_map_entry_t	entry;
 	vm_map_entry_t	temp_entry;
