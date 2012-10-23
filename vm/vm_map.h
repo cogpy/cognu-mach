@@ -399,7 +399,7 @@ extern kern_return_t	vm_map_inherit(vm_map_t, vm_offset_t, vm_offset_t,
 				       vm_inherit_t);
 /* Change page fault policy */
 extern kern_return_t	vm_map_advise(vm_map_t, vm_offset_t, vm_size_t,
-				      vm_advice_t, vm_size_t);
+				      vm_advice_t);
 
 /* Debugging: print a map */
 extern void		vm_map_print(vm_map_t);
