@@ -308,7 +308,7 @@ static vm_fault_return_t
 vm_cleanup_after_error (vm_object_t obj, vm_page_t m,
 			map_function_parameter_t parameter)
 {
-	vm_fault_cleanup(obj, m);
+	VM_PAGE_FREE(m);
 	return(VM_FAULT_SUCCESS);
 }
 
@@ -850,6 +850,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 						map_function_parameter_t param = { .offset = 0}; /* Just stub */
 					     	printf("vm_fault: memory_object_data_unlock failed\n");
 						vm_object_lock(object);
+						vm_fault_cleanup(object, first_m);
 						vm_for_every_page (object, in_start, &in_end,
 								   vm_cleanup_after_error,
 								   param);
