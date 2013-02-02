@@ -527,7 +527,7 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		/*NOTREACHED*/
 		break;
 
-#ifdef MACH_XEN
+#ifdef MACH_PV_PAGETABLES
 	    case 15:
 		{
 			static unsigned count = 0;
@@ -607,7 +607,7 @@ i386_astintr()
 	int	mycpu = cpu_number();
 
 	(void) splsched();	/* block interrupts to check reasons */
-#ifndef	MACH_XEN
+#ifndef	MACH_RING1
 	if (need_ast[mycpu] & AST_I386_FP) {
 	    /*
 	     * AST was for delayed floating-point exception -
@@ -620,7 +620,7 @@ i386_astintr()
 	    fpastintr();
 	}
 	else
-#endif	/* MACH_XEN */
+#endif	/* MACH_RING1 */
 	{
 	    /*
 	     * Not an FPU trap.  Handle the AST.

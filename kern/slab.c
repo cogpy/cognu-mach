@@ -130,9 +130,9 @@
 #define KMEM_BUF_SIZE_THRESHOLD (PAGE_SIZE / 8)
 
 /*
- * Time (in seconds) between two garbage collection operations.
+ * Time (in ticks) between two garbage collection operations.
  */
-#define KMEM_GC_INTERVAL (1 * hz)
+#define KMEM_GC_INTERVAL (5 * hz)
 
 /*
  * The transfer size of a CPU pool is computed by dividing the pool size by
@@ -165,7 +165,7 @@
 /*
  * Size of the VM submap from which default backend functions allocate.
  */
-#define KMEM_MAP_SIZE (64 * 1024 * 1024)
+#define KMEM_MAP_SIZE (128 * 1024 * 1024)
 
 /*
  * Shift for the first kalloc cache size.
@@ -176,11 +176,6 @@
  * Number of caches backing general purpose allocations.
  */
 #define KALLOC_NR_CACHES 13
-
-/*
- * Size of the VM submap for general purpose allocations.
- */
-#define KALLOC_MAP_SIZE (64 * 1024 * 1024)
 
 /*
  * Values the buftag state member can take.
@@ -283,21 +278,15 @@ static unsigned int kmem_nr_caches;
 static simple_lock_data_t __attribute__((used)) kmem_cache_list_lock;
 
 /*
- * VM submap for slab caches (except general purpose allocations).
+ * VM submap for slab caches.
  */
 static struct vm_map kmem_map_store;
 vm_map_t kmem_map = &kmem_map_store;
 
 /*
- * VM submap for general purpose allocations.
- */
-static struct vm_map kalloc_map_store;
-vm_map_t kalloc_map = &kalloc_map_store;
-
-/*
  * Time of the last memory reclaim, in clock ticks.
  */
-static unsigned int kmem_gc_last_tick;
+static unsigned long kmem_gc_last_tick;
 
 #define kmem_error(format, ...)                         \
     printf("mem: error: %s(): " format "\n", __func__,  \
@@ -1323,17 +1312,17 @@ void slab_collect(void)
 {
     struct kmem_cache *cache;
 
-    if (sched_tick <= (kmem_gc_last_tick + KMEM_GC_INTERVAL))
+    if (elapsed_ticks <= (kmem_gc_last_tick + KMEM_GC_INTERVAL))
         return;
 
-    kmem_gc_last_tick = sched_tick;
+    kmem_gc_last_tick = elapsed_ticks;
 
-    simple_lock(&mem_cache_list_lock);
+    simple_lock(&kmem_cache_list_lock);
 
     list_for_each_entry(&kmem_cache_list, cache, node)
         kmem_cache_reap(cache);
 
-    simple_unlock(&mem_cache_list_lock);
+    simple_unlock(&kmem_cache_list_lock);
 }
 
 void slab_bootstrap(void)
@@ -1380,7 +1369,7 @@ static vm_offset_t kalloc_pagealloc(vm_size_t size)
     vm_offset_t addr;
     kern_return_t kr;
 
-    kr = kmem_alloc_wired(kalloc_map, &addr, size);
+    kr = kmem_alloc_wired(kmem_map, &addr, size);
 
     if (kr != KERN_SUCCESS)
         return 0;
@@ -1390,7 +1379,7 @@ static vm_offset_t kalloc_pagealloc(vm_size_t size)
 
 static void kalloc_pagefree(vm_offset_t ptr, vm_size_t size)
 {
-    kmem_free(kalloc_map, ptr, size);
+    kmem_free(kmem_map, ptr, size);
 }
 
 void kalloc_init(void)
@@ -1398,8 +1387,6 @@ void kalloc_init(void)
     char name[KMEM_CACHE_NAME_SIZE];
     size_t i, size;
     vm_offset_t min, max;
-
-    kmem_submap(kalloc_map, kernel_map, &min, &max, KALLOC_MAP_SIZE, FALSE);
 
     size = 1 << KALLOC_FIRST_SHIFT;
 
@@ -1503,6 +1490,35 @@ void kfree(vm_offset_t data, vm_size_t size)
     }
 }
 
+void slab_info(void)
+{
+    struct kmem_cache *cache;
+    vm_size_t mem_usage, mem_reclaimable;
+
+    printf("cache                  obj slab  bufs   objs   bufs "
+           "   total reclaimable\n"
+           "name                  size size /slab  usage  count "
+           "  memory      memory\n");
+
+    simple_lock(&kmem_cache_list_lock);
+
+    list_for_each_entry(&kmem_cache_list, cache, node) {
+        simple_lock(&cache->lock);
+
+        mem_usage = (cache->nr_slabs * cache->slab_size) >> 10;
+        mem_reclaimable = (cache->nr_free_slabs * cache->slab_size) >> 10;
+
+        printf("%-19s %6lu %3luk  %4lu %6lu %6lu %7luk %10luk\n",
+               cache->name, cache->obj_size, cache->slab_size >> 10,
+               cache->bufs_per_slab, cache->nr_objs, cache->nr_bufs,
+               mem_usage, mem_reclaimable);
+
+        simple_unlock(&cache->lock);
+    }
+
+    simple_unlock(&kmem_cache_list_lock);
+}
+
 #if MACH_DEBUG
 kern_return_t host_slab_info(host_t host, cache_info_array_t *infop,
                              unsigned int *infoCntp)
@@ -1520,9 +1536,9 @@ kern_return_t host_slab_info(host_t host, cache_info_array_t *infop,
      * Assume the cache list is unaltered once the kernel is ready.
      */
 
-    simple_lock(&mem_cache_list_lock);
+    simple_lock(&kmem_cache_list_lock);
     nr_caches = kmem_nr_caches;
-    simple_unlock(&mem_cache_list_lock);
+    simple_unlock(&kmem_cache_list_lock);
 
     if (nr_caches <= *infoCntp)
         info = *infop;
