@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Samuel Thibault <samuel.thibault@ens-lyon.org>
+ *  Copyright (C) 2006-2011 Free Software Foundation
  *
  * This program is free software ; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,9 +47,13 @@ int hypputc(int c)
 		hyp_console_io(CONSOLEIO_write, 1, kvtolin(&d));
 	} else {
 		spl_t spl = splhigh();
+		int complain;
 		simple_lock(&outlock);
 		while (hyp_ring_smash(console->out, console->out_prod, console->out_cons)) {
-			hyp_console_put("ring smash\n");
+			if (!complain) {
+				complain = 1;
+				hyp_console_put("ring smash\n");
+			}
 			/* TODO: are we allowed to sleep in putc? */
 			hyp_yield();
 		}
@@ -216,9 +220,6 @@ int hypcnclose(int dev, int flag)
 
 int hypcnprobe(struct consdev *cp)
 {
-	struct xencons_interface *my_console;
-	my_console = (void*) mfn_to_kv(boot_info.console_mfn);
-
 	cp->cn_dev = makedev(0, 0);
 	cp->cn_pri = CN_INTERNAL;
 	return 0;
@@ -231,7 +232,9 @@ int hypcninit(struct consdev *cp)
 	simple_lock_init(&outlock);
 	simple_lock_init(&inlock);
 	console = (void*) mfn_to_kv(boot_info.console_mfn);
+#ifdef	MACH_PV_PAGETABLES
 	pmap_set_page_readwrite(console);
+#endif	/* MACH_PV_PAGETABLES */
 	hyp_evt_handler(boot_info.console_evtchn, hypcnintr, 0, SPL6);
 	return 0;
 }

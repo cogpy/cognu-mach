@@ -29,6 +29,7 @@
 
 #include <kern/assert.h>
 #include <kern/kalloc.h>
+#include <kern/printf.h>
 
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
@@ -40,14 +41,13 @@
 
 #include <asm/system.h>
 
-extern void *alloc_contig_mem (unsigned, unsigned, unsigned, vm_page_t *);
-extern int printf (const char *, ...);
+#include <linux/dev/glue/glue.h>
 
 /* Amount of memory to reserve for Linux memory allocator.
    We reserve 64K chunks to stay within DMA limits.
    Increase MEM_CHUNKS if the kernel is running out of memory.  */
 #define MEM_CHUNK_SIZE	(64 * 1024)
-#define MEM_CHUNKS	7
+#define MEM_CHUNKS	32
 #define MEM_DMA_LIMIT	(16 * 1024 * 1024)
 
 /* Mininum amount that linux_kmalloc will allocate.  */
@@ -218,7 +218,7 @@ void *
 linux_kmalloc (unsigned int size, int priority)
 {
   int order, coalesced = 0;
-  unsigned flags;
+  unsigned long flags;
   struct pagehdr *ph;
   struct blkhdr *bh, *new_bh;
 
@@ -310,7 +310,7 @@ again:
 void
 linux_kfree (void *p)
 {
-  unsigned flags;
+  unsigned long flags;
   struct blkhdr *bh;
   struct pagehdr *ph;
 
@@ -385,7 +385,8 @@ unsigned long
 __get_free_pages (int priority, unsigned long order, int dma)
 {
   int i, pages_collected = 0;
-  unsigned flags, bits, off, j, len;
+  unsigned bits, off, j, len;
+  unsigned long flags;
 
   assert ((PAGE_SIZE << order) <= MEM_CHUNK_SIZE);
 
@@ -444,7 +445,8 @@ void
 free_pages (unsigned long addr, unsigned long order)
 {
   int i;
-  unsigned flags, bits, len, j;
+  unsigned bits, len, j;
+  unsigned long flags;
 
   assert ((addr & PAGE_MASK) == 0);
 
@@ -554,7 +556,7 @@ vfree (void *addr)
   if (!p)
     panic ("vmalloc_list_lookup failure");
   
-  kmem_free (kernel_map, addr, p->size);
+  kmem_free (kernel_map, (vm_offset_t) addr, p->size);
   vmalloc_list_remove (p);
 }
 

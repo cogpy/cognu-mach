@@ -47,7 +47,6 @@
 #include <kern/host.h>
 #include <kern/lock.h>
 #include <kern/mach_clock.h>
-#include <kern/mach_param.h>
 #include <kern/processor.h>
 #include <kern/queue.h>
 #include <kern/sched.h>
@@ -91,7 +90,7 @@ int		bigadj = 1000000;	/* adjust 10*tickadj if adjustment
  *		} while (secs != mtime->check_seconds);
  *	to read the time correctly.  (On a multiprocessor this assumes
  *	that processors see each other's writes in the correct order.
- *	We may have to insert fence operations.)
+ *	We have to insert write fence operations.) FIXME
  */
 
 mapped_time_value_t *mtime = 0;
@@ -100,7 +99,9 @@ mapped_time_value_t *mtime = 0;
 MACRO_BEGIN							\
 	if (mtime != 0) {					\
 		mtime->check_seconds = (time)->seconds;		\
+		asm volatile("":::"memory");			\
 		mtime->microseconds = (time)->microseconds;	\
+		asm volatile("":::"memory");			\
 		mtime->seconds = (time)->seconds;		\
 	}							\
 MACRO_END
@@ -512,7 +513,7 @@ int timeclose()
 /*
  *	Compatibility for device drivers.
  *	New code should use set_timeout/reset_timeout and private timers.
- *	These code can't use a zone to allocate timers, because
+ *	These code can't use a cache to allocate timers, because
  *	it can be called from interrupt handlers.
  */
 

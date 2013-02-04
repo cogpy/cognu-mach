@@ -139,14 +139,14 @@ void thread_check(thread_t, run_queue_t);
  *	The wait event hash table declarations are as follows:
  */
 
-#define NUMQUEUES	59
+#define NUMQUEUES	1031
 
 queue_head_t		wait_queue[NUMQUEUES];
 decl_simple_lock_data(,	wait_lock[NUMQUEUES])
 
 /* NOTE: we want a small positive integer out of this */
 #define wait_hash(event) \
-	((((int)(event) < 0) ? ~(int)(event) : (int)(event)) % NUMQUEUES)
+	((((long)(event) < 0) ? ~(long)(event) : (long)(event)) % NUMQUEUES)
 
 void wait_queue_init(void)
 {
@@ -637,6 +637,7 @@ boolean_t thread_invoke(
 	    thread_lock(new_thread);
 	    new_thread->state &= ~TH_UNINT;
 	    thread_unlock(new_thread);
+	    thread_wakeup(&new_thread->state);
 
 	    if (continuation != (void (*)()) 0) {
 		(void) spl0();
@@ -658,6 +659,7 @@ boolean_t thread_invoke(
 
 		    new_thread->state &= ~(TH_SWAPPED | TH_UNINT);
 		    thread_unlock(new_thread);
+		    thread_wakeup(&new_thread->state);
 
 #if	NCPUS > 1
 		    new_thread->last_processor = current_processor();
@@ -787,6 +789,7 @@ boolean_t thread_invoke(
 
 	new_thread->state &= ~(TH_SWAPPED | TH_UNINT);
 	thread_unlock(new_thread);
+	thread_wakeup(&new_thread->state);
 
 	/*
 	 *	Thread is now interruptible.

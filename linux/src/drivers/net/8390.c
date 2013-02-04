@@ -703,16 +703,13 @@ static void set_multicast_list(struct device *dev)
 int ethdev_init(struct device *dev)
 {
     if (ei_debug > 1)
-		printk(version);
+		printk("%s", version);
     
     if (dev->priv == NULL) {
-		struct ei_device *ei_local;
-		
 		dev->priv = kmalloc(sizeof(struct ei_device), GFP_KERNEL);
 		if (dev->priv == NULL)
 			return -ENOMEM;
 		memset(dev->priv, 0, sizeof(struct ei_device));
-		ei_local = (struct ei_device *)dev->priv;
     }
     
     dev->hard_start_xmit = &ei_start_xmit;

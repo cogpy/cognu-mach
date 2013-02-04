@@ -35,7 +35,7 @@
 #include <kern/mach_clock.h>
 #include <sys/time.h>
 #include <device/conf.h>
-#include <device/errno.h>
+#include <device/device_types.h>
 #include <device/tty.h>
 #include <device/io_req.h>
 
@@ -70,10 +70,6 @@ int comtimer_state[NCOM];
 #define RCBAUD B9600
 static int rcline = -1;
 static struct bus_device *comcndev;
-int comcnprobe(struct consdev *cp);
-int comcninit(struct consdev *cp);
-int comcngetc(dev_t dev, int wait);
-int comcnputc(dev_t dev, int c);
 
 /* XX */
 extern char *kernel_cmdline;
@@ -215,6 +211,8 @@ comcnprobe(struct consdev *cp)
 
 	cp->cn_dev = makedev(maj, unit);
 	cp->cn_pri = pri;
+
+	return 0;
 }
 
 
@@ -231,7 +229,7 @@ comattach(struct bus_device *dev)
 	u_short	addr = dev->address;
 
 	take_dev_irq(dev);
-	printf(", port = %x, spl = %d, pic = %d. (DOS COM%d)",
+	printf(", port = %lx, spl = %ld, pic = %d. (DOS COM%d)",
 	       dev->address, dev->sysdep, dev->sysdep1, unit+1);
 
 /*	comcarrier[unit] = addr->flags;*/
@@ -267,7 +265,7 @@ comcninit(struct consdev *cp)
 	outb(LINE_CTL(addr), iDLAB);
 	outb(BAUD_LSB(addr), divisorreg[RCBAUD] & 0xff);
 	outb(BAUD_MSB(addr), divisorreg[RCBAUD] >>8);
-	outb(LINE_CTL(addr), i7BITS|iPEN);
+       outb(LINE_CTL(addr), i8BITS);
 	outb(INTR_ENAB(addr), 0);
 	outb(MODEM_CTL(addr), iDTR|iRTS|iOUT2);
 
@@ -287,6 +285,7 @@ comcninit(struct consdev *cp)
 		}
 	}
 
+	return 0;
 }
 
 /*
@@ -336,13 +335,13 @@ io_return_t comopen(
 	io_return_t	result;
 
 	if (unit >= NCOM)
-	    return ENXIO;	/* no such device */
+	    return D_NO_SUCH_DEVICE;	/* no such device */
 	if ((isai = cominfo[unit]) == 0 || isai->alive == 0) {
 	    /*
 	     *	Try to probe it again
 	     */
 	    if (!com_reprobe(unit))
-		return ENXIO;
+		return D_NO_SUCH_DEVICE;
 	}
 	tp = &com_tty[unit];
 
@@ -448,7 +447,7 @@ comgetstat(dev, flavor, data, count)
 dev_t		dev;
 int		flavor;
 int		*data;		/* pointer to OUT array */
-unsigned int	*count;		/* out */
+natural_t	*count;		/* out */
 {
 	io_return_t	result = D_SUCCESS;
 	int		unit = minor(dev);
@@ -471,7 +470,7 @@ comsetstat(dev, flavor, data, count)
 dev_t		dev;
 int		flavor;
 int *		data;
-unsigned int	count;
+natural_t	count;
 {
 	io_return_t	result = D_SUCCESS;
 	int 		unit = minor(dev);
@@ -622,7 +621,9 @@ comstart(tp)
 struct tty *tp;
 {
 	char nch;
+#if 0
 	int i;
+#endif
 
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP|TS_BUSY)) {
 comst_1++;
@@ -656,7 +657,7 @@ comst_4++;
 #else
 	nch = getc(&tp->t_outq);
 	if ((nch & 0200) && ((tp->t_flags & LITOUT) == 0)) {
-	    timeout(ttrstrt, (char *)tp, (nch & 0x7f) + 6);
+	    timeout((timer_func_t *)ttrstrt, (char *)tp, (nch & 0x7f) + 6);
 	    tp->t_state |= TS_TIMEOUT;
 comst_4++;
 	    return;
@@ -884,6 +885,8 @@ comcnputc(dev_t dev, int c)
 	if (c == '\n')
 		comcnputc(dev, '\r');
 	outb(addr, c);
+
+	return 0;
 }
 
 int

@@ -61,6 +61,7 @@
 
 #include <sys/types.h>
 #include <machine/spl.h>
+#include <machine/vm_param.h>
 
 #include <mach/mach_types.h>
 #include <mach/kern_return.h>
@@ -68,6 +69,9 @@
 #include <mach/port.h>
 #include <mach/vm_param.h>
 #include <mach/notify.h>
+
+#include <kern/kalloc.h>
+#include <kern/printf.h>
 
 #include <ipc/ipc_port.h>
 #include <ipc/ipc_space.h>
@@ -84,6 +88,7 @@
 #include <device/net_io.h>
 #include <device/device_reply.user.h>
 #include <device/device_emul.h>
+#include <device/ds_routines.h>
 
 #define MACH_INCLUDE
 #include <linux/kernel.h>
@@ -97,7 +102,7 @@
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 
-extern int linux_intr_pri;
+#include <linux/dev/glue/glue.h>
 
 /* One of these is associated with each instance of a device.  */
 struct net_data
@@ -248,7 +253,6 @@ void
 dev_kfree_skb (struct sk_buff *skb, int mode)
 {
   unsigned flags;
-  extern void *io_done_list;
 
   /* Queue sk_buff on done list if there is a
      page list attached or we need to send a reply.
@@ -425,7 +429,6 @@ device_write (void *d, ipc_port_t reply_port,
 {
   unsigned char *p;
   int i, amt, skblen, s;
-  io_return_t err = 0;
   vm_map_copy_t copy = (vm_map_copy_t) data;
   struct net_data *nd = d;
   struct linux_device *dev = nd->dev;
@@ -447,7 +450,7 @@ device_write (void *d, ipc_port_t reply_port,
       assert (copy->cpy_npages == 1);
 
       skb->copy = copy;
-      skb->data = ((void *) copy->cpy_page_list[0]->phys_addr
+      skb->data = ((void *) phystokv(copy->cpy_page_list[0]->phys_addr)
 		   + (copy->offset & PAGE_MASK));
       skb->len = count;
       skb->head = skb->data;
@@ -461,7 +464,7 @@ device_write (void *d, ipc_port_t reply_port,
       skb->end = skb->tail;
       
       memcpy (skb->data,
-	      ((void *) copy->cpy_page_list[0]->phys_addr
+	      ((void *) phystokv(copy->cpy_page_list[0]->phys_addr)
 	       + (copy->offset & PAGE_MASK)),
 	      amt);
       count -= amt;
@@ -471,7 +474,7 @@ device_write (void *d, ipc_port_t reply_port,
 	  amt = PAGE_SIZE;
 	  if (amt > count)
 	    amt = count;
-	  memcpy (p, (void *) copy->cpy_page_list[i]->phys_addr, amt);
+	  memcpy (p, (void *) phystokv(copy->cpy_page_list[i]->phys_addr), amt);
 	  count -= amt;
 	  p += amt;
 	}

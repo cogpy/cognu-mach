@@ -49,6 +49,8 @@
 #include <mach/vm_param.h>
 #include <mach/notify.h>
 
+#include <kern/kalloc.h>
+
 #include <ipc/ipc_port.h>
 #include <ipc/ipc_space.h>
 
@@ -61,6 +63,7 @@
 #include <device/disk_status.h>
 #include <device/device_reply.user.h>
 #include <device/device_emul.h>
+#include <device/ds_routines.h>
 
 /* TODO.  This should be fixed to not be i386 specific.  */
 #include <i386at/disk.h>
@@ -78,9 +81,7 @@
 #include <linux/hdreg.h>
 #include <asm/io.h>
 
-extern int linux_auto_config;
-extern int linux_intr_pri;
-extern int linux_to_mach_error (int);
+#include <linux/dev/glue/glue.h>
 
 /* This task queue is not used in Mach: just for fixing undefined symbols. */
 DECLARE_TASK_QUEUE (tq_disk);
@@ -193,9 +194,6 @@ int read_ahead[MAX_BLKDEV] = {0, };
    This is unused in Mach.  It is here to make drivers compile.  */
 struct wait_queue *wait_for_request = NULL;
 
-/* Map for allocating device memory.  */
-extern vm_map_t device_io_map;
-
 /* Initialize block drivers.  */
 int
 blk_dev_init ()
@@ -230,19 +228,17 @@ int
 register_blkdev (unsigned major, const char *name,
 		 struct file_operations *fops)
 {
-  int err = 0;
-
   if (major == 0)
     {
       for (major = MAX_BLKDEV - 1; major > 0; major--)
 	if (blkdevs[major].fops == NULL)
 	  goto out;
-      return -LINUX_EBUSY;
+      return -EBUSY;
     }
   if (major >= MAX_BLKDEV)
-    return -LINUX_EINVAL;
+    return -EINVAL;
   if (blkdevs[major].fops && blkdevs[major].fops != fops)
-    return -LINUX_EBUSY;
+    return -EBUSY;
 
 out:
   blkdevs[major].name = name;
@@ -260,12 +256,10 @@ out:
 int
 unregister_blkdev (unsigned major, const char *name)
 {
-  int err;
-
   if (major >= MAX_BLKDEV)
-    return -LINUX_EINVAL;
+    return -EINVAL;
   if (! blkdevs[major].fops || strcmp (blkdevs[major].name, name))
-    return -LINUX_EINVAL;
+    return -EINVAL;
   blkdevs[major].fops = NULL;
   if (blkdevs[major].labels)
     {
@@ -280,8 +274,6 @@ unregister_blkdev (unsigned major, const char *name)
 void
 set_blocksize (kdev_t dev, int size)
 {
-  extern int *blksize_size[];
-
   if (! blksize_size[MAJOR (dev)])
     return;
 
@@ -315,7 +307,7 @@ alloc_buffer (int size)
       d = current_thread ()->pcb->data;
       assert (d);
       queue_enter (&d->pages, m, vm_page_t, pageq);
-      return (void *) m->phys_addr;
+      return (void *) phystokv(m->phys_addr);
     }
   return (void *) __get_free_pages (GFP_KERNEL, 0, ~0UL);
 }
@@ -324,7 +316,6 @@ alloc_buffer (int size)
 static void
 free_buffer (void *p, int size)
 {
-  int i;
   struct temp_data *d;
   vm_page_t m;
 
@@ -336,7 +327,7 @@ free_buffer (void *p, int size)
       assert (d);
       queue_iterate (&d->pages, m, vm_page_t, pageq)
 	{
-	  if (m->phys_addr == (vm_offset_t) p)
+	  if (phystokv(m->phys_addr) == (vm_offset_t) p)
 	    {
 	      queue_remove (&d->pages, m, vm_page_t, pageq);
 	      VM_PAGE_FREE (m);
@@ -388,7 +379,6 @@ __brelse (struct buffer_head *bh)
 struct buffer_head *
 bread (kdev_t dev, int block, int size)
 {
-  int err;
   struct buffer_head *bh;
 
   bh = getblk (dev, block, size);
@@ -537,7 +527,7 @@ rdwr_partial (int rw, kdev_t dev, loff_t *off,
     }
   bh->b_data = alloc_buffer (bh->b_size);
   if (! bh->b_data)
-    return -LINUX_ENOMEM;
+    return -ENOMEM;
   ll_rw_block (READ, 1, &bh);
   wait_on_buffer (bh);
   if (buffer_uptodate (bh))
@@ -556,7 +546,7 @@ rdwr_partial (int rw, kdev_t dev, loff_t *off,
 	  wait_on_buffer (bh);
 	  if (! buffer_uptodate (bh))
 	    {
-	      err = -LINUX_EIO;
+	      err = -EIO;
 	      goto out;
 	    }
 	}
@@ -565,7 +555,7 @@ rdwr_partial (int rw, kdev_t dev, loff_t *off,
       *off += c;
     }
   else
-    err = -LINUX_EIO;
+    err = -EIO;
 out:
   free_buffer (bh->b_data, bh->b_size);
   return err;
@@ -610,15 +600,15 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
       if (cc > ((nbuf - nb) << bshift))
 	cc = (nbuf - nb) << bshift;
       if (! test_bit (BH_Bounce, &bh->b_state))
-	bh->b_data = (char *) pmap_extract (vm_map_pmap (device_io_map),
+	bh->b_data = (char *) phystokv(pmap_extract (vm_map_pmap (device_io_map),
 					    (((vm_offset_t) *buf)
-					     + (nb << bshift)));
+					     + (nb << bshift))));
       else
 	{
 	  bh->b_data = alloc_buffer (cc);
 	  if (! bh->b_data)
 	    {
-	      err = -LINUX_ENOMEM;
+	      err = -ENOMEM;
 	      break;
 	    }
 	  if (rw == WRITE)
@@ -642,7 +632,7 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
 	  && rw == READ && test_bit (BH_Bounce, &bh->b_state))
 	memcpy (*buf + cc, bh->b_data, bh->b_size);
       else if (! err && ! buffer_uptodate (bh))
-	  err = -LINUX_EIO;
+	  err = -EIO;
       if (test_bit (BH_Bounce, &bh->b_state))
 	free_buffer (bh->b_data, bh->b_size);
     }
@@ -789,6 +779,7 @@ static struct block_data *open_list;
 extern struct device_emulation_ops linux_block_emulation_ops;
 
 static io_return_t device_close (void *);
+static io_return_t device_close_forced (void *, int);
 
 /* Return a send right for block device BD.  */
 static ipc_port_t
@@ -922,7 +913,7 @@ static kern_return_t
 init_partition (struct name_map *np, kdev_t *dev,
 		struct device_struct *ds, int slice, int *part)
 {
-  int err, i, j;
+  int i, j;
   struct disklabel *lp;
   struct gendisk *gd = ds->gd;
   struct partition *p;
@@ -947,7 +938,7 @@ init_partition (struct name_map *np, kdev_t *dev,
       if (gd->part[MINOR (d->inode.i_rdev)].nr_sects <= 0
 	  || gd->part[MINOR (d->inode.i_rdev)].start_sect < 0)
 	continue;
-      linux_intr_pri = SPL5;
+      linux_intr_pri = SPL6;
       d->file.f_flags = 0;
       d->file.f_mode = O_RDONLY;
       if (ds->fops->open && (*ds->fops->open) (&d->inode, &d->file))
@@ -1093,7 +1084,7 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
   if (ds->fops->open)
     {
       td.inode.i_rdev = dev;
-      linux_intr_pri = SPL5;
+      linux_intr_pri = SPL6;
       err = (*ds->fops->open) (&td.inode, &td.file);
       if (err)
 	{
@@ -1164,6 +1155,7 @@ out:
 	    {
 	      ipc_kobject_set (bd->port, IKO_NULL, IKOT_NONE);
 	      ipc_port_dealloc_kernel (bd->port);
+	      *devp = IP_NULL;
 	    }
 	  kfree ((vm_offset_t) bd, sizeof (struct block_data));
 	  bd = NULL;
@@ -1174,18 +1166,16 @@ out:
       bd->open_count = 1;
       bd->next = open_list;
       open_list = bd;
+      *devp = &bd -> device;
     }
 
-  if (IP_VALID (reply_port))
-    ds_device_open_reply (reply_port, reply_port_type, err, dev_to_port (bd));
-  else if (! err)
+  if (!IP_VALID (reply_port) && ! err)
     device_close (bd);
-
-  return MIG_NO_REPLY;
+  return err;
 }
 
 static io_return_t
-device_close (void *d)
+device_close_forced (void *d, int force)
 {
   struct block_data *bd = d, *bdp, **prev;
   struct device_struct *ds = bd->ds;
@@ -1202,7 +1192,7 @@ device_close (void *d)
     }
   ds->busy = 1;
 
-  if (--bd->open_count == 0)
+  if (force || --bd->open_count == 0)
     {
       /* Wait for pending I/O to complete.  */
       while (bd->iocount > 0)
@@ -1244,6 +1234,13 @@ device_close (void *d)
     }
   return D_SUCCESS;
 }
+
+static io_return_t
+device_close (void *d)
+{
+  return device_close_forced (d, 0);
+}
+
 
 #define MAX_COPY	(VM_MAP_COPY_PAGE_LIST_MAX << PAGE_SHIFT)
 
@@ -1674,7 +1671,7 @@ device_get_status (void *d, dev_flavor_t flavor, dev_status_t status,
 	  INIT_DATA();
 
 	  if ((*bd->ds->fops->ioctl) (&td.inode, &td.file,
-				      HDIO_GETGEO, &hg))
+				      HDIO_GETGEO, (unsigned long)&hg))
 	    return D_INVALID_OPERATION;
 
 	  dp->dp_type = DPT_WINI;  /* XXX: It may be a floppy...  */
@@ -1723,6 +1720,17 @@ device_set_status (void *d, dev_flavor_t flavor, dev_status_t status,
   return D_INVALID_OPERATION;
 }
 
+
+static void
+device_no_senders (mach_no_senders_notification_t *ns)
+{
+  device_t dev;
+
+  dev = dev_port_lookup((ipc_port_t) ns->not_header.msgh_remote_port);
+  assert(dev);
+  device_close_forced (dev->emul_data, 1);
+}
+
 struct device_emulation_ops linux_block_emulation_ops =
 {
   NULL,
@@ -1738,7 +1746,7 @@ struct device_emulation_ops linux_block_emulation_ops =
   device_get_status,
   NULL,
   NULL,
-  NULL,
+  device_no_senders,
   NULL,
   NULL
 };

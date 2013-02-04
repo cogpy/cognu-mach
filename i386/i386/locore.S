@@ -442,12 +442,12 @@ ENTRY(t_debug)
 ENTRY(t_page_fault)
 	pushl	$(T_PAGE_FAULT)		/* mark a page fault trap */
 	pusha				/* save the general registers */
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_PAGETABLES
 	movl	%ss:hyp_shared_info+CR2,%eax
-#else	/* MACH_XEN */
+#else	/* MACH_PV_PAGETABLES */
 	movl	%cr2,%eax		/* get the faulting address */
-#endif	/* MACH_XEN */
-	movl	%eax,12(%esp)		/* save in esp save slot */
+#endif	/* MACH_PV_PAGETABLES */
+	movl	%eax,R_CR2-R_EDI(%esp)	/* save in esp save slot */
 	jmp	trap_push_segs		/* continue fault */
 
 /*
@@ -785,6 +785,7 @@ ast_from_interrupt:
  * #ifndef MACH_XEN
  *		iunit
  *		saved SPL
+ *		irq
  * #endif
  *		return address == return_to_iret_i
  *		saved %edx
@@ -800,6 +801,7 @@ ast_from_interrupt:
  * #ifndef MACH_XEN
  *		iunit
  *		saved SPL
+ *		irq
  * #endif
  *		return address == return_to_iret
  *		pointer to save area on old stack
@@ -1299,48 +1301,51 @@ Entry(copyoutmsg)
 	movl	$USER_DS,%eax		/* use user data segment for accesses */
 	mov	%ax,%es
 
+#if !defined(MACH_HYP) && !PAE
+	cmpl	$3,machine_slot+SUB_TYPE_CPU_TYPE
+	jbe	copyout_retry		/* Use slow version on i386 */
+#endif /* !defined(MACH_HYP) && !PAE */
+
+	movl	%edx,%eax		/* use count */
+	/*cld*/				/* count up: always this way in GCC code */
+	movl	%eax,%ecx		/* move by longwords first */
+	shrl	$2,%ecx
+	RECOVER(copyout_fail)
+	rep
+	movsl
+	movl	%eax,%ecx		/* now move remaining bytes */
+	andl	$3,%ecx
+	RECOVER(copyout_fail)
+	rep
+	movsb				/* move */
+	xorl	%eax,%eax		/* return 0 for success */
+
+copyout_ret:
+	mov	%ss,%di			/* restore ES to kernel segment */
+	mov	%di,%es
+
+	popl	%edi			/* restore registers */
+	popl	%esi
+	ret				/* and return */
+
+copyout_fail:
+	movl	$1,%eax			/* return 1 for failure */
+	jmp	copyout_ret		/* pop frame and return */
+
+#if !defined(MACH_HYP) && !PAE
 /*
  * Check whether user address space is writable
- * before writing to it - hardware is broken.
- * XXX only have to do this on 386's.
+ * before writing to it - i386 hardware is broken.
  */
 copyout_retry:
-#ifdef	MACH_HYP
-	movl	cr3,%ecx		/* point to page directory */
-#else	/* MACH_HYP */
 	movl	%cr3,%ecx		/* point to page directory */
-#endif	/* MACH_HYP */
-#if PAE
-	movl	%edi,%eax		/* get page directory pointer bits */
-	shrl	$(PDPSHIFT),%eax	/* from user address */
-	movl	KERNELBASE(%ecx,%eax,PTE_SIZE),%ecx
-					/* get page directory pointer */
-#ifdef	MACH_PSEUDO_PHYS
-	shrl	$(PTESHIFT),%ecx
-	movl	pfn_list,%eax
-	movl	(%eax,%ecx,4),%ecx	/* mfn_to_pfn */
-	shll	$(PTESHIFT),%ecx
-#else	/* MACH_PSEUDO_PHYS */
-	andl	$(PTE_PFN),%ecx		/* isolate page frame address */
-#endif	/* MACH_PSEUDO_PHYS */
-#endif	/* PAE */
 	movl	%edi,%eax		/* get page directory bits */
 	shrl	$(PDESHIFT),%eax	/* from user address */
-#if PAE
-	andl	$(PDEMASK),%eax
-#endif	/* PAE */
 	movl	KERNELBASE(%ecx,%eax,PTE_SIZE),%ecx
 					/* get page directory pointer */
 	testl	$(PTE_V),%ecx		/* present? */
 	jz	0f			/* if not, fault is OK */
-#ifdef	MACH_PSEUDO_PHYS
-	shrl	$(PTESHIFT),%ecx
-	movl	pfn_list,%eax
-	movl	(%eax,%ecx,4),%ecx	/* mfn_to_pfn */
-	shll	$(PTESHIFT),%ecx
-#else	/* MACH_PSEUDO_PHYS */
 	andl	$(PTE_PFN),%ecx		/* isolate page frame address */
-#endif	/* MACH_PSEUDO_PHYS */
 	movl	%edi,%eax		/* get page table bits */
 	shrl	$(PTESHIFT),%eax
 	andl	$(PTEMASK),%eax		/* from user address */
@@ -1354,17 +1359,9 @@ copyout_retry:
 /*
  * Not writable - must fake a fault.  Turn off access to the page.
  */
-#ifdef	MACH_HYP
-	pushl	%edx
-	pushl	%ecx
-	call	hyp_invalidate_pte
-	popl	%ecx
-	popl	%edx
-#else	/* MACH_HYP */
 	andl	$(PTE_INVALID),(%ecx)	/* turn off valid bit */
 	movl	%cr3,%eax		/* invalidate TLB */
 	movl	%eax,%cr3
-#endif	/* MACH_HYP */
 0:
 
 /*
@@ -1395,18 +1392,8 @@ copyout_retry:
 	subl	%eax,%edx		/* decrement count */
 	jg	copyout_retry		/* restart on next page if not done */
 	xorl	%eax,%eax		/* return 0 for success */
-
-copyout_ret:
-	mov	%ss,%di			/* restore ES to kernel segment */
-	mov	%di,%es
-
-	popl	%edi			/* restore registers */
-	popl	%esi
-	ret				/* and return */
-
-copyout_fail:
-	movl	$1,%eax			/* return 1 for failure */
-	jmp	copyout_ret		/* pop frame and return */
+	jmp	copyout_ret
+#endif /* !defined(MACH_HYP) && !PAE */
 
 /*
  * int inst_fetch(int eip, int cs);
@@ -1436,14 +1423,14 @@ _inst_fetch_fault:
 
 
 ENTRY(dr6)
-#ifdef MACH_XEN
+#ifdef MACH_RING1
 	pushl	%ebx
 	movl	$6, %ebx
 	call	__hyp_get_debugreg
 	popl	%ebx
-#else /* MACH_XEN */
+#else /* MACH_RING1 */
 	movl	%db6, %eax
-#endif /* MACH_XEN */
+#endif /* MACH_RING1 */
 	ret
 
 /*	dr<i>(address, type, len, persistence)
@@ -1451,67 +1438,67 @@ ENTRY(dr6)
 ENTRY(dr0)
 	movl	S_ARG0, %eax
 	movl	%eax,EXT(dr_addr)
-#ifdef MACH_XEN
+#ifdef MACH_RING1
 	pushl	%ebx
 	movl	$0,%ebx
 	movl	%eax,%ecx
 	call	__hyp_set_debugreg
-#else /* MACH_XEN */
+#else /* MACH_RING1 */
 	movl	%eax, %db0
-#endif /* MACH_XEN */
+#endif /* MACH_RING1 */
 	movl	$0, %ecx
 	jmp	0f
 ENTRY(dr1)
 	movl	S_ARG0, %eax
 	movl	%eax,EXT(dr_addr)+1*4
-#ifdef MACH_XEN
+#ifdef MACH_RING1
 	pushl	%ebx
 	movl	$1,%ebx
 	movl	%eax,%ecx
 	call	__hyp_set_debugreg
-#else /* MACH_XEN */
+#else /* MACH_RING1 */
 	movl	%eax, %db1
-#endif /* MACH_XEN */
+#endif /* MACH_RING1 */
 	movl	$2, %ecx
 	jmp	0f
 ENTRY(dr2)
 	movl	S_ARG0, %eax
 	movl	%eax,EXT(dr_addr)+2*4
-#ifdef MACH_XEN
+#ifdef MACH_RING1
 	pushl	%ebx
 	movl	$2,%ebx
 	movl	%eax,%ecx
 	call	__hyp_set_debugreg
-#else /* MACH_XEN */
+#else /* MACH_RING1 */
 	movl	%eax, %db2
-#endif /* MACH_XEN */
+#endif /* MACH_RING1 */
 	movl	$4, %ecx
 	jmp	0f
 
 ENTRY(dr3)
 	movl	S_ARG0, %eax
 	movl	%eax,EXT(dr_addr)+3*4
-#ifdef MACH_XEN
+#ifdef MACH_RING1
 	pushl	%ebx
 	movl	$3,%ebx
 	movl	%eax,%ecx
 	call	__hyp_set_debugreg
-#else /* MACH_XEN */
+#else /* MACH_RING1 */
 	movl	%eax, %db3
-#endif /* MACH_XEN */
+#endif /* MACH_RING1 */
 	movl	$6, %ecx
 
 0:
 	pushl	%ebp
 	movl	%esp, %ebp
 
-#ifdef MACH_XEN
+#ifdef MACH_RING1
 	movl	$7,%ebx
 	call	__hyp_get_debugreg
 	movl	%eax, %edx
-#else /* MACH_XEN */
+#else /* MACH_RING1 */
 	movl	%db7, %edx
-#endif /* MACH_XEN */
+#endif /* MACH_RING1 */
 	movl	%edx,EXT(dr_addr)+4*4
 	andl	dr_msk(,%ecx,2),%edx	/* clear out new entry */
 	movl	%edx,EXT(dr_addr)+5*4
@@ -1533,14 +1520,14 @@ ENTRY(dr3)
 	shll	%cl, %eax
 	orl	%eax, %edx
 
-#ifdef MACH_XEN
+#ifdef MACH_RING1
 	movl	$7,%ebx
 	movl	%edx, %ecx
 	call	__hyp_set_debugreg
 	popl	%ebx
-#else /* MACH_XEN */
+#else /* MACH_RING1 */
 	movl	%edx, %db7
-#endif /* MACH_XEN */
+#endif /* MACH_RING1 */
 	movl	%edx,EXT(dr_addr)+7*4
 	movl	%edx, %eax
 	leave

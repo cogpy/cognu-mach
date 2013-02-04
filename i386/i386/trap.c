@@ -33,6 +33,7 @@
 #include <mach/machine/eflags.h>
 #include <i386/trap.h>
 #include <i386/fpu.h>
+#include <i386/locore.h>
 #include <i386/model_dep.h>
 #include <intel/read_fault.h>
 #include <machine/machspl.h>	/* for spl_t */
@@ -121,25 +122,6 @@ user_page_fault_continue(kr)
 	i386_exception(EXC_BAD_ACCESS, kr, regs->cr2);
 	/*NOTREACHED*/
 }
-
-/*
- * Fault recovery in copyin/copyout routines.
- */
-struct recovery {
-	int	fault_addr;
-	int	recover_addr;
-};
-
-extern struct recovery	recover_table[];
-extern struct recovery	recover_table_end[];
-
-/*
- * Recovery from Successful fault in copyout does not
- * return directly - it retries the pte check, since
- * the 386 ignores write protection in kernel mode.
- */
-extern struct recovery	retry_table[];
-extern struct recovery	retry_table_end[];
 
 
 static char *trap_type[] = {
@@ -235,10 +217,10 @@ dump_ss(regs);
 		printf("now %08x\n", subcode);
 #endif
 			if (trunc_page(subcode) == 0
-			    || (subcode >= (int)_start
-				&& subcode < (int)etext)) {
+			    || (subcode >= (long)_start
+				&& subcode < (long)etext)) {
 				printf("Kernel page fault at address 0x%x, "
-				       "eip = 0x%x\n",
+				       "eip = 0x%lx\n",
 				       subcode, regs->eip);
 				goto badtrap;
 			}
@@ -295,6 +277,7 @@ dump_ss(regs);
 		     */
 		    register struct recovery *rp;
 
+                    /* Linear searching; but the list is small enough.  */
 		    for (rp = retry_table; rp < retry_table_end; rp++) {
 			if (regs->eip == rp->fault_addr) {
 			    regs->eip = rp->recover_addr;
@@ -311,6 +294,7 @@ dump_ss(regs);
 		{
 		    register struct recovery *rp;
 
+                    /* Linear searching; but the list is small enough.  */
 		    for (rp = recover_table;
 			 rp < recover_table_end;
 			 rp++) {
@@ -344,7 +328,7 @@ dump_ss(regs);
 			printf("%s trap", trap_type[type]);
 		else
 			printf("trap %d", type);
-		printf(", eip 0x%x\n", regs->eip);
+		printf(", eip 0x%lx\n", regs->eip);
 #if	MACH_TTD
 		if (kttd_enabled && kttd_trap(type, code, regs))
 			return;
@@ -378,7 +362,7 @@ int user_trap(regs)
 
 	if ((vm_offset_t)thread < phys_last_addr) {
 		printf("user_trap: bad thread pointer 0x%p\n", thread);
-		printf("trap type %d, code 0x%x, va 0x%x, eip 0x%x\n",
+		printf("trap type %ld, code 0x%lx, va 0x%lx, eip 0x%lx\n",
 		       regs->trapno, regs->err, regs->cr2, regs->eip);
 		asm volatile ("1: hlt; jmp 1b");
 	}
@@ -526,7 +510,7 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		/*NOTREACHED*/
 		break;
 
-#ifdef MACH_XEN
+#ifdef MACH_PV_PAGETABLES
 	    case 15:
 		{
 			static unsigned count = 0;
@@ -556,7 +540,7 @@ printf("user trap %d error %d sub %08x\n", type, code, subcode);
 		    return 0;
 #endif	/* MACH_KDB */
 		splhigh();
-		printf("user trap, type %d, code = %x\n",
+		printf("user trap, type %d, code = %lx\n",
 		       type, regs->err);
 		dump_ss(regs);
 		panic("trap");
@@ -601,7 +585,7 @@ i386_astintr()
 	int	mycpu = cpu_number();
 
 	(void) splsched();	/* block interrupts to check reasons */
-#ifndef	MACH_XEN
+#ifndef	MACH_RING1
 	if (need_ast[mycpu] & AST_I386_FP) {
 	    /*
 	     * AST was for delayed floating-point exception -
@@ -614,7 +598,7 @@ i386_astintr()
 	    fpastintr();
 	}
 	else
-#endif	/* MACH_XEN */
+#endif	/* MACH_RING1 */
 	{
 	    /*
 	     * Not an FPU trap.  Handle the AST.

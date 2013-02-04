@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Samuel Thibault <samuel.thibault@ens-lyon.org>
+ *  Copyright (C) 2006-2009 Free Software Foundation
  *
  * This program is free software ; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <mach/mig_support.h>
 #include <machine/pmap.h>
 #include <machine/ipl.h>
+#include <kern/kalloc.h>
 #include <stdarg.h>
 #include <string.h>
 #include <alloca.h>
@@ -328,7 +329,9 @@ void hyp_store_init(void)
 		return;
 	simple_lock_init(&lock);
 	store = (void*) mfn_to_kv(boot_info.store_mfn);
+#ifdef	MACH_PV_PAGETABLES
 	pmap_set_page_readwrite(store);
+#endif	/* MACH_PV_PAGETABLES */
 	/* SPL sched */
 	hyp_evt_handler(boot_info.store_evtchn, hyp_store_handler, 0, SPL7);
 }

@@ -25,16 +25,7 @@
  */
 
 #include <kern/printf.h>
-#ifdef	MACH_KERNEL
 #include <mach/std_types.h>
-#else	/* MACH_KERNEL */
-#include <cpus.h>
-#include <platforms.h>
-#include <generic.h>
-#include <sys/param.h>
-#include <mach/machine.h>
-#include <machine/cpu.h>
-#endif	/* MACH_KERNEL */
 #include <i386/pic.h>
 #include <i386/ipl.h>
 #include <chips/busses.h>
@@ -144,7 +135,7 @@ void take_dev_irq(
 		printf("The device below will clobber IRQ %d.\n", pic);
 		printf("You have two devices at the same IRQ.\n");
 		printf("This won't work.  Reconfigure your hardware and try again.\n");
-		printf("%s%d: port = %x, spl = %d, pic = %d.\n",
+		printf("%s%d: port = %lx, spl = %ld, pic = %d.\n",
 		        dev->name, dev->unit, dev->address,
 			dev->sysdep, dev->sysdep1);
 		while (1);

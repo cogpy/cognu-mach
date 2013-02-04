@@ -39,6 +39,7 @@
 #include <machine/spl.h>
 #include <machine/pmap.h>
 #include <machine/vm_param.h>
+#include <machine/model_dep.h>
 
 #define MACH_INCLUDE
 #include <linux/sched.h>
@@ -47,6 +48,8 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/string.h>
+#include <linux/pci.h>
+#include <linux/dev/glue/glue.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -82,30 +85,6 @@ struct drive_info_struct
  * Forward declarations.
  */
 static void calibrate_delay (void);
-
-extern vm_offset_t phys_last_addr;
-
-extern void *alloc_contig_mem (unsigned, unsigned, unsigned, vm_page_t *);
-extern void free_contig_mem (vm_page_t);
-extern void init_IRQ (void);
-extern void restore_IRQ (void);
-extern void startrtclock (void);
-extern void linux_version_init (void);
-extern void linux_kmem_init (void);
-extern unsigned long pci_init (unsigned long, unsigned long);
-extern void linux_net_emulation_init (void);
-extern void device_setup (void);
-extern void linux_printk (char *,...);
-extern int linux_timer_intr (void);
-extern spl_t spl0 (void);
-extern spl_t splhigh (void);
-extern void form_pic_mask (void);
-extern int linux_bad_intr (int);
-extern int prtnull ();
-extern int intnull ();
-extern void linux_sched_init (void);
-extern void pcmcia_init (void);
-
 
 /*
  * Amount of contiguous memory to allocate for initialization.
@@ -170,7 +149,7 @@ linux_init (void)
   /*
    * Free unused memory.
    */
-  while (pages && pages->phys_addr < round_page (memory_start))
+  while (pages && phystokv(pages->phys_addr) < round_page (memory_start))
     pages = (vm_page_t) pages->pageq.next;
   if (pages)
     free_contig_mem (pages);
@@ -317,7 +296,7 @@ alloc_contig_mem (unsigned size, unsigned limit,
   kfree ((vm_offset_t) bits, bits_len);
   if (pages)
     *pages = page_list;
-  return (m);
+  return phystokv(m);
 }
 
 /*

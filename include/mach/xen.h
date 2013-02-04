@@ -1,6 +1,6 @@
 
 /*
- *  Copyright (C) 2006 Samuel Thibault <samuel.thibault@ens-lyon.org>
+ *  Copyright (C) 2006-2009, 2011 Free Software Foundation
  *
  * This program is free software ; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ extern struct start_info boot_info;
 
 extern volatile struct shared_info hyp_shared_info;
 
+#ifdef	MACH_PV_PAGETABLES
 /* Memory translations */
 
 /* pa are physical addresses, from 0 to size of memory */
@@ -77,6 +78,11 @@ extern unsigned long *mfn_list;
 
 #define kv_to_mfn(a)		pa_to_mfn(_kvtophys(a))
 #define kv_to_ma(a)		pa_to_ma(_kvtophys(a))
+#else	/* MACH_PV_PAGETABLES */
+#define mfn_to_pfn(n)		(n)
+#define pfn_to_mfn(n)		(n)
+#endif	/* MACH_PV_PAGETABLES */
+
 #define mfn_to_kv(mfn)		phystokv(ptoa(mfn_to_pfn(mfn)))
 
 #include <machine/xen.h>

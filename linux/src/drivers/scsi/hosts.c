@@ -133,6 +133,10 @@
 #include "53c7,8xx.h"
 #endif
 
+#ifdef CONFIG_SCSI_SYM53C8XX
+#include "sym53c8xx.h"
+#endif
+
 #ifdef CONFIG_SCSI_NCR53C8XX
 #include "ncr53c8xx.h"
 #endif
@@ -297,6 +301,9 @@ static Scsi_Host_Template builtin_scsi_hosts[] =
 #endif
 #ifdef CONFIG_SCSI_NCR53C7xx
     NCR53c7xx,
+#endif
+#ifdef CONFIG_SCSI_SYM53C8XX
+    SYM53C8XX,
 #endif
 #ifdef CONFIG_SCSI_NCR53C8XX
     NCR53C8XX,
@@ -465,6 +472,7 @@ unsigned int scsi_init()
 	 * Initialize our semaphores.  -1 is interpreted to mean
 	 * "inactive" - where as 0 will indicate a time out condition.
 	 */
+	printk("\rprobing scsi %d/%d: %s \e[K", tpnt-builtin_scsi_hosts, MAX_SCSI_HOSTS, tpnt->name);
 	
 	pcount = next_scsi_host;
 	if ((tpnt->detect) &&
@@ -489,6 +497,7 @@ unsigned int scsi_init()
 #endif
 	}
     }
+    printk("\ndone\n");
         
     for(shpnt=scsi_hostlist; shpnt; shpnt = shpnt->next)
     {

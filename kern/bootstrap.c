@@ -42,11 +42,13 @@
 #include <kern/debug.h>
 #include <kern/host.h>
 #include <kern/printf.h>
+#include <kern/kalloc.h>
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/lock.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_user.h>
+#include <vm/pmap.h>
 #include <device/device_port.h>
 
 #if	MACH_KDB
@@ -112,10 +114,10 @@ task_insert_send_right(
 void bootstrap_create()
 {
   int compat;
+  int n = 0;
 #ifdef	MACH_XEN
   struct multiboot_module *bmods = ((struct multiboot_module *)
                                    boot_info.mod_start);
-  int n = 0;
   if (bmods)
     for (n = 0; bmods[n].mod_start; n++) {
       bmods[n].mod_start = kvtophys(bmods[n].mod_start + (vm_offset_t) bmods);
@@ -168,19 +170,19 @@ void bootstrap_create()
       /* Initialize boot script variables.  We leak these send rights.  */
       losers = boot_script_set_variable
 	("host-port", VAL_PORT,
-	 (int)ipc_port_make_send(realhost.host_priv_self));
+	 (long)ipc_port_make_send(realhost.host_priv_self));
       if (losers)
 	panic ("cannot set boot-script variable host-port: %s",
 	       boot_script_error_string (losers));
       losers = boot_script_set_variable
 	("device-port", VAL_PORT,
-	 (int) ipc_port_make_send(master_device_port));
+	 (long) ipc_port_make_send(master_device_port));
       if (losers)
 	panic ("cannot set boot-script variable device-port: %s",
 	       boot_script_error_string (losers));
 
       losers = boot_script_set_variable ("kernel-command-line", VAL_STR,
-					 (int) kernel_cmdline);
+					 (long) kernel_cmdline);
       if (losers)
 	panic ("cannot set boot-script variable %s: %s",
 	       "kernel-command-line", boot_script_error_string (losers));
@@ -199,12 +201,12 @@ void bootstrap_create()
 	get_compat_strings(flag_string, root_string);
 
 	losers = boot_script_set_variable ("boot-args", VAL_STR,
-					   (int) flag_string);
+					   (long) flag_string);
 	if (losers)
 	  panic ("cannot set boot-script variable %s: %s",
 		 "boot-args", boot_script_error_string (losers));
 	losers = boot_script_set_variable ("root-device", VAL_STR,
-					   (int) root_string);
+					   (long) root_string);
 	if (losers)
 	  panic ("cannot set boot-script variable %s: %s",
 		 "root-device", boot_script_error_string (losers));
@@ -225,7 +227,7 @@ void bootstrap_create()
 	    char *var = memcpy (alloca (len), *ep, len);
 	    char *val = strchr (var, '=');
 	    *val++ = '\0';
-	    losers = boot_script_set_variable (var, VAL_STR, (int) val);
+	    losers = boot_script_set_variable (var, VAL_STR, (long) val);
 	    if (losers)
 	      panic ("cannot set boot-script variable %s: %s",
 		     var, boot_script_error_string (losers));
@@ -246,7 +248,7 @@ void bootstrap_create()
 	    if (eq == 0)
 	      continue;
 	    *eq++ = '\0';
-	    losers = boot_script_set_variable (word, VAL_STR, (int) eq);
+	    losers = boot_script_set_variable (word, VAL_STR, (long) eq);
 	    if (losers)
 	      panic ("cannot set boot-script variable %s: %s",
 		     word, boot_script_error_string (losers));
@@ -279,8 +281,10 @@ void bootstrap_create()
 	panic ("ERROR in executing boot script: %s",
 	       boot_script_error_string (losers));
     }
-  /* XXX at this point, we could free all the memory used
-     by the boot modules and the boot loader's descriptors and such.  */
+  /* XXX we could free the memory used
+     by the boot loader's descriptors and such.  */
+  for (n = 0; n < boot_info.mods_count; n++)
+    vm_page_create(bmods[n].mod_start, bmods[n].mod_end);
 }
 
 static void
