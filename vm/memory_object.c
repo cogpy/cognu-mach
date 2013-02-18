@@ -1050,7 +1050,7 @@ memory_object_set_advice(vm_object_t object, vm_advice_t advice)
 	if (object == VM_OBJECT_NULL)
 		return(KERN_INVALID_ARGUMENT);
 
-	switch(advice) {
+	switch (advice) {
 		case VM_ADVICE_DEFAULT:
 		case VM_ADVICE_RANDOM:
 		case VM_ADVICE_SEQUENTIAL:

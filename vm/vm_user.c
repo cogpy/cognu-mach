@@ -184,7 +184,7 @@ vm_advise(vm_map_t map, vm_offset_t address,
 	if (map == VM_MAP_NULL)
 		return(KERN_INVALID_ARGUMENT);
 
-	switch(advice) {
+	switch (advice) {
 		case VM_ADVICE_DEFAULT:
 		case VM_ADVICE_RANDOM:
 		case VM_ADVICE_SEQUENTIAL:
