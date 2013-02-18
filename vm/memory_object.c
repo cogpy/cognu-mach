@@ -1055,7 +1055,6 @@ memory_object_set_advice(vm_object_t object, vm_advice_t advice)
 		case VM_ADVICE_RANDOM:
 		case VM_ADVICE_SEQUENTIAL:
 		case VM_ADVICE_NORMAL:
-		case VM_ADVICE_KEEP:
 			break;
 		default:
 			vm_object_deallocate(object);
@@ -1063,8 +1062,7 @@ memory_object_set_advice(vm_object_t object, vm_advice_t advice)
 	}
 
 	vm_object_lock(object);
-	if (advice != VM_ADVICE_KEEP)
-		object->advice = advice;
+	object->advice = advice;
 	vm_object_unlock(object);
 
 	vm_object_deallocate(object);
