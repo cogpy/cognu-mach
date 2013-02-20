@@ -103,6 +103,7 @@ extern struct db_watchpoint *db_watchpoint_list;
 
 /* Table for advice for clustered readahead */
 struct vm_advice_entry vm_advice_table[] = {
+	/* Default policy used to keep the previous behavior by default */
 	[VM_ADVICE_DEFAULT] = { .read_before = 0, .read_after = 1},
 	[VM_ADVICE_RANDOM] = { .read_before = 0, .read_after = 1},
 	[VM_ADVICE_NORMAL] = { .read_before = VM_ADVICE_MAX_READAHEAD,
