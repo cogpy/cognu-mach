@@ -330,8 +330,7 @@ vm_cleanup_after_error (vm_object_t obj, vm_page_t m,
 static void
 vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
                        vm_map_entry_t map_entry, vm_offset_t *in_start,
-		       vm_offset_t *in_end, vm_offset_t *out_start,
-		       vm_offset_t *out_end,
+		       vm_offset_t *in_end,
 		       int (*page_is_not_eligible) (vm_page_t,
 						    map_function_parameter_t),
 		       map_function_parameter_t parameter)
@@ -811,8 +810,6 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 					kern_return_t	rc;
 					/* Region for pagein */
 					vm_offset_t in_start, in_end, in_range;
-					/* Region for pageout */
-					vm_offset_t out_start, out_end;
 					map_function_parameter_t param = {
 						.access_required = access_required};
 
@@ -832,7 +829,6 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 					*/
 					vm_calculate_clusters(object, offset, map_entry,
 							      &in_start, &in_end,
-							      &out_start, &out_end,
 							      &dont_unlock_page,
 							      param);
 					in_range = in_end - in_start;
@@ -922,8 +918,6 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 			kern_return_t	rc;
 			/* Region for pagein */
 			vm_offset_t in_start, in_end, in_range;
-			/* Region for pageout */
-			vm_offset_t out_start, out_end;
 			map_function_parameter_t param = { .offset = 0}; /* Just stub */
 
 			/*
@@ -942,7 +936,6 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 			   pagein policy and size. */
 			vm_calculate_clusters(object, offset, map_entry,
 					      &in_start, &in_end,
-					      &out_start, &out_end,
 					      &dont_request_page, param);
 
 			param.interruptible = interruptible;
