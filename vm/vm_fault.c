@@ -330,8 +330,8 @@ vm_cleanup_after_error (vm_object_t obj, vm_page_t m,
  *		Determine bounds of clusters for possible pagein
  *		and pageout.
  *	Additional arguments:
- *		OBJ is object for which clusters' bounds are
- *		determined. OFFS is base offset in object.
+ *		OBJECT is object for which clusters' bounds are
+ *		determined. OFFSET is base offset in object.
  *		Function PAGE_IS_NOT_ELIGIBLE is used to determine if
  *		some page should be added to cluster.
  *	Results:
