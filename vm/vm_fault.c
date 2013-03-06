@@ -325,7 +325,6 @@ vm_cleanup_after_error (vm_object_t obj, vm_page_t m,
  *		some page should be added to cluster.
  *	Results:
  *		IN_START and IN_END are bounds for pagein.
- *		OUT_START and OUT_END are bounds for pagein.
  */
 static void
 vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
@@ -421,8 +420,6 @@ vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
 
 			*in_start = first_before;
 			*in_end = first_after;
-			*out_start = offset;
-			*out_end = offset;
 			break;
 		case VM_ADVICE_NORMAL:
 			if (first_after - first_before > max_size) {
@@ -442,8 +439,6 @@ vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
 
 			*in_start = first_before;
 			*in_end = first_after;
-			*out_start = offset;
-			*out_end = offset;
 			break;
 		default:
 			assert (0);
