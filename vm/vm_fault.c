@@ -60,7 +60,7 @@
 
 
 #define min(a, b) ({typeof (a) t1 = a, t2 = b; t1 < t2 ? t1 : t2;})
-#define min(a, b) ({typeof (a) t1 = a, t2 = b; t1 > t2 ? t1 : t2;})
+#define max(a, b) ({typeof (a) t1 = a, t2 = b; t1 > t2 ? t1 : t2;})
 
 /*
  *	State needed by vm_fault_continue.
