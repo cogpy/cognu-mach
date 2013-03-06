@@ -288,6 +288,17 @@ vm_mark_for_pagein(vm_object_t obj, vm_page_t m,
 }
 
 static vm_fault_return_t
+vm_mark_inactive(vm_object_t obj, vm_page_t m,
+		 map_function_parameter_t parameter)
+{
+	if (!m->absent && !m->fictitious)
+		return(VM_FAULT_MEMORY_ERROR);
+
+	if (!m->busy)
+		vm_page_deactivate(m);
+}
+
+static vm_fault_return_t
 vm_mark_for_unlock(vm_object_t obj, vm_page_t m,
 		   map_function_parameter_t parameter)
 {
@@ -325,11 +336,13 @@ vm_cleanup_after_error (vm_object_t obj, vm_page_t m,
  *		some page should be added to cluster.
  *	Results:
  *		IN_START and IN_END are bounds for pagein.
+ *		OUT_START and OUT_END are bounds for pageout.
  */
 static void
 vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
-                       vm_map_entry_t map_entry, vm_offset_t *in_start,
-		       vm_offset_t *in_end,
+		       vm_map_entry_t map_entry,
+		       vm_offset_t *in_start, vm_offset_t *in_end,
+		       vm_offset_t *out_start, vm_offset_t *out_end,
 		       int (*page_is_not_eligible) (vm_page_t,
 						    map_function_parameter_t),
 		       map_function_parameter_t parameter)
@@ -414,12 +427,27 @@ vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
 	switch (advice)	{
 		case VM_ADVICE_DEFAULT:
 		case VM_ADVICE_RANDOM:
-		case VM_ADVICE_SEQUENTIAL:
 			if (first_after - first_before > max_size)
 				first_after = first_before + max_size;
-
 			*in_start = first_before;
 			*in_end = first_after;
+
+			/* No pageout */
+			*out_start = offset;
+			*out_end = offset;
+			break;
+		case VM_ADVICE_SEQUENTIAL:
+			if (first_after - offset > max_size)
+				first_after = offset + max_size;
+
+			*in_start = offset;
+			*in_end = first_after;
+
+			if (offset - first_before > max_size)
+				first_before = offset - max_size;
+
+			*out_start = first_before;
+			*out_end = offset;
 			break;
 		case VM_ADVICE_NORMAL:
 			if (first_after - first_before > max_size) {
@@ -439,6 +467,10 @@ vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
 
 			*in_start = first_before;
 			*in_end = first_after;
+
+			/* No pageout */
+			*out_start = offset;
+			*out_end = offset;
 			break;
 		default:
 			assert (0);
@@ -805,6 +837,8 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 					kern_return_t	rc;
 					/* Region for pagein */
 					vm_offset_t in_start, in_end, in_range;
+					/* Region for pageout */
+					vm_offset_t out_start, out_end;
 					map_function_parameter_t param = {
 						.access_required = access_required};
 
@@ -824,6 +858,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 					*/
 					vm_calculate_clusters(object, offset, map_entry,
 							      &in_start, &in_end,
+							      &out_start, &out_end,
 							      &dont_unlock_page,
 							      param);
 					in_range = in_end - in_start;
@@ -913,6 +948,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 			kern_return_t	rc;
 			/* Region for pagein */
 			vm_offset_t in_start, in_end, in_range;
+			vm_offset_t out_start, out_end;
 			map_function_parameter_t param = { .offset = 0}; /* Just stub */
 
 			/*
@@ -944,6 +980,10 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 				case VM_FAULT_RETRY:
 					goto block_and_backoff;
 			}
+
+			vm_for_every_page (object, out_start, &out_end,
+					   vm_mark_inactive, param);
+
 			in_range = in_end - in_start;
 
 			/*
