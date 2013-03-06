@@ -60,6 +60,7 @@
 
 
 #define min(a, b) ({typeof (a) t1 = a, t2 = b; t1 < t2 ? t1 : t2;})
+#define min(a, b) ({typeof (a) t1 = a, t2 = b; t1 > t2 ? t1 : t2;})
 
 /*
  *	State needed by vm_fault_continue.
@@ -296,6 +297,7 @@ vm_mark_inactive(vm_object_t obj, vm_page_t m,
 
 	if (!m->busy)
 		vm_page_deactivate(m);
+	return(VM_FAULT_SUCCESS);
 }
 
 static vm_fault_return_t
@@ -970,6 +972,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset, map_entry,
 			   pagein policy and size. */
 			vm_calculate_clusters(object, offset, map_entry,
 					      &in_start, &in_end,
+					      &out_start, &out_end,
 					      &dont_request_page, param);
 
 			param.interruptible = interruptible;
