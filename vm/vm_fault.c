@@ -427,8 +427,11 @@ vm_calculate_clusters (vm_object_t object, vm_offset_t offset,
 	switch (advice)	{
 		case VM_ADVICE_DEFAULT:
 		case VM_ADVICE_RANDOM:
-			if (first_after - first_before > max_size)
-				first_after = first_before + max_size;
+			if (first_after - first_before > max_size) {
+				/* Guarantee that page where was fault will be in range */
+				first_after = max(first_before + max_size, offset + PAGE_SIZE);
+				first_before = first_after - max_size;
+			}
 			*in_start = first_before;
 			*in_end = first_after;
 
