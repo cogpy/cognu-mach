@@ -38,22 +38,10 @@ Foundation, Inc.
 @quotation
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.2 or
-any later version published by the Free Software Foundation; with the
-Invariant Sections being ``Free Software Needs Free Documentation'' and
-``GNU Lesser General Public License'', the Front-Cover texts being (a)
-(see below), and with the Back-Cover Texts being (b) (see below).  A
-copy of the license is included in the section entitled ``GNU Free
-Documentation License''.
-
-(a) The FSF's Front-Cover Text is:
-
-     A GNU Manual
-
-(b) The FSF's Back-Cover Text is:
-
-     You have freedom to copy and modify this GNU Manual, like GNU
-     software.  Copies published by the Free Software Foundation raise
-     funds for GNU development.
+any later version published by the Free Software Foundation; with no
+Invariant Section, with no Front-Cover Texts, and with no Back-Cover
+Texts. A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
 
 This work is based on manual pages under the following copyright and license:
 
@@ -842,7 +830,7 @@ AT-LAN-TEC/RealTek pocket adaptor network card device driver for the
 AMD LANCE and PCnet (AT1500 and NE2100) network card device driver.  On
 @samp{ix86-at} enabled by @samp{default}.
 
-@itemx --enable-tulip
+@item --enable-tulip
 DECchip Tulip (dc21x4x) PCI network card device driver.  On @samp{ix86-at}
 enabled by @samp{default}.
 
@@ -870,7 +858,7 @@ Packet Engines Yellowfin Gigabit-NIC network card device driver.  On
 RealTek 8129/8139 (not 8019/8029!) network card device driver.  On
 @samp{ix86-at} enabled by @samp{default}.
 
-@itemx --enable-epic100
+@item --enable-epic100
 SMC 83c170/175 EPIC/100 (EtherPower II) network card device driver.  On
 @samp{ix86-at} enabled by @samp{default}.
 
@@ -7088,6 +7076,15 @@ rejected with an error message.
 Warning: Attempts to watch wired kernel memory may cause unrecoverable
 error in some systems such as i386.  Watchpoints on user addresses work
 best.
+
+@item dwatch[/T] @var{addr} [ @var{task} ]
+Clears a watchpoint previously set for a region.
+Without @code{T} option, @var{addr} is assumed to be a kernel address.
+If you want to clear a watch point in user space, specify @code{T} and
+@var{task} parameter where the address belongs to.  If the @var{task}
+parameter is omitted, a task of the default target thread or a current
+task is assumed.  If you specify a wrong space address, the request is
+rejected with an error message.
 @end table
 
 
