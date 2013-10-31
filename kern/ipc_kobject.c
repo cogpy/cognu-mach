@@ -181,7 +181,6 @@ ipc_kobject_server(request)
 	    (*routine)(&request->ikm_header, &reply->ikm_header);
 	    reply->ikm_header.msgh_size += 2*(sizeof(mach_port_t) - sizeof(natural_t));
 	    kernel_task->messages_received++;
-	}
 	} else {
 	    if (!ipc_kobject_notify(&request->ikm_header,
 		&reply->ikm_header)) {
