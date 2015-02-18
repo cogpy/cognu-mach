@@ -18,9 +18,9 @@
 
 #include <mach/machine/asm.h>
 
-#include <i386/i386asm.h>
-#include <i386/cpu_number.h>
-#include <i386/xen.h>
+#include <i386/i386/i386asm.h>
+#include <i386/i386/cpu_number.h>
+#include <i386/i386/xen.h>
 
 	.data	2
 int_active:

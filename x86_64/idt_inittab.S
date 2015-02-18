@@ -25,8 +25,8 @@
  */
 #include <mach/machine/asm.h>
 
-#include <i386/seg.h>
-#include <i386/i386asm.h>
+#include <i386/i386/seg.h>
+#include <i386/i386/i386asm.h>
 
 #include <xen/public/arch-x86/xen-x86_64.h>
 

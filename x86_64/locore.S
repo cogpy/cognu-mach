@@ -30,13 +30,13 @@
 
 #include <mach/machine/asm.h>
 #include <mach/machine/eflags.h>
-#include <i386/proc_reg.h>
-#include <i386/trap.h>
-#include <i386/seg.h>
-#include <i386/ldt.h>
-#include <i386/i386asm.h>
-#include <i386/cpu_number.h>
-#include <i386/xen.h>
+#include <i386/i386/proc_reg.h>
+#include <i386/i386/trap.h>
+#include <i386/i386/seg.h>
+#include <i386/i386/ldt.h>
+#include <i386/i386/i386asm.h>
+#include <i386/i386/cpu_number.h>
+#include <i386/i386/xen.h>
 
 #define pusha pushq %rax ; pushq %rcx ; pushq %rdx ; pushq %rbx ; subq $8,%rsp ; pushq %rbp ; pushq %rsi ; pushq %rdi ; pushq %r8 ; pushq %r9 ; pushq %r10 ; pushq %r11 ; pushq %r12 ; pushq %r13 ; pushq %r14 ; pushq %r15
 #define popa popq %r15 ; popq %r14 ; popq %r13 ; popq %r12 ; popq %r11 ; popq %r10 ; popq %r9 ; popq %r8 ; popq %rdi ; popq %rsi ; popq %rbp ; addq $8,%rsp ; popq %rbx ; popq %rdx ; popq %rcx ; popq %rax

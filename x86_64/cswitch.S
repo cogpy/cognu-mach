@@ -26,9 +26,9 @@
 
 #include <mach/machine/asm.h>
 
-#include <i386/proc_reg.h>
-#include <i386/i386asm.h>
-#include <i386/cpu_number.h>
+#include <i386/i386/proc_reg.h>
+#include <i386/i386/i386asm.h>
+#include <i386/i386/cpu_number.h>
 
 /*
  * Context switch routines for x86_64.

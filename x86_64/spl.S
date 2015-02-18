@@ -18,10 +18,10 @@
  */
 
 #include <mach/machine/asm.h>
-#include <i386/ipl.h>
-#include <i386/pic.h>
-#include <i386/i386asm.h>
-#include <i386/xen.h>
+#include <i386/i386/ipl.h>
+#include <i386/i386/pic.h>
+#include <i386/i386/i386asm.h>
+#include <i386/i386/xen.h>
 
 /*
  * Set IPL to the specified value.
