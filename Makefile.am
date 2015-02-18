@@ -104,8 +104,8 @@ CPP = @CPP@ -x c
 # Other Tools' Configuration.
 #
 
-# Don't needlessly overwrite files that whose contents haven't changed.  This
-# helps for avoinding unneccessary recompilation cycles when keeping
+# Don't needlessly overwrite files whose contents haven't changed.
+# This helps avoiding unnecessary recompilation cycles when keeping
 # cross-compilation toolchains up-to-date.  Thus, unconditionally use the
 # `install-sh' that is supplied by GNU Automake 1.10.1, as the GNU Coreutils
 # one doesn't provide this functionality yet (TODO: change that).  TODO:
@@ -174,6 +174,9 @@ clib-routines.o: gnumach-undef gnumach-undef-bad
 	then cat gnumach-undef-bad; exit 2; else true; fi
 	$(AM_V_CCLD) $(CCLD) -nostdlib -nostartfiles -r -static \
 	  -o $@ `sed 's/^/-Wl,-u,/' < $<` -x c /dev/null -lc -lgcc
+	$(AM_V_at) if nm $@ | grep __init_cpu_features; \
+	then echo Please install a 32bit libc without multiarch support. ; \
+	false ; fi
 
 gnumach_LINK = $(LD) $(LINKFLAGS) $(gnumach_LINKFLAGS) -o $@
 gnumach_LDADD = gnumach.o clib-routines.o

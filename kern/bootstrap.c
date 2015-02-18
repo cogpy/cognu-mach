@@ -37,6 +37,7 @@
 #include <mach/message.h>
 #include <machine/locore.h>
 #include <machine/vm_param.h>
+#include <machine/pcb.h>
 #include <ipc/ipc_port.h>
 #include <ipc/mach_port.h>
 #include <kern/debug.h>
@@ -81,8 +82,8 @@ static mach_port_t	boot_host_port;		/* local name */
 
 extern char *kernel_cmdline;
 
-static void user_bootstrap();	/* forward */
-static void user_bootstrap_compat();	/* forward */
+static void user_bootstrap(void);	/* forward */
+static void user_bootstrap_compat(void);	/* forward */
 static void bootstrap_exec_compat(void *exec_data); /* forward */
 static void get_compat_strings(char *flags_str, char *root_str); /* forward */
 
@@ -106,7 +107,7 @@ task_insert_send_right(
 	return name;
 }
 
-void bootstrap_create()
+void bootstrap_create(void)
 {
   int compat;
   int n = 0;
@@ -167,18 +168,18 @@ void bootstrap_create()
     }
   else
     {
-      int i, losers, maxlen;
+      int i, losers;
 
       /* Initialize boot script variables.  We leak these send rights.  */
       losers = boot_script_set_variable
 	("host-port", VAL_PORT,
-	 (long)ipc_port_make_send(realhost.host_priv_self));
+	 (long) realhost.host_priv_self);
       if (losers)
 	panic ("cannot set boot-script variable host-port: %s",
 	       boot_script_error_string (losers));
       losers = boot_script_set_variable
 	("device-port", VAL_PORT,
-	 (long) ipc_port_make_send(master_device_port));
+	 (long) master_device_port);
       if (losers)
 	panic ("cannot set boot-script variable device-port: %s",
 	       boot_script_error_string (losers));
@@ -258,15 +259,11 @@ void bootstrap_create()
       }
 #endif
 
-      maxlen = 0;
       for (i = 0; i < boot_info.mods_count; ++i)
 	{
 	  int err;
 	  char *line = (char*)phystokv(bmods[i].string);
-	  int len = strlen (line) + 1;
-	  if (len > maxlen)
-	    maxlen = len;
-	  printf ("\rmodule %d: %*s", i, -maxlen, line);
+	  printf ("module %d: %s\n", i, line);
 	  err = boot_script_parse_line (&bmods[i], line);
 	  if (err)
 	    {
@@ -274,7 +271,7 @@ void bootstrap_create()
 	      ++losers;
 	    }
 	}
-      printf ("\r%d multiboot modules %*s", i, -maxlen, "");
+      printf ("%d multiboot modules\n", i);
       if (losers)
 	panic ("%d of %d boot script commands could not be parsed",
 	       losers, boot_info.mods_count);
@@ -336,7 +333,7 @@ itoa(
 	vm_size_t	num)
 {
 	char	buf[sizeof(vm_size_t)*2+3];
-	register char *np;
+	char 	*np;
 
 	np = buf + sizeof(buf);
 	*--np = 0;
@@ -356,7 +353,7 @@ itoa(
  */
 static void get_compat_strings(char *flags_str, char *root_str)
 {
-	register char *ip, *cp;
+	char *ip, *cp;
 
 	strcpy (root_str, "UNKNOWN");
 
@@ -537,16 +534,12 @@ static void copy_bootstrap(void *e, exec_info_t *boot_exec_info)
 /*
  * Allocate the stack, and build the argument list.
  */
-extern vm_offset_t	user_stack_low();
-extern vm_offset_t	set_user_regs();
-
 static void
 build_args_and_stack(struct exec_info *boot_exec_info,
 		     char **argv, char **envp)
 {
 	vm_offset_t	stack_base;
 	vm_size_t	stack_size;
-	register
 	char *		arg_ptr;
 	int		arg_count, envc;
 	int		arg_len;
@@ -608,7 +601,7 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	/*
 	 * first the argument count
 	 */
-	(void) copyout((char *)&arg_count,
+	(void) copyout(&arg_count,
 			arg_pos,
 			sizeof(integer_t));
 	arg_pos += sizeof(integer_t);
@@ -621,7 +614,7 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	    arg_item_len = strlen(arg_ptr) + 1; /* include trailing 0 */
 
 	    /* set string pointer */
-	    (void) copyout((char *)&string_pos,
+	    (void) copyout(&string_pos,
 			arg_pos,
 			sizeof (char *));
 	    arg_pos += sizeof(char *);
@@ -634,7 +627,7 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	/*
 	 * Null terminator for argv.
 	 */
-	(void) copyout((char *)&zero, arg_pos, sizeof(char *));
+	(void) copyout(&zero, arg_pos, sizeof(char *));
 	arg_pos += sizeof(char *);
 
 	/*
@@ -645,7 +638,7 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	    arg_item_len = strlen(arg_ptr) + 1; /* include trailing 0 */
 
 	    /* set string pointer */
-	    (void) copyout((char *)&string_pos,
+	    (void) copyout(&string_pos,
 			arg_pos,
 			sizeof (char *));
 	    arg_pos += sizeof(char *);
@@ -658,12 +651,12 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	/*
 	 * Null terminator for envp.
 	 */
-	(void) copyout((char *)&zero, arg_pos, sizeof(char *));
+	(void) copyout(&zero, arg_pos, sizeof(char *));
 }
 
 
 static void
-user_bootstrap_compat()
+user_bootstrap_compat(void)
 {
 	exec_info_t boot_exec_info;
 
@@ -765,7 +758,7 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
   return 0;
 }
 
-static void user_bootstrap()
+static void user_bootstrap(void)
 {
   struct user_bootstrap_info *info = current_thread()->saved.other;
   exec_info_t boot_exec_info;
@@ -825,6 +818,7 @@ boot_script_task_create (struct cmd *cmd)
       printf("boot_script_task_create failed with %x\n", rc);
       return BOOT_SCRIPT_MACH_ERROR;
     }
+  task_set_name(cmd->task, cmd->path);
   return 0;
 }
 
@@ -862,7 +856,8 @@ boot_script_free_task (task_t task, int aborting)
 int
 boot_script_insert_right (struct cmd *cmd, mach_port_t port, mach_port_t *name)
 {
-  *name = task_insert_send_right (cmd->task, (ipc_port_t)port);
+  *name = task_insert_send_right (cmd->task,
+				  ipc_port_make_send((ipc_port_t) port));
   return 0;
 }
 

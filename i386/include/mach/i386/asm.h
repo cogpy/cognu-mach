@@ -24,6 +24,8 @@
  * the rights to redistribute these changes.
  */
 
+#ifndef _MACH_I386_ASM_H_
+#define _MACH_I386_ASM_H_
 
 #ifdef __i386__
 #define S_ARG0	 4(%esp)
@@ -140,3 +142,5 @@
 
 #define	Entry(x)	.globl EXT(x); .p2align TEXT_ALIGN; LEXT(x)
 #define	DATA(x)		.globl EXT(x); .p2align DATA_ALIGN; LEXT(x)
+
+#endif /* _MACH_I386_ASM_H_ */
