@@ -28,10 +28,9 @@ void putDebugChar(int character)
 /**
  * getDebugChar gets a character over the serial port
  * for the GDB stub. Its prototyped in stub-i386.c.
- * It uses 
  */
 
-int getDebugChar() 
+int getDebugChar()
 {
-  return comcngetc(0, 10);
+  return comcngetc(0, TRUE);
 }
