@@ -38,7 +38,7 @@
 #include <kern/queue.h>
 #include <kern/lock.h>
 #include <kern/kern_types.h>
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 
 #if	MACH_FIXPRI
 #include <mach/policy.h>
@@ -60,7 +60,7 @@
 #include <machine/sched_param.h>
 
 #endif	/* STAT_TIME */
-#define NRQS	32			/* 32 run queues per cpu */
+#define NRQS	50			/* 50 run queues per cpu */
 
 struct run_queue {
 	queue_head_t		runq[NRQS];	/* one for each priority */
@@ -118,7 +118,7 @@ extern int		min_quantum;	/* defines max context switch rate */
  *	Default base priorities for threads.
  */
 #define BASEPRI_SYSTEM	6
-#define BASEPRI_USER	12
+#define BASEPRI_USER	25
 
 /*
  *	Macro to check for invalid priorities.
@@ -153,7 +153,7 @@ extern unsigned	sched_tick;
 
 #define thread_timer_delta(thread)  				\
 MACRO_BEGIN							\
-	register unsigned	delta;				\
+	unsigned	delta;					\
 								\
 	delta = 0;						\
 	TIMER_DELTA((thread)->system_timer,			\

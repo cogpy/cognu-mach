@@ -55,13 +55,12 @@
 
 typedef unsigned int mach_counter_t;
 
+#if	MACH_COUNTERS
 extern mach_counter_t c_thread_invoke_hits;
 extern mach_counter_t c_thread_invoke_misses;
 extern mach_counter_t c_thread_invoke_csw;
 extern mach_counter_t c_thread_handoff_hits;
 extern mach_counter_t c_thread_handoff_misses;
-
-#if	MACH_COUNTERS
 extern mach_counter_t c_threads_current;
 extern mach_counter_t c_threads_max;
 extern mach_counter_t c_threads_min;
@@ -70,6 +69,9 @@ extern mach_counter_t c_stacks_current;
 extern mach_counter_t c_stacks_max;
 extern mach_counter_t c_stacks_min;
 extern mach_counter_t c_stacks_total;
+extern mach_counter_t c_stack_alloc_hits;
+extern mach_counter_t c_stack_alloc_misses;
+extern mach_counter_t c_stack_alloc_max;
 extern mach_counter_t c_clock_ticks;
 extern mach_counter_t c_ipc_mqueue_send_block;
 extern mach_counter_t c_ipc_mqueue_receive_block_user;

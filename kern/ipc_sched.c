@@ -182,9 +182,9 @@ thread_will_wait_with_timeout(
 
 boolean_t
 thread_handoff(
-	register thread_t old,
-	register continuation_t continuation,
-	register thread_t new)
+	thread_t old,
+	continuation_t continuation,
+	thread_t new)
 {
 	spl_t	s;
 
@@ -214,7 +214,7 @@ thread_handoff(
 		thread_unlock(new);
 		(void) splx(s);
 
-		counter_always(c_thread_handoff_misses++);
+		counter(c_thread_handoff_misses++);
 		return FALSE;
 	}
 
@@ -268,7 +268,7 @@ thread_handoff(
 			 */
 			old->wake_active = FALSE;
 			thread_unlock(old);
-			thread_wakeup((event_t)&old->wake_active);
+			thread_wakeup(TH_EV_WAKE_ACTIVE(old));
 			goto after_old_thread;
 		}
 	} else
@@ -278,6 +278,6 @@ thread_handoff(
     after_old_thread:
 	(void) splx(s);
 
-	counter_always(c_thread_handoff_hits++);
+	counter(c_thread_handoff_hits++);
 	return TRUE;
 }

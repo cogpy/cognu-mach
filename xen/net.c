@@ -366,7 +366,7 @@ void hyp_net_init(void) {
 			grant = hyp_grant_give(domid, atop(addr), 0);
 
 			/* and give it to backend.  */
-			i = sprintf(port_name, "%u", grant);
+			i = sprintf(port_name, "%d", grant);
 			c = hyp_store_write(t, port_name, 5, VIF_PATH, "/", vifs[n], "/", "tx-ring-ref");
 			if (!c)
 				panic("eth: couldn't store tx_ring reference for VIF %s (%s)", vifs[n], hyp_store_error);
@@ -381,7 +381,7 @@ void hyp_net_init(void) {
 			grant = hyp_grant_give(domid, atop(addr), 0);
 
 			/* and give it to backend.  */
-			i = sprintf(port_name, "%u", grant);
+			i = sprintf(port_name, "%d", grant);
 			c = hyp_store_write(t, port_name, 5, VIF_PATH, "/", vifs[n], "/", "rx-ring-ref");
 			if (!c)
 				panic("eth: couldn't store rx_ring reference for VIF %s (%s)", vifs[n], hyp_store_error);
@@ -568,8 +568,8 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
 
 	port = ipc_port_alloc_kernel();
 	if (port == IP_NULL) {
-		err = KERN_RESOURCE_SHORTAGE;
-		goto out;
+		device_close (nd);
+		return KERN_RESOURCE_SHORTAGE;
 	}
 	nd->port = port;
 
@@ -582,7 +582,6 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
 	ipc_port_nsrequest (nd->port, 1, notify, &notify);
 	assert (notify == IP_NULL);
 
-out:
 	if (IP_VALID (reply_port))
 		ds_device_open_reply (reply_port, reply_port_type, D_SUCCESS, dev_to_port(nd));
 	else

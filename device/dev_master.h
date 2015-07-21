@@ -30,11 +30,14 @@
  * 	Bind an IO operation to the master CPU.
  */
 
+#ifndef _DEVICE_DEV_MASTER_H_
+#define _DEVICE_DEV_MASTER_H_
+
 #include <cpus.h>
 
 #if	NCPUS > 1
 
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <kern/cpu_number.h>
 #include <kern/sched_prim.h>
 #include <kern/thread.h>
@@ -58,3 +61,5 @@
 #define	io_release_master()
 
 #endif	NCPUS > 1
+
+#endif /* _DEVICE_DEV_MASTER_H_ */

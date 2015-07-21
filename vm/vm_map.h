@@ -52,10 +52,10 @@
 #include <vm/vm_types.h>
 #include <kern/lock.h>
 #include <kern/rbtree.h>
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 
 /* TODO: make it dynamic */
-#define KENTRY_DATA_SIZE (64*PAGE_SIZE)
+#define KENTRY_DATA_SIZE (256*PAGE_SIZE)
 
 /*
  *	Types defined:
@@ -170,14 +170,18 @@ struct vm_map {
 #define max_offset		hdr.links.end	/* end of range */
 	pmap_t			pmap;		/* Physical map */
 	vm_size_t		size;		/* virtual size */
+	vm_size_t		user_wired;	/* wired by user size */
 	int			ref_count;	/* Reference count */
 	decl_simple_lock_data(,	ref_lock)	/* Lock for ref_count field */
 	vm_map_entry_t		hint;		/* hint for quick lookups */
 	decl_simple_lock_data(,	hint_lock)	/* lock for hint storage */
 	vm_map_entry_t		first_free;	/* First free space hint */
-	boolean_t		wait_for_space;	/* Should callers wait
+
+	/* Flags */
+	unsigned int	wait_for_space:1,	/* Should callers wait
 						   for space? */
-	boolean_t		wiring_required;/* All memory wired? */
+	/* boolean_t */ wiring_required:1;	/* All memory wired? */
+
 	unsigned int		timestamp;	/* Version number */
 };
 
@@ -397,9 +401,6 @@ extern kern_return_t	vm_map_protect(vm_map_t, vm_offset_t, vm_offset_t,
 extern kern_return_t	vm_map_inherit(vm_map_t, vm_offset_t, vm_offset_t,
 				       vm_inherit_t);
 
-/* Debugging: print a map */
-extern void		vm_map_print(vm_map_t);
-
 /* Look up an address */
 extern kern_return_t	vm_map_lookup(vm_map_t *, vm_offset_t, vm_prot_t,
 				      vm_map_version_t *, vm_object_t *,
@@ -439,6 +440,23 @@ extern kern_return_t	vm_map_machine_attribute(vm_map_t, vm_offset_t,
 
 /* Delete entry from map */
 extern void		vm_map_entry_delete(vm_map_t, vm_map_entry_t);
+
+kern_return_t vm_map_delete(
+    vm_map_t   	map,
+    vm_offset_t    	start,
+    vm_offset_t    	end);
+
+kern_return_t vm_map_copyout_page_list(
+    vm_map_t    	dst_map,
+    vm_offset_t 	*dst_addr,  /* OUT */
+    vm_map_copy_t   	copy);
+
+void vm_map_copy_page_discard (vm_map_copy_t copy);
+
+boolean_t vm_map_lookup_entry(
+	vm_map_t	map,
+	vm_offset_t	address,
+	vm_map_entry_t	*entry); /* OUT */
 
 /*
  *	Functions implemented as macros
@@ -541,6 +559,9 @@ extern void _vm_map_clip_start(
  *      the specified address; if necessary,
  *      it splits the entry into two.
  */
-void _vm_map_clip_end();
+void _vm_map_clip_end(
+	struct vm_map_header 	*map_header,
+	vm_map_entry_t		entry,
+	vm_offset_t		end);
 
 #endif	/* _VM_VM_MAP_H_ */

@@ -59,14 +59,6 @@
 #include <ddb/db_output.h>
 #endif	/* MACH_KDB */
 
-
-void memory_object_release(
-	ipc_port_t	pager,
-	pager_request_t	pager_request,
-	ipc_port_t	pager_name); /* forward */
-
-void vm_object_deactivate_pages(vm_object_t);
-
 /*
  *	Virtual memory objects maintain the actual data
  *	associated with allocated virtual memory.  A given
@@ -233,7 +225,7 @@ static void _vm_object_setup(
 vm_object_t _vm_object_allocate(
 	vm_size_t		size)
 {
-	register vm_object_t object;
+	vm_object_t object;
 
 	object = (vm_object_t) kmem_cache_alloc(&vm_object_cache);
 
@@ -245,8 +237,8 @@ vm_object_t _vm_object_allocate(
 vm_object_t vm_object_allocate(
 	vm_size_t	size)
 {
-	register vm_object_t object;
-	register ipc_port_t port;
+	vm_object_t object;
+	ipc_port_t port;
 
 	object = _vm_object_allocate(size);
 	port = ipc_port_alloc_kernel();
@@ -353,7 +345,7 @@ void vm_object_init(void)
  *	Gets another reference to the given object.
  */
 void vm_object_reference(
-	register vm_object_t	object)
+	vm_object_t	object)
 {
 	if (object == VM_OBJECT_NULL)
 		return;
@@ -376,7 +368,7 @@ void vm_object_reference(
  *	No object may be locked.
  */
 void vm_object_deallocate(
-	register vm_object_t	object)
+	vm_object_t	object)
 {
 	vm_object_t	temp;
 
@@ -530,8 +522,6 @@ void vm_object_deallocate(
 	}
 }
 
-boolean_t	vm_object_terminate_remove_all = FALSE;
-
 /*
  *	Routine:	vm_object_terminate
  *	Purpose:
@@ -546,10 +536,10 @@ boolean_t	vm_object_terminate_remove_all = FALSE;
  *		object will cease to exist.
  */
 void vm_object_terminate(
-	register vm_object_t	object)
+	vm_object_t	object)
 {
-	register vm_page_t	p;
-	vm_object_t		shadow_object;
+	vm_page_t	p;
+	vm_object_t	shadow_object;
 
 	/*
 	 *	Make sure the object isn't already being terminated
@@ -598,19 +588,12 @@ void vm_object_terminate(
 
 			VM_PAGE_CHECK(p);
 
-			if (p->busy && !p->absent)
-				panic("vm_object_terminate.2 0x%x 0x%x",
-				      object, p);
-
 			VM_PAGE_FREE(p);
 		}
 	} else while (!queue_empty(&object->memq)) {
 		p = (vm_page_t) queue_first(&object->memq);
 
 		VM_PAGE_CHECK(p);
-
-		if (p->busy && !p->absent)
-			panic("vm_object_terminate.3 0x%x 0x%x", object, p);
 
 		vm_page_lock_queues();
 		VM_PAGE_QUEUES_REMOVE(p);
@@ -628,9 +611,6 @@ void vm_object_terminate(
 
 			goto free_page;
 		}
-
-		if (p->fictitious)
-			panic("vm_object_terminate.4 0x%x 0x%x", object, p);
 
 		if (!p->dirty)
 			p->dirty = pmap_is_modified(p->phys_addr);
@@ -752,7 +732,6 @@ void memory_object_release(
 void vm_object_abort_activity(
 	vm_object_t	object)
 {
-	register
 	vm_page_t	p;
 	vm_page_t	next;
 
@@ -806,16 +785,11 @@ void vm_object_abort_activity(
  *		or from port destruction handling (via vm_object_destroy).
  */
 kern_return_t memory_object_destroy(
-	register
 	vm_object_t	object,
 	kern_return_t	reason)
 {
 	ipc_port_t	old_object,  old_name;
 	pager_request_t	old_control;
-
-#ifdef	lint
-	reason++;
-#endif	/* lint */
 
 	if (object == VM_OBJECT_NULL)
 		return KERN_SUCCESS;
@@ -892,9 +866,9 @@ kern_return_t memory_object_destroy(
  *	The object must be locked.
  */
 void vm_object_deactivate_pages(
-	register vm_object_t	object)
+	vm_object_t	object)
 {
-	register vm_page_t	p;
+	vm_page_t	p;
 
 	queue_iterate(&object->memq, p, vm_page_t, listq) {
 		vm_page_lock_queues();
@@ -931,8 +905,8 @@ void vm_object_deactivate_pages(
 boolean_t vm_object_pmap_protect_by_page = FALSE;
 
 void vm_object_pmap_protect(
-	register vm_object_t	object,
-	register vm_offset_t	offset,
+	vm_object_t		object,
+	vm_offset_t		offset,
 	vm_size_t		size,
 	pmap_t			pmap,
 	vm_offset_t		pmap_start,
@@ -954,8 +928,8 @@ void vm_object_pmap_protect(
 	    }
 
 	    {
-		register vm_page_t	p;
-		register vm_offset_t	end;
+		vm_page_t	p;
+		vm_offset_t	end;
 
 		end = offset + size;
 
@@ -986,7 +960,7 @@ void vm_object_pmap_protect(
 		 * Must follow shadow chain to remove access
 		 * to pages in shadowed objects.
 		 */
-		register vm_object_t	next_object;
+		vm_object_t	next_object;
 
 		next_object = object->shadow;
 		if (next_object != VM_OBJECT_NULL) {
@@ -1023,11 +997,11 @@ void vm_object_pmap_protect(
  *	The object must *not* be locked.
  */
 void vm_object_pmap_remove(
-	register vm_object_t	object,
-	register vm_offset_t	start,
-	register vm_offset_t	end)
+	vm_object_t	object,
+	vm_offset_t	start,
+	vm_offset_t	end)
 {
-	register vm_page_t	p;
+	vm_page_t	p;
 
 	if (object == VM_OBJECT_NULL)
 		return;
@@ -1073,7 +1047,6 @@ void vm_object_pmap_remove(
  *		VM_OBJECT_NULL.
  */
 kern_return_t vm_object_copy_slowly(
-	register
 	vm_object_t	src_object,
 	vm_offset_t	src_offset,
 	vm_size_t	size,
@@ -1127,7 +1100,6 @@ kern_return_t vm_object_copy_slowly(
 			vm_prot_t	prot = VM_PROT_READ;
 			vm_page_t	_result_page;
 			vm_page_t	top_page;
-			register
 			vm_page_t	result_page;
 
 			vm_object_lock(src_object);
@@ -1247,8 +1219,6 @@ kern_return_t vm_object_copy_slowly(
  *		The object should be unlocked on entry and exit.
  */
 
-vm_object_t	vm_object_copy_delayed();	/* forward declaration */
-
 boolean_t vm_object_copy_temporary(
 	vm_object_t	*_object,		/* INOUT */
 	vm_offset_t	*_offset,		/* INOUT */
@@ -1256,10 +1226,6 @@ boolean_t vm_object_copy_temporary(
 	boolean_t	*_dst_needs_copy)	/* OUT */
 {
 	vm_object_t	object = *_object;
-
-#ifdef	lint
-	++*_offset;
-#endif	/* lint */
 
 	if (object == VM_OBJECT_NULL) {
 		*_src_needs_copy = FALSE;
@@ -1360,16 +1326,6 @@ kern_return_t vm_object_copy_call(
 	vm_page_t	p;
 
 	/*
-	 *	Set the backing object for the new
-	 *	temporary object.
-	 */
-
-	assert(src_object->ref_count > 0);
-	src_object->ref_count++;
-	vm_object_paging_begin(src_object);
-	vm_object_unlock(src_object);
-
-	/*
 	 *	Create a memory object port to be associated
 	 *	with this new vm_object.
 	 *
@@ -1382,10 +1338,18 @@ kern_return_t vm_object_copy_call(
 	 */
 
 	new_memory_object = ipc_port_alloc_kernel();
-	if (new_memory_object == IP_NULL) {
-		panic("vm_object_copy_call: allocate memory object port");
-		/* XXX Shouldn't panic here. */
-	}
+	if (new_memory_object == IP_NULL)
+		return KERN_RESOURCE_SHORTAGE;
+
+	/*
+	 *	Set the backing object for the new
+	 *	temporary object.
+	 */
+
+	assert(src_object->ref_count > 0);
+	src_object->ref_count++;
+	vm_object_paging_begin(src_object);
+	vm_object_unlock(src_object);
 
 	/* we hold a naked receive right for new_memory_object */
 	(void) ipc_port_make_send(new_memory_object);
@@ -1490,7 +1454,7 @@ vm_object_t vm_object_copy_delayed(
 	 *		 synchronization required in the "push"
 	 *		 operation described above.
 	 *
-	 *	The copy-on-write is said to be assymetric because
+	 *	The copy-on-write is said to be asymmetric because
 	 *	the original object is *not* marked copy-on-write.
 	 *	A copied page is pushed to the copy object, regardless
 	 *	which party attempted to modify the page.
@@ -1623,7 +1587,6 @@ vm_object_t vm_object_copy_delayed(
  *		and may be interrupted.
  */
 kern_return_t	vm_object_copy_strategically(
-	register
 	vm_object_t	src_object,
 	vm_offset_t	src_offset,
 	vm_size_t	size,
@@ -1736,8 +1699,8 @@ void vm_object_shadow(
 	vm_offset_t	*offset,	/* IN/OUT */
 	vm_size_t	length)
 {
-	register vm_object_t	source;
-	register vm_object_t	result;
+	vm_object_t	source;
+	vm_object_t	result;
 
 	source = *object;
 
@@ -2009,7 +1972,6 @@ vm_object_t vm_object_enter(
 	vm_size_t	size,
 	boolean_t	internal)
 {
-	register
 	vm_object_t	object;
 	vm_object_t	new_object;
 	boolean_t	must_init;
@@ -2227,7 +2189,6 @@ restart:
  *		daemon will be using this routine.
  */
 void vm_object_pager_create(
-	register
 	vm_object_t	object)
 {
 	ipc_port_t	pager;
@@ -2372,14 +2333,14 @@ boolean_t	vm_object_collapse_bypass_allowed = TRUE;
  *	so the caller should hold a reference for the object.
  */
 void vm_object_collapse(
-	register vm_object_t	object)
+	vm_object_t	object)
 {
-	register vm_object_t	backing_object;
-	register vm_offset_t	backing_offset;
-	register vm_size_t	size;
-	register vm_offset_t	new_offset;
-	register vm_page_t	p, pp;
-	ipc_port_t old_name_port;
+	vm_object_t	backing_object;
+	vm_offset_t	backing_offset;
+	vm_size_t	size;
+	vm_offset_t	new_offset;
+	vm_page_t	p, pp;
+	ipc_port_t 	old_name_port;
 
 	if (!vm_object_collapse_allowed)
 		return;
@@ -2749,11 +2710,11 @@ unsigned int vm_object_page_remove_lookup = 0;
 unsigned int vm_object_page_remove_iterate = 0;
 
 void vm_object_page_remove(
-	register vm_object_t	object,
-	register vm_offset_t	start,
-	register vm_offset_t	end)
+	vm_object_t	object,
+	vm_offset_t	start,
+	vm_offset_t	end)
 {
-	register vm_page_t	p, next;
+	vm_page_t	p, next;
 
 	/*
 	 *	One and two page removals are most popular.
@@ -2814,7 +2775,7 @@ void vm_object_page_remove(
  */
 
 boolean_t vm_object_coalesce(
-	register vm_object_t prev_object,
+	vm_object_t 	prev_object,
 	vm_object_t	next_object,
 	vm_offset_t	prev_offset,
 	vm_offset_t	next_offset,
@@ -2822,10 +2783,6 @@ boolean_t vm_object_coalesce(
 	vm_size_t	next_size)
 {
 	vm_size_t	newsize;
-
-#ifdef	lint
-	next_offset++;
-#endif	/* lint */
 
 	if (next_object != VM_OBJECT_NULL) {
 		return FALSE;
@@ -2969,6 +2926,7 @@ vm_object_page_map(
 
 
 #if	MACH_KDB
+#include <vm/vm_print.h>
 #define printf	kdbprintf
 
 boolean_t	vm_object_print_pages = FALSE;
@@ -2979,9 +2937,9 @@ boolean_t	vm_object_print_pages = FALSE;
 void vm_object_print(
 	vm_object_t	object)
 {
-	register vm_page_t	p;
+	vm_page_t	p;
 
-	register int count;
+	int 		count;
 
 	if (object == VM_OBJECT_NULL)
 		return;

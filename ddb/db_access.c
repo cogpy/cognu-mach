@@ -32,6 +32,7 @@
 
 #include <mach/boolean.h>
 #include <machine/db_machdep.h>		/* type definitions */
+#include <machine/db_interface.h>	/* function definitions */
 #include <machine/setjmp.h>
 #include <kern/task.h>
 #include <ddb/db_access.h>
@@ -42,9 +43,6 @@
  * Access unaligned data items on aligned (longword)
  * boundaries.
  */
-
-extern void	db_read_bytes();	/* machine-dependent */
-extern void	db_write_bytes();	/* machine-dependent */
 
 int db_access_level = DB_ACCESS_LEVEL;
 
@@ -64,17 +62,17 @@ static int db_extend[sizeof(int)+1] = {	/* table for sign-extending */
 };
 
 db_expr_t
-db_get_task_value(addr, size, is_signed, task)
-	db_addr_t	addr;
-	register int	size;
-	boolean_t	is_signed;
-	task_t		task;
+db_get_task_value(
+	db_addr_t	addr,
+	int		size,
+	boolean_t	is_signed,
+	task_t		task)
 {
 	char		data[sizeof(db_expr_t)];
-	register db_expr_t value;
-	register int	i;
+	db_expr_t 	value;
+	int		i;
 
-	db_read_bytes((void*)addr, size, data, task);
+	db_read_bytes(addr, size, data, task);
 
 	value = 0;
 #if	BYTE_MSF
@@ -94,14 +92,14 @@ db_get_task_value(addr, size, is_signed, task)
 }
 
 void
-db_put_task_value(addr, size, value, task)
-	db_addr_t	addr;
-	register int	size;
-	register db_expr_t value;
-	task_t		task;
+db_put_task_value(
+	db_addr_t	addr,
+	int		size,
+	db_expr_t 	value,
+	task_t		task)
 {
 	char		data[sizeof(db_expr_t)];
-	register int	i;
+	int		i;
 
 #if	BYTE_MSF
 	for (i = size - 1; i >= 0; i--)
@@ -113,23 +111,23 @@ db_put_task_value(addr, size, value, task)
 	    value >>= 8;
 	}
 
-	db_write_bytes((void*)addr, size, data, task);
+	db_write_bytes(addr, size, data, task);
 }
 
 db_expr_t
-db_get_value(addr, size, is_signed)
-	db_addr_t	addr;
-	int		size;
-	boolean_t	is_signed;
+db_get_value(
+	db_addr_t	addr,
+	int		size,
+	boolean_t	is_signed)
 {
 	return(db_get_task_value(addr, size, is_signed, TASK_NULL));
 }
 
 void
-db_put_value(addr, size, value)
-	db_addr_t	addr;
-	int		size;
-	db_expr_t	value;
+db_put_value(
+	db_addr_t	addr,
+	int		size,
+	db_expr_t	value)
 {
 	db_put_task_value(addr, size, value, TASK_NULL);
 }

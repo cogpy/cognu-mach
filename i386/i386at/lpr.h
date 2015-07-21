@@ -1,6 +1,6 @@
 /* 
  * Mach Operating System
- * Copyright (c) 1991,1990,1989,1988 Carnegie Mellon University
+ * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
  * 
  * Permission to use, copy, modify and distribute this software and its
@@ -23,33 +23,44 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
-/*
- *	File:	kern/macro_help.h
- *
- *	Provide help in making lint-free macro routines
- *
- */  
+/* 
+ *	Parallel port printer driver v1.0
+ *	All rights reserved.
+ */ 
 
-#ifndef	_KERN_MACRO_HELP_H_
-#define	_KERN_MACRO_HELP_H_
+#ifndef _LPRREG_H_
+#define _LPRREG_H_
+  
+#define DATA(addr)	(addr + 0)
+#define STATUS(addr)	(addr + 1)
+#define INTR_ENAB(addr)	(addr + 2)
 
-#if	!defined(MACRO_BEGIN)
+extern void lprintr(int unit);
+int lprprobe(vm_offset_t port, struct bus_ctlr *dev);
+void lprstop(struct tty *tp, int flags);
+void lprstart(struct tty *tp);
+void lprattach(struct bus_device *dev);
 
-#include <mach/boolean.h>
+extern io_return_t
+lprgetstat(
+	dev_t		dev,
+	int		flavor,
+	int		*data,
+	natural_t	*count);
 
-#ifdef	lint
-boolean_t	NEVER;
-boolean_t	ALWAYS;
-#else	/* lint */
-#define		NEVER		FALSE
-#define		ALWAYS		TRUE
-#endif	/* lint */
+extern io_return_t
+lprsetstat(
+	dev_t		dev,
+	int		flavor,
+	int		*data,
+	natural_t	count);
 
-#define		MACRO_BEGIN	({
-#define		MACRO_END	})
+void lprpr_addr(unsigned short addr);
 
-#define		MACRO_RETURN	if (ALWAYS) return
+extern int lpropen(dev_t dev, int flag, io_req_t ior);
+extern void lprclose(dev_t dev, int flag);
+extern int lprread(dev_t dev, io_req_t ior);
+extern int lprwrite(dev_t	dev, io_req_t ior);
+extern int lprportdeath(dev_t dev, mach_port_t port);
 
-#endif	/* !MACRO_BEGIN */
-
-#endif	/* _KERN_MACRO_HELP_H_ */
+#endif /* _LPRREG_H_ */

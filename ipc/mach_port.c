@@ -150,10 +150,6 @@ mach_port_names(
 	mach_port_type_t	**typesp,
 	mach_msg_type_number_t	*typesCnt)
 {
-	ipc_tree_entry_t tentry;
-	ipc_entry_t table;
-	ipc_entry_num_t tsize;
-	mach_port_index_t index;
 	ipc_entry_num_t actual;	/* this many names */
 	ipc_port_timestamp_t timestamp;	/* logical time of this operation */
 	mach_port_t *names;
@@ -190,7 +186,7 @@ mach_port_names(
 
 		/* upper bound on number of names in the space */
 
-		bound = space->is_table_size + space->is_tree_total;
+		bound = space->is_size;
 		size_needed = round_page(bound * sizeof(mach_port_t));
 
 		if (size_needed <= size)
@@ -235,33 +231,16 @@ mach_port_names(
 
 	timestamp = ipc_port_timestamp();
 
-	table = space->is_table;
-	tsize = space->is_table_size;
-
-	for (index = 0; index < tsize; index++) {
-		ipc_entry_t entry = &table[index];
+	ipc_entry_t entry;
+	struct rdxtree_iter iter;
+	rdxtree_for_each(&space->is_map, &iter, entry) {
 		ipc_entry_bits_t bits = entry->ie_bits;
 
 		if (IE_BITS_TYPE(bits) != MACH_PORT_TYPE_NONE) {
-			mach_port_t name = MACH_PORT_MAKEB(index, bits);
-
-			mach_port_names_helper(timestamp, entry, name,
+			mach_port_names_helper(timestamp, entry, entry->ie_name,
 					       names, types, &actual);
 		}
 	}
-
-	for (tentry = ipc_splay_traverse_start(&space->is_tree);
-	     tentry != ITE_NULL;
-	     tentry = ipc_splay_traverse_next(&space->is_tree, FALSE)) {
-		ipc_entry_t entry = &tentry->ite_entry;
-		mach_port_t name = tentry->ite_name;
-
-		assert(IE_BITS_TYPE(tentry->ite_bits) != MACH_PORT_TYPE_NONE);
-
-		mach_port_names_helper(timestamp, entry, name,
-				       names, types, &actual);
-	}
-	ipc_splay_traverse_finish(&space->is_tree);
 	is_read_unlock(space);
 
 	if (actual == 0) {
@@ -434,10 +413,10 @@ mach_port_rename(
  */
 
 kern_return_t
-mach_port_allocate_name(space, right, name)
-	ipc_space_t space;
-	mach_port_right_t right;
-	mach_port_t name;
+mach_port_allocate_name(
+	ipc_space_t 		space,
+	mach_port_right_t 	right,
+	mach_port_t 		name)
 {
 	kern_return_t kr;
 
@@ -497,10 +476,10 @@ mach_port_allocate_name(space, right, name)
  */
 
 kern_return_t
-mach_port_allocate(space, right, namep)
-	ipc_space_t space;
-	mach_port_right_t right;
-	mach_port_t *namep;
+mach_port_allocate(
+	ipc_space_t 		space,
+	mach_port_right_t 	right,
+	mach_port_t 		*namep)
 {
 	kern_return_t kr;
 
@@ -555,7 +534,7 @@ mach_port_allocate(space, right, namep)
  *		KERN_INVALID_NAME	The name doesn't denote a right.
  */
 
-static volatile int mach_port_deallocate_debug = 0;
+static volatile boolean_t mach_port_deallocate_debug = FALSE;
 
 kern_return_t
 mach_port_destroy(
@@ -570,8 +549,8 @@ mach_port_destroy(
 
 	kr = ipc_right_lookup_write(space, name, &entry);
 	if (kr != KERN_SUCCESS) {
-		if (name != MACH_PORT_NULL && name != MACH_PORT_DEAD && space == current_space()) {
-			printf("task %p destroying an invalid port %lu, most probably a bug.\n", current_task(), name);
+		if (MACH_PORT_VALID (name) && space == current_space()) {
+			printf("task %.*s destroying a bogus port %lu, most probably a bug.\n", sizeof current_task()->name, current_task()->name, name);
 			if (mach_port_deallocate_debug)
 				SoftDebugger("mach_port_deallocate");
 		}
@@ -614,8 +593,8 @@ mach_port_deallocate(
 
 	kr = ipc_right_lookup_write(space, name, &entry);
 	if (kr != KERN_SUCCESS) {
-		if (name != MACH_PORT_NULL && name != MACH_PORT_DEAD && space == current_space()) {
-			printf("task %p deallocating an invalid port %lu, most probably a bug.\n", current_task(), name);
+		if (MACH_PORT_VALID (name) && space == current_space()) {
+			printf("task %.*s deallocating a bogus port %lu, most probably a bug.\n", sizeof current_task()->name, current_task()->name, name);
 			if (mach_port_deallocate_debug)
 				SoftDebugger("mach_port_deallocate");
 		}
@@ -735,54 +714,23 @@ mach_port_mod_refs(
 		return KERN_INVALID_VALUE;
 
 	kr = ipc_right_lookup_write(space, name, &entry);
-	if (kr != KERN_SUCCESS)
+	if (kr != KERN_SUCCESS) {
+		if (MACH_PORT_VALID (name) && space == current_space()) {
+			printf("task %.*s %screasing a bogus port "
+			       "%lu by %d, most probably a bug.\n",
+			       sizeof current_task()->name,
+			       current_task()->name,
+			       delta < 0 ? "de" : "in", name,
+			       delta < 0 ? -delta : delta);
+			if (mach_port_deallocate_debug)
+				SoftDebugger("mach_port_mod_refs");
+		}
 		return kr;
+	}
 	/* space is write-locked and active */
 
 	kr = ipc_right_delta(space, name, entry, right, delta);	/* unlocks */
 	return kr;
-}
-
-/*
- *	Routine:	old_mach_port_get_receive_status [kernel call]
- *	Purpose:
- *		Compatibility for code written before sequence numbers.
- *		Retrieves mucho info about a receive right.
- *	Conditions:
- *		Nothing locked.
- *	Returns:
- *		KERN_SUCCESS		Retrieved status.
- *		KERN_INVALID_TASK	The space is null.
- *		KERN_INVALID_TASK	The space is dead.
- *		KERN_INVALID_NAME	The name doesn't denote a right.
- *		KERN_INVALID_RIGHT	Name doesn't denote receive rights.
- */
-
-kern_return_t
-mach_port_get_receive_status(ipc_space_t, mach_port_t, mach_port_status_t *);
-kern_return_t
-old_mach_port_get_receive_status(space, name, statusp)
-	ipc_space_t space;
-	mach_port_t name;
-	old_mach_port_status_t *statusp;
-{
-	mach_port_status_t status;
-	kern_return_t kr;
-
-	kr = mach_port_get_receive_status(space, name, &status);
-	if (kr != KERN_SUCCESS)
-		return kr;
-
-	statusp->mps_pset = status.mps_pset;
-	statusp->mps_mscount = status.mps_mscount;
-	statusp->mps_qlimit = status.mps_qlimit;
-	statusp->mps_msgcount = status.mps_msgcount;
-	statusp->mps_sorights = status.mps_sorights;
-	statusp->mps_srights = status.mps_srights;
-	statusp->mps_pdrequest = status.mps_pdrequest;
-	statusp->mps_nsrequest = status.mps_nsrequest;
-
-	return KERN_SUCCESS;
 }
 
 /*
@@ -803,10 +751,10 @@ old_mach_port_get_receive_status(space, name, statusp)
  */
 
 kern_return_t
-mach_port_set_qlimit(space, name, qlimit)
-	ipc_space_t space;
-	mach_port_t name;
-	mach_port_msgcount_t qlimit;
+mach_port_set_qlimit(
+	ipc_space_t 		space,
+	mach_port_t 		name,
+	mach_port_msgcount_t 	qlimit)
 {
 	ipc_port_t port;
 	kern_return_t kr;
@@ -977,10 +925,7 @@ mach_port_get_set_status(
 	size = PAGE_SIZE;	/* initial guess */
 
 	for (;;) {
-		ipc_tree_entry_t tentry;
-		ipc_entry_t entry, table;
-		ipc_entry_num_t tsize;
-		mach_port_index_t index;
+		ipc_entry_t entry;
 		mach_port_t *names;
 		ipc_pset_t pset;
 
@@ -1017,11 +962,9 @@ mach_port_get_set_status(
 		maxnames = size / sizeof(mach_port_t);
 		actual = 0;
 
-		table = space->is_table;
-		tsize = space->is_table_size;
-
-		for (index = 0; index < tsize; index++) {
-			ipc_entry_t ientry = &table[index];
+		ipc_entry_t ientry;
+		struct rdxtree_iter iter;
+		rdxtree_for_each(&space->is_map, &iter, ientry) {
 			ipc_entry_bits_t bits = ientry->ie_bits;
 
 			if (bits & MACH_PORT_TYPE_RECEIVE) {
@@ -1033,22 +976,6 @@ mach_port_get_set_status(
 			}
 		}
 
-		for (tentry = ipc_splay_traverse_start(&space->is_tree);
-		     tentry != ITE_NULL;
-		     tentry = ipc_splay_traverse_next(&space->is_tree,FALSE)) {
-			ipc_entry_bits_t bits = tentry->ite_bits;
-
-			assert(IE_BITS_TYPE(bits) != MACH_PORT_TYPE_NONE);
-
-			if (bits & MACH_PORT_TYPE_RECEIVE) {
-				ipc_port_t port =
-					(ipc_port_t) tentry->ite_object;
-
-				mach_port_gst_helper(pset, port, maxnames,
-						     names, &actual);
-			}
-		}
-		ipc_splay_traverse_finish(&space->is_tree);
 		is_read_unlock(space);
 
 		if (actual <= maxnames)
@@ -1367,10 +1294,10 @@ mach_port_extract_right(
  */
 
 kern_return_t
-mach_port_get_receive_status(space, name, statusp)
-	ipc_space_t space;
-	mach_port_t name;
-	mach_port_status_t *statusp;
+mach_port_get_receive_status(
+	ipc_space_t 		space,
+	mach_port_t 		name,
+	mach_port_status_t 	*statusp)
 {
 	ipc_port_t port;
 	kern_return_t kr;
@@ -1421,11 +1348,11 @@ mach_port_get_receive_status(space, name, statusp)
 
 #ifdef MIGRATING_THREADS
 kern_return_t
-mach_port_set_rpcinfo(space, name, rpc_info, rpc_info_count)
-	ipc_space_t space;
-	mach_port_t name;
-	void *rpc_info;
-	unsigned int rpc_info_count;
+mach_port_set_rpcinfo(
+	ipc_space_t 	space,
+	mach_port_t 	name,
+	void 		*rpc_info,
+	unsigned int 	rpc_info_count)
 {
 	ipc_target_t target;
 	ipc_object_t object;
@@ -1459,19 +1386,19 @@ mach_port_set_rpcinfo(space, name, rpc_info, rpc_info_count)
 int sacts, maxsacts;
 #endif
 
-sact_count()
+void sact_count(void)
 {
 	printf("%d server activations in use, %d max\n", sacts, maxsacts);
 }
 
 kern_return_t
-mach_port_create_act(task, name, user_stack, user_rbuf, user_rbuf_size, out_act)
-	task_t task;
-	mach_port_t name;
-	vm_offset_t user_stack;
-	vm_offset_t user_rbuf;
-	vm_size_t user_rbuf_size;
-	Act **out_act;
+mach_port_create_act(
+	task_t 		task,
+	mach_port_t 	name,
+	vm_offset_t 	user_stack,
+	vm_offset_t 	user_rbuf,
+	vm_size_t 	user_rbuf_size,
+	Act 		**out_act)
 {
 	ipc_target_t target;
 	ipc_space_t space;
@@ -1538,12 +1465,11 @@ mach_port_create_act(task, name, user_stack, user_rbuf, user_rbuf_size, out_act)
 
 #ifdef RPCKERNELSIG
 kern_return_t
-mach_port_set_syscall_right(task, name)
-	task_t task;
-	mach_port_t name;
+mach_port_set_syscall_right(
+	task_t 		task,
+	mach_port_t 	name)
 {
 	ipc_entry_t entry;
-	ipc_port_t port;
 	kern_return_t kr;
 
 	if (task == IS_NULL)
@@ -1567,3 +1493,76 @@ mach_port_set_syscall_right(task, name)
 }
 #endif
 #endif /* MIGRATING_THREADS */
+
+/*
+ *	Routine:	mach_port_set_protected_payload [kernel call]
+ *	Purpose:
+ *		Changes a receive right's protected payload.
+ *	Conditions:
+ *		Nothing locked.
+ *	Returns:
+ *		KERN_SUCCESS		Set protected payload.
+ *		KERN_INVALID_TASK	The space is null.
+ *		KERN_INVALID_TASK	The space is dead.
+ *		KERN_INVALID_NAME	The name doesn't denote a right.
+ *		KERN_INVALID_RIGHT	Name doesn't denote receive rights.
+ */
+
+kern_return_t
+mach_port_set_protected_payload(
+	ipc_space_t		space,
+	mach_port_t		name,
+	unsigned long		payload)
+{
+	ipc_port_t port;
+	kern_return_t kr;
+
+	if (space == IS_NULL)
+		return KERN_INVALID_TASK;
+
+	kr = ipc_port_translate_receive(space, name, &port);
+	if (kr != KERN_SUCCESS)
+		return kr;
+	/* port is locked and active */
+
+	ipc_port_set_protected_payload(port, payload);
+
+	ip_unlock(port);
+	return KERN_SUCCESS;
+}
+
+/*
+ *	Routine:	mach_port_clear_protected_payload [kernel call]
+ *	Purpose:
+ *		Clears a receive right's protected payload.
+ *	Conditions:
+ *		Nothing locked.
+ *	Returns:
+ *		KERN_SUCCESS		Clear protected payload.
+ *		KERN_INVALID_TASK	The space is null.
+ *		KERN_INVALID_TASK	The space is dead.
+ *		KERN_INVALID_NAME	The name doesn't denote a right.
+ *		KERN_INVALID_RIGHT	Name doesn't denote receive rights.
+ */
+
+kern_return_t
+mach_port_clear_protected_payload(
+	ipc_space_t		space,
+	mach_port_t		name)
+{
+	ipc_port_t port;
+	kern_return_t kr;
+
+	if (space == IS_NULL)
+		return KERN_INVALID_TASK;
+
+	kr = ipc_port_translate_receive(space, name, &port);
+	if (kr != KERN_SUCCESS)
+		return kr;
+	/* port is locked and active */
+
+	ipc_port_clear_protected_payload(port);
+
+	ip_unlock(port);
+	return KERN_SUCCESS;
+}

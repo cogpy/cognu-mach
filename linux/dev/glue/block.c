@@ -384,7 +384,7 @@ bread (kdev_t dev, int block, int size)
   bh = getblk (dev, block, size);
   if (bh)
     {
-      ll_rw_block (READ, 1, &bh);
+      ll_rw_block (READ, 1, &bh, 0);
       wait_on_buffer (bh);
       if (! buffer_uptodate (bh))
 	{
@@ -444,7 +444,7 @@ enqueue_request (struct request *req)
 /* Perform the I/O operation RW on the buffer list BH
    containing NR buffers.  */
 void
-ll_rw_block (int rw, int nr, struct buffer_head **bh)
+ll_rw_block (int rw, int nr, struct buffer_head **bh, int quiet)
 {
   int i, bshift, bsize;
   unsigned major;
@@ -476,6 +476,7 @@ ll_rw_block (int rw, int nr, struct buffer_head **bh)
   r->rq_dev = bh[0]->b_dev;
   r->cmd = rw;
   r->errors = 0;
+  r->quiet = quiet;
   r->sector = bh[0]->b_blocknr << (bshift - 9);
   r->current_nr_sectors = bh[0]->b_size >> 9;
   r->buffer = bh[0]->b_data;
@@ -528,7 +529,7 @@ rdwr_partial (int rw, kdev_t dev, loff_t *off,
   bh->b_data = alloc_buffer (bh->b_size);
   if (! bh->b_data)
     return -ENOMEM;
-  ll_rw_block (READ, 1, &bh);
+  ll_rw_block (READ, 1, &bh, 0);
   wait_on_buffer (bh);
   if (buffer_uptodate (bh))
     {
@@ -542,7 +543,7 @@ rdwr_partial (int rw, kdev_t dev, loff_t *off,
 	{
 	  memcpy (bh->b_data + o, *buf, c);
 	  bh->b_state = (1 << BH_Dirty) | (1 << BH_Lock);
-	  ll_rw_block (WRITE, 1, &bh);
+	  ll_rw_block (WRITE, 1, &bh, 0);
 	  wait_on_buffer (bh);
 	  if (! buffer_uptodate (bh))
 	    {
@@ -589,8 +590,8 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
       set_bit (BH_Lock, &bh->b_state);
       if (rw == WRITE)
 	set_bit (BH_Dirty, &bh->b_state);
-      cc = PAGE_SIZE - (((int) *buf) & PAGE_MASK);
-      if (cc >= BSIZE && ((int) *buf & 511) == 0)
+      cc = PAGE_SIZE - (((int) *buf + (nb << bshift)) & PAGE_MASK);
+      if (cc >= BSIZE && (((int) *buf + (nb << bshift)) & 511) == 0)
 	cc &= ~BMASK;
       else
 	{
@@ -623,7 +624,8 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
     }
   if (! err)
     {
-      ll_rw_block (rw, i, bhp);
+      assert (i > 0);
+      ll_rw_block (rw, i, bhp, 0);
       wait_on_buffer (bhp[i - 1]);
     }
   for (bh = bhead, cc = 0, j = 0; j < i; cc += bh->b_size, bh++, j++)
@@ -1650,7 +1652,7 @@ device_get_status (void *d, dev_flavor_t flavor, dev_status_t status,
       /* It would be nice to return the block size as reported by
 	 the driver, but a lot of user level code assumes the sector
 	 size to be 512.  */
-      status[DEV_GET_SIZE_RECORD_SIZE] = 512;
+      status[DEV_GET_RECORDS_RECORD_SIZE] = 512;
       /* Always return DEV_GET_RECORDS_COUNT.  This is what all native
          Mach drivers do, and makes it possible to detect the absence
          of the call by setting it to a different value on input.  MiG
@@ -1703,7 +1705,7 @@ device_get_status (void *d, dev_flavor_t flavor, dev_status_t status,
 
 static io_return_t
 device_set_status (void *d, dev_flavor_t flavor, dev_status_t status,
-		   mach_msg_type_number_t *status_count)
+		   mach_msg_type_number_t status_count)
 {
   struct block_data *bd = d;
 

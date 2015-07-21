@@ -31,9 +31,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
-#define structof(ptr, type, member) \
-    ((type *)((char *)ptr - offsetof(type, member)))
+#include <kern/macros.h>
 
 /*
  * Structure used as both head and node.
@@ -240,7 +238,7 @@ static inline void list_add(struct list *prev, struct list *next,
 /*
  * Insert a node at the head of a list.
  */
-static inline void list_insert(struct list *list, struct list *node)
+static inline void list_insert_head(struct list *list, struct list *node)
 {
     list_add(list, list->next, node);
 }

@@ -21,6 +21,7 @@
 
 #ifdef	MACH_XEN
 #ifndef	__ASSEMBLER__
+#include <kern/macros.h>
 #include <kern/printf.h>
 #include <mach/machine/vm_types.h>
 #include <mach/vm_param.h>
@@ -32,8 +33,7 @@
 #include <xen/public/xen.h>
 
 /* TODO: this should be moved in appropriate non-Xen place.  */
-#define barrier() __asm__ __volatile__ ("": : :"memory")
-#define mb() __asm__ __volatile__("lock; addl $0,0(%esp)")
+#define mb() __asm__ __volatile__("lock; addl $0,0(%%esp)":::"memory")
 #define rmb() mb()
 #define wmb() mb()
 MACH_INLINE unsigned long xchgl(volatile unsigned long *ptr, unsigned long x)

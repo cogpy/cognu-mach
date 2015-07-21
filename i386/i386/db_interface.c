@@ -27,8 +27,7 @@
  * Interface to new debugger.
  */
 
-#if MACH_KDB
-
+#include <string.h>
 #include <sys/reboot.h>
 #include <vm/pmap.h>
 
@@ -45,6 +44,7 @@
 
 #include "vm_param.h"
 #include <vm/vm_map.h>
+#include <vm/vm_fault.h>
 #include <kern/cpu_number.h>
 #include <kern/printf.h>
 #include <kern/thread.h>
@@ -55,8 +55,73 @@
 #include <ddb/db_run.h>
 #include <ddb/db_task_thread.h>
 #include <ddb/db_trap.h>
+#include <ddb/db_watch.h>
 #include <machine/db_interface.h>
 #include <machine/machspl.h>
+
+#if MACH_KDB
+/* Whether the kernel uses any debugging register.  */
+static boolean_t kernel_dr;
+#endif
+/* Whether the current debug registers are zero.  */
+static boolean_t zero_dr;
+
+void db_load_context(pcb_t pcb)
+{
+#if MACH_KDB
+	int s = splhigh();
+
+	if (kernel_dr) {
+		splx(s);
+		return;
+	}
+#endif
+	/* Else set user debug registers, if any */
+	unsigned int *dr = pcb->ims.ids.dr;
+	boolean_t will_zero_dr = !dr[0] && !dr[1] && !dr[2] && !dr[3] && !dr[7];
+
+	if (!(zero_dr && will_zero_dr))
+	{
+		set_dr0(dr[0]);
+		set_dr1(dr[1]);
+		set_dr2(dr[2]);
+		set_dr3(dr[3]);
+		set_dr7(dr[7]);
+		zero_dr = will_zero_dr;
+	}
+
+#if MACH_KDB
+	splx(s);
+#endif
+}
+
+void db_get_debug_state(
+	pcb_t pcb,
+	struct i386_debug_state *state)
+{
+	*state = pcb->ims.ids;
+}
+
+kern_return_t db_set_debug_state(
+	pcb_t pcb,
+	const struct i386_debug_state *state)
+{
+	int i;
+
+	for (i = 0; i <= 3; i++)
+		if (state->dr[i] < VM_MIN_ADDRESS
+	 	 || state->dr[i] >= VM_MAX_ADDRESS)
+			return KERN_INVALID_ARGUMENT;
+
+	pcb->ims.ids = *state;
+
+	if (pcb == current_thread()->pcb)
+		db_load_context(pcb);
+
+	return KERN_SUCCESS;
+}
+
+#if MACH_KDB
 
 struct	 i386_saved_state *i386_last_saved_statep;
 struct	 i386_saved_state i386_nested_saved_state;
@@ -64,12 +129,107 @@ unsigned i386_last_kdb_sp;
 
 extern	thread_t db_default_thread;
 
+static struct i386_debug_state ids;
+
+void db_dr (
+	int		num,
+	vm_offset_t	linear_addr,
+	int		type,
+	int		len,
+	int		persistence)
+{
+	int s = splhigh();
+	unsigned long dr7;
+
+	if (!kernel_dr) {
+	    if (!linear_addr) {
+		splx(s);
+		return;
+	    }
+	    kernel_dr = TRUE;
+	    /* Clear user debugging registers */
+	    set_dr7(0);
+	    set_dr0(0);
+	    set_dr1(0);
+	    set_dr2(0);
+	    set_dr3(0);
+	}
+
+	ids.dr[num] = linear_addr;
+	switch (num) {
+	    case 0: set_dr0(linear_addr); break;
+	    case 1: set_dr1(linear_addr); break;
+	    case 2: set_dr2(linear_addr); break;
+	    case 3: set_dr3(linear_addr); break;
+	}
+
+	/* Replace type/len/persistence for DRnum in dr7 */
+	dr7 = get_dr7 ();
+	dr7 &= ~(0xfUL << (4*num+16)) & ~(0x3UL << (2*num));
+	dr7 |= (((len << 2) | type) << (4*num+16)) | (persistence << (2*num));
+	set_dr7 (dr7);
+
+	if (kernel_dr) {
+	    if (!ids.dr[0] && !ids.dr[1] && !ids.dr[2] && !ids.dr[3]) {
+		/* Not used any more, switch back to user debugging registers */
+		set_dr7 (0);
+		kernel_dr = FALSE;
+		zero_dr = TRUE;
+		db_load_context(current_thread()->pcb);
+	    }
+	}
+	splx(s);
+}
+
+boolean_t
+db_set_hw_watchpoint(
+	const db_watchpoint_t	watch,
+	unsigned		num)
+{
+	vm_size_t	size = watch->hiaddr - watch->loaddr;
+	db_addr_t	addr = watch->loaddr;
+	vm_offset_t 	kern_addr;
+
+	if (num >= 4)
+	    return FALSE;
+	if (size != 1 && size != 2 && size != 4)
+	    return FALSE;
+
+	if (addr & (size-1))
+	    /* Unaligned */
+	    return FALSE;
+
+	if (watch->task) {
+	    if (db_user_to_kernel_address(watch->task, addr, &kern_addr, 1) < 0)
+		return FALSE;
+	    addr = kern_addr;
+	}
+	addr = kvtolin(addr);
+
+	db_dr (num, addr, I386_DB_TYPE_W, size-1, I386_DB_LOCAL|I386_DB_GLOBAL);
+
+	db_printf("Hardware watchpoint %d set for %x\n", num, addr);
+	return TRUE;
+}
+
+boolean_t
+db_clear_hw_watchpoint(
+	unsigned	num)
+{
+	if (num >= 4)
+		return FALSE;
+
+	db_dr (num, 0, 0, 0, 0);
+	return TRUE;
+}
+
 /*
  * Print trap reason.
  */
 void
-kdbprinttrap(type, code)
-	int	type, code;
+kdbprinttrap(
+	int	type, 
+	int	code)
 {
 	printf("kernel: %s (%d), code=%x\n",
 		trap_name(type), type, code);
@@ -86,7 +246,7 @@ boolean_t
 kdb_trap(
 	int	type,
 	int	code,
-	register struct i386_saved_state *regs)
+	struct i386_saved_state *regs)
 {
 	spl_t	s;
 
@@ -96,15 +256,14 @@ kdb_trap(
 	switch (type) {
 	    case T_DEBUG:	/* single_step */
 	    {
-	    	extern int dr_addr[];
 		int addr;
-	    	int status = dr6();
+	    	int status = get_dr6();
 
 		if (status & 0xf) {	/* hmm hdw break */
-			addr =	status & 0x8 ? dr_addr[3] :
-				status & 0x4 ? dr_addr[2] :
-				status & 0x2 ? dr_addr[1] :
-					       dr_addr[0];
+			addr =	status & 0x8 ? get_dr3() :
+				status & 0x4 ? get_dr2() :
+				status & 0x2 ? get_dr1() :
+					       get_dr0();
 			regs->efl |= EFL_RF;
 			db_single_step_cmd(addr, 0, 1, "p");
 		}
@@ -263,12 +422,12 @@ boolean_t db_no_vm_fault = TRUE;
 
 int
 db_user_to_kernel_address(
-	task_t		task,
+	const task_t	task,
 	vm_offset_t	addr,
-	unsigned int	*kaddr,
+	vm_offset_t	*kaddr,
 	int		flag)
 {
-	register pt_entry_t *ptp;
+	pt_entry_t *ptp;
 	boolean_t	faulted = FALSE;
 
 	retry:
@@ -292,7 +451,7 @@ db_user_to_kernel_address(
 	    }
 	    return(-1);
 	}
-	*kaddr = (unsigned)ptetokv(*ptp) + (addr & (INTEL_PGBYTES-1));
+	*kaddr = ptetokv(*ptp) + (addr & (INTEL_PGBYTES-1));
 	return(0);
 }
 
@@ -303,13 +462,13 @@ db_user_to_kernel_address(
 void
 db_read_bytes(
 	vm_offset_t	addr,
-	register int	size,
-	register char	*data,
+	int		size,
+	char		*data,
 	task_t		task)
 {
-	register char	*src;
-	register int	n;
-	unsigned	kern_addr;
+	char		*src;
+	int		n;
+	vm_offset_t	kern_addr;
 
 	src = (char *)addr;
 	if ((addr >= VM_MIN_KERNEL_ADDRESS && addr < VM_MAX_KERNEL_ADDRESS) || task == TASK_NULL) {
@@ -346,19 +505,18 @@ db_read_bytes(
 void
 db_write_bytes(
 	vm_offset_t	addr,
-	register int	size,
-	register char	*data,
+	int		size,
+	char		*data,
 	task_t		task)
 {
-	register char	*dst;
+	char		*dst;
 
-	register pt_entry_t *ptep0 = 0;
+	pt_entry_t *ptep0 = 0;
 	pt_entry_t	oldmap0 = 0;
 	vm_offset_t	addr1;
-	register pt_entry_t *ptep1 = 0;
+	pt_entry_t *ptep1 = 0;
 	pt_entry_t	oldmap1 = 0;
 	extern char	etext;
-	void		db_write_bytes_user_space();
 
 	if ((addr < VM_MIN_KERNEL_ADDRESS) ^
 	    ((addr + size) <= VM_MIN_KERNEL_ADDRESS)) {
@@ -415,13 +573,13 @@ db_write_bytes(
 void
 db_write_bytes_user_space(
 	vm_offset_t	addr,
-	register int	size,
-	register char	*data,
+	int		size,
+	char		*data,
 	task_t		task)
 {
-	register char	*dst;
-	register int	n;
-	unsigned	kern_addr;
+	char		*dst;
+	int		n;
+	vm_offset_t	kern_addr;
 
 	while (size > 0) {
 	    if (db_user_to_kernel_address(task, addr, &kern_addr, 1) < 0)
@@ -440,10 +598,10 @@ db_write_bytes_user_space(
 boolean_t
 db_check_access(
 	vm_offset_t	addr,
-	register int	size,
+	int		size,
 	task_t		task)
 {
-	register	n;
+	int	n;
 	vm_offset_t	kern_addr;
 
 	if (addr >= VM_MIN_KERNEL_ADDRESS) {
@@ -471,7 +629,7 @@ boolean_t
 db_phys_eq(
 	task_t		task1,
 	vm_offset_t	addr1,
-	task_t		task2,
+	const task_t	task2,
 	vm_offset_t	addr2)
 {
 	vm_offset_t	kern_addr1, kern_addr2;
@@ -494,16 +652,19 @@ db_phys_eq(
 #define DB_USER_STACK_ADDR		(VM_MIN_KERNEL_ADDRESS)
 #define DB_NAME_SEARCH_LIMIT		(DB_USER_STACK_ADDR-(INTEL_PGBYTES*3))
 
+#define GNU
+
+#ifndef GNU
 static boolean_t
 db_search_null(
-	task_t		task,
+	const task_t	task,
 	vm_offset_t	*svaddr,
 	vm_offset_t	evaddr,
 	vm_offset_t	*skaddr,
 	int		flag)
 {
-	register unsigned vaddr;
-	register unsigned *kaddr;
+	unsigned vaddr;
+	unsigned *kaddr;
 
 	kaddr = (unsigned *)*skaddr;
 	for (vaddr = *svaddr; vaddr > evaddr; ) {
@@ -524,13 +685,12 @@ db_search_null(
 	}
 	return FALSE;
 }
-
-#define GNU
+#endif /* GNU */
 
 #ifdef GNU
 static boolean_t
 looks_like_command(
-	task_t		task,
+	const task_t	task,
 	char*		kaddr)
 {
 	char *c;
@@ -570,19 +730,19 @@ looks_like_command(
 
 	return TRUE;
 }
-#endif
+#endif /* GNU */
 
 void
 db_task_name(
-	task_t		task)
+	const task_t task)
 {
-	register char *p;
-	register int n;
-	unsigned vaddr, kaddr;
+	char *p;
+	int n;
+	vm_offset_t vaddr, kaddr;
 	unsigned sp;
 
-	if (task->map->pmap == kernel_pmap) {
-		db_printf(DB_GNUMACH_TASK_NAME);
+	if (task->name[0]) {
+		db_printf("%s", task->name);
 		return;
 	}
 
@@ -613,12 +773,12 @@ db_task_name(
 	vaddr = (sp & ~(INTEL_PGBYTES - 1)) + INTEL_PGBYTES;
 	while (1) {
 		if (db_user_to_kernel_address(task, vaddr, &kaddr, 0) < 0)
-			return FALSE;
+			return;
 		if (looks_like_command(task, (char*) kaddr))
 			break;
 		vaddr += INTEL_PGBYTES;
 	}
-#else
+#else /* GNU */
 	vaddr = DB_USER_STACK_ADDR;
 	kaddr = 0;
 
@@ -636,18 +796,18 @@ db_task_name(
 	    db_printf(DB_NULL_TASK_NAME);
 	    return;
 	}
-#endif
+#endif /* GNU */
 
 ok:
 	n = DB_TASK_NAME_LEN-1;
 #ifdef GNU
 	p = (char *)kaddr;
 	for (; n > 0; vaddr++, p++, n--) {
-#else
+#else /* GNU */
 	p = (char *)kaddr + sizeof(unsigned);
 	for (vaddr += sizeof(int); vaddr < DB_USER_STACK_ADDR && n > 0;
 							vaddr++, p++, n--) {
-#endif
+#endif  /* GNU */
 	    if (vaddr % INTEL_PGBYTES == 0) {
 		(void)db_user_to_kernel_address(task, vaddr, &kaddr, 0);
 		p = (char*)kaddr;

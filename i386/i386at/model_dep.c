@@ -48,6 +48,7 @@
 #include <kern/debug.h>
 #include <kern/mach_clock.h>
 #include <kern/printf.h>
+#include <kern/startup.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <vm/vm_page.h>
@@ -67,6 +68,8 @@
 #include <i386at/int_init.h>
 #include <i386at/kd.h>
 #include <i386at/rtc.h>
+#include <i386at/model_dep.h>
+#include <i386at/acpihalt.h>
 #ifdef	MACH_XEN
 #include <xen/console.h>
 #include <xen/store.h>
@@ -74,14 +77,29 @@
 #include <xen/xen.h>
 #endif	/* MACH_XEN */
 
+#if	ENABLE_IMMEDIATE_CONSOLE
+#include "immc.h"
+#endif	/* ENABLE_IMMEDIATE_CONSOLE */
+
 /* Location of the kernel's symbol table.
    Both of these are 0 if none is available.  */
 #if MACH_KDB
+#include <ddb/db_sym.h>
+#include <i386/db_interface.h>
+
+/* a.out symbol table */
 static vm_offset_t kern_sym_start, kern_sym_end;
-#else
+
+/* ELF section header */
+static unsigned elf_shdr_num;
+static vm_size_t elf_shdr_size;
+static vm_offset_t elf_shdr_addr;
+static unsigned elf_shdr_shndx;
+
+#else /* MACH_KDB */
 #define kern_sym_start	0
 #define kern_sym_end	0
-#endif
+#endif /* MACH_KDB */
 
 /* These indicate the total extent of physical memory addresses we're using.
    They are page-aligned.  */
@@ -123,14 +141,8 @@ static vm_size_t avail_remaining;
 
 extern char	version[];
 
-extern void	setup_main();
-
-void		halt_all_cpus (boolean_t reboot) __attribute__ ((noreturn));
-void		halt_cpu (void) __attribute__ ((noreturn));
-
-void		inittodr();	/* forward */
-
-int		rebootflag = 0;	/* exported to kdintr */
+/* If set, reboot the system on ctrl-alt-delete.  */
+boolean_t	rebootflag = FALSE;	/* exported to kdintr */
 
 /* XX interrupt stack pointer and highwater mark, for locore.S.  */
 vm_offset_t int_stack_top, int_stack_high;
@@ -138,8 +150,6 @@ vm_offset_t int_stack_top, int_stack_high;
 #ifdef LINUX_DEV
 extern void linux_init(void);
 #endif
-
-boolean_t init_alloc_aligned(vm_size_t size, vm_offset_t *addrp);
 
 /*
  * Find devices.  The system is alive.
@@ -184,10 +194,14 @@ void machine_init(void)
 	*(unsigned short *)phystokv(0x472) = 0x1234;
 #endif	/* MACH_HYP */
 
+#if VM_MIN_KERNEL_ADDRESS == 0
 	/*
 	 * Unmap page 0 to trap NULL references.
+	 *
+	 * Note that this breaks accessing some BIOS areas stored there.
 	 */
 	pmap_unmap_page_zero();
+#endif
 }
 
 /* Conserve power on processor CPU.  */
@@ -201,7 +215,7 @@ void machine_idle (int cpu)
 #endif	/* MACH_HYP */
 }
 
-void machine_relax ()
+void machine_relax (void)
 {
 	asm volatile ("rep; nop" : : : "memory");
 }
@@ -223,8 +237,7 @@ void halt_cpu(void)
 /*
  * Halt the system or reboot.
  */
-void halt_all_cpus(reboot)
-	boolean_t	reboot;
+void halt_all_cpus(boolean_t reboot)
 {
 	if (reboot) {
 #ifdef	MACH_HYP
@@ -233,10 +246,11 @@ void halt_all_cpus(reboot)
 	    kdreboot();
 	}
 	else {
-	    rebootflag = 1;
+	    rebootflag = TRUE;
 #ifdef	MACH_HYP
 	    hyp_halt();
 #endif	/* MACH_HYP */
+	    grub_acpi_halt();
 	    printf("In tight loop: hit ctl-alt-del to reboot\n");
 	    (void) spl0();
 	}
@@ -245,6 +259,11 @@ void halt_all_cpus(reboot)
 }
 
 void exit(int rc)
+{
+	halt_all_cpus(0);
+}
+
+void db_halt_cpu(void)
 {
 	halt_all_cpus(0);
 }
@@ -274,14 +293,44 @@ mem_size_init(void)
 	} else
 		phys_last_addr = boot_info.nr_pages * 0x1000;
 #else	/* MACH_HYP */
-	/* TODO: support mmap */
-	vm_size_t phys_last_kb = 0x400 + boot_info.mem_upper;
-	/* Avoid 4GiB overflow.  */
-	if (phys_last_kb < 0x400 || phys_last_kb >= 0x400000) {
-		printf("Truncating memory size to 4GiB\n");
-		phys_last_addr = 0xffffffffU;
-	} else
-		phys_last_addr = phys_last_kb * 0x400;
+	vm_size_t phys_last_kb;
+
+	if (boot_info.flags & MULTIBOOT_MEM_MAP) {
+		struct multiboot_mmap *map, *map_end;
+
+		map = (void*) phystokv(boot_info.mmap_addr);
+		map_end = (void*) map + boot_info.mmap_count;
+
+		while (map + 1 <= map_end) {
+			if (map->Type == MB_ARD_MEMORY) {
+				unsigned long long start = map->BaseAddr, end = map->BaseAddr + map->Length;;
+
+				if (start >= 0x100000000ULL) {
+					printf("Ignoring %luMiB RAM region above 4GiB\n", (unsigned long) (map->Length >> 20));
+				} else {
+					if (end >= 0x100000000ULL) {
+						printf("Truncating memory region to 4GiB\n");
+						end = 0x0ffffffffU;
+					}
+					if (end > phys_last_addr)
+						phys_last_addr = end;
+
+					printf("AT386 boot: physical memory map from 0x%lx to 0x%lx\n",
+						(unsigned long) start,
+						(unsigned long) end);
+				}
+			}
+			map = (void*) map + map->size + sizeof(map->size);
+		}
+	} else {
+		phys_last_kb = 0x400 + boot_info.mem_upper;
+		/* Avoid 4GiB overflow.  */
+		if (phys_last_kb < 0x400 || phys_last_kb >= 0x400000) {
+			printf("Truncating memory size to 4GiB\n");
+			phys_last_addr = 0xffffffffU;
+		} else
+			phys_last_addr = phys_last_kb * 0x400;
+	}
 #endif	/* MACH_HYP */
 
 	printf("AT386 boot: physical memory from 0x%lx to 0x%lx\n",
@@ -292,7 +341,7 @@ mem_size_init(void)
 	max_phys_size = VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS - VM_KERNEL_MAP_SIZE;
 	if (phys_last_addr - phys_first_addr > max_phys_size) {
 		phys_last_addr = phys_first_addr + max_phys_size;
-		printf("Truncating memory size to %luMiB\n", (phys_last_addr - phys_first_addr) / (1024 * 1024));
+		printf("Truncating memory to %luMiB\n", (phys_last_addr - phys_first_addr) / (1024 * 1024));
 		/* TODO Xen: be nice, free lost memory */
 	}
 
@@ -344,7 +393,7 @@ i386at_init(void)
 		int len = strlen ((char*)phystokv(boot_info.cmdline)) + 1;
 		assert(init_alloc_aligned(round_page(len), &addr));
 		kernel_cmdline = (char*) phystokv(addr);
-		memcpy(kernel_cmdline, (char*)phystokv(boot_info.cmdline), len);
+		memcpy(kernel_cmdline, (void *)phystokv(boot_info.cmdline), len);
 		boot_info.cmdline = addr;
 	}
 
@@ -496,6 +545,10 @@ i386at_init(void)
  */
 void c_boot_entry(vm_offset_t bi)
 {
+#if	ENABLE_IMMEDIATE_CONSOLE
+	romputc = immc_romputc;
+#endif	/* ENABLE_IMMEDIATE_CONSOLE */
+
 	/* Stash the boot_image_info pointer.  */
 	boot_info = *(typeof(boot_info)*)phystokv(bi);
 	int cpu_type;
@@ -535,6 +588,17 @@ void c_boot_entry(vm_offset_t bi)
 		       kern_sym_start, kern_sym_end,
 		       symtab_size, strtab_size);
 	}
+
+	if ((boot_info.flags & MULTIBOOT_ELF_SHDR)
+	    && boot_info.syms.e.num)
+	{
+		elf_shdr_num = boot_info.syms.e.num;
+		elf_shdr_size = boot_info.syms.e.size;
+		elf_shdr_addr = (vm_offset_t)phystokv(boot_info.syms.e.addr);
+		elf_shdr_shndx = boot_info.syms.e.shndx;
+
+		printf("ELF section header table at %08lx\n", elf_shdr_addr);
+	}
 #endif	/* MACH_KDB */
 #endif	/* MACH_XEN */
 
@@ -551,7 +615,14 @@ void c_boot_entry(vm_offset_t bi)
 	 */
 	if (kern_sym_start)
 	{
-		aout_db_sym_init(kern_sym_start, kern_sym_end, "mach", 0);
+		aout_db_sym_init((char *)kern_sym_start, (char *)kern_sym_end, "mach", (char *)0);
+	}
+
+	if (elf_shdr_num)
+	{
+		elf_db_sym_init(elf_shdr_num,elf_shdr_size,
+				elf_shdr_addr, elf_shdr_shndx,
+				"mach", NULL);
 	}
 #endif	/* MACH_KDB */
 
@@ -590,14 +661,12 @@ void c_boot_entry(vm_offset_t bi)
 #include <mach/time_value.h>
 
 int
-timemmap(dev,off,prot)
+timemmap(dev, off, prot)
+	dev_t dev;
+	vm_offset_t off;
 	vm_prot_t prot;
 {
 	extern time_value_t *mtime;
-
-#ifdef	lint
-	dev++; off++;
-#endif	/* lint */
 
 	if (prot & VM_PROT_WRITE) return (-1);
 
@@ -710,7 +779,56 @@ init_alloc_aligned(vm_size_t size, vm_offset_t *addrp)
 
 #ifndef MACH_HYP
 	/* Skip past the I/O and ROM area.  */
-	if ((avail_next > (boot_info.mem_lower * 0x400)) && (addr < 0x100000))
+	if (boot_info.flags & MULTIBOOT_MEM_MAP)
+	{
+		struct multiboot_mmap *map, *map_end, *current = NULL, *next = NULL;
+		unsigned long long minimum_next = ~0ULL;
+
+		map = (void*) phystokv(boot_info.mmap_addr);
+		map_end = (void*) map + boot_info.mmap_count;
+
+		/* Find both our current map, and the next one */
+		while (map + 1 <= map_end)
+		{
+			if (map->Type == MB_ARD_MEMORY)
+			{
+				unsigned long long start = map->BaseAddr;
+				unsigned long long end = start + map->Length;;
+
+				if (start <= addr && avail_next <= end)
+				{
+					/* Ok, fits in the current map */
+					current = map;
+					break;
+				}
+				else if (avail_next <= start && start < minimum_next)
+				{
+					/* This map is not far from avail_next */
+					next = map;
+					minimum_next = start;
+				}
+			}
+			map = (void*) map + map->size + sizeof(map->size);
+		}
+
+		if (!current) {
+			/* Area does not fit in the current map, switch to next
+			 * map if any */
+			if (!next || next->BaseAddr >= phys_last_addr)
+			{
+				/* No further reachable map, we have reached
+				 * the end of memory, but possibly wrap around
+				 * 16MiB. */
+				avail_next = phys_last_addr;
+				goto retry;
+			}
+
+			/* Start from next map */
+			avail_next = next->BaseAddr;
+			goto retry;
+		}
+	}
+	else if ((avail_next > (boot_info.mem_lower * 0x400)) && (addr < 0x100000))
 	{
 		avail_next = 0x100000;
 		goto retry;
@@ -762,8 +880,7 @@ init_alloc_aligned(vm_size_t size, vm_offset_t *addrp)
 	return TRUE;
 }
 
-boolean_t pmap_next_page(addrp)
-	vm_offset_t *addrp;
+boolean_t pmap_next_page(vm_offset_t *addrp)
 {
 	return init_alloc_aligned(PAGE_SIZE, addrp);
 }
@@ -780,8 +897,7 @@ pmap_grab_page(void)
 	return addr;
 }
 
-boolean_t pmap_valid_page(x)
-	vm_offset_t x;
+boolean_t pmap_valid_page(vm_offset_t x)
 {
 	/* XXX is this OK?  What does it matter for?  */
 	return (((phys_first_addr <= x) && (x < phys_last_addr))

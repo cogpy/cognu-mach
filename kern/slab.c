@@ -79,6 +79,7 @@
 #include <string.h>
 #include <kern/assert.h>
 #include <kern/mach_clock.h>
+#include <kern/macros.h>
 #include <kern/printf.h>
 #include <kern/slab.h>
 #include <kern/kalloc.h>
@@ -96,7 +97,6 @@
 /*
  * Utility macros.
  */
-#define ARRAY_SIZE(x)   (sizeof(x) / sizeof((x)[0]))
 #define P2ALIGNED(x, a) (((x) & ((a) - 1)) == 0)
 #define ISP2(x)         P2ALIGNED(x, x)
 #define P2ALIGN(x, a)   ((x) & -(a))
@@ -165,7 +165,7 @@
 /*
  * Size of the VM submap from which default backend functions allocate.
  */
-#define KMEM_MAP_SIZE (128 * 1024 * 1024)
+#define KMEM_MAP_SIZE (96 * 1024 * 1024)
 
 /*
  * Shift for the first kalloc cache size.
@@ -289,8 +289,8 @@ vm_map_t kmem_map = &kmem_map_store;
 static unsigned long kmem_gc_last_tick;
 
 #define kmem_error(format, ...)                         \
-    printf("mem: error: %s(): " format "\n", __func__,  \
-           ## __VA_ARGS__)
+    panic("mem: error: %s(): " format "\n", __func__,   \
+          ## __VA_ARGS__)
 
 #define kmem_warn(format, ...)                              \
     printf("mem: warning: %s(): " format "\n", __func__,    \
@@ -615,18 +615,24 @@ static inline void kmem_cpu_pool_push(struct kmem_cpu_pool *cpu_pool, void *obj)
 static int kmem_cpu_pool_fill(struct kmem_cpu_pool *cpu_pool,
                               struct kmem_cache *cache)
 {
-    void *obj;
+    kmem_cache_ctor_t ctor;
+    void *buf;
     int i;
+
+    ctor = (cpu_pool->flags & KMEM_CF_VERIFY) ? NULL : cache->ctor;
 
     simple_lock(&cache->lock);
 
     for (i = 0; i < cpu_pool->transfer_size; i++) {
-        obj = kmem_cache_alloc_from_slab(cache);
+        buf = kmem_cache_alloc_from_slab(cache);
 
-        if (obj == NULL)
+        if (buf == NULL)
             break;
 
-        kmem_cpu_pool_push(cpu_pool, obj);
+        if (ctor != NULL)
+            ctor(buf);
+
+        kmem_cpu_pool_push(cpu_pool, buf);
     }
 
     simple_unlock(&cache->lock);
@@ -656,7 +662,7 @@ static void kmem_cache_error(struct kmem_cache *cache, void *buf, int error,
 {
     struct kmem_buftag *buftag;
 
-    kmem_error("cache: %s, buffer: %p", cache->name, (void *)buf);
+    kmem_warn("cache: %s, buffer: %p", cache->name, (void *)buf);
 
     switch(error) {
     case KMEM_ERR_INVALID:
@@ -696,9 +702,9 @@ static void kmem_cache_error(struct kmem_cache *cache, void *buf, int error,
  */
 static void kmem_cache_compute_sizes(struct kmem_cache *cache, int flags)
 {
-    size_t i, buffers, buf_size, slab_size, free_slab_size, optimal_size;
+    size_t i, buffers, buf_size, slab_size, free_slab_size, optimal_size = 0;
     size_t waste, waste_min;
-    int embed, optimal_embed = optimal_embed;
+    int embed, optimal_embed = 0;
 
     buf_size = cache->buf_size;
 
@@ -739,6 +745,7 @@ static void kmem_cache_compute_sizes(struct kmem_cache *cache, int flags)
     } while ((buffers < KMEM_MIN_BUFS_PER_SLAB)
              && (slab_size < KMEM_SLAB_SIZE_THRESHOLD));
 
+    assert(optimal_size > 0);
     assert(!(flags & KMEM_CACHE_NOOFFSLAB) || optimal_embed);
 
     cache->slab_size = optimal_size;
@@ -878,7 +885,7 @@ static int kmem_cache_grow(struct kmem_cache *cache)
     simple_lock(&cache->lock);
 
     if (slab != NULL) {
-        list_insert_tail(&cache->free_slabs, &slab->list_node);
+        list_insert_head(&cache->free_slabs, &slab->list_node);
         cache->nr_bufs += cache->bufs_per_slab;
         cache->nr_slabs++;
         cache->nr_free_slabs++;
@@ -899,31 +906,28 @@ static void kmem_cache_reap(struct kmem_cache *cache)
 {
     struct kmem_slab *slab;
     struct list dead_slabs;
+    unsigned long nr_free_slabs;
 
     if (cache->flags & KMEM_CF_NO_RECLAIM)
         return;
 
-    list_init(&dead_slabs);
-
     simple_lock(&cache->lock);
-
-    while (!list_empty(&cache->free_slabs)) {
-        slab = list_first_entry(&cache->free_slabs, struct kmem_slab,
-                                list_node);
-        list_remove(&slab->list_node);
-        list_insert(&dead_slabs, &slab->list_node);
-        cache->nr_bufs -= cache->bufs_per_slab;
-        cache->nr_slabs--;
-        cache->nr_free_slabs--;
-    }
-
+    list_set_head(&dead_slabs, &cache->free_slabs);
+    list_init(&cache->free_slabs);
+    nr_free_slabs = cache->nr_free_slabs;
+    cache->nr_bufs -= cache->bufs_per_slab * nr_free_slabs;
+    cache->nr_slabs -= nr_free_slabs;
+    cache->nr_free_slabs = 0;
     simple_unlock(&cache->lock);
 
     while (!list_empty(&dead_slabs)) {
         slab = list_first_entry(&dead_slabs, struct kmem_slab, list_node);
         list_remove(&slab->list_node);
         kmem_slab_destroy(slab, cache);
+        nr_free_slabs--;
     }
+
+    assert(nr_free_slabs == 0);
 }
 
 /*
@@ -951,49 +955,20 @@ static void * kmem_cache_alloc_from_slab(struct kmem_cache *cache)
     slab->nr_refs++;
     cache->nr_objs++;
 
-    /*
-     * The slab has become complete.
-     */
     if (slab->nr_refs == cache->bufs_per_slab) {
+        /* The slab has become complete */
         list_remove(&slab->list_node);
 
         if (slab->nr_refs == 1)
             cache->nr_free_slabs--;
     } else if (slab->nr_refs == 1) {
         /*
-         * The slab has become partial.
+         * The slab has become partial. Insert the new slab at the end of
+         * the list to reduce fragmentation.
          */
         list_remove(&slab->list_node);
         list_insert_tail(&cache->partial_slabs, &slab->list_node);
         cache->nr_free_slabs--;
-    } else if (!list_singular(&cache->partial_slabs)) {
-        struct list *node;
-        struct kmem_slab *tmp;
-
-        /*
-         * The slab remains partial. If there are more than one partial slabs,
-         * maintain the list sorted.
-         */
-
-        assert(slab->nr_refs > 1);
-
-        for (node = list_prev(&slab->list_node);
-             !list_end(&cache->partial_slabs, node);
-             node = list_prev(node)) {
-            tmp = list_entry(node, struct kmem_slab, list_node);
-
-            if (tmp->nr_refs >= slab->nr_refs)
-                break;
-        }
-
-        /*
-         * If the direct neighbor was found, the list is already sorted.
-         * If no slab was found, the slab is inserted at the head of the list.
-         */
-        if (node != list_prev(&slab->list_node)) {
-            list_remove(&slab->list_node);
-            list_insert_after(node, &slab->list_node);
-        }
     }
 
     if ((slab->nr_refs == 1) && kmem_slab_use_tree(cache->flags))
@@ -1036,54 +1011,20 @@ static void kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
     slab->nr_refs--;
     cache->nr_objs--;
 
-    /*
-     * The slab has become free.
-     */
     if (slab->nr_refs == 0) {
+        /* The slab has become free */
+
         if (kmem_slab_use_tree(cache->flags))
             rbtree_remove(&cache->active_slabs, &slab->tree_node);
 
-        /*
-         * The slab was partial.
-         */
         if (cache->bufs_per_slab > 1)
             list_remove(&slab->list_node);
 
-        list_insert_tail(&cache->free_slabs, &slab->list_node);
+        list_insert_head(&cache->free_slabs, &slab->list_node);
         cache->nr_free_slabs++;
     } else if (slab->nr_refs == (cache->bufs_per_slab - 1)) {
-        /*
-         * The slab has become partial.
-         */
-        list_insert(&cache->partial_slabs, &slab->list_node);
-    } else if (!list_singular(&cache->partial_slabs)) {
-        struct list *node;
-        struct kmem_slab *tmp;
-
-        /*
-         * The slab remains partial. If there are more than one partial slabs,
-         * maintain the list sorted.
-         */
-
-        assert(slab->nr_refs > 0);
-
-        for (node = list_next(&slab->list_node);
-             !list_end(&cache->partial_slabs, node);
-             node = list_next(node)) {
-            tmp = list_entry(node, struct kmem_slab, list_node);
-
-            if (tmp->nr_refs <= slab->nr_refs)
-                break;
-        }
-
-        /*
-         * If the direct neighbor was found, the list is already sorted.
-         * If no slab was found, the slab is inserted at the tail of the list.
-         */
-        if (node != list_next(&slab->list_node)) {
-            list_remove(&slab->list_node);
-            list_insert_before(node, &slab->list_node);
-        }
+        /* The slab has become partial */
+        list_insert_head(&cache->partial_slabs, &slab->list_node);
     }
 }
 
@@ -1295,6 +1236,7 @@ fast_free:
             simple_unlock(&cpu_pool->lock);
             kmem_cache_free(cache->cpu_pool_type->array_cache,
                             (vm_offset_t)array);
+            simple_lock(&cpu_pool->lock);
             goto fast_free;
         }
 
@@ -1305,7 +1247,9 @@ fast_free:
 slab_free:
 #endif /* SLAB_USE_CPU_POOLS */
 
+    simple_lock(&cache->lock);
     kmem_cache_free_to_slab(cache, (void *)obj);
+    simple_unlock(&cache->lock);
 }
 
 void slab_collect(void)
@@ -1386,7 +1330,6 @@ void kalloc_init(void)
 {
     char name[KMEM_CACHE_NAME_SIZE];
     size_t i, size;
-    vm_offset_t min, max;
 
     size = 1 << KALLOC_FIRST_SHIFT;
 
@@ -1508,7 +1451,7 @@ void slab_info(void)
         mem_usage = (cache->nr_slabs * cache->slab_size) >> 10;
         mem_reclaimable = (cache->nr_free_slabs * cache->slab_size) >> 10;
 
-        printf("%-19s %6lu %3luk  %4lu %6lu %6lu %7luk %10luk\n",
+        printf("%-19s %6lu %3luk  %4lu %6lu %6lu %7uk %10uk\n",
                cache->name, cache->obj_size, cache->slab_size >> 10,
                cache->bufs_per_slab, cache->nr_objs, cache->nr_bufs,
                mem_usage, mem_reclaimable);
@@ -1526,7 +1469,7 @@ kern_return_t host_slab_info(host_t host, cache_info_array_t *infop,
     struct kmem_cache *cache;
     cache_info_t *info;
     unsigned int i, nr_caches;
-    vm_size_t info_size = info_size;
+    vm_size_t info_size = 0;
     kern_return_t kr;
 
     if (host == HOST_NULL)
@@ -1560,7 +1503,7 @@ kern_return_t host_slab_info(host_t host, cache_info_array_t *infop,
     i = 0;
 
     list_for_each_entry(&kmem_cache_list, cache, node) {
-        simple_lock(&cache_lock);
+        simple_lock(&cache->lock);
         info[i].flags = ((cache->flags & KMEM_CF_NO_CPU_POOL)
                          ? CACHE_FLAGS_NO_CPU_POOL : 0)
                         | ((cache->flags & KMEM_CF_SLAB_EXTERNAL)

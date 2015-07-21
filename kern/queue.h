@@ -87,6 +87,14 @@ void		remqueue(queue_t, queue_entry_t);
 void		insque(queue_entry_t, queue_entry_t);
 
 /*
+ *	Macro:		queue_assert
+ *	Function:
+ *		Used by macros to assert that the given argument is a
+ *		queue.
+ */
+#define queue_assert(q)	(void) ((void) (q)->next, (q)->prev)
+
+/*
  *	Macro:		queue_init
  *	Function:
  *		Initialize the given queue.
@@ -104,7 +112,7 @@ void		insque(queue_entry_t, queue_entry_t);
  *		queue_entry_t queue_first(q)
  *			queue_t	q;		*IN*
  */
-#define	queue_first(q)	((q)->next)
+#define	queue_first(q)	(queue_assert(q), (q)->next)
 
 /*
  *	Macro:		queue_next
@@ -114,7 +122,7 @@ void		insque(queue_entry_t, queue_entry_t);
  *		queue_entry_t queue_next(qc)
  *			queue_t qc;
  */
-#define	queue_next(qc)	((qc)->next)
+#define	queue_next(qc)	(queue_assert(qc), (qc)->next)
 
 /*
  *	Macro:		queue_last
@@ -124,7 +132,7 @@ void		insque(queue_entry_t, queue_entry_t);
  *		queue_entry_t queue_last(q)
  *			queue_t	q;		 *IN*
  */
-#define	queue_last(q)	((q)->prev)
+#define	queue_last(q)	(queue_assert(q), (q)->prev)
 
 /*
  *	Macro:		queue_prev
@@ -134,7 +142,7 @@ void		insque(queue_entry_t, queue_entry_t);
  *		queue_entry_t queue_prev(qc)
  *			queue_t qc;
  */
-#define	queue_prev(qc)	((qc)->prev)
+#define	queue_prev(qc)	(queue_assert(qc), (qc)->prev)
 
 /*
  *	Macro:		queue_end
@@ -146,7 +154,8 @@ void		insque(queue_entry_t, queue_entry_t);
  *			queue_t q;
  *			queue_entry_t qe;
  */
-#define	queue_end(q, qe)	((q) == (qe))
+#define	queue_end(q, qe)	(queue_assert(q), queue_assert(qe), \
+				 (q) == (qe))
 
 /*
  *	Macro:		queue_empty
@@ -179,7 +188,9 @@ void		insque(queue_entry_t, queue_entry_t);
  */
 #define queue_enter(head, elt, type, field)			\
 { 								\
-	register queue_entry_t prev;				\
+	queue_assert(head);					\
+	queue_assert(&(elt)->field);				\
+	queue_entry_t prev;					\
 								\
 	prev = (head)->prev;					\
 	if ((head) == prev) {					\
@@ -206,7 +217,9 @@ void		insque(queue_entry_t, queue_entry_t);
  */
 #define queue_enter_first(head, elt, type, field)		\
 { 								\
-	register queue_entry_t next;				\
+	queue_assert(head);					\
+	queue_assert(&(elt)->field);				\
+	queue_entry_t next;					\
 								\
 	next = (head)->next;					\
 	if ((head) == next) {					\
@@ -239,7 +252,9 @@ void		insque(queue_entry_t, queue_entry_t);
  */
 #define	queue_remove(head, elt, type, field)			\
 {								\
-	register queue_entry_t	next, prev;			\
+	queue_assert(head);					\
+	queue_assert(&(elt)->field);				\
+	queue_entry_t	next, prev;				\
 								\
 	next = (elt)->field.next;				\
 	prev = (elt)->field.prev;				\
@@ -266,7 +281,9 @@ void		insque(queue_entry_t, queue_entry_t);
  */
 #define	queue_remove_first(head, entry, type, field)		\
 {								\
-	register queue_entry_t	next;				\
+	queue_assert(head);					\
+	queue_assert(&(entry)->field);				\
+	queue_entry_t	next;					\
 								\
 	(entry) = (type) ((head)->next);			\
 	next = (entry)->field.next;				\
@@ -289,7 +306,9 @@ void		insque(queue_entry_t, queue_entry_t);
  */
 #define	queue_remove_last(head, entry, type, field)		\
 {								\
-	register queue_entry_t	prev;				\
+	queue_assert(head);					\
+	queue_assert(&(entry)->field);				\
+	queue_entry_t	prev;					\
 								\
 	(entry) = (type) ((head)->prev);			\
 	prev = (entry)->field.prev;				\
@@ -306,6 +325,8 @@ void		insque(queue_entry_t, queue_entry_t);
  */
 #define	queue_assign(to, from, type, field)			\
 {								\
+	queue_assert(&(to)->field);				\
+	queue_assert(&(from)->field);				\
 	((type)((from)->prev))->field.next = (to);		\
 	((type)((from)->next))->field.prev = (to);		\
 	*to = *from;						\

@@ -47,14 +47,13 @@
 #include <ipc/ipc_marequest.h>
 #include <ipc/ipc_notify.h>
 #include <ipc/ipc_kmsg.h>
-#include <ipc/ipc_hash.h>
 #include <ipc/ipc_init.h>
 
 
 
 static struct vm_map ipc_kernel_map_store;
 vm_map_t ipc_kernel_map = &ipc_kernel_map_store;
-vm_size_t ipc_kernel_map_size = 8 * 1024 * 1024;
+const vm_size_t ipc_kernel_map_size = 8 * 1024 * 1024;
 
 /*
  *	Routine:	ipc_bootstrap
@@ -76,8 +75,8 @@ ipc_bootstrap(void)
 	kmem_cache_init(&ipc_space_cache, "ipc_space",
 			sizeof(struct ipc_space), 0, NULL, NULL, NULL, 0);
 
-	kmem_cache_init(&ipc_tree_entry_cache, "ipc_tree_entry",
-			sizeof(struct ipc_tree_entry), 0, NULL, NULL, NULL, 0);
+	kmem_cache_init(&ipc_entry_cache, "ipc_entry",
+			sizeof(struct ipc_entry), 0, NULL, NULL, NULL, 0);
 
 	kmem_cache_init(&ipc_object_caches[IOT_PORT], "ipc_port",
 			sizeof(struct ipc_port), 0, NULL, NULL, NULL, 0);
@@ -97,7 +96,6 @@ ipc_bootstrap(void)
 
 	ipc_table_init();
 	ipc_notify_init();
-	ipc_hash_init();
 	ipc_marequest_init();
 }
 
@@ -108,7 +106,7 @@ ipc_bootstrap(void)
  */
 
 void
-ipc_init()
+ipc_init(void)
 {
 	vm_offset_t min, max;
 

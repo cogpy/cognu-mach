@@ -45,7 +45,7 @@
 #include <kern/lock.h>
 #include <kern/assert.h>
 #include <kern/debug.h>
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <vm/pmap.h>
 #include <ipc/ipc_types.h>
 
@@ -233,8 +233,6 @@ extern void vm_object_page_map(
 	vm_offset_t	(*)(void *, vm_offset_t),
 	void *);
 
-extern void		vm_object_print(vm_object_t);
-
 extern vm_object_t	vm_object_request_object(struct ipc_port *);
 
 extern boolean_t vm_object_coalesce(
@@ -246,6 +244,16 @@ extern boolean_t vm_object_coalesce(
    vm_size_t   next_size);
 
 extern void vm_object_pager_wakeup(ipc_port_t  pager);
+
+void memory_object_release(
+	ipc_port_t	pager,
+	pager_request_t	pager_request,
+	ipc_port_t	pager_name);
+
+void vm_object_deactivate_pages(vm_object_t);
+
+vm_object_t vm_object_copy_delayed(
+	vm_object_t	src_object);
 
 /*
  *	Event waiting handling

@@ -34,7 +34,6 @@
 #include <mach/machine/vm_types.h>
 #include <mach/machine/vm_param.h>
 #include <mach/machine/eflags.h>
-#include <machine/db_interface.h>
 #include <i386/thread.h>		/* for thread_status */
 #include <i386/trap.h>
 
@@ -94,7 +93,6 @@ db_regs_t	ddb_regs;	/* register state */
 #define DB_TASK_NAME_TITLE	"COMMAND                "
 #define DB_TASK_NAME_LEN	23
 #define DB_NULL_TASK_NAME	"?                      "
-#define DB_GNUMACH_TASK_NAME	"gnumach                "
 
 /* macro for checking if a thread has used floating-point */
 

@@ -133,7 +133,7 @@ unsigned int simple_locks_taken = 0;
 
 struct simple_locks_info {
 	simple_lock_t l;
-	unsigned int ra;
+	void *ra;
 } simple_locks_info[NSLINFO];
 
 void check_simple_locks(void)
@@ -161,10 +161,8 @@ void simple_lock(
 
 	info = &simple_locks_info[simple_locks_taken++];
 	info->l = l;
-	/* XXX we want our return address, if possible */
-#if defined(__i386__)
-	info->ra = *((unsigned long *)&l - 1);
-#endif	/* i386 */
+	info->ra =
+		__builtin_extract_return_addr (__builtin_return_address (0));
 }
 
 boolean_t simple_lock_try(
@@ -179,10 +177,8 @@ boolean_t simple_lock_try(
 
 	info = &simple_locks_info[simple_locks_taken++];
 	info->l = l;
-	/* XXX we want our return address, if possible */
-#if defined(__i386__)
-	info->ra = *((unsigned long *)&l - 1);
-#endif	/* i386 */
+	info->ra =
+		__builtin_extract_return_addr (__builtin_return_address (0));
 
 	return TRUE;
 }
@@ -250,9 +246,9 @@ void lock_sleepable(
  */
 
 void lock_write(
-	register lock_t	l)
+	lock_t	l)
 {
-	register int	i;
+	int	i;
 
 	check_simple_locks();
 	simple_lock(&l->interlock);
@@ -308,7 +304,7 @@ void lock_write(
 }
 
 void lock_done(
-	register lock_t	l)
+	lock_t	l)
 {
 	simple_lock(&l->interlock);
 
@@ -340,9 +336,9 @@ void lock_done(
 }
 
 void lock_read(
-	register lock_t	l)
+	lock_t	l)
 {
-	register int	i;
+	int	i;
 
 	check_simple_locks();
 	simple_lock(&l->interlock);
@@ -387,9 +383,9 @@ void lock_read(
  *		Returns TRUE if the upgrade *failed*.
  */
 boolean_t lock_read_to_write(
-	register lock_t	l)
+	lock_t	l)
 {
-	register int	i;
+	int	i;
 
 	check_simple_locks();
 	simple_lock(&l->interlock);
@@ -443,7 +439,7 @@ boolean_t lock_read_to_write(
 }
 
 void lock_write_to_read(
-	register lock_t	l)
+	lock_t	l)
 {
 	simple_lock(&l->interlock);
 
@@ -474,7 +470,7 @@ void lock_write_to_read(
  */
 
 boolean_t lock_try_write(
-	register lock_t	l)
+	lock_t	l)
 {
 	simple_lock(&l->interlock);
 
@@ -513,7 +509,7 @@ boolean_t lock_try_write(
  */
 
 boolean_t lock_try_read(
-	register lock_t	l)
+	lock_t	l)
 {
 	simple_lock(&l->interlock);
 
@@ -547,7 +543,7 @@ boolean_t lock_try_read(
  *		Returns FALSE if the upgrade *failed*.
  */
 boolean_t lock_try_read_to_write(
-	register lock_t	l)
+	lock_t	l)
 {
 	check_simple_locks();
 	simple_lock(&l->interlock);

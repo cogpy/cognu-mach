@@ -41,9 +41,6 @@ struct consdev {
 #define CN_INTERNAL	2	/* "internal" bit-mapped display */
 #define CN_REMOTE	3	/* serial interface with remote bit set */
 
-/* XXX */
-#define	CONSMAJOR	0
-
 #define CONSBUFSIZE	1024
 
 #ifdef KERNEL
@@ -57,4 +54,15 @@ extern int cngetc(void);
 extern int cnmaygetc(void);
 
 extern void cnputc(char);
+
+/*
+ * ROM getc/putc primitives.
+ * On some architectures, the boot ROM provides basic character input/output
+ * routines that can be used before devices are configured or virtual memory
+ * is enabled.  This can be useful to debug (or catch panics from) code early
+ * in the bootstrap procedure.
+ */
+extern int	(*romgetc)(char c);
+extern void	(*romputc)(char c);
+
 #endif /* _DEVICE_CONS_H */
