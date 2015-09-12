@@ -55,6 +55,8 @@ AC_ARG_ENABLE([platform],
 case $host_platform:$host_cpu in
   default:i?86)
     host_platform=at;;
+  default:x86_64)
+    host_platform=xen;;
   at:i?86 | xen:i?86 | xen:x86_64)
     :;;
   *)]
