@@ -120,12 +120,14 @@ intr_thread ()
 	       * we should remove it. */
 	      if (e->dest == NULL)
 		{
+		  clear_wait (current_thread (), 0, 0);
 		  del = 1;
 		  break;
 		}
 
 	      if (e->interrupts)
 		{
+		  clear_wait (current_thread (), 0, 0);
 		  line = e->line;
 		  dest = e->dest;
 		  e->interrupts--;
