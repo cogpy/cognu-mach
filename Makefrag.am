@@ -24,6 +24,9 @@ libkernel_a_SOURCES += \
 	ddb/db_access.c \
 	ddb/db_access.h \
 	ddb/db_aout.c \
+	ddb/db_aout.h \
+	ddb/db_elf.c \
+	ddb/db_elf.h \
 	ddb/db_break.c \
 	ddb/db_break.h \
 	ddb/db_command.c \
@@ -42,6 +45,7 @@ libkernel_a_SOURCES += \
 	ddb/db_macro.c \
 	ddb/db_macro.h \
 	ddb/db_mp.c \
+	ddb/db_mp.h \
 	ddb/db_output.c \
 	ddb/db_output.h \
 	ddb/db_print.c \
@@ -59,12 +63,13 @@ libkernel_a_SOURCES += \
 	ddb/db_watch.c \
 	ddb/db_watch.h \
 	ddb/db_write_cmd.c \
+	ddb/db_write_cmd.h \
 	ddb/nlist.h \
 	ddb/stab.h \
 	ddb/tr.h
 
 # We need frame pointers for trace to work properly.
-AM_CFLAGS += -fno-omit-frame-pointer
+AM_CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
 endif
 
 
@@ -75,8 +80,6 @@ endif
 libkernel_a_SOURCES += \
 	ipc/ipc_entry.c \
 	ipc/ipc_entry.h \
-	ipc/ipc_hash.c \
-	ipc/ipc_hash.h \
 	ipc/ipc_init.c \
 	ipc/ipc_init.h \
 	ipc/ipc_kmsg.c \
@@ -93,14 +96,13 @@ libkernel_a_SOURCES += \
 	ipc/ipc_object.h \
 	ipc/ipc_port.c \
 	ipc/ipc_port.h \
+	ipc/ipc_print.h \
 	ipc/ipc_pset.c \
 	ipc/ipc_pset.h \
 	ipc/ipc_right.c \
 	ipc/ipc_right.h \
 	ipc/ipc_space.c \
 	ipc/ipc_space.h \
-	ipc/ipc_splay.c \
-	ipc/ipc_splay.h \
 	ipc/ipc_table.c \
 	ipc/ipc_table.h \
 	ipc/ipc_target.c \
@@ -116,7 +118,8 @@ libkernel_a_SOURCES += \
 	ipc/mach_debug.c \
 	ipc/port.h
 EXTRA_DIST += \
-	ipc/mach_port.srv
+	ipc/mach_port.srv \
+	ipc/notify.defs
 
 
 #
@@ -131,6 +134,7 @@ libkernel_a_SOURCES += \
 	kern/ast.h \
 	kern/boot_script.h \
 	kern/bootstrap.c \
+	kern/bootstrap.h \
 	kern/counters.c \
 	kern/counters.h \
 	kern/cpu_number.h \
@@ -139,6 +143,9 @@ libkernel_a_SOURCES += \
 	kern/eventcount.c \
 	kern/eventcount.h \
 	kern/exception.c \
+	kern/exception.h \
+	kern/gsync.c \
+	kern/gsync.h \
 	kern/host.c \
 	kern/host.h \
 	kern/ipc_host.c \
@@ -157,18 +164,20 @@ libkernel_a_SOURCES += \
 	kern/lock.c \
 	kern/lock.h \
 	kern/lock_mon.c \
+	kern/log2.h \
 	kern/mach_clock.c \
 	kern/mach_clock.h \
 	kern/mach_factor.c \
 	kern/mach_factor.h \
 	kern/machine.c \
 	kern/machine.h \
-	kern/macro_help.h \
+	kern/macros.h \
 	kern/pc_sample.c \
 	kern/pc_sample.h \
 	kern/printf.c \
 	kern/printf.h \
 	kern/priority.c \
+	kern/priority.h \
 	kern/processor.c \
 	kern/processor.h \
 	kern/profile.c \
@@ -177,6 +186,9 @@ libkernel_a_SOURCES += \
 	kern/rbtree.c \
 	kern/rbtree.h \
 	kern/rbtree_i.h \
+	kern/rdxtree.c \
+	kern/rdxtree.h \
+	kern/rdxtree_i.h \
 	kern/refcount.h \
 	kern/slab.c \
 	kern/slab.h \
@@ -185,6 +197,7 @@ libkernel_a_SOURCES += \
 	kern/sched_prim.h \
 	kern/shuttle.h \
 	kern/startup.c \
+	kern/startup.h \
 	kern/strings.c \
 	kern/syscall_emulation.c \
 	kern/syscall_emulation.h \
@@ -207,10 +220,13 @@ libkernel_a_SOURCES += \
 	kern/elf-load.c \
 	kern/boot_script.c
 EXTRA_DIST += \
+	kern/exc.defs \
 	kern/mach.srv \
 	kern/mach4.srv \
+	kern/gnumach.srv \
 	kern/mach_debug.srv \
-	kern/mach_host.srv
+	kern/mach_host.srv \
+	kern/task_notify.cli
 
 
 #
@@ -240,15 +256,18 @@ libkernel_a_SOURCES += \
 	vm/vm_fault.c \
 	vm/vm_fault.h \
 	vm/vm_init.c \
+	vm/vm_init.h \
 	vm/vm_kern.c \
 	vm/vm_kern.h \
 	vm/vm_map.c \
 	vm/vm_map.h \
 	vm/vm_object.c \
 	vm/vm_object.h \
+	vm/vm_page.c \
 	vm/vm_page.h \
 	vm/vm_pageout.c \
 	vm/vm_pageout.h \
+	vm/vm_print.h \
 	vm/vm_resident.c \
 	vm/vm_resident.h \
 	vm/vm_types.h \
@@ -268,8 +287,10 @@ EXTRA_DIST += \
 # TODO.  Functions in device/subrs.c should each be moved elsewhere.
 libkernel_a_SOURCES += \
 	device/blkio.c \
+	device/blkio.h \
 	device/buf.h \
 	device/chario.c \
+	device/chario.h \
 	device/cirbuf.h \
 	device/conf.h \
 	device/cons.c \
@@ -280,7 +301,9 @@ libkernel_a_SOURCES += \
 	device/dev_master.h \
 	device/dev_name.c \
 	device/dev_pager.c \
+	device/dev_pager.h \
 	device/device_init.c \
+	device/device_init.h \
 	device/device_port.h \
 	device/device_types_kernel.h \
 	device/ds_routines.c \
@@ -333,6 +356,7 @@ include_device_HEADERS = \
 	include/device/device_request.defs \
 	include/device/device_types.defs \
 	include/device/intr.defs \
+	include/device/intr.h \
 	include/device/device_types.h \
 	include/device/disk_status.h \
 	include/device/net_status.h \
@@ -348,6 +372,8 @@ include_mach_HEADERS = \
 	include/mach/exc.defs \
 	include/mach/mach.defs \
 	include/mach/mach4.defs \
+	include/mach/gnumach.defs \
+	include/mach/task_notify.defs \
 	include/mach/mach_host.defs \
 	include/mach/mach_port.defs \
 	include/mach/mach_types.defs \
@@ -390,6 +416,7 @@ include_mach_HEADERS = \
 	include/mach/time_value.h \
 	include/mach/version.h \
 	include/mach/vm_attributes.h \
+	include/mach/vm_cache_statistics.h \
 	include/mach/vm_inherit.h \
 	include/mach/vm_param.h \
 	include/mach/vm_prot.h \
@@ -404,9 +431,18 @@ include_mach_eXec_HEADERS = \
 	include/mach/exec/elf.h \
 	include/mach/exec/exec.h
 
-# mach-debug-headers:= $(addprefix mach_debug/, hash_info.h ipc_info.h \
-# 		mach_debug.defs mach_debug_types.defs mach_debug_types.h \
-# 		pc_info.h vm_info.h slab_info.h)
+include_mach_debugdir = $(includedir)/mach_debug
+include_mach_debug_HEADERS = \
+	$(addprefix include/mach_debug/, \
+		hash_info.h \
+		ipc_info.h \
+		mach_debug.defs	\
+		mach_debug_types.defs \
+		mach_debug_types.h \
+		pc_info.h \
+		vm_info.h \
+		slab_info.h \
+	)
 
 # Other headers for the distribution.  We don't install these, because the
 # GNU C library has correct versions for users to use.
@@ -462,6 +498,13 @@ nodist_libkernel_a_SOURCES += \
 #	device/device_reply.user.defs
 #	device/memory_object_reply.user.defs
 
+nodist_lib_dep_tr_for_defs_a_SOURCES += \
+	kern/task_notify.user.defs.c
+nodist_libkernel_a_SOURCES += \
+	kern/task_notify.user.h \
+	kern/task_notify.user.c \
+	kern/task_notify.user.msgids
+
 # Server stubs.
 nodist_lib_dep_tr_for_defs_a_SOURCES += \
 	device/device.server.defs.c \
@@ -485,6 +528,7 @@ nodist_libkernel_a_SOURCES += \
 nodist_lib_dep_tr_for_defs_a_SOURCES += \
 	kern/mach.server.defs.c \
 	kern/mach4.server.defs.c \
+	kern/gnumach.server.defs.c \
 	kern/mach_debug.server.defs.c \
 	kern/mach_host.server.defs.c
 nodist_libkernel_a_SOURCES += \
@@ -494,6 +538,9 @@ nodist_libkernel_a_SOURCES += \
 	kern/mach4.server.h \
 	kern/mach4.server.c \
 	kern/mach4.server.msgids \
+	kern/gnumach.server.h \
+	kern/gnumach.server.c \
+	kern/gnumach.server.msgids \
 	kern/mach_debug.server.h \
 	kern/mach_debug.server.c \
 	kern/mach_debug.server.msgids \
@@ -502,8 +549,19 @@ nodist_libkernel_a_SOURCES += \
 	kern/mach_host.server.msgids
 #	kern/mach.server.defs
 #	kern/mach4.server.defs
+#	kern/gnumach.server.defs
 #	kern/mach_debug.server.defs
 #	kern/mach_host.server.defs
+
+# Stand-alone rule to generate the list of message ids when neither
+# the client nor the server stubs are required.
+nodist_lib_dep_tr_for_defs_a_SOURCES += \
+	ipc/notify.none.defs.c \
+	kern/exc.none.defs.c
+nodist_libkernel_a_SOURCES += \
+	ipc/notify.none.msgids \
+	kern/exc.none.msgids
+#	ipc/notify.none.defs
 
 # rpctrace can make use of that.
 MOSTLYCLEANFILES += \

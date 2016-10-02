@@ -27,22 +27,24 @@
 #include "trap.h"
 #include "debug.h"
 
-void dump_ss(struct i386_saved_state *st)
+void dump_ss(const struct i386_saved_state *st)
 {
 	printf("Dump of i386_saved_state %p:\n", st);
-	printf("EAX %08x EBX %08x ECX %08x EDX %08x\n",
+	printf("EAX %08lx EBX %08lx ECX %08lx EDX %08lx\n",
 		st->eax, st->ebx, st->ecx, st->edx);
-	printf("ESI %08x EDI %08x EBP %08x ESP %08x\n",
+	printf("ESI %08lx EDI %08lx EBP %08lx ESP %08lx\n",
 		st->esi, st->edi, st->ebp, st->uesp);
-	printf("CS %04x SS %04x DS %04x ES %04x FS %04x GS %04x\n",
+	printf("CS %04lx SS %04lx "
+		"DS %04lx ES %04lx "
+		"FS %04lx GS %04lx\n",
 		st->cs & 0xffff, st->ss & 0xffff,
 		st->ds & 0xffff, st->es & 0xffff,
 		st->fs & 0xffff, st->gs & 0xffff);
-	printf("v86:            DS %04x ES %04x FS %04x GS %04x\n",
+	printf("v86:            DS %04lx ES %04lx FS %04lx GS %04lx\n",
 		st->v86_segs.v86_ds & 0xffff, st->v86_segs.v86_es & 0xffff,
 		st->v86_segs.v86_gs & 0xffff, st->v86_segs.v86_gs & 0xffff);
-	printf("EIP %08x EFLAGS %08x\n", st->eip, st->efl);
-	printf("trapno %d: %s, error %08x\n",
+	printf("EIP %08lx EFLAGS %08lx\n", st->eip, st->efl);
+	printf("trapno %ld: %s, error %08lx\n",
 		st->trapno, trap_name(st->trapno),
 		st->err);
 }
@@ -57,9 +59,8 @@ struct debug_trace_entry
 struct debug_trace_entry debug_trace_buf[DEBUG_TRACE_LEN];
 int debug_trace_pos;
 
-
 void
-debug_trace_reset()
+debug_trace_reset(void)
 {
 	int s = splhigh();
 	debug_trace_pos = 0;
@@ -87,7 +88,7 @@ print_entry(int i, int *col)
 }
 
 void
-debug_trace_dump()
+debug_trace_dump(void)
 {
 	int s = splhigh();
 	int i;
@@ -127,21 +128,37 @@ debug_trace_dump()
 	splx(s);
 }
 
-#include "syscall_sw.h"
+#include <kern/syscall_sw.h>
 
 int syscall_trace = 0;
+task_t syscall_trace_task;
 
 int
 syscall_trace_print(int syscallvec, ...)
 {
 	int syscallnum = syscallvec >> 4;
 	int i;
+	const mach_trap_t *trap = &mach_trap_table[syscallnum];
 
-	printf("syscall -%d:", syscallnum);
-	for (i = 0; i < mach_trap_table[syscallnum].mach_trap_arg_count; i++)
-		printf(" %08x", (&syscallvec)[1+i]);
-	printf("\n");
+	if (syscall_trace_task && syscall_trace_task != current_task())
+		goto out;
 
+	printf("0x%08x:0x%08x:%s(",
+	       current_task(), current_thread(), trap->mach_trap_name);
+	for (i = 0; i < trap->mach_trap_arg_count; i++) {
+		unsigned long value = (&syscallvec)[1+i];
+		/* Use a crude heuristic to format pointers.  */
+		if (value > 1024)
+			printf("0x%08x", value);
+		else
+			printf("%d", value);
+
+		if (i + 1 < trap->mach_trap_arg_count)
+			printf(", ");
+	}
+	printf(")\n");
+
+ out:
 	return syscallvec;
 }
 

@@ -33,6 +33,7 @@
 #include <mach/vm_param.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_user.h>
 #include <kern/host.h>
 #include <kern/task.h>
 #include <ddb/db_sym.h>
@@ -45,12 +46,12 @@
  *	the caller and the kernel debugger agree on its format.
  */
 kern_return_t
-host_load_symbol_table(host, task, name, symtab, symtab_count)
-	host_t		host;
-	task_t		task;
-	char *		name;
-	pointer_t	symtab;
-	unsigned int	symtab_count;
+host_load_symbol_table(
+	host_t		host,
+	task_t		task,
+	char *		name,
+	pointer_t	symtab,
+	unsigned int	symtab_count)
 {
 	kern_return_t	result;
 	vm_offset_t	symtab_start;

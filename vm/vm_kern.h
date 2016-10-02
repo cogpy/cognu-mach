@@ -54,12 +54,10 @@ extern kern_return_t	kmem_alloc_pageable(vm_map_t, vm_offset_t *,
 					    vm_size_t);
 extern kern_return_t	kmem_alloc_wired(vm_map_t, vm_offset_t *, vm_size_t);
 extern kern_return_t	kmem_alloc_aligned(vm_map_t, vm_offset_t *, vm_size_t);
-extern kern_return_t	kmem_realloc(vm_map_t, vm_offset_t, vm_size_t,
-				     vm_offset_t *, vm_size_t);
 extern void		kmem_free(vm_map_t, vm_offset_t, vm_size_t);
 
 extern void		kmem_submap(vm_map_t, vm_map_t, vm_offset_t *,
-				    vm_offset_t *, vm_size_t, boolean_t);
+				    vm_offset_t *, vm_size_t);
 
 extern kern_return_t	kmem_io_map_copyout(vm_map_t, vm_offset_t *,
 					    vm_offset_t *, vm_size_t *,
@@ -81,5 +79,19 @@ extern boolean_t projected_buffer_in_range(
         vm_map_t map,
         vm_offset_t start,
 		vm_offset_t end);
+
+extern void kmem_alloc_pages(
+	vm_object_t	object,
+	vm_offset_t	offset,
+	vm_offset_t	start,
+	vm_offset_t	end,
+	vm_prot_t	protection);
+
+extern void kmem_remap_pages(
+	vm_object_t	object,
+	vm_offset_t	offset,
+	vm_offset_t	start,
+	vm_offset_t	end,
+	vm_prot_t	protection);
 
 #endif	/* _VM_VM_KERN_H_ */

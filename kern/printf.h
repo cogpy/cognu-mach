@@ -27,22 +27,26 @@
 #include <sys/types.h>
 #include <stdarg.h>
 
-extern void printf_init (void);
-
 extern void _doprnt (const char *fmt,
-		     va_list *argp, 
+		     va_list argp, 
 		     void (*putc)(char, vm_offset_t), 
 		     int radix, 
 		     vm_offset_t putc_arg);
 
-extern void printnum (unsigned long u, int base,
+extern void printnum (unsigned long long u, int base,
                       void (*putc)(char, vm_offset_t),
                       vm_offset_t putc_arg);
 
-extern int sprintf (char *buf, const char *fmt, ...);
-extern int vsnprintf (char *buf, int size, const char *fmt, va_list args);
+extern int sprintf (char *buf, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
+extern int snprintf (char *buf, size_t size, const char *fmt, ...)
+	__attribute__ ((format (printf, 3, 4)));
+extern int vsnprintf (char *buf, size_t size, const char *fmt, va_list args)
+	__attribute__ ((format (printf, 3, 0)));
 
-extern int printf (const char *fmt, ...);
+
+extern int printf (const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
 
 #define printf_once(fmt, ...)			\
 	MACRO_BEGIN				\

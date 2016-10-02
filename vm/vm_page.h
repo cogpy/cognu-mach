@@ -36,13 +36,15 @@
 
 #include <mach/boolean.h>
 #include <mach/vm_prot.h>
-#include <mach/vm_param.h>
+#include <machine/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_types.h>
 #include <kern/queue.h>
+#include <kern/list.h>
 #include <kern/lock.h>
+#include <kern/log2.h>
 
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <kern/sched_prim.h>	/* definitions of wait/wakeup */
 
 #if	MACH_VM_DEBUG
@@ -76,30 +78,37 @@
  */
 
 struct vm_page {
-	queue_chain_t	pageq;		/* queue info for FIFO
-					 * queue or free list (P) */
+	struct list node;		/* page queues or free list (P) */
+	unsigned short type;
+	unsigned short seg_index;
+	unsigned short order;
+	void *priv;
+
+	/*
+	 * This member is used throughout the code and may only change for
+	 * fictitious pages.
+	 */
+	phys_addr_t phys_addr;
+
 	queue_chain_t	listq;		/* all pages in same object (O) */
 	struct vm_page	*next;		/* VP bucket link (O) */
+
+	/* We use an empty struct as the delimiter.  */
+	struct {} vm_page_header;
+#define VM_PAGE_HEADER_SIZE	offsetof(struct vm_page, vm_page_header)
 
 	vm_object_t	object;		/* which object am I in (O,P) */
 	vm_offset_t	offset;		/* offset into that object (O,P) */
 
-	unsigned int	wire_count:16,	/* how many wired down maps use me?
+	unsigned int	wire_count:15,	/* how many wired down maps use me?
 					   (O&P) */
 	/* boolean_t */	inactive:1,	/* page is in inactive list (P) */
 			active:1,	/* page is in active list (P) */
 			laundry:1,	/* page is being cleaned now (P)*/
 			free:1,		/* page is on free list (P) */
 			reference:1,	/* page has been used (P) */
-			external:1,	/* page considered external (P) */
-		        extcounted:1,   /* page counted in ext counts (P) */
-			:0;		/* (force to 'long' boundary) */
-#ifdef	ns32000
-	int		pad;		/* extra space for ns32000 bit ops */
-#endif	/* ns32000 */
-
-	unsigned int
-	/* boolean_t */	busy:1,		/* page is in transit (O) */
+			external:1,	/* page in external object (P) */
+			busy:1,		/* page is in transit (O) */
 			wanted:1,	/* someone is waiting for page (O) */
 			tabled:1,	/* page is in VP table (O) */
 			fictitious:1,	/* Physical page doesn't exist (O) */
@@ -112,13 +121,10 @@ struct vm_page {
 			dirty:1,	/* Page must be cleaned (O) */
 			precious:1,	/* Page is precious; data must be
 					 *  returned even if clean (O) */
-			overwriting:1,	/* Request to unlock has been made
+			overwriting:1;	/* Request to unlock has been made
 					 * without having data. (O)
 					 * [See vm_object_overwrite] */
-			:0;
 
-	vm_offset_t	phys_addr;	/* Physical address of page, passed
-					 *  to pmap_enter (read-only) */
 	vm_prot_t	page_lock;	/* Uses prohibited by data manager (O) */
 	vm_prot_t	unlock_request;	/* Outstanding unlock request (O) */
 };
@@ -128,7 +134,9 @@ struct vm_page {
  *	some useful check on a page structure.
  */
 
-#define VM_PAGE_CHECK(mem)
+#define VM_PAGE_CHECK(mem) vm_page_check(mem)
+
+void vm_page_check(const struct vm_page *page);
 
 /*
  *	Each pageable resident page falls into one of three lists:
@@ -147,22 +155,6 @@ struct vm_page {
  */
 
 extern
-vm_page_t	vm_page_queue_free;	/* memory free queue */
-extern
-vm_page_t	vm_page_queue_fictitious;	/* fictitious free queue */
-extern
-queue_head_t	vm_page_queue_active;	/* active memory queue */
-extern
-queue_head_t	vm_page_queue_inactive;	/* inactive memory queue */
-
-extern
-vm_offset_t	first_phys_addr;	/* physical address for first_page */
-extern
-vm_offset_t	last_phys_addr;		/* physical address for last_page */
-
-extern
-int	vm_page_free_count;	/* How many pages are free? */
-extern
 int	vm_page_fictitious_count;/* How many fictitious pages are free? */
 extern
 int	vm_page_active_count;	/* How many pages are active? */
@@ -171,36 +163,16 @@ int	vm_page_inactive_count;	/* How many pages are inactive? */
 extern
 int	vm_page_wire_count;	/* How many pages are wired? */
 extern
-int	vm_page_free_target;	/* How many do we want free? */
-extern
-int	vm_page_free_min;	/* When to wakeup pageout */
-extern
-int	vm_page_inactive_target;/* How many do we want inactive? */
-extern
-int	vm_page_free_reserved;	/* How many pages reserved to do pageout */
-extern
 int	vm_page_laundry_count;	/* How many pages being laundered? */
 extern
-int	vm_page_external_limit;	/* Max number of pages for external objects  */
-
-/* Only objects marked with the extcounted bit are included in this total.
-   Pages which we scan for possible pageout, but which are not actually
-   dirty, don't get considered against the external page limits any more
-   in this way.  */
-extern
-int	vm_page_external_count;	/* How many pages for external objects? */
-
-
+int	vm_page_external_pagedout;	/* How many external pages being paged out? */
 
 decl_simple_lock_data(extern,vm_page_queue_lock)/* lock on active and inactive
 						   page queues */
 decl_simple_lock_data(extern,vm_page_queue_free_lock)
 						/* lock on free page queue */
 
-extern unsigned int	vm_page_free_wanted;
-				/* how many threads are waiting for memory */
-
-extern vm_offset_t	vm_page_fictitious_addr;
+extern phys_addr_t	vm_page_fictitious_addr;
 				/* (fake) phys_addr of fictitious pages */
 
 extern void		vm_page_bootstrap(
@@ -208,25 +180,23 @@ extern void		vm_page_bootstrap(
 	vm_offset_t	*endp);
 extern void		vm_page_module_init(void);
 
-extern void		vm_page_create(
-	vm_offset_t	start,
-	vm_offset_t	end);
 extern vm_page_t	vm_page_lookup(
 	vm_object_t	object,
 	vm_offset_t	offset);
 extern vm_page_t	vm_page_grab_fictitious(void);
-extern void		vm_page_release_fictitious(vm_page_t);
-extern boolean_t	vm_page_convert(vm_page_t, boolean_t);
+extern boolean_t	vm_page_convert(vm_page_t *);
 extern void		vm_page_more_fictitious(void);
-extern vm_page_t	vm_page_grab(boolean_t);
-extern void		vm_page_release(vm_page_t, boolean_t);
+extern vm_page_t	vm_page_grab(void);
+extern void		vm_page_release(vm_page_t, boolean_t, boolean_t);
+extern phys_addr_t	vm_page_grab_phys_addr(void);
+extern vm_page_t	vm_page_grab_contig(vm_size_t, unsigned int);
+extern void		vm_page_free_contig(vm_page_t, vm_size_t);
 extern void		vm_page_wait(void (*)(void));
 extern vm_page_t	vm_page_alloc(
 	vm_object_t	object,
 	vm_offset_t	offset);
 extern void		vm_page_init(
-	vm_page_t	mem,
-	vm_offset_t	phys_addr);
+	vm_page_t	mem);
 extern void		vm_page_free(vm_page_t);
 extern void		vm_page_activate(vm_page_t);
 extern void		vm_page_deactivate(vm_page_t);
@@ -246,8 +216,6 @@ extern void		vm_page_copy(vm_page_t src_m, vm_page_t dest_m);
 
 extern void		vm_page_wire(vm_page_t);
 extern void		vm_page_unwire(vm_page_t);
-
-extern void		vm_set_page_size(void);
 
 #if	MACH_VM_DEBUG
 extern unsigned int	vm_page_info(
@@ -309,21 +277,258 @@ extern unsigned int	vm_page_info(
 #define vm_page_lock_queues()	simple_lock(&vm_page_queue_lock)
 #define vm_page_unlock_queues()	simple_unlock(&vm_page_queue_lock)
 
-#define VM_PAGE_QUEUES_REMOVE(mem)				\
-	MACRO_BEGIN						\
-	if (mem->active) {					\
-		queue_remove(&vm_page_queue_active,		\
-			mem, vm_page_t, pageq);			\
-		mem->active = FALSE;				\
-		vm_page_active_count--;				\
-	}							\
-								\
-	if (mem->inactive) {					\
-		queue_remove(&vm_page_queue_inactive,		\
-			mem, vm_page_t, pageq);			\
-		mem->inactive = FALSE;				\
-		vm_page_inactive_count--;			\
-	}							\
-	MACRO_END
+#define VM_PAGE_QUEUES_REMOVE(mem) vm_page_queues_remove(mem)
+
+/*
+ * Copyright (c) 2010-2014 Richard Braun.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Physical page management.
+ */
+
+/*
+ * Address/page conversion and rounding macros (not inline functions to
+ * be easily usable on both virtual and physical addresses, which may not
+ * have the same type size).
+ */
+#define vm_page_atop(addr)      ((addr) >> PAGE_SHIFT)
+#define vm_page_ptoa(page)      ((page) << PAGE_SHIFT)
+#define vm_page_trunc(addr)     P2ALIGN(addr, PAGE_SIZE)
+#define vm_page_round(addr)     P2ROUND(addr, PAGE_SIZE)
+#define vm_page_aligned(addr)   P2ALIGNED(addr, PAGE_SIZE)
+
+/*
+ * Segment selectors.
+ *
+ * Selector-to-segment-list translation table :
+ * DMA          DMA
+ * DMA32        DMA32 DMA
+ * DIRECTMAP    DIRECTMAP DMA32 DMA
+ * HIGHMEM      HIGHMEM DIRECTMAP DMA32 DMA
+ */
+#define VM_PAGE_SEL_DMA         0
+#define VM_PAGE_SEL_DMA32       1
+#define VM_PAGE_SEL_DIRECTMAP   2
+#define VM_PAGE_SEL_HIGHMEM     3
+
+/*
+ * Page usage types.
+ */
+#define VM_PT_FREE          0   /* Page unused */
+#define VM_PT_RESERVED      1   /* Page reserved at boot time */
+#define VM_PT_TABLE         2   /* Page is part of the page table */
+#define VM_PT_KERNEL        3   /* Type for generic kernel allocations */
+
+static inline unsigned short
+vm_page_type(const struct vm_page *page)
+{
+    return page->type;
+}
+
+void vm_page_set_type(struct vm_page *page, unsigned int order,
+                      unsigned short type);
+
+static inline unsigned int
+vm_page_order(size_t size)
+{
+    return iorder2(vm_page_atop(vm_page_round(size)));
+}
+
+static inline phys_addr_t
+vm_page_to_pa(const struct vm_page *page)
+{
+    return page->phys_addr;
+}
+
+/*
+ * Associate private data with a page.
+ */
+static inline void
+vm_page_set_priv(struct vm_page *page, void *priv)
+{
+    page->priv = priv;
+}
+
+static inline void *
+vm_page_get_priv(const struct vm_page *page)
+{
+    return page->priv;
+}
+
+/*
+ * Load physical memory into the vm_page module at boot time.
+ *
+ * All addresses must be page-aligned. Segments can be loaded in any order.
+ */
+void vm_page_load(unsigned int seg_index, phys_addr_t start, phys_addr_t end);
+
+/*
+ * Load available physical memory into the vm_page module at boot time.
+ *
+ * The segment referred to must have been loaded with vm_page_load
+ * before loading its heap.
+ */
+void vm_page_load_heap(unsigned int seg_index, phys_addr_t start,
+                       phys_addr_t end);
+
+/*
+ * Return true if the vm_page module is completely initialized, false
+ * otherwise, in which case only vm_page_bootalloc() can be used for
+ * allocations.
+ */
+int vm_page_ready(void);
+
+/*
+ * Early allocation function.
+ *
+ * This function is used by the vm_resident module to implement
+ * pmap_steal_memory. It can be used after physical segments have been loaded
+ * and before the vm_page module is initialized.
+ */
+unsigned long vm_page_bootalloc(size_t size);
+
+/*
+ * Set up the vm_page module.
+ *
+ * Architecture-specific code must have loaded segments before calling this
+ * function. Segments must comply with the selector-to-segment-list table,
+ * e.g. HIGHMEM is loaded if and only if DIRECTMAP, DMA32 and DMA are loaded,
+ * notwithstanding segment aliasing.
+ *
+ * Once this function returns, the vm_page module is ready, and normal
+ * allocation functions can be used.
+ */
+void vm_page_setup(void);
+
+/*
+ * Make the given page managed by the vm_page module.
+ *
+ * If additional memory can be made usable after the VM system is initialized,
+ * it should be reported through this function.
+ */
+void vm_page_manage(struct vm_page *page);
+
+/*
+ * Return the page descriptor for the given physical address.
+ */
+struct vm_page * vm_page_lookup_pa(phys_addr_t pa);
+
+/*
+ * Allocate a block of 2^order physical pages.
+ *
+ * The selector is used to determine the segments from which allocation can
+ * be attempted.
+ *
+ * This function should only be used by the vm_resident module.
+ */
+struct vm_page * vm_page_alloc_pa(unsigned int order, unsigned int selector,
+                                  unsigned short type);
+
+/*
+ * Release a block of 2^order physical pages.
+ *
+ * This function should only be used by the vm_resident module.
+ */
+void vm_page_free_pa(struct vm_page *page, unsigned int order);
+
+/*
+ * Return the name of the given segment.
+ */
+const char * vm_page_seg_name(unsigned int seg_index);
+
+/*
+ * Display internal information about the module.
+ */
+void vm_page_info_all(void);
+
+/*
+ * Return the maximum physical address for a given segment selector.
+ */
+phys_addr_t vm_page_seg_end(unsigned int selector);
+
+/*
+ * Return the total number of physical pages.
+ */
+unsigned long vm_page_table_size(void);
+
+/*
+ * Return the index of a page in the page table.
+ */
+unsigned long vm_page_table_index(phys_addr_t pa);
+
+/*
+ * Return the total amount of physical memory.
+ */
+phys_addr_t vm_page_mem_size(void);
+
+/*
+ * Return the amount of free (unused) pages.
+ *
+ * XXX This currently relies on the kernel being non preemptible and
+ * uniprocessor.
+ */
+unsigned long vm_page_mem_free(void);
+
+/*
+ * Remove the given page from any page queue it might be in.
+ */
+void vm_page_queues_remove(struct vm_page *page);
+
+/*
+ * Balance physical pages among segments.
+ *
+ * This function should be called first by the pageout daemon
+ * on memory pressure, since it may be unnecessary to perform any
+ * other operation, let alone shrink caches, if balancing is
+ * enough to make enough free pages.
+ *
+ * Return TRUE if balancing made enough free pages for unprivileged
+ * allocations to succeed, in which case pending allocations are resumed.
+ *
+ * This function acquires vm_page_queue_free_lock, which is held on return.
+ */
+boolean_t vm_page_balance(void);
+
+/*
+ * Evict physical pages.
+ *
+ * This function should be called by the pageout daemon after balancing
+ * the segments and shrinking kernel caches.
+ *
+ * Return TRUE if eviction made enough free pages for unprivileged
+ * allocations to succeed, in which case pending allocations are resumed.
+ *
+ * Otherwise, report whether the pageout daemon should wait (some pages
+ * have been paged out) or not (only clean pages have been released).
+ *
+ * This function acquires vm_page_queue_free_lock, which is held on return.
+ */
+boolean_t vm_page_evict(boolean_t *should_wait);
+
+/*
+ * Turn active pages into inactive ones for second-chance LRU
+ * approximation.
+ *
+ * This function should be called by the pageout daemon on memory pressure,
+ * i.e. right before evicting pages.
+ *
+ * XXX This is probably not the best strategy, compared to keeping the
+ * active/inactive ratio in check at all times, but this means less
+ * frequent refills.
+ */
+void vm_page_refill_inactive(void);
 
 #endif	/* _VM_VM_PAGE_H_ */

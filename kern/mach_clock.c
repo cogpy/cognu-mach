@@ -27,7 +27,7 @@
  * the rights to redistribute these changes.
  */
 /*
- *	File:	clock_prim.c
+ *	File:	mach_clock.c
  *	Author:	Avadis Tevanian, Jr.
  *	Date:	1986
  *
@@ -54,6 +54,7 @@
 #include <kern/thread.h>
 #include <kern/time_stamp.h>
 #include <kern/timer.h>
+#include <kern/priority.h>
 #include <vm/vm_kern.h>
 #include <sys/time.h>
 #include <machine/mach_param.h>	/* HZ */
@@ -64,8 +65,6 @@
 #include <kern/pc_sample.h>
 #endif
 
-void softclock();		/* forward */
-
 int		hz = HZ;		/* number of ticks per second */
 int		tick = (1000000 / HZ);	/* number of usec per tick */
 time_value_t	time = { 0, 0 };	/* time since bootup (uncorrected) */
@@ -75,35 +74,45 @@ int		timedelta = 0;
 int		tickdelta = 0;
 
 #if	HZ > 500
-int		tickadj = 1;		/* can adjust HZ usecs per second */
+unsigned	tickadj = 1;		/* can adjust HZ usecs per second */
 #else
-int		tickadj = 500 / HZ;	/* can adjust 100 usecs per second */
+unsigned	tickadj = 500 / HZ;	/* can adjust 100 usecs per second */
 #endif
-int		bigadj = 1000000;	/* adjust 10*tickadj if adjustment
+unsigned	bigadj = 1000000;	/* adjust 10*tickadj if adjustment
 					   > bigadj */
 
 /*
  *	This update protocol, with a check value, allows
  *		do {
  *			secs = mtime->seconds;
+ *			__sync_synchronize();
  *			usecs = mtime->microseconds;
+ *			__sync_synchronize();
  *		} while (secs != mtime->check_seconds);
- *	to read the time correctly.  (On a multiprocessor this assumes
- *	that processors see each other's writes in the correct order.
- *	We have to insert write fence operations.) FIXME
+ *	to read the time correctly.
  */
 
-mapped_time_value_t *mtime = 0;
+volatile mapped_time_value_t *mtime = 0;
 
 #define update_mapped_time(time)				\
 MACRO_BEGIN							\
 	if (mtime != 0) {					\
 		mtime->check_seconds = (time)->seconds;		\
-		asm volatile("":::"memory");			\
+		__sync_synchronize();				\
 		mtime->microseconds = (time)->microseconds;	\
-		asm volatile("":::"memory");			\
+		__sync_synchronize();				\
 		mtime->seconds = (time)->seconds;		\
 	}							\
+MACRO_END
+
+#define read_mapped_time(time)					\
+MACRO_BEGIN							\
+	do {							\
+		time->seconds = mtime->seconds;			\
+		__sync_synchronize();				\
+		time->microseconds = mtime->microseconds;	\
+		__sync_synchronize();				\
+	} while (time->seconds != mtime->check_seconds);	\
 MACRO_END
 
 decl_simple_lock_data(,	timer_lock)	/* lock for ... */
@@ -121,13 +130,14 @@ timer_elt_data_t	timer_head;	/* ordered list of timeouts */
  *	the accuracy of the hardware clock.
  *
  */
-void clock_interrupt(usec, usermode, basepri)
-	register int	usec;		/* microseconds per tick */
-	boolean_t	usermode;	/* executing user code */
-	boolean_t	basepri;	/* at base priority */
+void clock_interrupt(
+	int		usec,		/* microseconds per tick */
+	boolean_t	usermode,	/* executing user code */
+	boolean_t	basepri,	/* at base priority */
+	vm_offset_t	pc)		/* address of interrupted instruction */
 {
-	register int		my_cpu = cpu_number();
-	register thread_t	thread = current_thread();
+	int		my_cpu = cpu_number();
+	thread_t	thread = current_thread();
 
 	counter(c_clock_ticks++);
 	counter(c_threads_total += c_threads_current);
@@ -150,8 +160,7 @@ void clock_interrupt(usec, usermode, basepri)
 	 *	Increment the CPU time statistics.
 	 */
 	{
-	    extern void	thread_quantum_update(); /* in priority.c */
-	    register int	state;
+	    int		state;
 
 	    if (usermode)
 		state = CPU_STATE_USER;
@@ -176,8 +185,11 @@ void clock_interrupt(usec, usermode, basepri)
 	 * This had better be MP safe.  It might be interesting
 	 * to keep track of cpu in the sample.
 	 */
-	if (usermode) {
-		take_pc_sample_macro(thread, SAMPLED_PC_PERIODIC);
+#ifndef MACH_KERNSAMPLE
+	if (usermode)
+#endif
+	{
+		take_pc_sample_macro(thread, SAMPLED_PC_PERIODIC, usermode, pc);
 	}
 #endif /* MACH_PCSAMPLE */
 
@@ -187,8 +199,8 @@ void clock_interrupt(usec, usermode, basepri)
 	 */
 	if (my_cpu == master_cpu) {
 
-	    register spl_t s;
-	    register timer_elt_t	telt;
+	    spl_t s;
+	    timer_elt_t	telt;
 	    boolean_t	needsoft = FALSE;
 
 #if	TS_FORMAT == 1
@@ -221,11 +233,19 @@ void clock_interrupt(usec, usermode, basepri)
 		time_value_add_usec(&time, usec);
 	    }
 	    else {
-		register int	delta;
+		int	delta;
 
 		if (timedelta < 0) {
-		    delta = usec - tickdelta;
-		    timedelta += tickdelta;
+		    if (usec > tickdelta) {
+			delta = usec - tickdelta;
+			timedelta += tickdelta;
+		    } else {
+			/* Not enough time has passed, defer overflowing
+			 * correction for later, keep only one microsecond
+			 * delta */
+			delta = 1;
+			timedelta += usec - 1;
+		    }
 		}
 		else {
 		    delta = usec + tickdelta;
@@ -236,7 +256,7 @@ void clock_interrupt(usec, usermode, basepri)
 	    update_mapped_time(&time);
 
 	    /*
-	     *	Schedule soft-interupt for timeout if needed
+	     *	Schedule soft-interrupt for timeout if needed
 	     */
 	    if (needsoft) {
 		if (basepri) {
@@ -272,15 +292,15 @@ void clock_interrupt(usec, usermode, basepri)
  *	and corrupts it.
  */
 
-void softclock()
+void softclock(void)
 {
 	/*
 	 *	Handle timeouts.
 	 */
 	spl_t	s;
-	register timer_elt_t	telt;
-	register void	(*fcn)( void * param );
-	register void	*param;
+	timer_elt_t	telt;
+	void	(*fcn)( void * param );
+	void	*param;
 
 	while (TRUE) {
 	    s = splsched();
@@ -311,12 +331,12 @@ void softclock()
  *		telt	 timer element.  Function and param are already set.
  *		interval time-out interval, in hz.
  */
-void set_timeout(telt, interval)
-	register timer_elt_t	telt;	/* already loaded */
-	register unsigned int	interval;
+void set_timeout(
+	timer_elt_t	telt,	/* already loaded */
+	unsigned int	interval)
 {
 	spl_t			s;
-	register timer_elt_t	next;
+	timer_elt_t		next;
 
 	s = splsched();
 	simple_lock(&timer_lock);
@@ -341,8 +361,7 @@ void set_timeout(telt, interval)
 	splx(s);
 }
 
-boolean_t reset_timeout(telt)
-	register timer_elt_t	telt;
+boolean_t reset_timeout(timer_elt_t telt)
 {
 	spl_t	s;
 
@@ -362,7 +381,7 @@ boolean_t reset_timeout(telt)
 	}
 }
 
-void init_timeout()
+void init_timeout(void)
 {
 	simple_lock_init(&timer_lock);
 	queue_init(&timer_head.chain);
@@ -370,17 +389,47 @@ void init_timeout()
 
 	elapsed_ticks = 0;
 }
+
+/*
+ * We record timestamps using the boot-time clock.  We keep track of
+ * the boot-time clock by storing the difference to the real-time
+ * clock.
+ */
+struct time_value clock_boottime_offset;
 
 /*
- * Record a timestamp in STAMP. 
+ * Update the offset of the boot-time clock from the real-time clock.
+ * This function must be called when the real-time clock is updated.
+ * This function must be called at SPLHIGH.
+ */
+void
+clock_boottime_update(struct time_value *new_time)
+{
+	struct time_value delta = time;
+	time_value_sub(&delta, new_time);
+	time_value_add(&clock_boottime_offset, &delta);
+}
+
+/*
+ * Record a timestamp in STAMP.  Records values in the boot-time clock
+ * frame.
  */
 void
 record_time_stamp (time_value_t *stamp)
 {
-	do {
-		stamp->seconds = mtime->seconds;
-		stamp->microseconds = mtime->microseconds;
-	} while (stamp->seconds != mtime->check_seconds);
+	read_mapped_time(stamp);
+	time_value_add(stamp, &clock_boottime_offset);
+}
+
+/*
+ * Read a timestamp in STAMP into RESULT.  Returns values in the
+ * real-time clock frame.
+ */
+void
+read_time_stamp (time_value_t *stamp, time_value_t *result)
+{
+	*result = *stamp;
+	time_value_sub(result, &clock_boottime_offset);
 }
 
 
@@ -389,17 +438,13 @@ record_time_stamp (time_value_t *stamp)
  */
 kern_return_t
 host_get_time(host, current_time)
-	host_t		host;
+	const host_t	host;
 	time_value_t	*current_time;	/* OUT */
 {
 	if (host == HOST_NULL)
 		return(KERN_INVALID_HOST);
 
-	do {
-		current_time->seconds = mtime->seconds;
-		current_time->microseconds = mtime->microseconds;
-	} while (current_time->seconds != mtime->check_seconds);
-
+	read_mapped_time(current_time);
 	return (KERN_SUCCESS);
 }
 
@@ -408,7 +453,7 @@ host_get_time(host, current_time)
  */
 kern_return_t
 host_set_time(host, new_time)
-	host_t		host;
+	const host_t	host;
 	time_value_t	new_time;
 {
 	spl_t	s;
@@ -426,6 +471,7 @@ host_set_time(host, new_time)
 #endif	/* NCPUS > 1 */
 
 	s = splhigh();
+	clock_boottime_update(&new_time);
 	time = new_time;
 	update_mapped_time(&time);
 	resettodr();
@@ -446,7 +492,7 @@ host_set_time(host, new_time)
  */
 kern_return_t
 host_adjust_time(host, new_adjustment, old_adjustment)
-	host_t		host;
+	const host_t	host;
 	time_value_t	new_adjustment;
 	time_value_t	*old_adjustment;	/* OUT */
 {
@@ -492,22 +538,22 @@ host_adjust_time(host, new_adjustment, old_adjustment)
 	return (KERN_SUCCESS);
 }
 
-void mapable_time_init()
+void mapable_time_init(void)
 {
 	if (kmem_alloc_wired(kernel_map, (vm_offset_t *) &mtime, PAGE_SIZE)
 						!= KERN_SUCCESS)
 		panic("mapable_time_init");
-	memset(mtime, 0, PAGE_SIZE);
+	memset((void *) mtime, 0, PAGE_SIZE);
 	update_mapped_time(&time);
 }
 
-int timeopen()
+int timeopen(dev_t dev, int flag, io_req_t ior)
 {
 	return(0);
 }
-int timeclose()
+void timeclose(dev_t dev, int flag)
 {
-	return(0);
+	return;
 }
 
 /*
@@ -528,13 +574,13 @@ timer_elt_data_t timeout_timers[NTIMERS];
  *	param:		parameter to pass to function
  *	interval:	timeout interval, in hz.
  */
-void timeout(fcn, param, interval)
-	void	(*fcn)( void * param );
-	void *	param;
-	int	interval;
+void timeout(
+	void	(*fcn)(void *param),
+	void *	param,
+	int	interval)
 {
 	spl_t	s;
-	register timer_elt_t elt;
+	timer_elt_t elt;
 
 	s = splsched();
 	simple_lock(&timer_lock);
@@ -557,11 +603,11 @@ void timeout(fcn, param, interval)
  * and removed.
  */
 boolean_t untimeout(fcn, param)
-	register void	(*fcn)( void * param );
-	register void *	param;
+	void		(*fcn)( void * param );
+	const void *	param;
 {
 	spl_t	s;
-	register timer_elt_t elt;
+	timer_elt_t elt;
 
 	s = splsched();
 	simple_lock(&timer_lock);

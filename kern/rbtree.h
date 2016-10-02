@@ -1,19 +1,29 @@
 /*
  * Copyright (c) 2010, 2011 Richard Braun.
+ * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Red-black tree.
  */
 
 #ifndef _KERN_RBTREE_H
@@ -21,12 +31,8 @@
 
 #include <stddef.h>
 #include <kern/assert.h>
-#include <kern/macro_help.h>
-#include <kern/rbtree.h>
+#include <kern/macros.h>
 #include <sys/types.h>
-
-#define structof(ptr, type, member) \
-    ((type *)((char *)ptr - offsetof(type, member)))
 
 /*
  * Indexes of the left and right nodes in the children array of a node.
@@ -107,23 +113,23 @@ static inline int rbtree_empty(const struct rbtree *tree)
  *
  * See rbtree_insert().
  */
-#define rbtree_lookup(tree, key, cmp_fn)        \
-MACRO_BEGIN                                     \
-    struct rbtree_node *cur;                    \
-    int diff;                                   \
-                                                \
-    cur = (tree)->root;                         \
-                                                \
-    while (cur != NULL) {                       \
-        diff = cmp_fn(key, cur);                \
-                                                \
-        if (diff == 0)                          \
-            break;                              \
-                                                \
-        cur = cur->children[rbtree_d2i(diff)];  \
-    }                                           \
-                                                \
-    cur;                                        \
+#define rbtree_lookup(tree, key, cmp_fn)                \
+MACRO_BEGIN                                             \
+    struct rbtree_node *___cur;                         \
+    int ___diff;                                        \
+                                                        \
+    ___cur = (tree)->root;                              \
+                                                        \
+    while (___cur != NULL) {                            \
+        ___diff = cmp_fn(key, ___cur);                  \
+                                                        \
+        if (___diff == 0)                               \
+            break;                                      \
+                                                        \
+        ___cur = ___cur->children[rbtree_d2i(___diff)]; \
+    }                                                   \
+                                                        \
+    ___cur;                                             \
 MACRO_END
 
 /*
@@ -136,30 +142,30 @@ MACRO_END
  * The constraints that apply to the key parameter are the same as for
  * rbtree_lookup().
  */
-#define rbtree_lookup_nearest(tree, key, cmp_fn, dir)   \
-MACRO_BEGIN                                             \
-    struct rbtree_node *cur, *prev;                     \
-    int diff, index;                                    \
-                                                        \
-    prev = NULL;                                        \
-    index = -1;                                         \
-    cur = (tree)->root;                                 \
-                                                        \
-    while (cur != NULL) {                               \
-        diff = cmp_fn(key, cur);                        \
-                                                        \
-        if (diff == 0)                                  \
-            break;                                      \
-                                                        \
-        prev = cur;                                     \
-        index = rbtree_d2i(diff);                       \
-        cur = cur->children[index];                     \
-    }                                                   \
-                                                        \
-    if (cur == NULL)                                    \
-        cur = rbtree_nearest(prev, index, dir);         \
-                                                        \
-    cur;                                                \
+#define rbtree_lookup_nearest(tree, key, cmp_fn, dir)       \
+MACRO_BEGIN                                                 \
+    struct rbtree_node *___cur, *___prev;                   \
+    int ___diff, ___index;                                  \
+                                                            \
+    ___prev = NULL;                                         \
+    ___index = -1;                                          \
+    ___cur = (tree)->root;                                  \
+                                                            \
+    while (___cur != NULL) {                                \
+        ___diff = cmp_fn(key, ___cur);                      \
+                                                            \
+        if (___diff == 0)                                   \
+            break;                                          \
+                                                            \
+        ___prev = ___cur;                                   \
+        ___index = rbtree_d2i(___diff);                     \
+        ___cur = ___cur->children[___index];                \
+    }                                                       \
+                                                            \
+    if (___cur == NULL)                                     \
+        ___cur = rbtree_nearest(___prev, ___index, dir);    \
+                                                            \
+    ___cur;                                                 \
 MACRO_END
 
 /*
@@ -168,8 +174,8 @@ MACRO_END
  * This macro performs a standard lookup to obtain the insertion point of
  * the given node in the tree (it is assumed that the inserted node never
  * compares equal to any other entry in the tree) and links the node. It
- * then It then checks red-black rules violations, and rebalances the tree
- * if necessary.
+ * then checks red-black rules violations, and rebalances the tree if
+ * necessary.
  *
  * Unlike rbtree_lookup(), the cmp_fn parameter must compare two complete
  * entries, so it is suggested to use two different comparison inline
@@ -178,24 +184,24 @@ MACRO_END
  *
  * See rbtree_lookup().
  */
-#define rbtree_insert(tree, node, cmp_fn)               \
-MACRO_BEGIN                                             \
-    struct rbtree_node *cur, *prev;                     \
-    int diff, index;                                    \
-                                                        \
-    prev = NULL;                                        \
-    index = -1;                                         \
-    cur = (tree)->root;                                 \
-                                                        \
-    while (cur != NULL) {                               \
-        diff = cmp_fn(node, cur);                       \
-        assert(diff != 0);                              \
-        prev = cur;                                     \
-        index = rbtree_d2i(diff);                       \
-        cur = cur->children[index];                     \
-    }                                                   \
-                                                        \
-    rbtree_insert_rebalance(tree, prev, index, node);   \
+#define rbtree_insert(tree, node, cmp_fn)                   \
+MACRO_BEGIN                                                 \
+    struct rbtree_node *___cur, *___prev;                   \
+    int ___diff, ___index;                                  \
+                                                            \
+    ___prev = NULL;                                         \
+    ___index = -1;                                          \
+    ___cur = (tree)->root;                                  \
+                                                            \
+    while (___cur != NULL) {                                \
+        ___diff = cmp_fn(node, ___cur);                     \
+        assert(___diff != 0);                               \
+        ___prev = ___cur;                                   \
+        ___index = rbtree_d2i(___diff);                     \
+        ___cur = ___cur->children[___index];                \
+    }                                                       \
+                                                            \
+    rbtree_insert_rebalance(tree, ___prev, ___index, node); \
 MACRO_END
 
 /*
@@ -212,26 +218,26 @@ MACRO_END
  */
 #define rbtree_lookup_slot(tree, key, cmp_fn, slot) \
 MACRO_BEGIN                                         \
-    struct rbtree_node *cur, *prev;                 \
-    int diff, index;                                \
+    struct rbtree_node *___cur, *___prev;           \
+    int ___diff, ___index;                          \
                                                     \
-    prev = NULL;                                    \
-    index = 0;                                      \
-    cur = (tree)->root;                             \
+    ___prev = NULL;                                 \
+    ___index = 0;                                   \
+    ___cur = (tree)->root;                          \
                                                     \
-    while (cur != NULL) {                           \
-        diff = cmp_fn(key, cur);                    \
+    while (___cur != NULL) {                        \
+        ___diff = cmp_fn(key, ___cur);              \
                                                     \
-        if (diff == 0)                              \
+        if (___diff == 0)                           \
             break;                                  \
                                                     \
-        prev = cur;                                 \
-        index = rbtree_d2i(diff);                   \
-        cur = cur->children[index];                 \
+        ___prev = ___cur;                           \
+        ___index = rbtree_d2i(___diff);             \
+        ___cur = ___cur->children[___index];        \
     }                                               \
                                                     \
-    (slot) = rbtree_slot(prev, index);              \
-    cur;                                            \
+    (slot) = rbtree_slot(___prev, ___index);        \
+    ___cur;                                         \
 MACRO_END
 
 /*
@@ -243,15 +249,17 @@ MACRO_END
  * must not compare equal to an existing node in the tree (i.e. the slot
  * must denote a null node).
  */
-#define rbtree_insert_slot(tree, slot, node)            \
-MACRO_BEGIN                                             \
-    struct rbtree_node *parent;                         \
-    int index;                                          \
-                                                        \
-    parent = rbtree_slot_parent(slot);                  \
-    index = rbtree_slot_index(slot);                    \
-    rbtree_insert_rebalance(tree, parent, index, node); \
-MACRO_END
+static inline void
+rbtree_insert_slot(struct rbtree *tree, unsigned long slot,
+                   struct rbtree_node *node)
+{
+    struct rbtree_node *parent;
+    int index;
+
+    parent = rbtree_slot_parent(slot);
+    index = rbtree_slot_index(slot);
+    rbtree_insert_rebalance(tree, parent, index, node);
+}
 
 /*
  * Remove a node from a tree.

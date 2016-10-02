@@ -29,6 +29,10 @@
 #include <mach/time_value.h>
 #include <kern/host.h>
 #include <kern/queue.h>
+#include <sys/types.h>
+
+struct io_req;
+typedef struct io_req *io_req_t;
 
 
 /* Timers in kernel.  */
@@ -58,7 +62,8 @@ typedef	struct timer_elt	*timer_elt_t;
 extern void clock_interrupt(
    int usec,
    boolean_t usermode,
-   boolean_t basepri);
+   boolean_t basepri,
+   vm_offset_t pc);
 
 extern void softclock (void);
 
@@ -82,8 +87,17 @@ extern boolean_t reset_timeout(timer_elt_t telt);
 
 extern void init_timeout (void);
 
-/* Read the current time into STAMP.  */
+/*
+ * Record a timestamp in STAMP.  Records values in the boot-time clock
+ * frame.
+ */
 extern void record_time_stamp (time_value_t *stamp);
+
+/*
+ * Read a timestamp in STAMP into RESULT.  Returns values in the
+ * real-time clock frame.
+ */
+extern void read_time_stamp (time_value_t *stamp, time_value_t *result);
 
 extern kern_return_t host_get_time(
    host_t host,
@@ -102,6 +116,9 @@ extern void mapable_time_init (void);
 
 /* For public timer elements.  */
 extern void timeout(timer_func_t *fcn, void *param, int interval);
-extern boolean_t untimeout(timer_func_t *fcn, void *param);
+extern boolean_t untimeout(timer_func_t *fcn, const void *param);
+
+extern int timeopen(dev_t dev, int flag, io_req_t ior);
+extern void timeclose(dev_t dev, int flag);
 
 #endif /* _KERN_MACH_CLOCK_H_ */

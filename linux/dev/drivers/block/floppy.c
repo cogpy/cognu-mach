@@ -3492,6 +3492,8 @@ static void config_types(void)
 				printk("fd%d is unknown type %d",drive,
 				       UDP->cmos);
 		}
+			else
+				allowed_drive_mask &= ~(1 << drive);
 	}
 	if (!first)
 		printk("\n");
@@ -3721,7 +3723,7 @@ static int floppy_revalidate(kdev_t dev)
 				return 1;
 			}
 			if (bh && !buffer_uptodate(bh))
-				ll_rw_block(READ, 1, &bh);
+				ll_rw_block(READ, 1, &bh, 1);
 			process_fd_request();
 			wait_on_buffer(bh);
 			brelse(bh);

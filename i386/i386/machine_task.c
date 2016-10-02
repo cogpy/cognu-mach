@@ -38,7 +38,7 @@ void
 machine_task_module_init (void)
 {
   kmem_cache_init (&machine_task_iopb_cache, "i386_task_iopb", IOPB_BYTES, 0,
-		   NULL, NULL, NULL, 0);
+		   NULL, 0);
 }
 
 
@@ -55,7 +55,7 @@ machine_task_init (task_t task)
 /* Destroy the machine specific part of task TASK and release all
    associated resources.  */
 void
-machine_task_terminate (task_t task)
+machine_task_terminate (const task_t task)
 {
   if (task->machine.iopb)
     kmem_cache_free (&machine_task_iopb_cache,

@@ -46,6 +46,7 @@
 #include <i386/proc_reg.h>
 #include <i386/seg.h>
 #include <i386/user_ldt.h>
+#include <i386/db_interface.h>
 #include <i386/fpu.h>
 #include "eflags.h"
 #include "gdt.h"
@@ -59,12 +60,6 @@
 #include <i386/mp_desc.h>
 #endif
 
-extern thread_t	Load_context();
-extern thread_t	Switch_context();
-extern void	Thread_continue();
-
-extern void		user_ldt_free();
-
 struct kmem_cache	pcb_cache;
 
 vm_offset_t	kernel_stack[NCPUS];	/* top of active_stack */
@@ -75,10 +70,10 @@ vm_offset_t	kernel_stack[NCPUS];	/* top of active_stack */
  *	Attach a kernel stack to a thread.
  */
 
-void stack_attach(thread, stack, continuation)
-	register thread_t thread;
-	register vm_offset_t stack;
-	void (*continuation)(thread_t);
+void stack_attach(
+	thread_t 	thread,
+	vm_offset_t 	stack,
+	void 		(*continuation)(thread_t))
 {
 	counter(if (++c_stacks_current > c_stacks_max)
 			c_stacks_max = c_stacks_current);
@@ -93,15 +88,15 @@ void stack_attach(thread, stack, continuation)
 	 *	This function will not return normally,
 	 *	so we don`t have to worry about a return address.
 	 */
-	STACK_IKS(stack)->k_eip = (int) Thread_continue;
-	STACK_IKS(stack)->k_ebx = (int) continuation;
-	STACK_IKS(stack)->k_esp = (int) STACK_IEL(stack);
-	STACK_IKS(stack)->k_ebp = (int) 0;
+	STACK_IKS(stack)->k_eip = (long) Thread_continue;
+	STACK_IKS(stack)->k_ebx = (long) continuation;
+	STACK_IKS(stack)->k_esp = (long) STACK_IEL(stack);
+	STACK_IKS(stack)->k_ebp = (long) 0;
 
 	/*
 	 *	Point top of kernel stack to user`s registers.
 	 */
-	STACK_IEL(stack)->saved_state = &thread->pcb->iss;
+	STACK_IEL(stack)->saved_state = USER_REGS(thread);
 }
 
 /*
@@ -110,10 +105,9 @@ void stack_attach(thread, stack, continuation)
  *	Detaches a kernel stack from a thread, returning the old stack.
  */
 
-vm_offset_t stack_detach(thread)
-	register thread_t	thread;
+vm_offset_t stack_detach(thread_t thread)
 {
-	register vm_offset_t	stack;
+	vm_offset_t	stack;
 
 	counter(if (--c_stacks_current < c_stacks_min)
 			c_stacks_min = c_stacks_current);
@@ -135,8 +129,7 @@ vm_offset_t stack_detach(thread)
 #define	gdt_desc_p(mycpu,sel) \
 	((struct real_descriptor *)&curr_gdt(mycpu)[sel_idx(sel)])
 
-void switch_ktss(pcb)
-	register pcb_t	pcb;
+void switch_ktss(pcb_t pcb)
 {
 	int			mycpu = cpu_number();
     {
@@ -152,19 +145,20 @@ void switch_ktss(pcb)
 	 */
 
 	pcb_stack_top = (pcb->iss.efl & EFL_VM)
-			? (int) (&pcb->iss + 1)
-			: (int) (&pcb->iss.v86_segs);
+			? (long) (&pcb->iss + 1)
+			: (long) (&pcb->iss.v86_segs);
 
-#ifdef	MACH_XEN
+#ifdef	MACH_RING1
 	/* No IO mask here */
-	hyp_stack_switch(KERNEL_DS, pcb_stack_top);
-#else	/* MACH_XEN */
+	if (hyp_stack_switch(KERNEL_DS, pcb_stack_top))
+		panic("stack_switch");
+#else	/* MACH_RING1 */
 	curr_ktss(mycpu)->tss.esp0 = pcb_stack_top;
-#endif	/* MACH_XEN */
+#endif	/* MACH_RING1 */
     }
 
     {
-	register user_ldt_t	tldt = pcb->ims.ldt;
+	user_ldt_t	tldt = pcb->ims.ldt;
 	/*
 	 * Set the thread`s LDT.
 	 */
@@ -172,47 +166,55 @@ void switch_ktss(pcb)
 	    /*
 	     * Use system LDT.
 	     */
-#ifdef	MACH_HYP
+#ifdef	MACH_PV_DESCRIPTORS
 	    hyp_set_ldt(&ldt, LDTSZ);
-#else	/* MACH_HYP */
+#else	/* MACH_PV_DESCRIPTORS */
 	    set_ldt(KERNEL_LDT);
-#endif	/* MACH_HYP */
+#endif	/* MACH_PV_DESCRIPTORS */
 	}
 	else {
 	    /*
 	     * Thread has its own LDT.
 	     */
-#ifdef	MACH_HYP
+#ifdef	MACH_PV_DESCRIPTORS
 	    hyp_set_ldt(tldt->ldt,
 	    		(tldt->desc.limit_low|(tldt->desc.limit_high<<16)) /
 				sizeof(struct real_descriptor));
-#else	/* MACH_HYP */
+#else	/* MACH_PV_DESCRIPTORS */
 	    *gdt_desc_p(mycpu,USER_LDT) = tldt->desc;
 	    set_ldt(USER_LDT);
-#endif	/* MACH_HYP */
+#endif	/* MACH_PV_DESCRIPTORS */
 	}
     }
 
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_DESCRIPTORS
     {
 	int i;
 	for (i=0; i < USER_GDT_SLOTS; i++) {
 	    if (memcmp(gdt_desc_p (mycpu, USER_GDT + (i << 3)),
 		&pcb->ims.user_gdt[i], sizeof pcb->ims.user_gdt[i])) {
+		union {
+			struct real_descriptor real_descriptor;
+			uint64_t descriptor;
+		} user_gdt;
+		user_gdt.real_descriptor = pcb->ims.user_gdt[i];
+
 		if (hyp_do_update_descriptor(kv_to_ma(gdt_desc_p (mycpu, USER_GDT + (i << 3))),
-			*(uint64_t *) &pcb->ims.user_gdt[i]))
+			user_gdt.descriptor))
 		    panic("couldn't set user gdt %d\n",i);
 	    }
 	}
     }
-#else /* MACH_XEN */
+#else /* MACH_PV_DESCRIPTORS */
 
     /* Copy in the per-thread GDT slots.  No reloading is necessary
        because just restoring the segment registers on the way back to
        user mode reloads the shadow registers from the in-memory GDT.  */
     memcpy (gdt_desc_p (mycpu, USER_GDT),
         pcb->ims.user_gdt, sizeof pcb->ims.user_gdt);
-#endif /* MACH_XEN */
+#endif /* MACH_PV_DESCRIPTORS */
+
+	db_load_context(pcb);
 
 	/*
 	 * Load the floating-point context, if necessary.
@@ -245,12 +247,12 @@ update_ktss_iopb (unsigned char *new_iopb, io_port_t size)
  *	Move the current thread's kernel stack to the new thread.
  */
 
-void stack_handoff(old, new)
-	register thread_t	old;
-	register thread_t	new;
+void stack_handoff(
+	thread_t	old,
+	thread_t	new)
 {
-	register int		mycpu = cpu_number();
-	register vm_offset_t	stack;
+	int		mycpu = cpu_number();
+	vm_offset_t	stack;
 
 	/*
 	 *	Save FP registers if in use.
@@ -302,15 +304,14 @@ void stack_handoff(old, new)
 	 *	user registers.
 	 */
 
-	STACK_IEL(stack)->saved_state = &new->pcb->iss;
+	STACK_IEL(stack)->saved_state = USER_REGS(new);
 
 }
 
 /*
  * Switch to the first thread on a CPU.
  */
-void load_context(new)
-	register thread_t	new;
+void load_context(thread_t new)
 {
 	switch_ktss(new->pcb);
 	Load_context(new);
@@ -321,10 +322,10 @@ void load_context(new)
  * Save the old thread`s kernel state or continuation,
  * and return it.
  */
-thread_t switch_context(old, continuation, new)
-	register thread_t	old;
-	void (*continuation)();
-	register thread_t	new;
+thread_t switch_context(
+	thread_t	old,
+	void 		(*continuation)(),
+	thread_t	new)
 {
 	/*
 	 *	Save FP registers if in use.
@@ -367,18 +368,17 @@ thread_t switch_context(old, continuation, new)
 	return Switch_context(old, continuation, new);
 }
 
-void pcb_module_init()
+void pcb_module_init(void)
 {
 	kmem_cache_init(&pcb_cache, "pcb", sizeof(struct pcb), 0,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
 
 	fpu_module_init();
 }
 
-void pcb_init(thread)
-	register thread_t	thread;
+void pcb_init(task_t parent_task, thread_t thread)
 {
-	register pcb_t		pcb;
+	pcb_t		pcb;
 
 	pcb = (pcb_t) kmem_cache_alloc(&pcb_cache);
 	if (pcb == 0)
@@ -406,12 +406,16 @@ void pcb_init(thread)
 	pcb->iss.efl = EFL_USER_SET;
 
 	thread->pcb = pcb;
+
+	/* This is a new thread for the current task, make it inherit our FPU
+	   state.  */
+	if (current_thread() && parent_task == current_task())
+		fpinherit(current_thread(), thread);
 }
 
-void pcb_terminate(thread)
-	register thread_t	thread;
+void pcb_terminate(thread_t thread)
 {
-	register pcb_t		pcb = thread->pcb;
+	pcb_t		pcb = thread->pcb;
 
 	counter(if (--c_threads_current < c_threads_min)
 			c_threads_min = c_threads_current);
@@ -431,7 +435,7 @@ void pcb_terminate(thread)
  */
 
 void pcb_collect(thread)
-	thread_t thread;
+	const thread_t thread;
 {
 }
 
@@ -442,18 +446,18 @@ void pcb_collect(thread)
  *	Set the status of the specified thread.
  */
 
-kern_return_t thread_setstatus(thread, flavor, tstate, count)
-	thread_t		thread;
-	int			flavor;
-	thread_state_t		tstate;
-	unsigned int		count;
+kern_return_t thread_setstatus(
+	thread_t		thread,
+	int			flavor,
+	thread_state_t		tstate,
+	unsigned int		count)
 {
 	switch (flavor) {
 	    case i386_THREAD_STATE:
 	    case i386_REGS_SEGS_STATE:
 	    {
-		register struct i386_thread_state	*state;
-		register struct i386_saved_state	*saved_state;
+		struct i386_thread_state	*state;
+		struct i386_saved_state	*saved_state;
 
 		if (count < i386_THREAD_STATE_COUNT) {
 		    return(KERN_INVALID_ARGUMENT);
@@ -595,7 +599,7 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 
 	    case i386_V86_ASSIST_STATE:
 	    {
-		register struct i386_v86_assist_state *state;
+		struct i386_v86_assist_state *state;
 		vm_offset_t	int_table;
 		int		int_count;
 
@@ -620,6 +624,21 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
 		break;
 	    }
 
+	    case i386_DEBUG_STATE:
+	    {
+		struct i386_debug_state *state;
+		kern_return_t ret;
+
+		if (count < i386_DEBUG_STATE_COUNT)
+		    return KERN_INVALID_ARGUMENT;
+
+		state = (struct i386_debug_state *) tstate;
+		ret = db_set_debug_state(thread->pcb, state);
+		if (ret)
+			return ret;
+		break;
+	    }
+
 	    default:
 		return(KERN_INVALID_ARGUMENT);
 	}
@@ -633,11 +652,11 @@ kern_return_t thread_setstatus(thread, flavor, tstate, count)
  *	Get the status of the specified thread.
  */
 
-kern_return_t thread_getstatus(thread, flavor, tstate, count)
-	register thread_t	thread;
-	int			flavor;
-	thread_state_t		tstate;	/* pointer to OUT array */
-	unsigned int		*count;		/* IN/OUT */
+kern_return_t thread_getstatus(
+	thread_t		thread,
+	int			flavor,
+	thread_state_t		tstate,	/* pointer to OUT array */
+	unsigned int		*count)		/* IN/OUT */
 {
 	switch (flavor)  {
 	    case THREAD_STATE_FLAVOR_LIST:
@@ -653,8 +672,8 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
 	    case i386_THREAD_STATE:
 	    case i386_REGS_SEGS_STATE:
 	    {
-		register struct i386_thread_state	*state;
-		register struct i386_saved_state	*saved_state;
+		struct i386_thread_state	*state;
+		struct i386_saved_state	*saved_state;
 
 		if (*count < i386_THREAD_STATE_COUNT)
 		    return(KERN_INVALID_ARGUMENT);
@@ -724,7 +743,7 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
 	     * Temporary - replace by i386_io_map
 	     */
 	    case i386_ISA_PORT_MAP_STATE: {
-		register struct i386_isa_port_map_state *state;
+		struct i386_isa_port_map_state *state;
 
 		if (*count < i386_ISA_PORT_MAP_STATE_COUNT)
 			return(KERN_INVALID_ARGUMENT);
@@ -735,8 +754,8 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
 		if (thread->task->machine.iopb == 0)
 		  memset (state->pm, 0xff, sizeof state->pm);
 		else
-		  memcpy((char *) state->pm,
-			 (char *) thread->task->machine.iopb,
+		  memcpy(state->pm,
+			 thread->task->machine.iopb,
 			 sizeof state->pm);
 		simple_unlock (&thread->task->machine.iopb_lock);
 
@@ -746,7 +765,7 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
 
 	    case i386_V86_ASSIST_STATE:
 	    {
-		register struct i386_v86_assist_state *state;
+		struct i386_v86_assist_state *state;
 
 		if (*count < i386_V86_ASSIST_STATE_COUNT)
 		    return KERN_INVALID_ARGUMENT;
@@ -756,6 +775,20 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
 		state->int_count = thread->pcb->ims.v86s.int_count;
 
 		*count = i386_V86_ASSIST_STATE_COUNT;
+		break;
+	    }
+
+	    case i386_DEBUG_STATE:
+	    {
+		struct i386_debug_state *state;
+
+		if (*count < i386_DEBUG_STATE_COUNT)
+		    return KERN_INVALID_ARGUMENT;
+
+		state = (struct i386_debug_state *) tstate;
+		db_get_debug_state(thread->pcb, state);
+
+		*count = i386_DEBUG_STATE_COUNT;
 		break;
 	    }
 
@@ -771,24 +804,22 @@ kern_return_t thread_getstatus(thread, flavor, tstate, count)
  * will make the thread return 'retval' from a syscall.
  */
 void
-thread_set_syscall_return(thread, retval)
-	thread_t	thread;
-	kern_return_t	retval;
+thread_set_syscall_return(
+	thread_t	thread,
+	kern_return_t	retval)
 {
 	thread->pcb->iss.eax = retval;
 }
 
-
 /*
- * Return prefered address of user stack.
+ * Return preferred address of user stack.
  * Always returns low address.  If stack grows up,
  * the stack grows away from this address;
  * if stack grows down, the stack grows towards this
  * address.
  */
 vm_offset_t
-user_stack_low(stack_size)
-	vm_size_t	stack_size;
+user_stack_low(vm_size_t stack_size)
 {
 	return (VM_MAX_ADDRESS - stack_size);
 }
@@ -800,17 +831,17 @@ vm_offset_t
 set_user_regs(stack_base, stack_size, exec_info, arg_size)
 	vm_offset_t	stack_base;	/* low address */
 	vm_offset_t	stack_size;
-	struct exec_info *exec_info;
+	const struct exec_info *exec_info;
 	vm_size_t	arg_size;
 {
 	vm_offset_t	arg_addr;
-	register struct i386_saved_state *saved_state;
+	struct i386_saved_state *saved_state;
 
 	arg_size = (arg_size + sizeof(int) - 1) & ~(sizeof(int)-1);
 	arg_addr = stack_base + stack_size - arg_size;
 
 	saved_state = USER_REGS(current_thread());
-	saved_state->uesp = (int)arg_addr;
+	saved_state->uesp = (long)arg_addr;
 	saved_state->eip = exec_info->entry;
 
 	return (arg_addr);

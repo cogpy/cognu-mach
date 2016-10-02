@@ -38,7 +38,7 @@
 #include <mach/message.h>
 #include <ipc/ipc_types.h>
 #include <kern/lock.h>
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <kern/slab.h>
 
 typedef unsigned int ipc_object_refs_t;
@@ -57,7 +57,9 @@ typedef struct ipc_object {
 #define	IO_VALID(io)		(((io) != IO_NULL) && ((io) != IO_DEAD))
 
 #define	IO_BITS_KOTYPE		0x0000ffff	/* used by the object */
-#define IO_BITS_OTYPE		0x7fff0000 	/* determines a cache */
+#define IO_BITS_OTYPE		0x3fff0000 	/* determines a cache */
+/* The following masks are used to store attributes of ipc ports.  */
+#define	IO_BITS_PROTECTED_PAYLOAD	0x40000000	/* pp set? */
 #define	IO_BITS_ACTIVE		0x80000000U	/* is object alive? */
 
 #define	io_active(io)		((int)(io)->io_bits < 0)	/* hack */

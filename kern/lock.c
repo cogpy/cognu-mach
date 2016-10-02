@@ -133,12 +133,25 @@ unsigned int simple_locks_taken = 0;
 
 struct simple_locks_info {
 	simple_lock_t l;
-	unsigned int ra;
+	const char *expr;
+	const char *loc;
 } simple_locks_info[NSLINFO];
+
+int do_check_simple_locks = 1;
 
 void check_simple_locks(void)
 {
-	assert(simple_locks_taken == 0);
+	assert(! do_check_simple_locks || simple_locks_taken == 0);
+}
+
+void check_simple_locks_enable(void)
+{
+	do_check_simple_locks = 1;
+}
+
+void check_simple_locks_disable(void)
+{
+	do_check_simple_locks = 0;
 }
 
 /* Need simple lock sanity checking code if simple locks are being
@@ -150,8 +163,10 @@ void simple_lock_init(
 	l->lock_data = 0;
 }
 
-void simple_lock(
-	simple_lock_t l)
+void _simple_lock(
+	simple_lock_t l,
+	const char *expression,
+	const char *location)
 {
 	struct simple_locks_info *info;
 
@@ -160,15 +175,16 @@ void simple_lock(
 	l->lock_data = 1;
 
 	info = &simple_locks_info[simple_locks_taken++];
+	barrier();
 	info->l = l;
-	/* XXX we want our return address, if possible */
-#ifdef	i386
-	info->ra = *((unsigned int *)&l - 1);
-#endif	/* i386 */
+	info->expr = expression;
+	info->loc = location;
 }
 
-boolean_t simple_lock_try(
-	simple_lock_t l)
+boolean_t _simple_lock_try(
+	simple_lock_t l,
+	const char *expression,
+	const char *location)
 {
 	struct simple_locks_info *info;
 
@@ -178,11 +194,10 @@ boolean_t simple_lock_try(
 	l->lock_data = 1;
 
 	info = &simple_locks_info[simple_locks_taken++];
+	barrier();
 	info->l = l;
-	/* XXX we want our return address, if possible */
-#ifdef	i386
-	info->ra = *((unsigned int *)&l - 1);
-#endif	/* i386 */
+	info->expr = expression;
+	info->loc = location;
 
 	return TRUE;
 }
@@ -206,7 +221,9 @@ void simple_unlock(
 
 		simple_locks_info[i] = simple_locks_info[simple_locks_taken-1];
 	}
+	barrier();
 	simple_locks_taken--;
+	simple_locks_info[simple_locks_taken] = (struct simple_locks_info) {0};
 }
 
 #endif	/* MACH_SLOCKS && NCPUS == 1 */
@@ -250,9 +267,9 @@ void lock_sleepable(
  */
 
 void lock_write(
-	register lock_t	l)
+	lock_t	l)
 {
-	register int	i;
+	int	i;
 
 	check_simple_locks();
 	simple_lock(&l->interlock);
@@ -304,11 +321,14 @@ void lock_write(
 			simple_lock(&l->interlock);
 		}
 	}
+#if MACH_LDEBUG
+	l->writer = current_thread();
+#endif	/* MACH_LDEBUG */
 	simple_unlock(&l->interlock);
 }
 
 void lock_done(
-	register lock_t	l)
+	lock_t	l)
 {
 	simple_lock(&l->interlock);
 
@@ -320,8 +340,12 @@ void lock_done(
 	else
 	if (l->want_upgrade)
 	 	l->want_upgrade = FALSE;
-	else
+	else {
 	 	l->want_write = FALSE;
+#if MACH_LDEBUG
+		l->writer = THREAD_NULL;
+#endif	/* MACH_LDEBUG */
+	}
 
 	/*
 	 *	There is no reason to wakeup a waiting thread
@@ -340,9 +364,9 @@ void lock_done(
 }
 
 void lock_read(
-	register lock_t	l)
+	lock_t	l)
 {
-	register int	i;
+	int	i;
 
 	check_simple_locks();
 	simple_lock(&l->interlock);
@@ -387,9 +411,9 @@ void lock_read(
  *		Returns TRUE if the upgrade *failed*.
  */
 boolean_t lock_read_to_write(
-	register lock_t	l)
+	lock_t	l)
 {
-	register int	i;
+	int	i;
 
 	check_simple_locks();
 	simple_lock(&l->interlock);
@@ -438,14 +462,20 @@ boolean_t lock_read_to_write(
 		}
 	}
 
+#if MACH_LDEBUG
+	l->writer = current_thread();
+#endif	/* MACH_LDEBUG */
 	simple_unlock(&l->interlock);
 	return FALSE;
 }
 
 void lock_write_to_read(
-	register lock_t	l)
+	lock_t	l)
 {
 	simple_lock(&l->interlock);
+#if MACH_LDEBUG
+	assert(l->writer == current_thread());
+#endif	/* MACH_LDEBUG */
 
 	l->read_count++;
 	if (l->recursion_depth != 0)
@@ -461,6 +491,9 @@ void lock_write_to_read(
 		thread_wakeup(l);
 	}
 
+#if MACH_LDEBUG
+	l->writer = THREAD_NULL;
+#endif	/* MACH_LDEBUG */
 	simple_unlock(&l->interlock);
 }
 
@@ -474,7 +507,7 @@ void lock_write_to_read(
  */
 
 boolean_t lock_try_write(
-	register lock_t	l)
+	lock_t	l)
 {
 	simple_lock(&l->interlock);
 
@@ -500,6 +533,9 @@ boolean_t lock_try_write(
 	 */
 
 	l->want_write = TRUE;
+#if MACH_LDEBUG
+	l->writer = current_thread();
+#endif	/* MACH_LDEBUG */
 	simple_unlock(&l->interlock);
 	return TRUE;
 }
@@ -513,7 +549,7 @@ boolean_t lock_try_write(
  */
 
 boolean_t lock_try_read(
-	register lock_t	l)
+	lock_t	l)
 {
 	simple_lock(&l->interlock);
 
@@ -547,7 +583,7 @@ boolean_t lock_try_read(
  *		Returns FALSE if the upgrade *failed*.
  */
 boolean_t lock_try_read_to_write(
-	register lock_t	l)
+	lock_t	l)
 {
 	check_simple_locks();
 	simple_lock(&l->interlock);
@@ -576,6 +612,9 @@ boolean_t lock_try_read_to_write(
 		simple_lock(&l->interlock);
 	}
 
+#if MACH_LDEBUG
+	l->writer = current_thread();
+#endif	/* MACH_LDEBUG */
 	simple_unlock(&l->interlock);
 	return TRUE;
 }
@@ -588,6 +627,10 @@ void lock_set_recursive(
 	lock_t		l)
 {
 	simple_lock(&l->interlock);
+#if MACH_LDEBUG
+	assert(l->writer == current_thread());
+#endif	/* MACH_LDEBUG */
+
 	if (!l->want_write) {
 		panic("lock_set_recursive: don't have write lock");
 	}
@@ -620,13 +663,9 @@ void db_show_all_slocks(void)
 
 	for (i = 0; i < simple_locks_taken; i++) {
 		info = &simple_locks_info[i];
-		db_printf("%d: ", i);
+		db_printf("%d: %s (", i, info->expr);
 		db_printsym(info->l, DB_STGY_ANY);
-#if i386
-		db_printf(" locked by ");
-		db_printsym(info->ra, DB_STGY_PROC);
-#endif
-		db_printf("\n");
+		db_printf(") locked by %s\n", info->loc);
 	}
 }
 #else	/* MACH_SLOCKS && NCPUS == 1 */

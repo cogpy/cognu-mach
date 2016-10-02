@@ -49,8 +49,21 @@
 #include <vm/memory_object_proxy.h>
 #include <device/ds_routines.h>
 
+#include <kern/mach.server.h>
+#include <ipc/mach_port.server.h>
+#include <kern/mach_host.server.h>
+#include <device/device.server.h>
+#include <device/device_pager.server.h>
+#include <kern/mach4.server.h>
+#include <kern/gnumach.server.h>
+
+#if MACH_DEBUG
+#include <kern/mach_debug.server.h>
+#endif
+
 #if	MACH_MACHINE_ROUTINES
 #include <machine/machine_routines.h>
+#include MACHINE_SERVER_HEADER
 #endif
 
 
@@ -146,20 +159,6 @@ ipc_kobject_server(request)
 	 * to perform the kernel function
 	 */
     {
-	extern mig_routine_t	mach_server_routine(),
-				mach_port_server_routine(),
-				mach_host_server_routine(),
-				device_server_routine(),
-				device_pager_server_routine(),
-				mach4_server_routine();
-#if	MACH_DEBUG
-	extern mig_routine_t	mach_debug_server_routine();
-#endif
-
-#if	MACH_MACHINE_ROUTINES
-	extern mig_routine_t	MACHINE_SERVER_ROUTINE();
-#endif
-
 	check_simple_locks();
 	if ((routine = mach_server_routine(&request->ikm_header)) != 0
 	 || (routine = mach_port_server_routine(&request->ikm_header)) != 0
@@ -170,20 +169,27 @@ ipc_kobject_server(request)
 	 || (routine = mach_debug_server_routine(&request->ikm_header)) != 0
 #endif	/* MACH_DEBUG */
 	 || (routine = mach4_server_routine(&request->ikm_header)) != 0
+	 || (routine = gnumach_server_routine(&request->ikm_header)) != 0
 #if	MACH_MACHINE_ROUTINES
 	 || (routine = MACHINE_SERVER_ROUTINE(&request->ikm_header)) != 0
 #endif	/* MACH_MACHINE_ROUTINES */
 	) {
 	    (*routine)(&request->ikm_header, &reply->ikm_header);
-	}
-	else if (!ipc_kobject_notify(&request->ikm_header,&reply->ikm_header)){
+	    kernel_task->messages_received++;
+	} else {
+	    if (!ipc_kobject_notify(&request->ikm_header,
+		&reply->ikm_header)) {
 		((mig_reply_header_t *) &reply->ikm_header)->RetCode
 		    = MIG_BAD_ID;
 #if	MACH_IPC_TEST
 		printf("ipc_kobject_server: bogus kernel message, id=%d\n",
 		       request->ikm_header.msgh_id);
 #endif	/* MACH_IPC_TEST */
+	    } else {
+		kernel_task->messages_received++;
+	    }
 	}
+	kernel_task->messages_sent++;
     }
 	check_simple_locks();
 
@@ -238,7 +244,7 @@ ipc_kobject_server(request)
 	} else {
 		/*
 		 *	The message contents of the request are intact.
-		 *	Destroy everthing except the reply port right,
+		 *	Destroy everything except the reply port right,
 		 *	which is needed in the reply message.
 		 */
 
@@ -319,7 +325,7 @@ ipc_kobject_destroy(
 
 	    default:
 #if	MACH_ASSERT
-		printf("ipc_kobject_destroy: port 0x%p, kobj 0x%x, type %d\n",
+		printf("ipc_kobject_destroy: port 0x%p, kobj 0x%lx, type %d\n",
 		       port, port->ip_kobject, ip_kotype(port));
 #endif	/* MACH_ASSERT */
 		break;

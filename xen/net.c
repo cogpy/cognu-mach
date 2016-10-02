@@ -29,6 +29,7 @@
 #include <device/net_io.h>
 #include <device/device_reply.user.h>
 #include <device/device_emul.h>
+#include <device/ds_routines.h>
 #include <intel/pmap.h>
 #include <xen/public/io/netif.h>
 #include <xen/public/memory.h>
@@ -119,10 +120,10 @@ static void enqueue_rx_buf(struct net_data *nd, int number) {
 }
 
 static int recompute_checksum(void *data, int len) {
-	unsigned16_t *header16 = data;
-	unsigned8_t *header8 = data;
+	uint16_t *header16 = data;
+	uint8_t *header8 = data;
 	unsigned length, i;
-	unsigned32_t checksum = 0;
+	uint32_t checksum = 0;
 
 	/* IPv4 header length */
 	length = (header8[0] & 0xf) * 4;
@@ -145,8 +146,8 @@ static int recompute_checksum(void *data, int len) {
 
 	if (header8[9] == 6) {
 		/* Need to fix TCP checksum as well */
-		unsigned16_t *tcp_header16 = header16 + length/2;
-		unsigned8_t *tcp_header8 = header8 + length;
+		uint16_t *tcp_header16 = header16 + length/2;
+		uint8_t *tcp_header8 = header8 + length;
 		unsigned tcp_length = ntohs(header16[1]) - length;
 
 		/* Pseudo IP header */
@@ -166,7 +167,7 @@ static int recompute_checksum(void *data, int len) {
 		tcp_header16[8] = htons(~checksum);
 	} else if (header8[9] == 17) {
 		/* Drop any bogus checksum */
-		unsigned16_t *udp_header16 = header16 + length/2;
+		uint16_t *udp_header16 = header16 + length/2;
 		udp_header16[3] = 0;
 	}
 
@@ -366,7 +367,7 @@ void hyp_net_init(void) {
 			grant = hyp_grant_give(domid, atop(addr), 0);
 
 			/* and give it to backend.  */
-			i = sprintf(port_name, "%u", grant);
+			i = sprintf(port_name, "%d", grant);
 			c = hyp_store_write(t, port_name, 5, VIF_PATH, "/", vifs[n], "/", "tx-ring-ref");
 			if (!c)
 				panic("eth: couldn't store tx_ring reference for VIF %s (%s)", vifs[n], hyp_store_error);
@@ -381,7 +382,7 @@ void hyp_net_init(void) {
 			grant = hyp_grant_give(domid, atop(addr), 0);
 
 			/* and give it to backend.  */
-			i = sprintf(port_name, "%u", grant);
+			i = sprintf(port_name, "%d", grant);
 			c = hyp_store_write(t, port_name, 5, VIF_PATH, "/", vifs[n], "/", "rx-ring-ref");
 			if (!c)
 				panic("eth: couldn't store rx_ring reference for VIF %s (%s)", vifs[n], hyp_store_error);
@@ -395,7 +396,7 @@ void hyp_net_init(void) {
 
 			/* Allocate an event channel and give it to backend.  */
 			nd->evt = evt = hyp_event_channel_alloc(domid);
-			i = sprintf(port_name, "%lu", evt);
+			i = sprintf(port_name, "%u", evt);
 			c = hyp_store_write(t, port_name, 5, VIF_PATH, "/", vifs[n], "/", "event-channel");
 			if (!c)
 				panic("eth: couldn't store event channel for VIF %s (%s)", vifs[n], hyp_store_error);
@@ -538,7 +539,7 @@ static io_return_t
 device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
 	    dev_mode_t mode, char *name, device_t *devp /* out */)
 {
-	int i, n, err = 0;
+	int i, n;
 	ipc_port_t port, notify;
 	struct net_data *nd;
 
@@ -568,8 +569,8 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
 
 	port = ipc_port_alloc_kernel();
 	if (port == IP_NULL) {
-		err = KERN_RESOURCE_SHORTAGE;
-		goto out;
+		device_close (nd);
+		return KERN_RESOURCE_SHORTAGE;
 	}
 	nd->port = port;
 
@@ -582,7 +583,6 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
 	ipc_port_nsrequest (nd->port, 1, notify, &notify);
 	assert (notify == IP_NULL);
 
-out:
 	if (IP_VALID (reply_port))
 		ds_device_open_reply (reply_port, reply_port_type, D_SUCCESS, dev_to_port(nd));
 	else
@@ -602,9 +602,11 @@ device_write(void *d, ipc_port_t reply_port,
 	struct ifnet *ifp = &nd->ifnet;
 	netif_tx_request_t *req;
 	unsigned reqn;
-	vm_offset_t offset;
-	vm_page_t m;
-	vm_size_t size;
+	vm_offset_t buffer;
+	char *map_data;
+	vm_offset_t map_addr;
+	vm_size_t map_size;
+	kern_return_t kr;
 
 	/* The maximum that we can handle.  */
 	assert(ifp->if_header_size + ifp->if_mtu <= PAGE_SIZE);
@@ -618,26 +620,21 @@ device_write(void *d, ipc_port_t reply_port,
 	assert(copy->cpy_npages <= 2);
 	assert(copy->cpy_npages >= 1);
 
-	offset = copy->offset & PAGE_MASK;
-	if (paranoia || copy->cpy_npages == 2) {
-		/* have to copy :/ */
-		while ((m = vm_page_grab(FALSE)) == 0)
-			VM_PAGE_WAIT (0);
-		assert (! m->active && ! m->inactive);
-		m->busy = TRUE;
+	kr = kmem_alloc(device_io_map, &buffer, count);
 
-		if (copy->cpy_npages == 1)
-			size = count;
-		else
-			size = PAGE_SIZE - offset;
+	if (kr != KERN_SUCCESS)
+		return kr;
 
-		memcpy((void*)phystokv(m->phys_addr), (void*)phystokv(copy->cpy_page_list[0]->phys_addr + offset), size);
-		if (copy->cpy_npages == 2)
-			memcpy((void*)phystokv(m->phys_addr + size), (void*)phystokv(copy->cpy_page_list[1]->phys_addr), count - size);
+	kr = kmem_io_map_copyout(device_io_map, (vm_offset_t *)&map_data,
+				 &map_addr, &map_size, copy, count);
 
-		offset = 0;
-	} else
-		m = copy->cpy_page_list[0];
+	if (kr != KERN_SUCCESS) {
+		kmem_free(device_io_map, buffer, count);
+		return kr;
+	}
+
+	memcpy((void *)buffer, map_data, count);
+	kmem_io_map_deallocate(device_io_map, map_addr, map_size);
 
 	/* allocate a request */
 	spl_t spl = splimp();
@@ -654,8 +651,8 @@ device_write(void *d, ipc_port_t reply_port,
 	(void) splx(spl);
 
 	req = RING_GET_REQUEST(&nd->tx, reqn);
-	req->gref = gref = hyp_grant_give(nd->domid, atop(m->phys_addr), 1);
-	req->offset = offset;
+	req->gref = gref = hyp_grant_give(nd->domid, atop(kvtophys(buffer)), 1);
+	req->offset = 0;
 	req->flags = 0;
 	req->id = gref;
 	req->size = count;
@@ -686,11 +683,11 @@ device_write(void *d, ipc_port_t reply_port,
 	      /* Suitable for Ethernet only.  */
 	      header = (struct ether_header *) (net_kmsg (kmsg)->header);
 	      packet = (struct packet_header *) (net_kmsg (kmsg)->packet);
-	      memcpy (header, (void*)phystokv(m->phys_addr + offset), sizeof (struct ether_header));
+	      memcpy (header, (void*)buffer, sizeof (struct ether_header));
 	
 	      /* packet is prefixed with a struct packet_header,
 	         see include/device/net_status.h.  */
-	      memcpy (packet + 1, (void*)phystokv(m->phys_addr + offset + sizeof (struct ether_header)),
+	      memcpy (packet + 1, (void*)buffer + sizeof (struct ether_header),
 	              count - sizeof (struct ether_header));
 	      packet->length = count - sizeof (struct ether_header)
 	                       + sizeof (struct packet_header);
@@ -703,8 +700,7 @@ device_write(void *d, ipc_port_t reply_port,
 	    }
 	}
 
-	if (paranoia || copy->cpy_npages == 2)
-		VM_PAGE_FREE(m);
+	kmem_free(device_io_map, buffer, count);
 
 	vm_map_copy_discard (copy);
 

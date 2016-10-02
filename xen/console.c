@@ -47,9 +47,13 @@ int hypputc(int c)
 		hyp_console_io(CONSOLEIO_write, 1, kvtolin(&d));
 	} else {
 		spl_t spl = splhigh();
+		static int complain;
 		simple_lock(&outlock);
 		while (hyp_ring_smash(console->out, console->out_prod, console->out_cons)) {
-			hyp_console_put("ring smash\n");
+			if (!complain) {
+				complain = 1;
+				hyp_console_put("ring smash\n");
+			}
 			/* TODO: are we allowed to sleep in putc? */
 			hyp_yield();
 		}
@@ -112,8 +116,8 @@ static void hypcnintr(int unit, spl_t spl, void *ret_addr, void *regs) {
 		mb();
 		console->in_cons++;
 #if	MACH_KDB
-		if (c == (char)'£') {
-			printf("£ pressed\n");
+		if (c == (char)0xA3) {
+			printf("pound pressed\n");
 			kdb_kintr();
 			continue;
 		}
@@ -125,14 +129,14 @@ static void hypcnintr(int unit, spl_t spl, void *ret_addr, void *regs) {
 	simple_unlock(&inlock);
 }
 
-int hypcnread(int dev, io_req_t ior)
+int hypcnread(dev_t dev, io_req_t ior)
 {
 	struct tty *tp = &hypcn_tty;
 	tp->t_state |= TS_CARR_ON;
 	return char_read(tp, ior);
 }
 
-int hypcnwrite(int dev, io_req_t ior)
+int hypcnwrite(dev_t dev, io_req_t ior)
 {
 	return char_write(&hypcn_tty, ior);
 }
@@ -203,7 +207,7 @@ int hypcnopen(dev_t dev, int flag, io_req_t ior)
 	return (char_open(dev, tp, flag, ior));
 }
 
-int hypcnclose(int dev, int flag)
+void hypcnclose(dev_t dev, int flag)
 {
 	struct tty	*tp = &hypcn_tty;
 	spl_t s = spltty();
@@ -211,7 +215,6 @@ int hypcnclose(int dev, int flag)
 	ttyclose(tp);
 	simple_unlock(&tp->t_lock);
 	splx(s);
-	return 0;
 }
 
 int hypcnprobe(struct consdev *cp)
@@ -228,7 +231,9 @@ int hypcninit(struct consdev *cp)
 	simple_lock_init(&outlock);
 	simple_lock_init(&inlock);
 	console = (void*) mfn_to_kv(boot_info.console_mfn);
+#ifdef	MACH_PV_PAGETABLES
 	pmap_set_page_readwrite(console);
+#endif	/* MACH_PV_PAGETABLES */
 	hyp_evt_handler(boot_info.console_evtchn, hypcnintr, 0, SPL6);
 	return 0;
 }

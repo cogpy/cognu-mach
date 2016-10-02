@@ -27,9 +27,7 @@
 #ifndef	_KERN_REFCOUNT_H_
 #define _KERN_REFCOUNT_H_
 
-#include <kern/macro_help.h>
-
-#include "refcount.h" /*XXX*/
+#include <kern/macros.h>
 
 /* Unless the above include file specified otherwise,
    use the system-independent (unoptimized) atomic reference counter.  */
@@ -65,6 +63,6 @@ typedef struct RefCount RefCount;
 		if (new_value == 0) { func; }		\
 	MACRO_END
 
-#endif
+#endif /* MACHINE_REFCOUNT */
 
-#endif _KERN_REFCOUNT_H_
+#endif	/* _KERN_REFCOUNT_H_ */

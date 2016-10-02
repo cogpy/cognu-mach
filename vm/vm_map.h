@@ -50,8 +50,13 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_types.h>
+#include <kern/list.h>
 #include <kern/lock.h>
-#include <kern/macro_help.h>
+#include <kern/rbtree.h>
+#include <kern/macros.h>
+
+/* TODO: make it dynamic */
+#define KENTRY_DATA_SIZE (256*PAGE_SIZE)
 
 /*
  *	Types defined:
@@ -100,9 +105,18 @@ struct vm_map_entry {
 #define vme_next		links.next
 #define vme_start		links.start
 #define vme_end			links.end
+	struct rbtree_node	tree_node;	/* links to other entries in tree */
+	struct rbtree_node	gap_node;	/* links to other entries in gap tree */
+	struct list		gap_list;	/* links to other entries with
+						   the same gap size */
+	vm_size_t		gap_size;	/* size of available memory
+						   following this entry */
 	union vm_map_object	object;		/* object I point to */
 	vm_offset_t		offset;		/* offset into object */
 	unsigned int
+	/* boolean_t */		in_gap_tree:1,	/* entry is in the gap tree if true,
+						   or linked to other entries with
+						   the same gap size if false */
 	/* boolean_t */		is_shared:1,	/* region is shared */
 	/* boolean_t */		is_sub_map:1,	/* Is "object" a submap? */
 	/* boolean_t */		in_transition:1, /* Entry being changed */
@@ -135,9 +149,10 @@ typedef struct vm_map_entry	*vm_map_entry_t;
  */
 struct vm_map_header {
 	struct vm_map_links	links;		/* first, last, min, max */
+	struct rbtree		tree;		/* Sorted tree of entries */
+	struct rbtree		gap_tree;	/* Sorted tree of gap lists
+						   for allocations */
 	int			nentries;	/* Number of entries */
-	boolean_t		entries_pageable;
-						/* are map entries pageable? */
 };
 
 /*
@@ -150,9 +165,11 @@ struct vm_map_header {
  *
  *	Implementation:
  *		Maps are doubly-linked lists of map entries, sorted
- *		by address.  One hint is used to start
- *		searches again from the last successful search,
- *		insertion, or removal.  Another hint is used to
+ *		by address.  They're also contained in a red-black tree.
+ *		One hint is used to start searches again at the last
+ *		successful search, insertion, or removal.  If the hint
+ *		lookup failed (i.e. the hint didn't refer to the requested
+ *		entry), a BST lookup is performed.  Another hint is used to
  *		quickly find free space.
  */
 struct vm_map {
@@ -162,15 +179,21 @@ struct vm_map {
 #define max_offset		hdr.links.end	/* end of range */
 	pmap_t			pmap;		/* Physical map */
 	vm_size_t		size;		/* virtual size */
+	vm_size_t		user_wired;	/* wired by user size */
 	int			ref_count;	/* Reference count */
 	decl_simple_lock_data(,	ref_lock)	/* Lock for ref_count field */
 	vm_map_entry_t		hint;		/* hint for quick lookups */
 	decl_simple_lock_data(,	hint_lock)	/* lock for hint storage */
 	vm_map_entry_t		first_free;	/* First free space hint */
-	boolean_t		wait_for_space;	/* Should callers wait
+
+	/* Flags */
+	unsigned int	wait_for_space:1,	/* Should callers wait
 						   for space? */
-	boolean_t		wiring_required;/* All memory wired? */
+	/* boolean_t */ wiring_required:1;	/* All memory wired? */
+
 	unsigned int		timestamp;	/* Version number */
+
+	const char		*name;		/* Associated name */
 };
 
 #define vm_map_to_entry(map)	((struct vm_map_entry *) &(map)->hdr.links)
@@ -329,13 +352,9 @@ MACRO_BEGIN					\
 	(map)->timestamp = 0;			\
 MACRO_END
 
-#define vm_map_lock(map)			\
-MACRO_BEGIN					\
-	lock_write(&(map)->lock);		\
-	(map)->timestamp++;			\
-MACRO_END
+void vm_map_lock(struct vm_map *map);
+void vm_map_unlock(struct vm_map *map);
 
-#define vm_map_unlock(map)	lock_write_done(&(map)->lock)
 #define vm_map_lock_read(map)	lock_read(&(map)->lock)
 #define vm_map_unlock_read(map)	lock_read_done(&(map)->lock)
 #define vm_map_lock_write_to_read(map) \
@@ -351,18 +370,13 @@ MACRO_END
  *	Exported procedures that operate on vm_map_t.
  */
 
-extern vm_offset_t	kentry_data;
-extern vm_offset_t	kentry_data_size;
-extern int		kentry_count;
 /* Initialize the module */
 extern void		vm_map_init(void);
 
 /* Initialize an empty map */
-extern void		vm_map_setup(vm_map_t, pmap_t, vm_offset_t, vm_offset_t,
-				     boolean_t);
+extern void		vm_map_setup(vm_map_t, pmap_t, vm_offset_t, vm_offset_t);
 /* Create an empty map */
-extern vm_map_t		vm_map_create(pmap_t, vm_offset_t, vm_offset_t,
-				      boolean_t);
+extern vm_map_t		vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
 /* Create a map in the image of an existing map */
 extern vm_map_t		vm_map_fork(vm_map_t);
 
@@ -388,9 +402,6 @@ extern kern_return_t	vm_map_protect(vm_map_t, vm_offset_t, vm_offset_t,
 /* Change inheritance */
 extern kern_return_t	vm_map_inherit(vm_map_t, vm_offset_t, vm_offset_t,
 				       vm_inherit_t);
-
-/* Debugging: print a map */
-extern void		vm_map_print(vm_map_t);
 
 /* Look up an address */
 extern kern_return_t	vm_map_lookup(vm_map_t *, vm_offset_t, vm_prot_t,
@@ -431,6 +442,29 @@ extern kern_return_t	vm_map_machine_attribute(vm_map_t, vm_offset_t,
 
 /* Delete entry from map */
 extern void		vm_map_entry_delete(vm_map_t, vm_map_entry_t);
+
+kern_return_t vm_map_delete(
+    vm_map_t   	map,
+    vm_offset_t    	start,
+    vm_offset_t    	end);
+
+kern_return_t vm_map_copyout_page_list(
+    vm_map_t    	dst_map,
+    vm_offset_t 	*dst_addr,  /* OUT */
+    vm_map_copy_t   	copy);
+
+void vm_map_copy_page_discard (vm_map_copy_t copy);
+
+boolean_t vm_map_lookup_entry(
+	vm_map_t	map,
+	vm_offset_t	address,
+	vm_map_entry_t	*entry); /* OUT */
+
+static inline void vm_map_set_name(vm_map_t map, const char *name)
+{
+	map->name = name;
+}
+
 
 /*
  *	Functions implemented as macros
@@ -533,6 +567,9 @@ extern void _vm_map_clip_start(
  *      the specified address; if necessary,
  *      it splits the entry into two.
  */
-void _vm_map_clip_end();
+void _vm_map_clip_end(
+	struct vm_map_header 	*map_header,
+	vm_map_entry_t		entry,
+	vm_offset_t		end);
 
 #endif	/* _VM_VM_MAP_H_ */

@@ -99,16 +99,16 @@
 extern struct device_emulation_ops linux_block_emulation_ops;
 #ifdef CONFIG_INET
 extern struct device_emulation_ops linux_net_emulation_ops;
-extern void free_skbuffs ();
+extern void free_skbuffs (void);
 #ifdef CONFIG_PCMCIA
 extern struct device_emulation_ops linux_pcmcia_emulation_ops;
-#endif
-#endif
-#endif
+#endif /* CONFIG_PCMCIA */
+#endif /* CONFIG_INET */
+#endif /* LINUX_DEV */
 #ifdef MACH_HYP
 extern struct device_emulation_ops hyp_block_emulation_ops;
 extern struct device_emulation_ops hyp_net_emulation_ops;
-#endif
+#endif /* MACH_HYP */
 extern struct device_emulation_ops mach_device_emulation_ops;
 
 /* List of emulations.  */
@@ -120,13 +120,13 @@ static struct device_emulation_ops *emulation_list[] =
   &linux_net_emulation_ops,
 #ifdef CONFIG_PCMCIA
   &linux_pcmcia_emulation_ops,
-#endif
-#endif
-#endif
+#endif /* CONFIG_PCMCIA */
+#endif /* CONFIG_INET */
+#endif /* LINUX_DEV */
 #ifdef MACH_HYP
   &hyp_block_emulation_ops,
   &hyp_net_emulation_ops,
-#endif
+#endif /* MACH_HYP */
   &mach_device_emulation_ops,
 };
 
@@ -140,7 +140,7 @@ ds_device_open (ipc_port_t open_port, ipc_port_t reply_port,
 		mach_msg_type_name_t reply_port_type, dev_mode_t mode,
 		char *name, device_t *devp)
 {
-  int i;
+  unsigned i;
   io_return_t err;
 
   /* Open must be called on the master device port.  */
@@ -454,16 +454,15 @@ mach_convert_device_to_port (mach_device_t device)
 }
 
 static io_return_t
-device_open(reply_port, reply_port_type, mode, name, device_p)
-	ipc_port_t	reply_port;
-	mach_msg_type_name_t reply_port_type;
-	dev_mode_t	mode;
-	char *		name;
-	device_t	*device_p;	/* out */
+device_open(const ipc_port_t	reply_port,
+	    mach_msg_type_name_t reply_port_type,
+	    dev_mode_t		mode,
+	    char *		name,
+	    device_t		*device_p)
 {
-	register mach_device_t	device;
-	register kern_return_t	result;
-	register io_req_t	ior;
+	mach_device_t		device;
+	kern_return_t		result;
+	io_req_t		ior;
 	ipc_port_t		notify;
 
 	/*
@@ -574,11 +573,10 @@ device_open(reply_port, reply_port_type, mode, name, device_p)
 }
 
 boolean_t
-ds_open_done(ior)
-	register io_req_t	ior;
+ds_open_done(const io_req_t ior)
 {
 	kern_return_t		result;
-	register mach_device_t	device;
+	mach_device_t		device;
 
 	device = ior->io_device;
 	result = ior->io_error;
@@ -634,9 +632,10 @@ ds_open_done(ior)
 }
 
 static io_return_t
-device_close(device)
-	register mach_device_t	device;
+device_close(void *dev)
 {
+	mach_device_t device = dev;
+
 	device_lock(device);
 
 	/*
@@ -676,7 +675,7 @@ device_close(device)
 	/*
 	 * Close the device
 	 */
-	(*device->dev_ops->d_close)(device->dev_number);
+	(*device->dev_ops->d_close)(device->dev_number, 0);
 
 	/*
 	 * Finally mark it closed.  If someone else is trying
@@ -697,19 +696,18 @@ device_close(device)
  * Write to a device.
  */
 static io_return_t
-device_write(device, reply_port, reply_port_type, mode, recnum,
-	     data, data_count, bytes_written)
-	mach_device_t		device;
-	ipc_port_t		reply_port;
-	mach_msg_type_name_t	reply_port_type;
-	dev_mode_t		mode;
-	recnum_t		recnum;
-	io_buf_ptr_t		data;
-	unsigned int		data_count;
-	int			*bytes_written;	/* out */
+device_write(void *dev,
+	     const ipc_port_t	reply_port,
+	     mach_msg_type_name_t	reply_port_type,
+	     dev_mode_t		mode,
+	     recnum_t		recnum,
+	     const io_buf_ptr_t	data,
+	     unsigned int	data_count,
+	     int		*bytes_written)
 {
-	register io_req_t	ior;
-	register io_return_t	result;
+	mach_device_t		device = dev;
+	io_req_t		ior;
+	io_return_t		result;
 
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
@@ -788,19 +786,18 @@ device_write(device, reply_port, reply_port_type, mode, recnum,
  * Write to a device, but memory is in message.
  */
 static io_return_t
-device_write_inband(device, reply_port, reply_port_type, mode, recnum,
-		    data, data_count, bytes_written)
-	mach_device_t		device;
-	ipc_port_t		reply_port;
-	mach_msg_type_name_t	reply_port_type;
-	dev_mode_t		mode;
-	recnum_t		recnum;
-	io_buf_ptr_inband_t	data;
-	unsigned int		data_count;
-	int			*bytes_written; /* out */
+device_write_inband(void		*dev,
+		    const ipc_port_t	reply_port,
+		    mach_msg_type_name_t	reply_port_type,
+		    dev_mode_t		mode,
+		    recnum_t		recnum,
+		    io_buf_ptr_inband_t	data,
+		    unsigned int	data_count,
+		    int			*bytes_written)
 {
-	register io_req_t	ior;
-	register io_return_t	result;
+	mach_device_t		device = dev;
+	io_req_t		ior;
+	io_return_t		result;
 
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
@@ -861,13 +858,13 @@ device_write_inband(device, reply_port, reply_port_type, mode, recnum,
  * Wire down incoming memory to give to device.
  */
 kern_return_t
-device_write_get(ior, wait)
-	register io_req_t	ior;
-	boolean_t		*wait;
+device_write_get(
+	io_req_t		ior,
+	boolean_t		*wait)
 {
 	vm_map_copy_t		io_copy;
 	vm_offset_t		new_addr;
-	register kern_return_t	result;
+	kern_return_t		result;
 	int			bsize;
 	vm_size_t		min_size;
 
@@ -956,11 +953,9 @@ device_write_get(ior, wait)
  * Clean up memory allocated for IO.
  */
 boolean_t
-device_write_dealloc(ior)
-	register io_req_t	ior;
+device_write_dealloc(io_req_t ior)
 {
 	vm_map_copy_t	new_copy = VM_MAP_COPY_NULL;
-	register
 	vm_map_copy_t	io_copy;
 	kern_return_t	result;
 	vm_offset_t	size_to_do;
@@ -1008,7 +1003,7 @@ device_write_dealloc(ior)
 		}
 
 		if (result == KERN_SUCCESS && new_copy != VM_MAP_COPY_NULL) {
-			register int	res;
+			int		res;
 
 			/*
 			 *	We have a new continuation, reset the ior to
@@ -1058,16 +1053,15 @@ device_write_dealloc(ior)
  * Send write completion message to client, and discard the data.
  */
 boolean_t
-ds_write_done(ior)
-	register io_req_t	ior;
+ds_write_done(const io_req_t ior)
 {
 	/*
 	 *	device_write_dealloc discards the data that has been
 	 *	written, but may decide that there is more to write.
 	 */
 	while (!device_write_dealloc(ior)) {
-		register io_return_t	result;
-		register mach_device_t	device;
+		io_return_t		result;
+		mach_device_t		device;
 
 		/*
 		 *     More IO to do -- invoke it.
@@ -1104,24 +1098,18 @@ ds_write_done(ior)
  * Read from a device.
  */
 static io_return_t
-device_read(device, reply_port, reply_port_type, mode, recnum,
-	    bytes_wanted, data, data_count)
-	mach_device_t		device;
-	ipc_port_t		reply_port;
-	mach_msg_type_name_t	reply_port_type;
-	dev_mode_t		mode;
-	recnum_t		recnum;
-	int			bytes_wanted;
-	io_buf_ptr_t		*data;		/* out */
-	unsigned int		*data_count;	/* out */
+device_read(void *dev,
+	    const ipc_port_t	reply_port,
+	    mach_msg_type_name_t	reply_port_type,
+	    dev_mode_t		mode,
+	    recnum_t		recnum,
+	    int			bytes_wanted,
+	    io_buf_ptr_t	*data,
+	    unsigned int	*data_count)
 {
-	register io_req_t	ior;
-	register io_return_t	result;
-
-#ifdef lint
-	*data = *data;
-	*data_count = *data_count;
-#endif /* lint */
+	mach_device_t 		device = dev;
+	io_req_t		ior;
+	io_return_t		result;
 
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
@@ -1186,24 +1174,18 @@ device_read(device, reply_port, reply_port_type, mode, recnum,
  * Read from a device, but return the data 'inband.'
  */
 static io_return_t
-device_read_inband(device, reply_port, reply_port_type, mode, recnum,
-		   bytes_wanted, data, data_count)
-	mach_device_t		device;
-	ipc_port_t		reply_port;
-	mach_msg_type_name_t	reply_port_type;
-	dev_mode_t		mode;
-	recnum_t		recnum;
-	int			bytes_wanted;
-	char			*data;		/* pointer to OUT array */
-	unsigned int		*data_count;	/* out */
+device_read_inband(void			*dev,
+		   const ipc_port_t	reply_port,
+		   mach_msg_type_name_t	reply_port_type,
+		   dev_mode_t		mode,
+		   recnum_t		recnum,
+		   int			bytes_wanted,
+		   char			*data,
+		   unsigned int		*data_count)
 {
-	register io_req_t	ior;
-	register io_return_t	result;
-
-#ifdef lint
-	*data = *data;
-	*data_count = *data_count;
-#endif /* lint */
+	mach_device_t		device = dev;
+	io_req_t		ior;
+	io_return_t		result;
 
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
@@ -1269,9 +1251,9 @@ device_read_inband(device, reply_port, reply_port_type, mode, recnum,
 /*
  * Allocate wired-down memory for device read.
  */
-kern_return_t device_read_alloc(ior, size)
-	register io_req_t	ior;
-	register vm_size_t	size;
+kern_return_t device_read_alloc(
+	io_req_t		ior,
+	vm_size_t		size)
 {
 	vm_offset_t		addr;
 	kern_return_t		kr;
@@ -1298,12 +1280,11 @@ kern_return_t device_read_alloc(ior, size)
 	return (KERN_SUCCESS);
 }
 
-boolean_t ds_read_done(ior)
-	io_req_t	ior;
+boolean_t ds_read_done(const io_req_t ior)
 {
 	vm_offset_t		start_data, end_data;
 	vm_offset_t		start_sent, end_sent;
-	register vm_size_t	size_read;
+	vm_size_t		size_read;
 
 	if (ior->io_error)
 	    size_read = 0;
@@ -1322,9 +1303,9 @@ boolean_t ds_read_done(ior)
 	 * Zero memory that the device did not fill.
 	 */
 	if (start_sent < start_data)
-	    memset((char *)start_sent, 0, start_data - start_sent);
+	    memset((void *)start_sent, 0, start_data - start_sent);
 	if (end_sent > end_data)
-	    memset((char *)end_data, 0, end_sent - end_data);
+	    memset((void *)end_data, 0, end_sent - end_data);
 
 
 	/*
@@ -1333,8 +1314,8 @@ boolean_t ds_read_done(ior)
 	 * may think that they are clean.
 	 */
 	{
-	    register vm_offset_t	touch;
-	    register int		c;
+	    vm_offset_t			touch;
+	    int				c;
 
 	    for (touch = start_sent; touch < end_sent; touch += PAGE_SIZE) {
 		c = *(volatile char *)touch;
@@ -1378,7 +1359,7 @@ boolean_t ds_read_done(ior)
 		if (ior->io_alloc_size > 0)
 		    kmem_cache_free(&io_inband_cache, (vm_offset_t)ior->io_data);
 	    } else {
-		register vm_offset_t	end_alloc;
+		vm_offset_t		end_alloc;
 
 		end_alloc = start_sent + round_page(ior->io_alloc_size);
 		if (end_alloc > end_sent)
@@ -1394,12 +1375,13 @@ boolean_t ds_read_done(ior)
 }
 
 static io_return_t
-device_set_status(device, flavor, status, status_count)
-	mach_device_t		device;
-	dev_flavor_t		flavor;
-	dev_status_t		status;
-	mach_msg_type_number_t	status_count;
+device_set_status(
+	void 			*dev,
+	dev_flavor_t		flavor,
+	dev_status_t		status,
+	mach_msg_type_number_t	status_count)
 {
+	mach_device_t		device = dev;
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
 
@@ -1412,12 +1394,13 @@ device_set_status(device, flavor, status, status_count)
 }
 
 io_return_t
-mach_device_get_status(device, flavor, status, status_count)
-	mach_device_t		device;
-	dev_flavor_t		flavor;
-	dev_status_t		status;		/* pointer to OUT array */
-	mach_msg_type_number_t	*status_count;	/* out */
+mach_device_get_status(
+	void			*dev,
+	dev_flavor_t		flavor,
+	dev_status_t		status,		/* pointer to OUT array */
+	mach_msg_type_number_t	*status_count)	/* out */
 {
+	mach_device_t		device = dev;
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
 
@@ -1430,13 +1413,13 @@ mach_device_get_status(device, flavor, status, status_count)
 }
 
 static io_return_t
-device_set_filter(device, receive_port, priority, filter, filter_count)
-	mach_device_t		device;
-	ipc_port_t		receive_port;
-	int			priority;
-	filter_t		filter[];	/* pointer to IN array */
-	unsigned int		filter_count;
+device_set_filter(void			*dev,
+		  const ipc_port_t	receive_port,
+		  int			priority,
+		  filter_t		filter[],
+		  unsigned int		filter_count)
 {
+	mach_device_t		device = dev;
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
 
@@ -1456,17 +1439,15 @@ device_set_filter(device, receive_port, priority, filter, filter_count)
 }
 
 static io_return_t
-device_map(device, protection, offset, size, pager, unmap)
-	mach_device_t		device;
-	vm_prot_t		protection;
-	vm_offset_t		offset;
-	vm_size_t		size;
-	ipc_port_t		*pager;	/* out */
-	boolean_t		unmap;	/* ? */
+device_map(
+	void 			*dev,
+	vm_prot_t		protection,
+	vm_offset_t		offset,
+	vm_size_t		size,
+	ipc_port_t		*pager,	/* out */
+	boolean_t		unmap)	/* ? */
 {
-#ifdef	lint
-	unmap = unmap;
-#endif	/* lint */
+	mach_device_t		device = dev;
 	if (protection & ~VM_PROT_ALL)
 		return (KERN_INVALID_ARGUMENT);
 
@@ -1483,10 +1464,9 @@ device_map(device, protection, offset, size, pager, unmap)
  * Doesn't do anything (yet).
  */
 static void
-ds_no_senders(notification)
-	mach_no_senders_notification_t *notification;
+ds_no_senders(mach_no_senders_notification_t *notification)
 {
-	printf("ds_no_senders called! device_port=0x%x count=%d\n",
+	printf("ds_no_senders called! device_port=0x%lx count=%d\n",
 	       notification->not_header.msgh_remote_port,
 	       notification->not_count);
 }
@@ -1496,10 +1476,9 @@ decl_simple_lock_data(,	io_done_list_lock)
 
 #define	splio	splsched	/* XXX must block ALL io devices */
 
-void iodone(ior)
-	register io_req_t	ior;
+void iodone(io_req_t ior)
 {
-	register spl_t	s;
+	spl_t			s;
 
 	/*
 	 * If this ior was loaned to us, return it directly.
@@ -1530,11 +1509,11 @@ void iodone(ior)
 	splx(s);
 }
 
-void io_done_thread_continue()
+void  __attribute__ ((noreturn)) io_done_thread_continue(void)
 {
 	for (;;) {
-	    register spl_t	s;
-	    register io_req_t	ior;
+	    spl_t		s;
+	    io_req_t		ior;
 
 #if defined (LINUX_DEV) && defined (CONFIG_INET)
 	    free_skbuffs ();
@@ -1565,12 +1544,12 @@ void io_done_thread_continue()
 	}
 }
 
-void io_done_thread()
+void io_done_thread(void)
 {
 	/*
 	 * Set thread privileges and highest priority.
 	 */
-	current_thread()->vm_privilege = TRUE;
+	current_thread()->vm_privilege = 1;
 	stack_privilege(current_thread());
 	thread_set_own_priority(0);
 
@@ -1582,7 +1561,7 @@ void io_done_thread()
 
 static void mach_device_trap_init(void);		/* forward */
 
-void mach_device_init()
+void mach_device_init(void)
 {
 	vm_offset_t	device_io_min, device_io_max;
 
@@ -1590,7 +1569,7 @@ void mach_device_init()
 	simple_lock_init(&io_done_list_lock);
 
 	kmem_submap(device_io_map, kernel_map, &device_io_min, &device_io_max,
-		    DEVICE_IO_MAP_SIZE, FALSE);
+		    DEVICE_IO_MAP_SIZE);
 
 	/*
 	 *	If the kernel receives many device_write requests, the
@@ -1612,13 +1591,12 @@ void mach_device_init()
 	device_io_map->wait_for_space = TRUE;
 
 	kmem_cache_init(&io_inband_cache, "io_buf_ptr_inband",
-			sizeof(io_buf_ptr_inband_t), 0, NULL, NULL, NULL, 0);
+			sizeof(io_buf_ptr_inband_t), 0, NULL, 0);
 
 	mach_device_trap_init();
 }
 
-void iowait(ior)
-    io_req_t ior;
+void iowait(io_req_t ior)
 {
     spl_t s;
 
@@ -1657,7 +1635,7 @@ static void
 mach_device_trap_init(void)
 {
 	kmem_cache_init(&io_trap_cache, "io_req", IOTRAP_REQSIZE, 0,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
 }
 
 /*
@@ -1668,7 +1646,7 @@ mach_device_trap_init(void)
  * Could call a device-specific routine.
  */
 io_req_t
-ds_trap_req_alloc(mach_device_t device, vm_size_t data_size)
+ds_trap_req_alloc(const mach_device_t device, vm_size_t data_size)
 {
 	return (io_req_t) kmem_cache_alloc(&io_trap_cache);
 }
@@ -1677,9 +1655,9 @@ ds_trap_req_alloc(mach_device_t device, vm_size_t data_size)
  * Called by iodone to release ior.
  */
 boolean_t
-ds_trap_write_done(io_req_t ior)
+ds_trap_write_done(const io_req_t ior)
 {
-	register mach_device_t dev;
+	mach_device_t 	dev;
 
 	dev = ior->io_device;
 
@@ -1739,7 +1717,7 @@ device_write_trap (mach_device_t device, dev_mode_t mode,
 	 * Copy the data from user space.
 	 */
 	if (data_count > 0)
-		copyin((char *)data, (char *)ior->io_data, data_count);
+		copyin((void *)data, ior->io_data, data_count);
 
 	/*
 	 * The ior keeps an extra reference for the device.
@@ -1774,7 +1752,7 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 	io_return_t result;
 	io_buf_vec_t	stack_iovec[16]; /* XXX */
 	vm_size_t data_count;
-	int i;
+	unsigned i;
 
 	if (device->state != DEV_STATE_OPEN)
 		return (D_NO_SUCH_DEVICE);
@@ -1786,8 +1764,8 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 	 */
 	if (iocount > 16)
 		return KERN_INVALID_VALUE; /* lame */
-	copyin((char *)iovec,
-	       (char *)stack_iovec,
+	copyin(iovec,
+	       stack_iovec,
 	       iocount * sizeof(io_buf_vec_t));
 	for (data_count = 0, i = 0; i < iocount; i++)
 		data_count += stack_iovec[i].count;
@@ -1825,8 +1803,8 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 
 		p = (vm_offset_t) ior->io_data;
 		for (i = 0; i < iocount; i++) {
-			copyin((char *) stack_iovec[i].data,
-			       (char *) p,
+			copyin((void *) stack_iovec[i].data,
+			       (void *) p,
 			       stack_iovec[i].count);
 			p += stack_iovec[i].count;
 		}

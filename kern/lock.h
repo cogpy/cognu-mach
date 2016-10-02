@@ -49,7 +49,14 @@
 
 struct slock {
 	volatile natural_t lock_data;	/* in general 1 bit is sufficient */
+	struct {} is_a_simple_lock;
 };
+
+/*
+ *	Used by macros to assert that the given argument is a simple
+ *	lock.
+ */
+#define simple_lock_assert(l)	(void) &(l)->is_a_simple_lock
 
 typedef struct slock	simple_lock_data_t;
 typedef struct slock	*simple_lock_t;
@@ -62,7 +69,8 @@ typedef struct slock	*simple_lock_t;
 #define	decl_simple_lock_data(class,name) \
 class	simple_lock_data_t	name;
 
-#define	simple_lock_addr(lock)	(&(lock))
+#define	simple_lock_addr(lock)	(simple_lock_assert(&(lock)),	\
+				 &(lock))
 
 #if	(NCPUS > 1)
 
@@ -70,8 +78,11 @@ class	simple_lock_data_t	name;
  *	The single-CPU debugging routines are not valid
  *	on a multiprocessor.
  */
-#define	simple_lock_taken(lock)		(1)	/* always succeeds */
+#define	simple_lock_taken(lock)		(simple_lock_assert(lock),	\
+					 1)	/* always succeeds */
 #define check_simple_locks()
+#define check_simple_locks_enable()
+#define check_simple_locks_disable()
 
 #else	/* NCPUS > 1 */
 /*
@@ -79,14 +90,28 @@ class	simple_lock_data_t	name;
  */
 
 extern void		simple_lock_init(simple_lock_t);
-extern void		simple_lock(simple_lock_t);
+extern void		_simple_lock(simple_lock_t,
+				     const char *, const char *);
 extern void		simple_unlock(simple_lock_t);
-extern boolean_t	simple_lock_try(simple_lock_t);
+extern boolean_t	_simple_lock_try(simple_lock_t,
+					 const char *, const char *);
+
+/* We provide simple_lock and simple_lock_try so that we can save the
+   location.  */
+#define XSTR(x)		#x
+#define STR(x)		XSTR(x)
+#define LOCATION	__FILE__ ":" STR(__LINE__)
+
+#define simple_lock(lock)	_simple_lock((lock), #lock, LOCATION)
+#define simple_lock_try(lock)	_simple_lock_try((lock), #lock, LOCATION)
 
 #define simple_lock_pause()
-#define simple_lock_taken(lock)		((lock)->lock_data)
+#define simple_lock_taken(lock)		(simple_lock_assert(lock),	\
+					 (lock)->lock_data)
 
 extern void		check_simple_locks(void);
+extern void		check_simple_locks_enable(void);
+extern void		check_simple_locks_disable(void);
 
 #endif	/* NCPUS > 1 */
 
@@ -94,18 +119,25 @@ extern void		check_simple_locks(void);
 /*
  * Do not allocate storage for locks if not needed.
  */
-#define	decl_simple_lock_data(class,name)
-#define	simple_lock_addr(lock)		((simple_lock_t)0)
+struct simple_lock_data_empty { struct {} is_a_simple_lock; };
+#define	decl_simple_lock_data(class,name)	\
+class struct simple_lock_data_empty name;
+#define	simple_lock_addr(lock)		(simple_lock_assert(&(lock)),	\
+					 (simple_lock_t)0)
 
 /*
  *	No multiprocessor locking is necessary.
  */
-#define simple_lock_init(l)
-#define simple_lock(l)
-#define simple_unlock(l)
-#define simple_lock_try(l)	(TRUE)	/* always succeeds */
-#define simple_lock_taken(l)	(1)	/* always succeeds */
+#define simple_lock_init(l)	simple_lock_assert(l)
+#define simple_lock(l)		simple_lock_assert(l)
+#define simple_unlock(l)	simple_lock_assert(l)
+#define simple_lock_try(l)	(simple_lock_assert(l),		\
+				 TRUE)	/* always succeeds */
+#define simple_lock_taken(l)	(simple_lock_assert(l),		\
+				 1)	/* always succeeds */
 #define check_simple_locks()
+#define check_simple_locks_enable()
+#define check_simple_locks_disable()
 #define simple_lock_pause()
 
 #endif	/* MACH_SLOCKS */
@@ -142,6 +174,9 @@ struct lock {
 	/* boolean_t */	can_sleep:1,	/* Can attempts to lock go to sleep? */
 			recursion_depth:12, /* Depth of recursion */
 			:0; 
+#if MACH_LDEBUG
+	struct thread	*writer;
+#endif	/* MACH_LDEBUG */
 	decl_simple_lock_data(,interlock)
 					/* Hardware interlock field.
 					   Last in the structure so that
@@ -170,5 +205,18 @@ extern boolean_t	lock_try_read_to_write(lock_t);
 
 extern void		lock_set_recursive(lock_t);
 extern void		lock_clear_recursive(lock_t);
+
+/* Lock debugging support.  */
+#if	! MACH_LDEBUG
+#define have_read_lock(l)	1
+#define have_write_lock(l)	1
+#else	/* MACH_LDEBUG */
+/* XXX: We don't keep track of readers, so this is an approximation.  */
+#define have_read_lock(l)	((l)->read_count > 0)
+#define have_write_lock(l)	((l)->writer == current_thread())
+#endif	/* MACH_LDEBUG */
+#define have_lock(l)		(have_read_lock(l) || have_write_lock(l))
+
+void db_show_all_slocks(void);
 
 #endif	/* _KERN_LOCK_H_ */

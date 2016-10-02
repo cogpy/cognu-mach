@@ -38,12 +38,12 @@
 
 
 
-io_return_t block_io(strat, max_count, ior)
-	void			(*strat)();
-	void			(*max_count)();
-	register io_req_t	ior;
+io_return_t block_io(
+	void			(*strat)(),
+	void			(*max_count)(),
+	io_req_t		ior)
 {
-	register kern_return_t	rc;
+	kern_return_t		rc;
 	boolean_t		wait = FALSE;
 
 	/*
@@ -88,8 +88,7 @@ io_return_t block_io(strat, max_count, ior)
  */
 #define MAX_PHYS        (256 * 1024)
 
-void minphys(ior)
-	register io_req_t	ior;
+void minphys(io_req_t ior)
 {
 	if ((ior->io_op & (IO_WRITE | IO_READ | IO_OPEN)) == IO_WRITE)
 	    return;
@@ -102,137 +101,8 @@ void minphys(ior)
  * Dummy routine placed in device switch entries to indicate that
  * block device may be mapped.
  */
-vm_offset_t block_io_mmap()
+int block_io_mmap(dev_t dev, vm_offset_t off, int prot)
 {
 	return (0);
-}
-
-/*
- * Disk sort routine.
- *
- * We order the disk request chain so that the disk head will sweep
- * back and forth across the disk.  The chain is divided into two
- * pieces, with requests ordered in opposite directions.  Assume that
- * the first part of the chain holds increasing cylinder numbers.
- * If a new request has a higher cylinder number than the head of
- * the chain, the disk head has not yet reached it; the new request
- * can go in the first part of the chain.  If the new request has
- * a lower cylinder number, the disk head has already passed it and
- * must catch it on the way back; so the new request goes in the
- * second (descending) part of the chain.
- * When all of the requests in the ascending portion are filled,
- * the descending chain becomes the first chain, and requests above
- * the first now go in the second part of the chain (ascending).
- */
-
-#define	io_cylinder	io_residual
-				/* Disk drivers put cylinder here */
-#define	h_head		io_next
-#define	h_tail		io_prev
-				/* IORs are chained here */
-
-void disksort(head, ior)
-	io_req_t	head;	/* (sort of) */
-	io_req_t	ior;
-{
-	register int		cylinder = ior->io_cylinder;
-	register io_req_t	next, prev;
-
-	next = head->h_head;
-	if (next == 0) {
-	    head->h_head = ior;
-	    head->h_tail = ior;
-	    ior->io_next = 0;
-	    return;
-	}
-
-	do {
-	    prev = next;
-	    next = prev->io_next;
-	} while (next != 0 && prev->io_cylinder == next->io_cylinder);
-
-	if (next == 0) {
-	    prev->io_next = ior;
-	    head->h_tail = ior;
-	    ior->io_next = 0;
-	    return;
-	}
-
-	if (prev->io_cylinder < next->io_cylinder) {
-	    /*
-	     * Ascending list first.
-	     */
-	    if (prev->io_cylinder <= cylinder) {
-		/*
-		 * Insert in ascending list.
-		 */
-		while (next != 0 &&
-			next->io_cylinder <= cylinder &&
-			prev->io_cylinder <= next->io_cylinder)
-		{
-		    prev = next;
-		    next = prev->io_next;
-		}
-	    }
-	    else {
-		/*
-		 * Insert in descending list
-		 */
-		do {
-		    prev = next;
-		    next = prev->io_next;
-		} while (next != 0 &&
-			prev->io_cylinder <= next->io_cylinder);
-
-		while (next != 0 &&
-			next->io_cylinder >= cylinder)
-		{
-		    prev = next;
-		    next = prev->io_next;
-		}
-	    }
-	}
-	else {
-	    /*
-	     * Descending first.
-	     */
-	    if (prev->io_cylinder >= cylinder) {
-		/*
-		 * Insert in descending list.
-		 */
-		while (next != 0 &&
-			next->io_cylinder >= cylinder &&
-			prev->io_cylinder >= next->io_cylinder)
-		{
-		    prev = next;
-		    next = prev->io_next;
-		}
-	    }
-	    else {
-		/*
-		 * Insert in ascending list
-		 */
-		do {
-		    prev = next;
-		    next = prev->io_next;
-		} while (next != 0 &&
-			prev->io_cylinder >= next->io_cylinder);
-		while (next != 0 &&
-			next->io_cylinder <= cylinder)
-		{
-		    prev = next;
-		    next = prev->io_next;
-		}
-	    }
-	}
-	/*
-	 * Insert between prev and next.
-	 */
-	prev->io_next = ior;
-	ior->io_next = next;
-	if (next == 0) {
-	    /* At tail of list. */
-	    head->h_tail = ior;
-	}
 }
 

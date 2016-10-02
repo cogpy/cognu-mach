@@ -29,7 +29,7 @@
  *	Date:	1985
  *
  *	I386 machine dependent virtual memory parameters.
- *	Most of the declarations are preceeded by I386_ (or i386_)
+ *	Most of the declarations are preceded by I386_ (or i386_)
  *	which is OK because only I386 specific code will be using
  *	them.
  */
@@ -52,8 +52,8 @@
  *	No rounding is used.
  */
 
-#define i386_btop(x)		(((unsigned)(x)) >> I386_PGSHIFT)
-#define i386_ptob(x)		(((unsigned)(x)) << I386_PGSHIFT)
+#define i386_btop(x)		(((unsigned long)(x)) >> I386_PGSHIFT)
+#define i386_ptob(x)		(((unsigned long)(x)) << I386_PGSHIFT)
 
 /*
  *	Round off or truncate to the nearest page.  These will work
@@ -61,9 +61,9 @@
  *	bytes.)
  */
 
-#define i386_round_page(x)	((((unsigned)(x)) + I386_PGBYTES - 1) & \
+#define i386_round_page(x)	((((unsigned long)(x)) + I386_PGBYTES - 1) & \
 					~(I386_PGBYTES-1))
-#define i386_trunc_page(x)	(((unsigned)(x)) & ~(I386_PGBYTES-1))
+#define i386_trunc_page(x)	(((unsigned long)(x)) & ~(I386_PGBYTES-1))
 
 /* User address spaces are 3GB each,
    starting at virtual and linear address 0.

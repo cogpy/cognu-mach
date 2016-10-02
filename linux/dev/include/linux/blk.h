@@ -78,6 +78,7 @@ extern int hd_init(void);
 #endif
 #ifdef CONFIG_BLK_DEV_IDE
 extern int ide_init(void);
+extern void ide_disable_base(unsigned base);
 #endif
 #ifdef CONFIG_BLK_DEV_XD
 extern int xd_init(void);
@@ -391,8 +392,9 @@ static void end_request(int uptodate) {
 
 	req->errors = 0;
 	if (!uptodate) {
-		printk("end_request: I/O error, dev %s, sector %lu\n",
-			kdevname(req->rq_dev), req->sector);
+		if (!req->quiet)
+			printk("end_request: I/O error, dev %s, sector %lu\n",
+				kdevname(req->rq_dev), req->sector);
 #ifdef MACH
 		for (bh = req->bh; bh; )
 		  {

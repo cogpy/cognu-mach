@@ -14,11 +14,11 @@ struct irqaction {
 	struct irqaction *next;
 };
 
-extern unsigned long intr_count;
+extern unsigned int intr_count;
 
 extern int bh_mask_count[32];
-extern unsigned long bh_active;
-extern unsigned long bh_mask;
+extern unsigned int bh_active;
+extern unsigned int bh_mask;
 extern void (*bh_base[32])(void);
 
 asmlinkage void do_bottom_half(void);
@@ -43,14 +43,14 @@ enum {
 	ISICOM_BH
 };
 
-extern inline void init_bh(int nr, void (*routine)(void))
+static inline void init_bh(int nr, void (*routine)(void))
 {
 	bh_base[nr] = routine;
 	bh_mask_count[nr] = 0;
 	bh_mask |= 1 << nr;
 }
 
-extern inline void mark_bh(int nr)
+static inline void mark_bh(int nr)
 {
 	set_bit(nr, &bh_active);
 }
@@ -59,13 +59,13 @@ extern inline void mark_bh(int nr)
  * These use a mask count to correctly handle
  * nested disable/enable calls
  */
-extern inline void disable_bh(int nr)
+static inline void disable_bh(int nr)
 {
 	bh_mask &= ~(1 << nr);
 	bh_mask_count[nr]++;
 }
 
-extern inline void enable_bh(int nr)
+static inline void enable_bh(int nr)
 {
 	if (!--bh_mask_count[nr])
 		bh_mask |= 1 << nr;
@@ -75,13 +75,13 @@ extern inline void enable_bh(int nr)
  * start_bh_atomic/end_bh_atomic also nest
  * naturally by using a counter
  */
-extern inline void start_bh_atomic(void)
+static inline void start_bh_atomic(void)
 {
 	intr_count++;
 	barrier();
 }
 
-extern inline void end_bh_atomic(void)
+static inline void end_bh_atomic(void)
 {
 	barrier();
 	intr_count--;

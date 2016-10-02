@@ -59,22 +59,21 @@ typedef unsigned int	natural_t;
  */
 typedef int		integer_t;
 
-#ifndef _POSIX_SOURCE
-
-/*
- * An int32 is an integer that is at least 32 bits wide
- */
-typedef int		int32;
-typedef unsigned int	uint32;
-
-#endif /* _POSIX_SOURCE */
-
 /*
  * A vm_offset_t is a type-neutral pointer,
  * e.g. an offset into a virtual memory space.
  */
-typedef	natural_t	vm_offset_t;
+typedef	unsigned long	vm_offset_t;
 typedef	vm_offset_t *	vm_offset_array_t;
+
+/*
+ * A type for physical addresses.
+ */
+#ifdef PAE
+typedef unsigned long long phys_addr_t;
+#else /* PAE */
+typedef unsigned long phys_addr_t;
+#endif /* PAE */
 
 /*
  * A vm_size_t is the proper type for e.g.
@@ -82,20 +81,6 @@ typedef	vm_offset_t *	vm_offset_array_t;
  * vm_offset_t entities.
  */
 typedef	natural_t	vm_size_t;
-
-/*
- * These types are _exactly_ as wide as indicated in their names.
- */
-typedef signed char		signed8_t;
-typedef signed short		signed16_t;
-typedef signed long		signed32_t;
-typedef signed long long	signed64_t;
-typedef unsigned char		unsigned8_t;
-typedef unsigned short		unsigned16_t;
-typedef unsigned long		unsigned32_t;
-typedef unsigned long long	unsigned64_t;
-typedef float			float32_t;
-typedef double			float64_t;
 
 #endif	/* __ASSEMBLER__ */
 

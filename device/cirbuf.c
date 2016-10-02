@@ -42,11 +42,13 @@
 /* if c_cl == c_cf - 1, buffer is full */
 
 #if	DEBUG
-int cb_check_enable = 0;
+#include <mach/boolean.h>
+
+boolean_t cb_check_enable = FALSE;
 #define	CB_CHECK(cb) if (cb_check_enable) cb_check(cb)
 
 void
-cb_check(register struct cirbuf *cb)
+cb_check(struct cirbuf *cb)
 {
 	if (!(cb->c_cf >= cb->c_start && cb->c_cf < cb->c_end))
 	    panic("cf %x out of range [%x..%x)",
@@ -78,9 +80,9 @@ cb_check(register struct cirbuf *cb)
  */
 int putc(
 	int	c,
-	register struct cirbuf *cb)
+	struct cirbuf *cb)
 {
-	register char *ow, *nw;
+	char *ow, *nw;
 
 	ow = cb->c_cl;
 	nw = ow+1;
@@ -101,10 +103,10 @@ int putc(
 /*
  * Get one character from circular buffer.
  */
-int getc(register struct cirbuf *cb)
+int getc(struct cirbuf *cb)
 {
-	register unsigned char *nr;
-	register int	c;
+	unsigned char *nr;
+	int	c;
 
 	nr = (unsigned char *)cb->c_cf;
 	if (nr == (unsigned char *)cb->c_cl) {
@@ -129,12 +131,12 @@ int getc(register struct cirbuf *cb)
  * Return number moved.
  */
 int
-q_to_b( register struct cirbuf *cb,
-	register char	*cp,
-	register int	count)
+q_to_b( struct cirbuf *cb,
+	char	*cp,
+	int	count)
 {
-	char *		ocp = cp;
-	register int	i;
+	char 		*ocp = cp;
+	int		i;
 
 	while (count != 0) {
 	    if (cb->c_cl == cb->c_cf)
@@ -165,12 +167,12 @@ q_to_b( register struct cirbuf *cb,
  * NOT entered.
  */
 int
-b_to_q( register char *	cp,
+b_to_q( char	*cp,
 	int	count,
-	register struct cirbuf *cb)
+	struct cirbuf *cb)
 {
-	register int	i;
-	register char	*lim;
+	int	i;
+	char	*lim;
 
 	while (count != 0) {
 	    lim = cb->c_cf - 1;
@@ -205,10 +207,10 @@ b_to_q( register char *	cp,
  * that matches the mask.
  */
 int
-ndqb(	register struct cirbuf *cb,
-	register int	mask)
+ndqb(	struct cirbuf *cb,
+	int	mask)
 {
-	register char *cp, *lim;
+	char *cp, *lim;
 
 	if (cb->c_cl < cb->c_cf)
 	    lim = cb->c_end;
@@ -229,10 +231,10 @@ ndqb(	register struct cirbuf *cb,
  * Flush characters from circular buffer.
  */
 void
-ndflush(register struct cirbuf *cb,
-	register int	count)
+ndflush(struct cirbuf *cb,
+	int	count)
 {
-	register int	i;
+	int	i;
 
 	while (count != 0) {
 	    if (cb->c_cl == cb->c_cf)
@@ -269,10 +271,10 @@ void cb_clear(struct cirbuf *cb)
  */
 void
 cb_alloc(
-	register struct cirbuf *cb,
-	int		buf_size)
+	struct cirbuf *cb,
+	vm_size_t	buf_size)
 {
-	register char *buf;
+	char *buf;
 
 	buf = (char *)kalloc(buf_size);
 
@@ -290,9 +292,9 @@ cb_alloc(
  * Free character space for a circular buffer.
  */
 void
-cb_free(register struct cirbuf *cb)
+cb_free(struct cirbuf *cb)
 {
-	int		size;
+	vm_size_t	size;
 
 	size = cb->c_end - cb->c_start;
 	kfree((vm_offset_t)cb->c_start, size);

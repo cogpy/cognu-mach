@@ -31,7 +31,7 @@ static int min_pci_latency = 32;
 #if ! defined(__KERNEL__)
 #define __KERNEL__ 1
 #endif
-#if !defined(__OPTIMIZE__)
+#if !defined(__OPTIMIZE__) && /* Mach glue, we think this is ok now: */ 0
 #warning  You must compile this file with the correct options!
 #warning  See the last lines of the source file.
 #error You must compile this driver with the proper options, including "-O".
@@ -347,7 +347,7 @@ int pci_drv_register(struct drv_id_info *drv_id, void *initial_device)
 				   pci_tbl[chip_idx].name, pciaddr, irq);
 
 		if ( ! (pci_flags & PCI_UNUSED_IRQ)  &&
-			 (irq == 0 || irq == 255)) {
+			 (irq == 0 || irq >= 16)) {
 			if (pci_bus == 32) 	/* Broken CardBus activation. */
 				printk(KERN_WARNING "Resources for CardBus device '%s' have"
 					   " not been allocated.\n"

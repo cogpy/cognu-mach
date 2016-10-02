@@ -50,6 +50,7 @@
 #include <mach/notify.h>
 
 #include <kern/kalloc.h>
+#include <kern/list.h>
 
 #include <ipc/ipc_port.h>
 #include <ipc/ipc_space.h>
@@ -97,7 +98,7 @@ struct temp_data
   struct inode inode;
   struct file file;
   struct request req;
-  queue_head_t pages;
+  struct list pages;
 };
 
 /* One of these exists for each
@@ -302,12 +303,12 @@ alloc_buffer (int size)
 
   if (! linux_auto_config)
     {
-      while ((m = vm_page_grab (FALSE)) == 0)
+      while ((m = vm_page_grab ()) == 0)
 	VM_PAGE_WAIT (0);
       d = current_thread ()->pcb->data;
       assert (d);
-      queue_enter (&d->pages, m, vm_page_t, pageq);
-      return (void *) m->phys_addr;
+      list_insert_tail (&d->pages, &m->node);
+      return (void *) phystokv(m->phys_addr);
     }
   return (void *) __get_free_pages (GFP_KERNEL, 0, ~0UL);
 }
@@ -317,7 +318,7 @@ static void
 free_buffer (void *p, int size)
 {
   struct temp_data *d;
-  vm_page_t m;
+  vm_page_t m, tmp;
 
   assert (size <= PAGE_SIZE);
 
@@ -325,11 +326,11 @@ free_buffer (void *p, int size)
     {
       d = current_thread ()->pcb->data;
       assert (d);
-      queue_iterate (&d->pages, m, vm_page_t, pageq)
+      list_for_each_entry_safe (&d->pages, m, tmp, node)
 	{
-	  if (m->phys_addr == (vm_offset_t) p)
+	  if (phystokv(m->phys_addr) == (vm_offset_t) p)
 	    {
-	      queue_remove (&d->pages, m, vm_page_t, pageq);
+	      list_remove (&m->node);
 	      VM_PAGE_FREE (m);
 	      return;
 	    }
@@ -384,7 +385,7 @@ bread (kdev_t dev, int block, int size)
   bh = getblk (dev, block, size);
   if (bh)
     {
-      ll_rw_block (READ, 1, &bh);
+      ll_rw_block (READ, 1, &bh, 0);
       wait_on_buffer (bh);
       if (! buffer_uptodate (bh))
 	{
@@ -444,7 +445,7 @@ enqueue_request (struct request *req)
 /* Perform the I/O operation RW on the buffer list BH
    containing NR buffers.  */
 void
-ll_rw_block (int rw, int nr, struct buffer_head **bh)
+ll_rw_block (int rw, int nr, struct buffer_head **bh, int quiet)
 {
   int i, bshift, bsize;
   unsigned major;
@@ -476,6 +477,7 @@ ll_rw_block (int rw, int nr, struct buffer_head **bh)
   r->rq_dev = bh[0]->b_dev;
   r->cmd = rw;
   r->errors = 0;
+  r->quiet = quiet;
   r->sector = bh[0]->b_blocknr << (bshift - 9);
   r->current_nr_sectors = bh[0]->b_size >> 9;
   r->buffer = bh[0]->b_data;
@@ -528,7 +530,7 @@ rdwr_partial (int rw, kdev_t dev, loff_t *off,
   bh->b_data = alloc_buffer (bh->b_size);
   if (! bh->b_data)
     return -ENOMEM;
-  ll_rw_block (READ, 1, &bh);
+  ll_rw_block (READ, 1, &bh, 0);
   wait_on_buffer (bh);
   if (buffer_uptodate (bh))
     {
@@ -542,7 +544,7 @@ rdwr_partial (int rw, kdev_t dev, loff_t *off,
 	{
 	  memcpy (bh->b_data + o, *buf, c);
 	  bh->b_state = (1 << BH_Dirty) | (1 << BH_Lock);
-	  ll_rw_block (WRITE, 1, &bh);
+	  ll_rw_block (WRITE, 1, &bh, 0);
 	  wait_on_buffer (bh);
 	  if (! buffer_uptodate (bh))
 	    {
@@ -589,8 +591,8 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
       set_bit (BH_Lock, &bh->b_state);
       if (rw == WRITE)
 	set_bit (BH_Dirty, &bh->b_state);
-      cc = PAGE_SIZE - (((int) *buf) & PAGE_MASK);
-      if (cc >= BSIZE && ((int) *buf & 511) == 0)
+      cc = PAGE_SIZE - (((int) *buf + (nb << bshift)) & PAGE_MASK);
+      if (cc >= BSIZE && (((int) *buf + (nb << bshift)) & 511) == 0)
 	cc &= ~BMASK;
       else
 	{
@@ -600,9 +602,9 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
       if (cc > ((nbuf - nb) << bshift))
 	cc = (nbuf - nb) << bshift;
       if (! test_bit (BH_Bounce, &bh->b_state))
-	bh->b_data = (char *) pmap_extract (vm_map_pmap (device_io_map),
+	bh->b_data = (char *) phystokv(pmap_extract (vm_map_pmap (device_io_map),
 					    (((vm_offset_t) *buf)
-					     + (nb << bshift)));
+					     + (nb << bshift))));
       else
 	{
 	  bh->b_data = alloc_buffer (cc);
@@ -623,7 +625,8 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
     }
   if (! err)
     {
-      ll_rw_block (rw, i, bhp);
+      assert (i > 0);
+      ll_rw_block (rw, i, bhp, 0);
       wait_on_buffer (bhp[i - 1]);
     }
   for (bh = bhead, cc = 0, j = 0; j < i; cc += bh->b_size, bh++, j++)
@@ -779,6 +782,7 @@ static struct block_data *open_list;
 extern struct device_emulation_ops linux_block_emulation_ops;
 
 static io_return_t device_close (void *);
+static io_return_t device_close_forced (void *, int);
 
 /* Return a send right for block device BD.  */
 static ipc_port_t
@@ -989,7 +993,7 @@ check:
 #define DECL_DATA	struct temp_data td
 #define INIT_DATA()			\
 {					\
-  queue_init (&td.pages);		\
+  list_init (&td.pages);		\
   td.inode.i_rdev = bd->dev;		\
   td.file.f_mode = bd->mode;		\
   td.file.f_flags = bd->flags;		\
@@ -1043,7 +1047,7 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
     minor <<= gd->minor_shift;
   dev = MKDEV (major, minor);
 
-  queue_init (&td.pages);
+  list_init (&td.pages);
   current_thread ()->pcb->data = &td;
 
   /* Check partition.  */
@@ -1154,6 +1158,7 @@ out:
 	    {
 	      ipc_kobject_set (bd->port, IKO_NULL, IKOT_NONE);
 	      ipc_port_dealloc_kernel (bd->port);
+	      *devp = (device_t) IP_NULL;
 	    }
 	  kfree ((vm_offset_t) bd, sizeof (struct block_data));
 	  bd = NULL;
@@ -1164,18 +1169,16 @@ out:
       bd->open_count = 1;
       bd->next = open_list;
       open_list = bd;
+      *devp = &bd -> device;
     }
 
-  if (IP_VALID (reply_port))
-    ds_device_open_reply (reply_port, reply_port_type, err, dev_to_port (bd));
-  else if (! err)
+  if (!IP_VALID (reply_port) && ! err)
     device_close (bd);
-
-  return MIG_NO_REPLY;
+  return err;
 }
 
 static io_return_t
-device_close (void *d)
+device_close_forced (void *d, int force)
 {
   struct block_data *bd = d, *bdp, **prev;
   struct device_struct *ds = bd->ds;
@@ -1192,7 +1195,7 @@ device_close (void *d)
     }
   ds->busy = 1;
 
-  if (--bd->open_count == 0)
+  if (force || --bd->open_count == 0)
     {
       /* Wait for pending I/O to complete.  */
       while (bd->iocount > 0)
@@ -1234,6 +1237,13 @@ device_close (void *d)
     }
   return D_SUCCESS;
 }
+
+static io_return_t
+device_close (void *d)
+{
+  return device_close_forced (d, 0);
+}
+
 
 #define MAX_COPY	(VM_MAP_COPY_PAGE_LIST_MAX << PAGE_SHIFT)
 
@@ -1408,7 +1418,7 @@ device_read (void *d, ipc_port_t reply_port,
   boolean_t dirty;
   int resid, amt;
   io_return_t err = 0;
-  queue_head_t pages;
+  struct list pages;
   vm_map_copy_t copy;
   vm_offset_t addr, offset, alloc_offset, o;
   vm_object_t object;
@@ -1451,7 +1461,7 @@ device_read (void *d, ipc_port_t reply_port,
   if (err)
     goto out;
 
-  queue_init (&pages);
+  list_init (&pages);
 
   while (resid)
     {
@@ -1462,7 +1472,7 @@ device_read (void *d, ipc_port_t reply_port,
 
       /* Map any pages left from previous operation.  */
       o = trunc_page (offset);
-      queue_iterate (&pages, m, vm_page_t, pageq)
+      list_for_each_entry (&pages, m, node)
 	{
 	  pmap_enter (vm_map_pmap (device_io_map),
 		      addr + o - trunc_page (offset),
@@ -1474,11 +1484,11 @@ device_read (void *d, ipc_port_t reply_port,
       /* Allocate and map pages.  */
       while (alloc_offset < trunc_page (offset) + len)
 	{
-	  while ((m = vm_page_grab (FALSE)) == 0)
+	  while ((m = vm_page_grab ()) == 0)
 	    VM_PAGE_WAIT (0);
 	  assert (! m->active && ! m->inactive);
 	  m->busy = TRUE;
-	  queue_enter (&pages, m, vm_page_t, pageq);
+	  list_insert_tail (&pages, &m->node);
 	  pmap_enter (vm_map_pmap (device_io_map),
 		      addr + alloc_offset - trunc_page (offset),
 		      m->phys_addr, VM_PROT_READ|VM_PROT_WRITE, TRUE);
@@ -1520,9 +1530,9 @@ device_read (void *d, ipc_port_t reply_port,
       vm_object_lock (object);
       while (o < trunc_page (offset))
 	{
-	  m = (vm_page_t) queue_first (&pages);
-	  assert (! queue_end (&pages, (queue_entry_t) m));
-	  queue_remove (&pages, m, vm_page_t, pageq);
+	  m = list_first_entry (&pages, struct vm_page, node);
+	  assert (! list_end (&pages, &m->node));
+	  list_remove (&m->node);
 	  assert (m->busy);
 	  vm_page_lock_queues ();
 	  if (dirty)
@@ -1548,7 +1558,7 @@ device_read (void *d, ipc_port_t reply_port,
   /* Delete kernel buffer.  */
   vm_map_remove (device_io_map, addr, addr + size);
 
-  assert (queue_empty (&pages));
+  assert (list_empty (&pages));
 
 out:
   if (! err)
@@ -1643,48 +1653,13 @@ device_get_status (void *d, dev_flavor_t flavor, dev_status_t status,
       /* It would be nice to return the block size as reported by
 	 the driver, but a lot of user level code assumes the sector
 	 size to be 512.  */
-      status[DEV_GET_SIZE_RECORD_SIZE] = 512;
+      status[DEV_GET_RECORDS_RECORD_SIZE] = 512;
       /* Always return DEV_GET_RECORDS_COUNT.  This is what all native
          Mach drivers do, and makes it possible to detect the absence
          of the call by setting it to a different value on input.  MiG
          makes sure that we will never return more integers than the
          user asked for.  */
       *status_count = DEV_GET_RECORDS_COUNT;
-      break;
-
-    case V_GETPARMS:
-      if (*status_count < (sizeof (struct disk_parms) / sizeof (int)))
-	return D_INVALID_OPERATION;
-      else
-	{
-	  struct disk_parms *dp = status;
-	  struct hd_geometry hg;
-	  DECL_DATA;
-
-	  INIT_DATA();
-
-	  if ((*bd->ds->fops->ioctl) (&td.inode, &td.file,
-				      HDIO_GETGEO, (unsigned long)&hg))
-	    return D_INVALID_OPERATION;
-
-	  dp->dp_type = DPT_WINI;  /* XXX: It may be a floppy...  */
-	  dp->dp_heads = hg.heads;
-	  dp->dp_cyls = hg.cylinders;
-	  dp->dp_sectors = hg.sectors;
-	  dp->dp_dosheads = hg.heads;
-	  dp->dp_doscyls = hg.cylinders;
-	  dp->dp_dossectors = hg.sectors;
-	  dp->dp_secsiz = 512;  /* XXX */
-	  dp->dp_ptag = 0;
-	  dp->dp_pflag = 0;
-
-	  /* XXX */
-	  dp->dp_pstartsec = -1;
-	  dp->dp_pnumsec = -1;
-
-	  *status_count = sizeof (struct disk_parms) / sizeof (int);
-	}
-
       break;
 
     default:
@@ -1696,7 +1671,7 @@ device_get_status (void *d, dev_flavor_t flavor, dev_status_t status,
 
 static io_return_t
 device_set_status (void *d, dev_flavor_t flavor, dev_status_t status,
-		   mach_msg_type_number_t *status_count)
+		   mach_msg_type_number_t status_count)
 {
   struct block_data *bd = d;
 
@@ -1711,6 +1686,17 @@ device_set_status (void *d, dev_flavor_t flavor, dev_status_t status,
     }
 
   return D_INVALID_OPERATION;
+}
+
+
+static void
+device_no_senders (mach_no_senders_notification_t *ns)
+{
+  device_t dev;
+
+  dev = dev_port_lookup((ipc_port_t) ns->not_header.msgh_remote_port);
+  assert(dev);
+  device_close_forced (dev->emul_data, 1);
 }
 
 struct device_emulation_ops linux_block_emulation_ops =
@@ -1728,7 +1714,7 @@ struct device_emulation_ops linux_block_emulation_ops =
   device_get_status,
   NULL,
   NULL,
-  NULL,
+  device_no_senders,
   NULL,
   NULL
 };

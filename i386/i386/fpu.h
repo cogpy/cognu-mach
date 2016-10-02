@@ -87,7 +87,7 @@
 #if	NCPUS > 1
 #define	fpu_save_context(thread) \
     { \
-	register struct i386_fpsave_state *ifps; \
+	struct i386_fpsave_state *ifps; \
 	ifps = (thread)->pcb->ims.ifps; \
 	if (ifps != 0 && !ifps->fp_valid) { \
 	    /* registers are in FPU - save to memory */ \
@@ -125,5 +125,6 @@ extern void fpexterrflt(void);
 extern void fpastintr(void);
 extern void init_fpu(void);
 extern void fpintr(int unit);
+extern void fpinherit(thread_t parent_thread, thread_t thread);
 
 #endif	/* _I386_FPU_H_ */

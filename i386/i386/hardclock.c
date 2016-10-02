@@ -47,10 +47,10 @@ extern char	return_to_iret[];
 
 void
 hardclock(iunit,        old_ipl, irq, ret_addr, regs)
-        int     iunit;          /* 'unit' number */
-	int	old_ipl;	/* old interrupt level */
-	int	irq;		/* irq number */
-	char *	ret_addr;	/* return address in interrupt handler */
+       int     	iunit;          /* 'unit' number */
+	int		old_ipl;	/* old interrupt level */
+	int		irq;		/* irq number */
+	const char *	ret_addr;	/* return address in interrupt handler */
 	struct i386_interrupt_state *regs;
 				/* saved registers */
 {
@@ -62,20 +62,21 @@ hardclock(iunit,        old_ipl, irq, ret_addr, regs)
 			    (regs->efl & EFL_VM) ||	/* user mode */
 			    ((regs->cs & 0x03) != 0),	/* user mode */
 #if defined(LINUX_DEV)
-			    FALSE			/* ignore SPL0 */
+			    FALSE,			/* ignore SPL0 */
 #else	/* LINUX_DEV */
-			    old_ipl == SPL0		/* base priority */
+			    old_ipl == SPL0,		/* base priority */
 #endif	/* LINUX_DEV */
-			    );
+			    regs->eip);			/* interrupted eip */
 	else
 	    /*
 	     * Interrupt from interrupt stack.
 	     */
 	    clock_interrupt(tick,			/* usec per tick */
 			    FALSE,			/* kernel mode */
-			    FALSE);			/* not SPL0 */
+			    FALSE,			/* not SPL0 */
+			    0);				/* interrupted eip */
 
 #ifdef LINUX_DEV
 	linux_timer_intr();
-#endif
+#endif /* LINUX_DEV */
 }

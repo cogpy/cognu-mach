@@ -37,6 +37,7 @@
 #include <mach/message.h>
 #include <machine/locore.h>
 #include <machine/vm_param.h>
+#include <machine/pcb.h>
 #include <ipc/ipc_port.h>
 #include <ipc/mach_port.h>
 #include <kern/debug.h>
@@ -81,8 +82,8 @@ static mach_port_t	boot_host_port;		/* local name */
 
 extern char *kernel_cmdline;
 
-static void user_bootstrap();	/* forward */
-static void user_bootstrap_compat();	/* forward */
+static void user_bootstrap(void);	/* forward */
+static void user_bootstrap_compat(void);	/* forward */
 static void bootstrap_exec_compat(void *exec_data); /* forward */
 static void get_compat_strings(char *flags_str, char *root_str); /* forward */
 
@@ -106,10 +107,24 @@ task_insert_send_right(
 	return name;
 }
 
-void bootstrap_create()
+static void
+free_bootstrap_pages(phys_addr_t start, phys_addr_t end)
+{
+  struct vm_page *page;
+
+  while (start < end)
+    {
+      page = vm_page_lookup_pa(start);
+      assert(page != NULL);
+      vm_page_manage(page);
+      start += PAGE_SIZE;
+    }
+}
+
+void bootstrap_create(void)
 {
   int compat;
-  int n = 0;
+  unsigned n = 0;
 #ifdef	MACH_XEN
   struct multiboot_module *bmods = ((struct multiboot_module *)
                                    boot_info.mod_start);
@@ -149,24 +164,25 @@ void bootstrap_create()
     }
   else
     {
-      int i, losers, maxlen;
+      unsigned i;
+      int losers;
 
       /* Initialize boot script variables.  We leak these send rights.  */
       losers = boot_script_set_variable
 	("host-port", VAL_PORT,
-	 (int)ipc_port_make_send(realhost.host_priv_self));
+	 (long) realhost.host_priv_self);
       if (losers)
 	panic ("cannot set boot-script variable host-port: %s",
 	       boot_script_error_string (losers));
       losers = boot_script_set_variable
 	("device-port", VAL_PORT,
-	 (int) ipc_port_make_send(master_device_port));
+	 (long) master_device_port);
       if (losers)
 	panic ("cannot set boot-script variable device-port: %s",
 	       boot_script_error_string (losers));
 
       losers = boot_script_set_variable ("kernel-command-line", VAL_STR,
-					 (int) kernel_cmdline);
+					 (long) kernel_cmdline);
       if (losers)
 	panic ("cannot set boot-script variable %s: %s",
 	       "kernel-command-line", boot_script_error_string (losers));
@@ -185,12 +201,12 @@ void bootstrap_create()
 	get_compat_strings(flag_string, root_string);
 
 	losers = boot_script_set_variable ("boot-args", VAL_STR,
-					   (int) flag_string);
+					   (long) flag_string);
 	if (losers)
 	  panic ("cannot set boot-script variable %s: %s",
 		 "boot-args", boot_script_error_string (losers));
 	losers = boot_script_set_variable ("root-device", VAL_STR,
-					   (int) root_string);
+					   (long) root_string);
 	if (losers)
 	  panic ("cannot set boot-script variable %s: %s",
 		 "root-device", boot_script_error_string (losers));
@@ -211,7 +227,7 @@ void bootstrap_create()
 	    char *var = memcpy (alloca (len), *ep, len);
 	    char *val = strchr (var, '=');
 	    *val++ = '\0';
-	    losers = boot_script_set_variable (var, VAL_STR, (int) val);
+	    losers = boot_script_set_variable (var, VAL_STR, (long) val);
 	    if (losers)
 	      panic ("cannot set boot-script variable %s: %s",
 		     var, boot_script_error_string (losers));
@@ -232,7 +248,7 @@ void bootstrap_create()
 	    if (eq == 0)
 	      continue;
 	    *eq++ = '\0';
-	    losers = boot_script_set_variable (word, VAL_STR, (int) eq);
+	    losers = boot_script_set_variable (word, VAL_STR, (long) eq);
 	    if (losers)
 	      panic ("cannot set boot-script variable %s: %s",
 		     word, boot_script_error_string (losers));
@@ -240,15 +256,11 @@ void bootstrap_create()
       }
 #endif
 
-      maxlen = 0;
       for (i = 0; i < boot_info.mods_count; ++i)
 	{
 	  int err;
 	  char *line = (char*)phystokv(bmods[i].string);
-	  int len = strlen (line) + 1;
-	  if (len > maxlen)
-	    maxlen = len;
-	  printf ("\rmodule %d: %*s", i, -maxlen, line);
+	  printf ("module %d: %s\n", i, line);
 	  err = boot_script_parse_line (&bmods[i], line);
 	  if (err)
 	    {
@@ -256,7 +268,7 @@ void bootstrap_create()
 	      ++losers;
 	    }
 	}
-      printf ("\r%d multiboot modules %*s", i, -maxlen, "");
+      printf ("%d multiboot modules\n", i);
       if (losers)
 	panic ("%d of %d boot script commands could not be parsed",
 	       losers, boot_info.mods_count);
@@ -268,7 +280,7 @@ void bootstrap_create()
   /* XXX we could free the memory used
      by the boot loader's descriptors and such.  */
   for (n = 0; n < boot_info.mods_count; n++)
-    vm_page_create(bmods[n].mod_start, bmods[n].mod_end);
+    free_bootstrap_pages(bmods[n].mod_start, bmods[n].mod_end);
 }
 
 static void
@@ -318,7 +330,7 @@ itoa(
 	vm_size_t	num)
 {
 	char	buf[sizeof(vm_size_t)*2+3];
-	register char *np;
+	char 	*np;
 
 	np = buf + sizeof(buf);
 	*--np = 0;
@@ -338,7 +350,7 @@ itoa(
  */
 static void get_compat_strings(char *flags_str, char *root_str)
 {
-	register char *ip, *cp;
+	char *ip, *cp;
 
 	strcpy (root_str, "UNKNOWN");
 
@@ -519,16 +531,12 @@ static void copy_bootstrap(void *e, exec_info_t *boot_exec_info)
 /*
  * Allocate the stack, and build the argument list.
  */
-extern vm_offset_t	user_stack_low();
-extern vm_offset_t	set_user_regs();
-
 static void
 build_args_and_stack(struct exec_info *boot_exec_info,
 		     char **argv, char **envp)
 {
 	vm_offset_t	stack_base;
 	vm_size_t	stack_size;
-	register
 	char *		arg_ptr;
 	int		arg_count, envc;
 	int		arg_len;
@@ -590,7 +598,7 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	/*
 	 * first the argument count
 	 */
-	(void) copyout((char *)&arg_count,
+	(void) copyout(&arg_count,
 			arg_pos,
 			sizeof(integer_t));
 	arg_pos += sizeof(integer_t);
@@ -603,7 +611,7 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	    arg_item_len = strlen(arg_ptr) + 1; /* include trailing 0 */
 
 	    /* set string pointer */
-	    (void) copyout((char *)&string_pos,
+	    (void) copyout(&string_pos,
 			arg_pos,
 			sizeof (char *));
 	    arg_pos += sizeof(char *);
@@ -616,7 +624,7 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	/*
 	 * Null terminator for argv.
 	 */
-	(void) copyout((char *)&zero, arg_pos, sizeof(char *));
+	(void) copyout(&zero, arg_pos, sizeof(char *));
 	arg_pos += sizeof(char *);
 
 	/*
@@ -627,7 +635,7 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	    arg_item_len = strlen(arg_ptr) + 1; /* include trailing 0 */
 
 	    /* set string pointer */
-	    (void) copyout((char *)&string_pos,
+	    (void) copyout(&string_pos,
 			arg_pos,
 			sizeof (char *));
 	    arg_pos += sizeof(char *);
@@ -640,12 +648,12 @@ build_args_and_stack(struct exec_info *boot_exec_info,
 	/*
 	 * Null terminator for envp.
 	 */
-	(void) copyout((char *)&zero, arg_pos, sizeof(char *));
+	(void) copyout(&zero, arg_pos, sizeof(char *));
 }
 
 
 static void
-user_bootstrap_compat()
+user_bootstrap_compat(void)
 {
 	exec_info_t boot_exec_info;
 
@@ -726,13 +734,14 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
       thread_t thread;
       struct user_bootstrap_info info = { mod, argv, 0, };
       simple_lock_init (&info.lock);
-      simple_lock (&info.lock);
 
       err = thread_create ((task_t)task, &thread);
       assert(err == 0);
+      simple_lock (&info.lock);
       thread->saved.other = &info;
       thread_start (thread, user_bootstrap);
-      thread_resume (thread);
+      err = thread_resume (thread);
+      assert(err == 0);
 
       /* We need to synchronize with the new thread and block this
 	 main thread until it has finished referring to our local state.  */
@@ -741,13 +750,15 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
 	  thread_sleep ((event_t) &info, simple_lock_addr(info.lock), FALSE);
 	  simple_lock (&info.lock);
 	}
+      simple_unlock (&info.lock);
+      thread_deallocate (thread);
       printf ("\n");
     }
 
   return 0;
 }
 
-static void user_bootstrap()
+static void user_bootstrap(void)
 {
   struct user_bootstrap_info *info = current_thread()->saved.other;
   exec_info_t boot_exec_info;
@@ -775,6 +786,7 @@ static void user_bootstrap()
   simple_lock (&info->lock);
   assert (!info->done);
   info->done = 1;
+  simple_unlock (&info->lock);
   thread_wakeup ((event_t) info);
 
   /*
@@ -807,6 +819,7 @@ boot_script_task_create (struct cmd *cmd)
       printf("boot_script_task_create failed with %x\n", rc);
       return BOOT_SCRIPT_MACH_ERROR;
     }
+  task_set_name(cmd->task, cmd->path);
   return 0;
 }
 
@@ -826,10 +839,18 @@ boot_script_task_resume (struct cmd *cmd)
 int
 boot_script_prompt_task_resume (struct cmd *cmd)
 {
+#if ! MACH_KDB
   char xx[5];
+#endif
 
-  printf ("Hit return to resume %s...", cmd->path);
+  printf ("Pausing for %s...\n", cmd->path);
+
+#if ! MACH_KDB
+  printf ("Hit <return> to resume bootstrap.");
   safe_gets (xx, sizeof xx);
+#else
+  SoftDebugger("Hit `c<return>' to resume bootstrap.");
+#endif
 
   return boot_script_task_resume (cmd);
 }
@@ -839,12 +860,14 @@ boot_script_free_task (task_t task, int aborting)
 {
   if (aborting)
     task_terminate (task);
+  task_deallocate (task);
 }
 
 int
 boot_script_insert_right (struct cmd *cmd, mach_port_t port, mach_port_t *name)
 {
-  *name = task_insert_send_right (cmd->task, (ipc_port_t)port);
+  *name = task_insert_send_right (cmd->task,
+				  ipc_port_make_send((ipc_port_t) port));
   return 0;
 }
 

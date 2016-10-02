@@ -38,11 +38,7 @@
 #include <machine/loose_ends.h>
 #include <machine/model_dep.h>
 
-extern void cnputc();
-
-#if	MACH_KDB
-extern int db_breakpoints_inserted;
-#endif
+#include <device/cons.h>
 
 #if NCPUS>1
 simple_lock_data_t Assert_print_lock; /* uninited, we take our chances */
@@ -55,26 +51,23 @@ do_cnputc(char c, vm_offset_t offset)
 }
 
 void
-Assert(char *exp, char *file, int line)
+Assert(const char *exp, const char *file, int line, const char *fun)
 {
 #if NCPUS > 1
   	simple_lock(&Assert_print_lock);
-	printf("{%d} Assertion failed: file \"%s\", line %d\n", 
-	       cpu_number(), file, line);
+	printf("{cpu%d} %s:%d: %s: Assertion `%s' failed.",
+	       cpu_number(), file, line, fun, exp);
 	simple_unlock(&Assert_print_lock);
 #else
-	printf("Assertion `%s' failed in file \"%s\", line %d\n",
-		exp, file, line);
+	printf("%s:%d: %s: Assertion `%s' failed.",
+	       file, line, fun, exp);
 #endif
 
-#if	MACH_KDB
-	if (db_breakpoints_inserted)
-#endif
 	Debugger("assertion failure");
 }
 
 void SoftDebugger(message)
-	char *	message;
+	const char *message;
 {
 	printf("Debugger invoked: %s\n", message);
 
@@ -96,17 +89,17 @@ void SoftDebugger(message)
 	asm("ta 0x81");
 #endif	/* sun4 */
 
-#if	defined(mips ) || defined(luna88k) || defined(i860) || defined(alpha)
+#if	defined(mips ) || defined(i860) || defined(alpha)
 	gimmeabreak();
 #endif
 
-#ifdef	i386
+#if defined(__i386__) || defined(__x86_64__)
 	asm("int3");
 #endif
 }
 
 void Debugger(message)
-	char *	message;
+	const char *message;
 {
 #if	!MACH_KDB
 	panic("Debugger invoked, but there isn't one!");
@@ -143,7 +136,7 @@ extern boolean_t reboot_on_panic;
 
 /*VARARGS1*/
 void
-panic(const char *s, ...)
+Panic(const char *file, int line, const char *fun, const char *s, ...)
 {
 	va_list	listp;
 
@@ -162,13 +155,13 @@ panic(const char *s, ...)
 	    paniccpu = cpu_number();
 	}
 	simple_unlock(&panic_lock);
-	printf("panic");
+	printf("panic ");
 #if	NCPUS > 1
-	printf("(cpu %U)", paniccpu);
+	printf("{cpu%d} ", paniccpu);
 #endif
-	printf(": ");
+	printf("%s:%d: %s: ",file, line, fun);
 	va_start(listp, s);
-	_doprnt(s, &listp, do_cnputc, 0, 0);
+	_doprnt(s, listp, do_cnputc, 16, 0);
 	va_end(listp);
 	printf("\n");
 
@@ -199,14 +192,12 @@ log(int level, const char *fmt, ...)
 {
 	va_list	listp;
 
-#ifdef lint
-	level++;
-#endif
 	va_start(listp, fmt);
-	_doprnt(fmt, &listp, do_cnputc, 0, 0);
+	_doprnt(fmt, listp, do_cnputc, 16, 0);
 	va_end(listp);
 }
 
+/* GCC references this for stack protection.  */
 unsigned char __stack_chk_guard [ sizeof (vm_offset_t) ] =
 {
 	[ sizeof (vm_offset_t) - 3 ] = '\r',

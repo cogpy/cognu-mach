@@ -638,7 +638,7 @@ extern int nr_buffer_heads;
 #define NR_LIST		4
 
 #ifdef MACH
-extern inline void
+static inline void
 mark_buffer_uptodate (struct buffer_head *bh, int on)
 {
     if (on)
@@ -650,7 +650,7 @@ mark_buffer_uptodate (struct buffer_head *bh, int on)
 void mark_buffer_uptodate(struct buffer_head * bh, int on);
 #endif
 
-extern inline void mark_buffer_clean(struct buffer_head * bh)
+static inline void mark_buffer_clean(struct buffer_head * bh)
 {
 #ifdef MACH
     clear_bit (BH_Dirty, &bh->b_state);
@@ -662,7 +662,7 @@ extern inline void mark_buffer_clean(struct buffer_head * bh)
 #endif
 }
 
-extern inline void mark_buffer_dirty(struct buffer_head * bh, int flag)
+static inline void mark_buffer_dirty(struct buffer_head * bh, int flag)
 {
 #ifdef MACH
     set_bit (BH_Dirty, &bh->b_state);
@@ -733,7 +733,7 @@ extern struct file * get_empty_filp(void);
 extern int close_fp(struct file *filp);
 extern struct buffer_head * get_hash_table(kdev_t dev, int block, int size);
 extern struct buffer_head * getblk(kdev_t dev, int block, int size);
-extern void ll_rw_block(int rw, int nr, struct buffer_head * bh[]);
+extern void ll_rw_block(int rw, int nr, struct buffer_head * bh[], int quiet);
 extern void ll_rw_page(int rw, kdev_t dev, unsigned long nr, char * buffer);
 extern void ll_rw_swap_file(int rw, kdev_t dev, unsigned int *b, int nb, char *buffer);
 extern int is_read_only(kdev_t dev);

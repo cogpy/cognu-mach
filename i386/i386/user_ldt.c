@@ -43,75 +43,25 @@
 #include "ldt.h"
 #include "vm_param.h"
 
-char	acc_type[8][3] = {
-    /*	code	stack	data */
-    {	0,	0,	1	},	/* data */
-    {	0,	1,	1	},	/* data, writable */
-    {	0,	0,	1	},	/* data, expand-down */
-    {	0,	1,	1	},	/* data, writable, expand-down */
-    {	1,	0,	0	},	/* code */
-    {	1,	0,	1	},	/* code, readable */
-    {	1,	0,	0	},	/* code, conforming */
-    {	1,	0,	1	},	/* code, readable, conforming */
-};
-
-boolean_t selector_check(thread, sel, type)
-	thread_t	thread;
-	int		sel;
-	int		type;	/* code, stack, data */
-{
-	struct user_ldt	*ldt;
-	int	access;
-
-	ldt = thread->pcb->ims.ldt;
-	if (ldt == 0) {
-	    switch (type) {
-		case S_CODE:
-		    return sel == USER_CS;
-		case S_STACK:
-		    return sel == USER_DS;
-		case S_DATA:
-		    return sel == 0 ||
-			   sel == USER_CS ||
-			   sel == USER_DS;
-	    }
-	}
-
-	if (type != S_DATA && sel == 0)
-	    return FALSE;
-	if ((sel & (SEL_LDT|SEL_PL)) != (SEL_LDT|SEL_PL_U)
-	  || sel > ldt->desc.limit_low)
-		return FALSE;
-
-	access = ldt->ldt[sel_idx(sel)].access;
-	
-	if ((access & (ACC_P|ACC_PL|ACC_TYPE_USER|SZ_64))
-		!= (ACC_P|ACC_PL_U|ACC_TYPE_USER))
-	    return FALSE;
-		/* present, pl == pl.user, not system, not 64bits */
-
-	return acc_type[(access & 0xe)>>1][type];
-}
-
 /*
  * Add the descriptors to the LDT, starting with
  * the descriptor for 'first_selector'.
  */
 kern_return_t
-i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
-	thread_t	thread;
-	int		first_selector;
-	struct real_descriptor *desc_list;
-	unsigned int	count;
-	boolean_t	desc_list_inline;
+i386_set_ldt(
+	thread_t		thread,
+	int			first_selector,
+	struct real_descriptor  *desc_list,
+	unsigned int		count,
+	boolean_t		desc_list_inline)
 {
 	user_ldt_t	new_ldt, old_ldt, temp;
 	struct real_descriptor *dp;
-	int		i;
-	int             min_selector = 0;
+	unsigned	i;
+	unsigned	min_selector = 0;
 	pcb_t		pcb;
 	vm_size_t	ldt_size_needed;
-	int		first_desc = sel_idx(first_selector);
+	unsigned	first_desc = sel_idx(first_selector);
 	vm_map_copy_t	old_copy_object = NULL;	/* Suppress gcc warning */
 
 	if (thread == THREAD_NULL)
@@ -196,17 +146,17 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	    if (new_ldt == 0) {
 		simple_unlock(&pcb->lock);
 
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_DESCRIPTORS
 		/* LDT needs to be aligned on a page */
 		vm_offset_t alloc = kalloc(ldt_size_needed + PAGE_SIZE + offsetof(struct user_ldt, ldt));
 		new_ldt = (user_ldt_t) (round_page((alloc + offsetof(struct user_ldt, ldt))) - offsetof(struct user_ldt, ldt));
 		new_ldt->alloc = alloc;
 		
-#else	/* MACH_XEN */
+#else	/* MACH_PV_DESCRIPTORS */
 		new_ldt = (user_ldt_t)
 				kalloc(ldt_size_needed
 				       + sizeof(struct real_descriptor));
-#endif	/* MACH_XEN */
+#endif	/* MACH_PV_DESCRIPTORS */
 		/*
 		 *	Build a descriptor that describes the
 		 *	LDT itself
@@ -272,19 +222,20 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 	simple_unlock(&pcb->lock);
 
 	if (new_ldt)
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_DESCRIPTORS
 	{
-	    int i;
+#ifdef	MACH_PV_PAGETABLES
 	    for (i=0; i<(new_ldt->desc.limit_low + 1)/sizeof(struct real_descriptor); i+=PAGE_SIZE/sizeof(struct real_descriptor))
 		pmap_set_page_readwrite(&new_ldt->ldt[i]);
+#endif	/* MACH_PV_PAGETABLES*/
 	    kfree(new_ldt->alloc, new_ldt->desc.limit_low + 1
 		+ PAGE_SIZE + offsetof(struct user_ldt, ldt));
 	}
-#else	/* MACH_XEN */
+#else	/* MACH_PV_DESCRIPTORS */
 	    kfree((vm_offset_t)new_ldt,
 		  new_ldt->desc.limit_low + 1
 		+ sizeof(struct real_descriptor));
-#endif	/* MACH_XEN */
+#endif	/* MACH_PV_DESCRIPTORS */
 
 	/*
 	 * Free the descriptor list, if it was
@@ -303,16 +254,16 @@ i386_set_ldt(thread, first_selector, desc_list, count, desc_list_inline)
 
 kern_return_t
 i386_get_ldt(thread, first_selector, selector_count, desc_list, count)
-	thread_t	thread;
+	const thread_t	thread;
 	int		first_selector;
 	int		selector_count;		/* number wanted */
 	struct real_descriptor **desc_list;	/* in/out */
 	unsigned int	*count;			/* in/out */
 {
 	struct user_ldt *user_ldt;
-	pcb_t		pcb = thread->pcb;
+	pcb_t		pcb;
 	int		first_desc = sel_idx(first_selector);
-	unsigned int	ldt_count;
+	unsigned	ldt_count;
 	vm_size_t	ldt_size;
 	vm_size_t	size, size_needed;
 	vm_offset_t	addr;
@@ -324,6 +275,7 @@ i386_get_ldt(thread, first_selector, selector_count, desc_list, count)
 	if (first_desc + selector_count >= 8192)
 	    return KERN_INVALID_ARGUMENT;
 
+	pcb = thread->pcb;
 	addr = 0;
 	size = 0;
 
@@ -414,20 +366,21 @@ i386_get_ldt(thread, first_selector, selector_count, desc_list, count)
 }
 
 void
-user_ldt_free(user_ldt)
-	user_ldt_t	user_ldt;
+user_ldt_free(user_ldt_t user_ldt)
 {
-#ifdef	MACH_XEN
-	int i;
+#ifdef	MACH_PV_DESCRIPTORS
+	unsigned i;
+#ifdef	MACH_PV_PAGETABLES
 	for (i=0; i<(user_ldt->desc.limit_low + 1)/sizeof(struct real_descriptor); i+=PAGE_SIZE/sizeof(struct real_descriptor))
 		pmap_set_page_readwrite(&user_ldt->ldt[i]);
+#endif	/* MACH_PV_PAGETABLES */
 	kfree(user_ldt->alloc, user_ldt->desc.limit_low + 1
 		+ PAGE_SIZE + offsetof(struct user_ldt, ldt));
-#else	/* MACH_XEN */
+#else	/* MACH_PV_DESCRIPTORS */
 	kfree((vm_offset_t)user_ldt,
 		user_ldt->desc.limit_low + 1
 		+ sizeof(struct real_descriptor));
-#endif	/* MACH_XEN */
+#endif	/* MACH_PV_DESCRIPTORS */
 }
 
 
@@ -477,7 +430,7 @@ i386_set_gdt (thread_t thread, int *selector, struct real_descriptor desc)
 }
 
 kern_return_t
-i386_get_gdt (thread_t thread, int selector, struct real_descriptor *desc)
+i386_get_gdt (const thread_t thread, int selector, struct real_descriptor *desc)
 {
   if (thread == THREAD_NULL)
     return KERN_INVALID_ARGUMENT;

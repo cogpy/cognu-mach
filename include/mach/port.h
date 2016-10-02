@@ -39,7 +39,7 @@
 #include <mach/machine/vm_types.h>
 
 
-typedef natural_t mach_port_t;
+typedef vm_offset_t mach_port_t;
 typedef mach_port_t *mach_port_array_t;
 typedef int *rpc_signature_info_t;
 
@@ -137,6 +137,8 @@ typedef struct mach_port_status {
 /*
  *  Compatibility definitions, for code written
  *  before there was an mps_seqno field.
+ *
+ *  XXX: Remove this before releasing Gnumach 1.6.
  */
 
 typedef struct old_mach_port_status {

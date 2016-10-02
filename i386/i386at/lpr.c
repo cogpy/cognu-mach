@@ -44,19 +44,11 @@
 #include <i386/pio.h>
 #include <chips/busses.h>
 #include <i386at/autoconf.h>
-#include <i386at/lprreg.h>
+#include <i386at/lpr.h>
   
-
 /* 
  * Driver information for auto-configuration stuff.
  */
-
-int	lprprobe();
-void	lprstop();
-void	lprintr(), lprstart();
-void	lprattach(struct bus_device *);
-int lprgetstat(), lprsetstat();
-void lprpr_addr();
 
 struct bus_device *lprinfo[NLPR];	/* ??? */
 
@@ -71,13 +63,14 @@ int lpr_alive[NLPR];
 
 int
 lprprobe(port, dev)
-struct bus_device *dev;
+vm_offset_t port;
+struct bus_ctlr *dev;
 {
 	u_short	addr = (u_short) dev->address;
 	int	unit = dev->unit;
 	int ret;
 
-	if ((unit < 0) || (unit > NLPR)) {
+	if ((unit < 0) || (unit >= NLPR)) {
 		printf("com %d out of range\n", unit);
 		return(0);
 	}
@@ -102,7 +95,7 @@ void lprattach(struct bus_device *dev)
 	u_short		addr = (u_short) dev->address;
 
 	take_dev_irq(dev);
-	printf(", port = %x, spl = %d, pic = %d.",
+	printf(", port = %lx, spl = %ld, pic = %d.",
 	       dev->address, dev->sysdep, dev->sysdep1);
 	lprinfo[unit] = dev;
   
@@ -112,22 +105,24 @@ void lprattach(struct bus_device *dev)
 }
 
 int
-lpropen(dev, flag, ior)
-int dev;
-int flag;
-io_req_t ior;
+lpropen(dev_t dev, int flag, io_req_t ior)
 {
-int unit = minor(dev);
-struct bus_device *isai;
-struct tty *tp;
-u_short addr;
-  
-	if (unit >= NLPR || (isai = lprinfo[unit]) == 0 || isai->alive == 0)
-		return (D_NO_SUCH_DEVICE);
+	int unit = minor(dev);
+	struct bus_device *isai;
+	struct tty *tp;
+	u_short addr;
+
+	if (unit >= NLPR)
+		return D_NO_SUCH_DEVICE;
+
+	isai = lprinfo[unit];
+	if (isai == NULL || !isai->alive)
+		return D_NO_SUCH_DEVICE;
+
 	tp = &lpr_tty[unit];
 	addr = (u_short) isai->address;
 	tp->t_dev = dev;
-	tp->t_addr = *(caddr_t *)&addr;
+	tp->t_addr = addr;
 	tp->t_oproc = lprstart;
 	tp->t_state |= TS_WOPEN;
 	tp->t_stop = lprstop;
@@ -142,7 +137,7 @@ u_short addr;
 
 void
 lprclose(dev, flag)
-int dev;
+dev_t dev;
 int flag;
 {
 int 		unit = minor(dev);
@@ -158,7 +153,7 @@ u_short		addr = 	(u_short) lprinfo[unit]->address;
 
 int
 lprread(dev, ior)
-int	dev;
+dev_t	dev;
 io_req_t ior;
 {
 	return char_read(&lpr_tty[minor(dev)], ior);
@@ -166,7 +161,7 @@ io_req_t ior;
 
 int
 lprwrite(dev, ior)
-int	dev;
+dev_t	dev;
 io_req_t ior;
 {
 	return char_write(&lpr_tty[minor(dev)], ior);
@@ -185,7 +180,7 @@ lprgetstat(dev, flavor, data, count)
 dev_t		dev;
 int		flavor;
 int		*data;		/* pointer to OUT array */
-unsigned int	*count;		/* out */
+natural_t	*count;		/* out */
 {
 	io_return_t	result = D_SUCCESS;
 	int		unit = minor(dev);
@@ -199,11 +194,11 @@ unsigned int	*count;		/* out */
 }
 
 io_return_t
-lprsetstat(dev, flavor, data, count)
-dev_t		dev;
-int		flavor;
-int *		data;
-unsigned int	count;
+lprsetstat(
+	dev_t		dev,
+	int		flavor,
+	int *		data,
+	natural_t	count)
 {
 	io_return_t	result = D_SUCCESS;
 	int 		unit = minor(dev);
@@ -218,10 +213,9 @@ unsigned int	count;
 	return (D_SUCCESS);
 }
 
-void lprintr(unit)
-int unit;
+void lprintr(int unit)
 {
-	register struct tty *tp = &lpr_tty[unit];
+	struct tty *tp = &lpr_tty[unit];
 
 	if ((tp->t_state & TS_ISOPEN) == 0)
 	  return;
@@ -233,13 +227,12 @@ int unit;
 	lprstart(tp);
 }   
 
-void lprstart(tp)
-struct tty *tp;
+void lprstart(struct tty *tp)
 {
 	spl_t s = spltty();
 	u_short addr = (natural_t) tp->t_addr;
 	int status = inb(STATUS(addr));
-	char nch;
+	int nch;
 
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP|TS_BUSY)) {
 		splx(s);
@@ -260,6 +253,10 @@ struct tty *tp;
 		return;
 	}
 	nch = getc(&tp->t_outq);
+	if (nch == -1) {
+		splx(s);
+		return;
+	}
 	if ((tp->t_flags & LITOUT) == 0 && (nch & 0200)) {
 		timeout((timer_func_t *)ttrstrt, (char *)tp, (nch & 0x7f) + 6);
 		tp->t_state |= TS_TIMEOUT;
@@ -274,22 +271,22 @@ struct tty *tp;
 }
 
 void
-lprstop(tp, flags)
-register struct tty *tp;
-int	flags;
+lprstop(
+	struct tty 	*tp,
+	int		flags)
 {
 	if ((tp->t_state & TS_BUSY) && (tp->t_state & TS_TTSTOP) == 0)
 		tp->t_state |= TS_FLUSH;
 }
 int
-lprpr(unit)
+lprpr(int unit)
 {
 	lprpr_addr(lprinfo[unit]->address);
 	return 0;
 }
 
 void
-lprpr_addr(addr)
+lprpr_addr(unsigned short addr)
 {
 	printf("DATA(%x) %x, STATUS(%x) %x, INTR_ENAB(%x) %x\n",
 		DATA(addr), inb(DATA(addr)),

@@ -109,7 +109,6 @@ struct ustat {
 	char			f_fpack[6];
 };
 
-
 /* Yes, this is ugly.  But that's why it is called glue code.  */
 
 #define _MACH_SA_SYS_TYPES_H_

@@ -119,6 +119,7 @@ LEXT(retry_table_end)			;\
  * Uses %eax, %ebx, %ecx.
  */
 #define	TIME_TRAP_UENTRY \
+	pushf					/* Save flags */	;\
 	cli					/* block interrupts */	;\
 	movl	VA_ETC,%ebx			/* get timer value */	;\
 	movl	CX(EXT(current_tstamp),%edx),%ecx	/* get old time stamp */;\
@@ -131,7 +132,7 @@ LEXT(retry_table_end)			;\
 0:	addl	$(TH_SYSTEM_TIMER-TH_USER_TIMER),%ecx			;\
 						/* switch to sys timer */;\
 	movl	%ecx,CX(EXT(current_timer),%edx)	/* make it current */	;\
-	sti					/* allow interrupts */
+	popf					/* allow interrupts */
 
 /*
  * Update time on system call entry.
@@ -141,6 +142,7 @@ LEXT(retry_table_end)			;\
  * Same as TIME_TRAP_UENTRY, but preserves %eax.
  */
 #define	TIME_TRAP_SENTRY \
+	pushf					/* Save flags */	;\
 	cli					/* block interrupts */	;\
 	movl	VA_ETC,%ebx			/* get timer value */	;\
 	movl	CX(EXT(current_tstamp),%edx),%ecx	/* get old time stamp */;\
@@ -155,7 +157,7 @@ LEXT(retry_table_end)			;\
 0:	addl	$(TH_SYSTEM_TIMER-TH_USER_TIMER),%ecx			;\
 						/* switch to sys timer */;\
 	movl	%ecx,CX(EXT(current_timer),%edx)	/* make it current */	;\
-	sti					/* allow interrupts */
+	popf					/* allow interrupts */
 
 /*
  * update time on user trap exit.
@@ -432,12 +434,12 @@ ENTRY(t_debug)
 ENTRY(t_page_fault)
 	pushl	$(T_PAGE_FAULT)		/* mark a page fault trap */
 	pusha				/* save the general registers */
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_PAGETABLES
 	movl	%ss:hyp_shared_info+CR2,%eax
-#else	/* MACH_XEN */
+#else	/* MACH_PV_PAGETABLES */
 	movl	%cr2,%eax		/* get the faulting address */
-#endif	/* MACH_XEN */
-	movl	%eax,12(%esp)		/* save in esp save slot */
+#endif	/* MACH_PV_PAGETABLES */
+	movl	%eax,R_CR2-R_EDI(%esp)	/* save in esp save slot */
 	jmp	trap_push_segs		/* continue fault */
 
 /*
@@ -540,8 +542,10 @@ trap_from_kernel:
 #if	MACH_KDB || MACH_TTD
 	movl	%esp,%ebx		/* save current stack */
 
-	cmpl	EXT(int_stack_high),%esp	/* on an interrupt stack? */
-	jb	1f			/* OK if so */
+	movl	%esp,%edx		/* on an interrupt stack? */
+	and	$(~(KERNEL_STACK_SIZE-1)),%edx
+	cmpl	EXT(int_stack_base),%edx
+	je	1f			/* OK if so */
 
 	CPU_NUMBER(%edx)		/* get CPU number */
 	cmpl	CX(EXT(kernel_stack),%edx),%esp
@@ -645,8 +649,10 @@ ENTRY(all_intrs)
 	pushl	%edx
 	cld				/* clear direction flag */
 
-	cmpl	%ss:EXT(int_stack_high),%esp /* on an interrupt stack? */
-	jb	int_from_intstack	/* if not: */
+	movl	%esp,%edx		/* on an interrupt stack? */
+	and	$(~(KERNEL_STACK_SIZE-1)),%edx
+	cmpl	%ss:EXT(int_stack_base),%edx
+	je	int_from_intstack	/* if not: */
 
 	pushl	%ds			/* save segment registers */
 	pushl	%es
@@ -705,7 +711,7 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 	iret				/* return to caller */
 
 int_from_intstack:
-	cmpl	$EXT(_intstack),%esp	/* seemingly looping? */
+	cmpl	EXT(int_stack_base),%esp	/* seemingly looping? */
 	jb	stack_overflowed	/* if not: */
 	call	EXT(interrupt)		/* call interrupt routine */
 _return_to_iret_i:			/* ( label for kdb_kintr) */
@@ -1174,6 +1180,8 @@ DATA(cpu_features)
 	.long	0
 	.text
 
+END(syscall)
+
 /* Discover what kind of cpu we have; return the family number
    (3, 4, 5, 6, for 386, 486, 586, 686 respectively).  */
 ENTRY(discover_x86_cpu_type)
@@ -1181,6 +1189,8 @@ ENTRY(discover_x86_cpu_type)
 	movl	%esp,%ebp		/* Save stack pointer */
 	and	$~0x3,%esp		/* Align stack pointer */
 
+#if 0
+/* Seems to hang with kvm linux 4.3.0 */
 #ifdef	MACH_HYP
 #warning Assuming not Cyrix CPU
 #else	/* MACH_HYP */
@@ -1188,6 +1198,7 @@ ENTRY(discover_x86_cpu_type)
 	andb	$0x80,%al		/* ... in CCR4 reg bit7 */
 	outb	%al,$0xe8
 #endif	/* MACH_HYP */
+#endif
 
 	pushfl				/* Fetch flags ... */
 	popl	%eax			/*  ... into eax */
@@ -1230,13 +1241,12 @@ ENTRY(discover_x86_cpu_type)
  */
 
 /*
- * Copy from user address space.
+ * Copy from user address space - generic version.
  * arg0:	user address
  * arg1:	kernel address
  * arg2:	byte count
  */
 ENTRY(copyin)
-Entry(copyinmsg)
 	pushl	%esi
 	pushl	%edi			/* save registers */
 
@@ -1273,13 +1283,48 @@ copyin_fail:
 	jmp	copyin_ret		/* pop frame and return */
 
 /*
- * Copy to user address space.
+ * Copy from user address space - version for copying messages.
+ * arg0:	user address
+ * arg1:	kernel address
+ * arg2:	byte count - must be a multiple of four
+ */
+ENTRY(copyinmsg)
+	pushl	%esi
+	pushl	%edi			/* save registers */
+
+	movl	8+S_ARG0,%esi		/* get user start address */
+	movl	8+S_ARG1,%edi		/* get kernel destination address */
+	movl	8+S_ARG2,%ecx		/* get count */
+
+	movl	$USER_DS,%eax		/* use user data segment for accesses */
+	mov	%ax,%ds
+
+	/*cld*/				/* count up: default mode in all GCC code */
+	shrl	$2,%ecx
+	RECOVER(copyinmsg_fail)
+	rep
+	movsl				/* move longwords */
+	xorl	%eax,%eax		/* return 0 for success */
+
+copyinmsg_ret:
+	mov	%ss,%di			/* restore DS to kernel segment */
+	mov	%di,%ds
+
+	popl	%edi			/* restore registers */
+	popl	%esi
+	ret				/* and return */
+
+copyinmsg_fail:
+	movl	$1,%eax			/* return 1 for failure */
+	jmp	copyinmsg_ret		/* pop frame and return */
+
+/*
+ * Copy to user address space - generic version.
  * arg0:	kernel address
  * arg1:	user address
  * arg2:	byte count
  */
 ENTRY(copyout)
-Entry(copyoutmsg)
 	pushl	%esi
 	pushl	%edi			/* save registers */
 
@@ -1295,14 +1340,13 @@ Entry(copyoutmsg)
 	jbe	copyout_retry		/* Use slow version on i386 */
 #endif /* !defined(MACH_HYP) && !PAE */
 
-	movl	%edx,%eax		/* use count */
 	/*cld*/				/* count up: always this way in GCC code */
-	movl	%eax,%ecx		/* move by longwords first */
+	movl	%edx,%ecx		/* move by longwords first */
 	shrl	$2,%ecx
 	RECOVER(copyout_fail)
 	rep
 	movsl
-	movl	%eax,%ecx		/* now move remaining bytes */
+	movl	%edx,%ecx		/* now move remaining bytes */
 	andl	$3,%ecx
 	RECOVER(copyout_fail)
 	rep
@@ -1320,6 +1364,47 @@ copyout_ret:
 copyout_fail:
 	movl	$1,%eax			/* return 1 for failure */
 	jmp	copyout_ret		/* pop frame and return */
+
+/*
+ * Copy to user address space - version for copying messages.
+ * arg0:	kernel address
+ * arg1:	user address
+ * arg2:	byte count - must be a multiple of four
+ */
+ENTRY(copyoutmsg)
+	pushl	%esi
+	pushl	%edi			/* save registers */
+
+	movl	8+S_ARG0,%esi		/* get kernel start address */
+	movl	8+S_ARG1,%edi		/* get user start address */
+	movl	8+S_ARG2,%ecx		/* get count */
+
+	movl	$USER_DS,%eax		/* use user data segment for accesses */
+	mov	%ax,%es
+
+#if !defined(MACH_HYP) && !PAE
+	movl	8+S_ARG2,%edx		/* copyout_retry expects count here */
+	cmpl	$3,machine_slot+SUB_TYPE_CPU_TYPE
+	jbe	copyout_retry		/* Use slow version on i386 */
+#endif /* !defined(MACH_HYP) && !PAE */
+
+	shrl	$2,%ecx			/* move by longwords */
+	RECOVER(copyoutmsg_fail)
+	rep
+	movsl
+	xorl	%eax,%eax		/* return 0 for success */
+
+copyoutmsg_ret:
+	mov	%ss,%di			/* restore ES to kernel segment */
+	mov	%di,%es
+
+	popl	%edi			/* restore registers */
+	popl	%esi
+	ret				/* and return */
+
+copyoutmsg_fail:
+	movl	$1,%eax			/* return 1 for failure */
+	jmp	copyoutmsg_ret		/* pop frame and return */
 
 #if !defined(MACH_HYP) && !PAE
 /*
@@ -1410,128 +1495,6 @@ _inst_fetch_fault:
 	RETRY_TABLE_END
 
 
-
-ENTRY(dr6)
-#ifdef MACH_XEN
-	pushl	%ebx
-	movl	$6, %ebx
-	call	__hyp_get_debugreg
-	popl	%ebx
-#else /* MACH_XEN */
-	movl	%db6, %eax
-#endif /* MACH_XEN */
-	ret
-
-/*	dr<i>(address, type, len, persistence)
- */
-ENTRY(dr0)
-	movl	S_ARG0, %eax
-	movl	%eax,EXT(dr_addr)
-#ifdef MACH_XEN
-	pushl	%ebx
-	movl	$0,%ebx
-	movl	%eax,%ecx
-	call	__hyp_set_debugreg
-#else /* MACH_XEN */
-	movl	%eax, %db0
-#endif /* MACH_XEN */
-	movl	$0, %ecx
-	jmp	0f
-ENTRY(dr1)
-	movl	S_ARG0, %eax
-	movl	%eax,EXT(dr_addr)+1*4
-#ifdef MACH_XEN
-	pushl	%ebx
-	movl	$1,%ebx
-	movl	%eax,%ecx
-	call	__hyp_set_debugreg
-#else /* MACH_XEN */
-	movl	%eax, %db1
-#endif /* MACH_XEN */
-	movl	$2, %ecx
-	jmp	0f
-ENTRY(dr2)
-	movl	S_ARG0, %eax
-	movl	%eax,EXT(dr_addr)+2*4
-#ifdef MACH_XEN
-	pushl	%ebx
-	movl	$2,%ebx
-	movl	%eax,%ecx
-	call	__hyp_set_debugreg
-#else /* MACH_XEN */
-	movl	%eax, %db2
-#endif /* MACH_XEN */
-	movl	$4, %ecx
-	jmp	0f
-
-ENTRY(dr3)
-	movl	S_ARG0, %eax
-	movl	%eax,EXT(dr_addr)+3*4
-#ifdef MACH_XEN
-	pushl	%ebx
-	movl	$3,%ebx
-	movl	%eax,%ecx
-	call	__hyp_set_debugreg
-#else /* MACH_XEN */
-	movl	%eax, %db3
-#endif /* MACH_XEN */
-	movl	$6, %ecx
-
-0:
-	pushl	%ebp
-	movl	%esp, %ebp
-
-#ifdef MACH_XEN
-	movl	$7,%ebx
-	call	__hyp_get_debugreg
-	movl	%eax, %edx
-#else /* MACH_XEN */
-	movl	%db7, %edx
-#endif /* MACH_XEN */
-	movl	%edx,EXT(dr_addr)+4*4
-	andl	dr_msk(,%ecx,2),%edx	/* clear out new entry */
-	movl	%edx,EXT(dr_addr)+5*4
-	movzbl	B_ARG3, %eax
-	andb	$3, %al
-	shll	%cl, %eax
-	orl	%eax, %edx
-
-	movzbl	B_ARG1, %eax
-	andb	$3, %al
-	addb	%cl, %cl
-	addb	$0x10, %cl
-	shll	%cl, %eax
-	orl	%eax, %edx
-
-	movzbl	B_ARG2, %eax
-	andb	$3, %al
-	addb	$0x2, %cl
-	shll	%cl, %eax
-	orl	%eax, %edx
-
-#ifdef MACH_XEN
-	movl	$7,%ebx
-	movl	%edx, %ecx
-	call	__hyp_set_debugreg
-	popl	%ebx
-#else /* MACH_XEN */
-	movl	%edx, %db7
-#endif /* MACH_XEN */
-	movl	%edx,EXT(dr_addr)+7*4
-	movl	%edx, %eax
-	leave
-	ret
-
-	.data
-dr_msk:
-	.long	~0x000f0003
-	.long	~0x00f0000c
-	.long	~0x0f000030
-	.long	~0xf00000c0
-ENTRY(dr_addr)
-	.long	0,0,0,0
-	.long	0,0,0,0
-	.text
 
 /*
  * cpu_shutdown()

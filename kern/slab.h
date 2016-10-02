@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2009, 2010, 2011 Richard Braun.
- * Copyright (c) 2011 Maksym Planeta.
+ * Copyright (c) 2011 Free Software Foundation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,9 +16,39 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * Copyright (c) 2010, 2011 Richard Braun.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *
+ * Object caching memory allocator.
+ */
+
 #ifndef _KERN_SLAB_H
 #define _KERN_SLAB_H
 
+#include <cache.h>
+#include <kern/cpu_number.h>
 #include <kern/lock.h>
 #include <kern/list.h>
 #include <kern/rbtree.h>
@@ -27,11 +56,9 @@
 #include <sys/types.h>
 #include <vm/vm_types.h>
 
+struct kmem_cache;
+
 #if SLAB_USE_CPU_POOLS
-/*
- * L1 cache line size.
- */
-#define CPU_L1_SIZE (1 << CPU_L1_SHIFT)
 
 /*
  * Per-processor cache of pre-constructed objects.
@@ -92,6 +119,7 @@ struct kmem_buftag {
  * Page-aligned collection of unconstructed buffers.
  */
 struct kmem_slab {
+    struct kmem_cache *cache;
     struct list list_node;
     struct rbtree_node tree_node;
     unsigned long nr_refs;
@@ -112,29 +140,20 @@ struct kmem_slab {
 typedef void (*kmem_cache_ctor_t)(void *obj);
 
 /*
- * Types for slab allocation/free functions.
- *
- * All addresses and sizes must be page-aligned.
+ * Cache name buffer size.  The size is chosen so that struct
+ * kmem_cache fits into two cache lines.  The size of a cache line on
+ * a typical CPU is 64 bytes.
  */
-typedef vm_offset_t (*kmem_slab_alloc_fn_t)(vm_size_t);
-typedef void (*kmem_slab_free_fn_t)(vm_offset_t, vm_size_t);
-
-/*
- * Cache name buffer size.
- */
-#define KMEM_CACHE_NAME_SIZE 32
+#define KMEM_CACHE_NAME_SIZE 24
 
 /*
  * Cache of objects.
  *
  * Locking order : cpu_pool -> cache. CPU pools locking is ordered by CPU ID.
  *
- * The partial slabs list is sorted by slab references. Slabs with a high
- * number of references are placed first on the list to reduce fragmentation.
- * Sorting occurs at insertion/removal of buffers in a slab. As the list
- * is maintained sorted, and the number of references only changes by one,
- * this is a very cheap operation in the average case and the worst (linear)
- * case is very unlikely.
+ * Currently, SLAB_USE_CPU_POOLS is not defined.  KMEM_CACHE_NAME_SIZE
+ * is chosen so that the struct fits into two cache lines.  The first
+ * cache line contains all hot fields.
  */
 struct kmem_cache {
 #if SLAB_USE_CPU_POOLS
@@ -150,25 +169,25 @@ struct kmem_cache {
     struct list free_slabs;
     struct rbtree active_slabs;
     int flags;
-    size_t obj_size;    /* User-provided size */
-    size_t align;
-    size_t buf_size;    /* Aligned object size  */
     size_t bufctl_dist; /* Distance from buffer to bufctl   */
     size_t slab_size;
-    size_t color;
-    size_t color_max;
     unsigned long bufs_per_slab;
     unsigned long nr_objs;  /* Number of allocated objects */
-    unsigned long nr_bufs;  /* Total number of buffers */
-    unsigned long nr_slabs;
     unsigned long nr_free_slabs;
     kmem_cache_ctor_t ctor;
-    kmem_slab_alloc_fn_t slab_alloc_fn;
-    kmem_slab_free_fn_t slab_free_fn;
+    /* All fields below are cold  */
+    size_t obj_size;    /* User-provided size */
+    /* Assuming ! SLAB_USE_CPU_POOLS, here is the cacheline boundary */
+    size_t align;
+    size_t buf_size;    /* Aligned object size  */
+    size_t color;
+    size_t color_max;
+    unsigned long nr_bufs;  /* Total number of buffers */
+    unsigned long nr_slabs;
     char name[KMEM_CACHE_NAME_SIZE];
     size_t buftag_dist; /* Distance from buffer to buftag */
     size_t redzone_pad; /* Bytes from end of object to redzone word */
-};
+} __cacheline_aligned;
 
 /*
  * Mach-style declarations for struct kmem_cache.
@@ -177,26 +196,18 @@ typedef struct kmem_cache *kmem_cache_t;
 #define KMEM_CACHE_NULL ((kmem_cache_t) 0)
 
 /*
- * VM submap for slab allocations.
- */
-extern vm_map_t kmem_map;
-
-/*
  * Cache initialization flags.
  */
-#define KMEM_CACHE_NOCPUPOOL    0x1 /* Don't use the per-cpu pools */
-#define KMEM_CACHE_NOOFFSLAB    0x2 /* Don't allocate external slab data */
-#define KMEM_CACHE_NORECLAIM    0x4 /* Never give slabs back to their source,
-                                       implies KMEM_CACHE_NOOFFSLAB */
-#define KMEM_CACHE_VERIFY       0x8 /* Use debugging facilities */
+#define KMEM_CACHE_NOOFFSLAB    0x1 /* Don't allocate external slab data */
+#define KMEM_CACHE_PHYSMEM      0x2 /* Allocate from physical memory */
+#define KMEM_CACHE_VERIFY       0x4 /* Use debugging facilities */
 
 /*
  * Initialize a cache.
  */
 void kmem_cache_init(struct kmem_cache *cache, const char *name,
-                     size_t obj_size, size_t align, kmem_cache_ctor_t ctor,
-                     kmem_slab_alloc_fn_t slab_alloc_fn,
-                     kmem_slab_free_fn_t slab_free_fn, int flags);
+                     size_t obj_size, size_t align,
+                     kmem_cache_ctor_t ctor, int flags);
 
 /*
  * Allocate an object from a cache.
@@ -218,5 +229,14 @@ void slab_init(void);
  * Release free slabs to the VM system.
  */
 void slab_collect(void);
+
+/*
+ * Display a summary of all kernel caches.
+ */
+void slab_info(void);
+
+#if MACH_KDB
+void db_show_slab_info(void);
+#endif /* MACH_KDB */
 
 #endif /* _KERN_SLAB_H */

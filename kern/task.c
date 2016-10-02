@@ -37,6 +37,7 @@
 #include <mach/vm_param.h>
 #include <mach/task_info.h>
 #include <mach/task_special_ports.h>
+#include <mach_debug/mach_debug_types.h>
 #include <ipc/ipc_space.h>
 #include <ipc/ipc_types.h>
 #include <kern/debug.h>
@@ -45,22 +46,24 @@
 #include <kern/slab.h>
 #include <kern/kalloc.h>
 #include <kern/processor.h>
+#include <kern/printf.h>
 #include <kern/sched_prim.h>	/* for thread_wakeup */
 #include <kern/ipc_tt.h>
+#include <kern/syscall_emulation.h>
+#include <kern/task_notify.user.h>
 #include <vm/vm_kern.h>		/* for kernel_map, ipc_kernel_map */
 #include <machine/machspl.h>	/* for splsched */
 
 task_t	kernel_task = TASK_NULL;
 struct kmem_cache task_cache;
 
-extern void eml_init(void);
-extern void eml_task_reference(task_t, task_t);
-extern void eml_task_deallocate(task_t);
+/* Where to send notifications about newly created tasks.  */
+ipc_port_t new_task_notification = NULL;
 
 void task_init(void)
 {
 	kmem_cache_init(&task_cache, "task", sizeof(struct task), 0,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
 
 	eml_init();
 	machine_task_module_init ();
@@ -71,6 +74,8 @@ void task_init(void)
 	 * for other initialization. (:-()
 	 */
 	(void) task_create(TASK_NULL, FALSE, &kernel_task);
+	(void) task_set_name(kernel_task, "gnumach");
+	vm_map_set_name(kernel_map, kernel_task->name);
 }
 
 kern_return_t task_create(
@@ -78,16 +83,15 @@ kern_return_t task_create(
 	boolean_t	inherit_memory,
 	task_t		*child_task)		/* OUT */
 {
-	register task_t	new_task;
-	register processor_set_t	pset;
+	task_t		new_task;
+	processor_set_t	pset;
 #if FAST_TAS
 	int i;
 #endif
 
 	new_task = (task_t) kmem_cache_alloc(&task_cache);
-	if (new_task == TASK_NULL) {
-		panic("task_create: no memory for task structure");
-	}
+	if (new_task == TASK_NULL)
+		return KERN_RESOURCE_SHORTAGE;
 
 	/* one ref for just being alive; one for our caller */
 	new_task->ref_count = 2;
@@ -96,10 +100,12 @@ kern_return_t task_create(
 		new_task->map = kernel_map;
 	} else if (inherit_memory) {
 		new_task->map = vm_map_fork(parent_task->map);
+		vm_map_set_name(new_task->map, new_task->name);
 	} else {
 		new_task->map = vm_map_create(pmap_create(0),
 					round_page(VM_MIN_ADDRESS),
-					trunc_page(VM_MAX_ADDRESS), TRUE);
+					trunc_page(VM_MAX_ADDRESS));
+		vm_map_set_name(new_task->map, new_task->name);
 	}
 
 	simple_lock_init(&new_task->lock);
@@ -108,6 +114,13 @@ kern_return_t task_create(
 	new_task->active = TRUE;
 	new_task->user_stop_count = 0;
 	new_task->thread_count = 0;
+	new_task->faults = 0;
+	new_task->zero_fills = 0;
+	new_task->reactivations = 0;
+	new_task->pageins = 0;
+	new_task->cow_faults = 0;
+	new_task->messages_sent = 0;
+	new_task->messages_received = 0;
 
 	eml_task_reference(new_task, parent_task);
 
@@ -160,6 +173,21 @@ kern_return_t task_create(
 	}
 #endif	/* FAST_TAS */
 
+	if (parent_task == TASK_NULL)
+		snprintf (new_task->name, sizeof new_task->name, "%p",
+			  new_task);
+	else
+		snprintf (new_task->name, sizeof new_task->name, "(%.*s)",
+			  sizeof new_task->name - 3, parent_task->name);
+
+	if (new_task_notification != NULL) {
+		task_reference (new_task);
+		task_reference (parent_task);
+		mach_notify_new_task (new_task_notification,
+				      convert_task_to_port (new_task),
+				      convert_task_to_port (parent_task));
+	}
+
 	ipc_task_enable(new_task);
 
 	*child_task = new_task;
@@ -174,10 +202,10 @@ kern_return_t task_create(
  *	is never in this task.
  */
 void task_deallocate(
-	register task_t	task)
+	task_t	task)
 {
-	register int c;
-	register processor_set_t pset;
+	int c;
+	processor_set_t pset;
 
 	if (task == TASK_NULL)
 		return;
@@ -203,7 +231,7 @@ void task_deallocate(
 }
 
 void task_reference(
-	register task_t	task)
+	task_t	task)
 {
 	if (task == TASK_NULL)
 		return;
@@ -220,11 +248,11 @@ void task_reference(
  *	(kern/thread.c) about problems with terminating the "current task."
  */
 kern_return_t task_terminate(
-	register task_t	task)
+	task_t	task)
 {
-	register thread_t	thread, cur_thread;
-	register queue_head_t	*list;
-	register task_t		cur_task;
+	thread_t		thread, cur_thread;
+	queue_head_t		*list;
+	task_t			cur_task;
 	spl_t			s;
 
 	if (task == TASK_NULL)
@@ -263,6 +291,7 @@ kern_return_t task_terminate(
 			thread_terminate(cur_thread);
 			return KERN_FAILURE;
 		}
+		task_hold_locked(task);
 		task->active = FALSE;
 		queue_remove(list, cur_thread, thread_t, thread_list);
 		thread_unlock(cur_thread);
@@ -316,6 +345,7 @@ kern_return_t task_terminate(
 			task_unlock(task);
 			return KERN_FAILURE;
 		}
+		task_hold_locked(task);
 		task->active = FALSE;
 		task_unlock(task);
 	}
@@ -326,9 +356,8 @@ kern_return_t task_terminate(
 	 *	If this is the current task, the current thread will
 	 *	be left running.
 	 */
-	ipc_task_disable(task);
-	(void) task_hold(task);
 	(void) task_dowait(task,TRUE);			/* may block */
+	ipc_task_disable(task);
 
 	/*
 	 *	Terminate each thread in the task.
@@ -351,7 +380,7 @@ kern_return_t task_terminate(
                 task_unlock(task);
                 thread_force_terminate(thread);
                 thread_deallocate(thread);
-                thread_block((void (*)()) 0);
+                thread_block(thread_no_continuation);
                 task_lock(task);
         }
         task_unlock(task);
@@ -393,20 +422,18 @@ kern_return_t task_terminate(
  *	Suspend execution of the specified task.
  *	This is a recursive-style suspension of the task, a count of
  *	suspends is maintained.
+ *
+ *	CONDITIONS: the task is locked and active.
  */
-kern_return_t task_hold(
-	register task_t	task)
+void task_hold_locked(
+	task_t	task)
 {
-	register queue_head_t	*list;
-	register thread_t	thread, cur_thread;
+	queue_head_t	*list;
+	thread_t	thread, cur_thread;
+
+	assert(task->active);
 
 	cur_thread = current_thread();
-
-	task_lock(task);
-	if (!task->active) {
-		task_unlock(task);
-		return KERN_FAILURE;
-	}
 
 	task->suspend_count++;
 
@@ -420,6 +447,26 @@ kern_return_t task_hold(
 		if (thread != cur_thread)
 			thread_hold(thread);
 	}
+}
+
+/*
+ *	task_hold:
+ *
+ *	Suspend execution of the specified task.
+ *	This is a recursive-style suspension of the task, a count of
+ *	suspends is maintained.
+ */
+kern_return_t task_hold(
+	task_t	task)
+{
+	task_lock(task);
+	if (!task->active) {
+		task_unlock(task);
+		return KERN_FAILURE;
+	}
+
+	task_hold_locked(task);
+
 	task_unlock(task);
 	return KERN_SUCCESS;
 }
@@ -434,12 +481,12 @@ kern_return_t task_hold(
  *	must_wait is true.
  */
 kern_return_t task_dowait(
-	register task_t	task,
+	task_t	task,
 	boolean_t must_wait)
 {
-	register queue_head_t	*list;
-	register thread_t	thread, cur_thread, prev_thread;
-	register kern_return_t	ret = KERN_SUCCESS;
+	queue_head_t	*list;
+	thread_t	thread, cur_thread, prev_thread;
+	kern_return_t	ret = KERN_SUCCESS;
 
 	/*
 	 *	Iterate through all the threads.
@@ -486,10 +533,10 @@ kern_return_t task_dowait(
 }
 
 kern_return_t task_release(
-	register task_t	task)
+	task_t	task)
 {
-	register queue_head_t	*list;
-	register thread_t	thread, next;
+	queue_head_t	*list;
+	thread_t	thread, next;
 
 	task_lock(task);
 	if (!task->active) {
@@ -521,7 +568,7 @@ kern_return_t task_threads(
 	unsigned int actual;	/* this many threads */
 	thread_t thread;
 	thread_t *threads;
-	int i;
+	unsigned i;
 
 	vm_size_t size, size_needed;
 	vm_offset_t addr;
@@ -617,9 +664,9 @@ kern_return_t task_threads(
 }
 
 kern_return_t task_suspend(
-	register task_t	task)
+	task_t	task)
 {
-	register boolean_t	hold;
+	boolean_t	hold;
 
 	if (task == TASK_NULL)
 		return KERN_INVALID_ARGUMENT;
@@ -668,9 +715,9 @@ kern_return_t task_suspend(
 }
 
 kern_return_t task_resume(
-	register task_t	task)
+	task_t	task)
 {
-	register boolean_t	release;
+	boolean_t	release;
 
 	if (task == TASK_NULL)
 		return KERN_INVALID_ARGUMENT;
@@ -710,7 +757,7 @@ kern_return_t task_info(
 	switch (flavor) {
 	    case TASK_BASIC_INFO:
 	    {
-		register task_basic_info_t	basic_info;
+		task_basic_info_t	basic_info;
 
 		/* Allow *task_info_count to be two words smaller than
 		   the usual amount, because creation_time is a new member
@@ -739,7 +786,8 @@ kern_return_t task_info(
 				= task->total_system_time.seconds;
 		basic_info->system_time.microseconds
 				= task->total_system_time.microseconds;
-		basic_info->creation_time = task->creation_time;
+		read_time_stamp(&task->creation_time,
+				&basic_info->creation_time);
 		task_unlock(task);
 
 		if (*task_info_count > TASK_BASIC_INFO_COUNT)
@@ -747,10 +795,34 @@ kern_return_t task_info(
 		break;
 	    }
 
+	    case TASK_EVENTS_INFO:
+	    {
+		task_events_info_t	event_info;
+
+		if (*task_info_count < TASK_EVENTS_INFO_COUNT) {
+		    return KERN_INVALID_ARGUMENT;
+		}
+
+		event_info = (task_events_info_t) task_info_out;
+
+		task_lock(task);
+		event_info->faults = task->faults;
+		event_info->zero_fills = task->zero_fills;
+		event_info->reactivations = task->reactivations;
+		event_info->pageins = task->pageins;
+		event_info->cow_faults = task->cow_faults;
+		event_info->messages_sent = task->messages_sent;
+		event_info->messages_received = task->messages_received;
+		task_unlock(task);
+
+		*task_info_count = TASK_EVENTS_INFO_COUNT;
+		break;
+	    }
+
 	    case TASK_THREAD_TIMES_INFO:
 	    {
-		register task_thread_times_info_t times_info;
-		register thread_t	thread;
+		task_thread_times_info_t times_info;
+		thread_t	thread;
 
 		if (*task_info_count < TASK_THREAD_TIMES_INFO_COUNT) {
 		    return KERN_INVALID_ARGUMENT;
@@ -806,9 +878,9 @@ task_assign(
 	boolean_t	assign_threads)
 {
 	kern_return_t		ret = KERN_SUCCESS;
-	register thread_t	thread, prev_thread;
-	register queue_head_t	*list;
-	register processor_set_t	pset;
+	thread_t	thread, prev_thread;
+	queue_head_t	*list;
+	processor_set_t	pset;
 
 	if (task == TASK_NULL || new_pset == PROCESSOR_SET_NULL) {
 		return KERN_INVALID_ARGUMENT;
@@ -824,7 +896,7 @@ task_assign(
 		task->assign_active = TRUE;
 		assert_wait((event_t)&task->assign_active, TRUE);
 		task_unlock(task);
-		thread_block((void (*)()) 0);
+		thread_block(thread_no_continuation);
 		task_lock(task);
 	}
 
@@ -995,6 +1067,9 @@ kern_return_t task_get_assignment(
 	task_t		task,
 	processor_set_t	*pset)
 {
+	if (task == TASK_NULL)
+		return KERN_INVALID_ARGUMENT;
+
 	if (!task->active)
 		return KERN_FAILURE;
 
@@ -1024,8 +1099,8 @@ task_priority(
 	task->priority = priority;
 
 	if (change_threads) {
-		register thread_t	thread;
-		register queue_head_t	*list;
+		thread_t	thread;
+		queue_head_t	*list;
 
 		list = &task->thread_list;
 		queue_iterate(list, thread, thread_t, thread_list) {
@@ -1040,6 +1115,22 @@ task_priority(
 }
 
 /*
+ *	task_set_name
+ *
+ *	Set the name of task TASK to NAME.  This is a debugging aid.
+ *	NAME will be used in error messages printed by the kernel.
+ */
+kern_return_t
+task_set_name(
+	task_t			task,
+	kernel_debug_name_t	name)
+{
+	strncpy(task->name, name, sizeof task->name - 1);
+	task->name[sizeof task->name - 1] = '\0';
+	return KERN_SUCCESS;
+}
+
+/*
  *	task_collect_scan:
  *
  *	Attempt to free resources owned by tasks.
@@ -1047,7 +1138,7 @@ task_priority(
 
 void task_collect_scan(void)
 {
-	register task_t		task, prev_task;
+	task_t			task, prev_task;
 	processor_set_t		pset, prev_pset;
 
 	prev_task = TASK_NULL;
@@ -1178,6 +1269,27 @@ task_ras_control(
 	break;
     }
     task_unlock(task);
-#endif
+#endif /* FAST_TAS */
     return ret;
+}
+
+/*
+ *	register_new_task_notification
+ *
+ *	Register a port to which a notification about newly created
+ *	tasks are sent.
+ */
+kern_return_t
+register_new_task_notification(
+	const host_t host,
+	ipc_port_t notification)
+{
+	if (host == HOST_NULL)
+		return KERN_INVALID_HOST;
+
+	if (new_task_notification != NULL)
+		return KERN_NO_ACCESS;
+
+	new_task_notification = notification;
+	return KERN_SUCCESS;
 }

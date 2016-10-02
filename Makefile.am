@@ -1,6 +1,6 @@
 # Makefile for GNU Mach.
 
-# Copyright (C) 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2006, 2007, 2008, 2009, 2013 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -42,7 +42,7 @@ AM_LDFLAGS =
 #
 
 AM_CPPFLAGS += \
-	-nostdinc -imacros config.h
+	-ffreestanding -nostdinc -imacros config.h
 
 AM_CPPFLAGS += \
 	-I$(systype) \
@@ -59,7 +59,12 @@ AM_CFLAGS += \
 AM_CFLAGS += \
 	-Wall
 
-# See <http://lists.gnu.org/archive/html/bug-hurd/2006-01/msg00148.html>.
+# We need the GNU-style inline
+AM_CFLAGS += \
+	-fgnu89-inline
+
+# Much of the Mach code predates C99 and makes invalid assumptions about
+# type punning.
 AM_CFLAGS += \
 	-fno-strict-aliasing
 
@@ -104,8 +109,8 @@ CPP = @CPP@ -x c
 # Other Tools' Configuration.
 #
 
-# Don't needlessly overwrite files that whose contents haven't changed.  This
-# helps for avoinding unneccessary recompilation cycles when keeping
+# Don't needlessly overwrite files whose contents haven't changed.
+# This helps avoiding unnecessary recompilation cycles when keeping
 # cross-compilation toolchains up-to-date.  Thus, unconditionally use the
 # `install-sh' that is supplied by GNU Automake 1.10.1, as the GNU Coreutils
 # one doesn't provide this functionality yet (TODO: change that).  TODO:
@@ -156,11 +161,10 @@ noinst_PROGRAMS += \
 	gnumach.o
 
 # This is the list of routines we decide is OK to steal from the C library.
-clib_routines := memcmp memcpy memmove				\
-		 strchr strstr strsep strtok			\
-		 htonl htons ntohl ntohs			\
-		 udivdi3 __udivdi3				\
+clib_routines := htonl htons ntohl ntohs			\
+		 udivdi3 __udivdi3 __umoddi3			\
 		 __rel_iplt_start __rel_iplt_end		\
+		 __ffsdi2					\
 		 _START _start etext _edata end _end # actually ld magic, not libc.
 gnumach-undef: gnumach.$(OBJEXT)
 	$(NM_V) $(NM) -u $< | sed 's/  *U  *//' | sort -u > $@
@@ -173,6 +177,9 @@ clib-routines.o: gnumach-undef gnumach-undef-bad
 	then cat gnumach-undef-bad; exit 2; else true; fi
 	$(AM_V_CCLD) $(CCLD) -nostdlib -nostartfiles -r -static \
 	  -o $@ `sed 's/^/-Wl,-u,/' < $<` -x c /dev/null -lc -lgcc
+	@if nm $@ | grep __init_cpu_features; \
+	then echo "Please install a 32bit libc without multiarch support (on Debian systems, the libc6-dev:i386 package containing /usr/lib/i386-linux-gnu/libc.a)". ; \
+	false ; fi
 
 gnumach_LINK = $(LD) $(LINKFLAGS) $(gnumach_LINKFLAGS) -o $@
 gnumach_LDADD = gnumach.o clib-routines.o
@@ -196,13 +203,34 @@ EXTRA_DIST += \
 EXTRA_DIST += \
 	DEVELOPMENT
 
-dist-hook:
+dist-hook: dist-rm-CVS gen-ChangeLog
+
+.PHONY: dist-rm-CVS
+dist-rm-CVS:
 # Try to be very safe with respect to spuriously removing various directories
 # in case of an error.
 	find $(distdir)/ -type d -name CVS | while read d; do	\
 	  rm -f "$$d"/{Entries,Repository,Root,Tag} &&		\
 	  rmdir "$$d";						\
 	done
+
+gen_start_commit = e227045b06d62ee7d2fbab9d5ade9030ff43170b
+ChangeLog_files = ChangeLog ChangeLog.0 ChangeLog.00
+.PHONY: gen-ChangeLog
+gen-ChangeLog:
+	$(AM_V_GEN)if test -d $(top_srcdir)/.git; then			\
+	  (cd $(top_srcdir)/ &&						\
+	  ./gitlog-to-changelog	--strip-tab				\
+	    $(gen_start_commit).. &&					\
+	  echo) >> $(distdir)/cl-t &&					\
+	  for f in $(ChangeLog_files); do				\
+	    (cd $(top_srcdir)/ &&					\
+	    git show $(gen_start_commit):$$f) >> $(distdir)/cl-t &&	\
+	    rm -f $(distdir)/$$f &&					\
+	    mv $(distdir)/cl-t $(distdir)/$$f				\
+	    || exit $$?;						\
+	  done;								\
+	fi
 
 DISTCLEANFILES += \
 	Makefile.orig \

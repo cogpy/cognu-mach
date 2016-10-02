@@ -79,9 +79,9 @@ ipc_mqueue_init(
 
 void
 ipc_mqueue_move(
-	ipc_mqueue_t	dest,
-	ipc_mqueue_t	source,
-	ipc_port_t	port)
+	ipc_mqueue_t		dest,
+	ipc_mqueue_t		source,
+	const ipc_port_t	port)
 {
 	ipc_kmsg_queue_t oldq, newq;
 	ipc_thread_queue_t blockedq;
@@ -171,10 +171,10 @@ ipc_mqueue_changed(
  */
 
 mach_msg_return_t
-ipc_mqueue_send(kmsg, option, time_out)
-	ipc_kmsg_t kmsg;
-	mach_msg_option_t option;
-	mach_msg_timeout_t time_out;
+ipc_mqueue_send(
+	ipc_kmsg_t 		kmsg,
+	mach_msg_option_t 	option,
+	mach_msg_timeout_t 	time_out)
 {
 	ipc_port_t port;
 
@@ -373,6 +373,8 @@ ipc_mqueue_send(kmsg, option, time_out)
 		thread_go(receiver);
 	}
     }
+
+	current_task()->messages_sent++;
 
 	return MACH_MSG_SUCCESS;
 }
@@ -683,6 +685,8 @@ ipc_mqueue_receive(
 
 	ip_unlock(port);
     }
+
+	current_task()->messages_received++;
 
 	*kmsgp = kmsg;
 	*seqnop = seqno;

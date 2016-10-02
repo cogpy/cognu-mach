@@ -38,12 +38,12 @@
 
 #if NCOM > 0
 extern	struct	bus_driver	comdriver;
-extern void			comintr();
+#include <i386at/com.h>
 #endif /* NCOM */
 
 #if NLPR > 0
 extern	struct	bus_driver	lprdriver;
-extern void			lprintr();
+#include <i386at/lpr.h>
 #endif /* NLPR */
 
 struct	bus_ctlr	bus_master_init[] = {
@@ -92,9 +92,9 @@ struct	bus_device	bus_device_init[] = {
  */
 void probeio(void)
 {
-	register struct	bus_device	*device;
-	register struct	bus_ctlr	*master;
-	int				i = 0;
+	struct	bus_device	*device;
+	struct	bus_ctlr	*master;
+	int			i = 0;
 
 	for (master = bus_master_init; master->driver; master++)
 	{
@@ -122,7 +122,7 @@ void probeio(void)
 }
 
 void take_dev_irq(
-	struct bus_device *dev)
+	const struct bus_device *dev)
 {
 	int pic = (int)dev->sysdep1;
 
@@ -135,7 +135,7 @@ void take_dev_irq(
 		printf("The device below will clobber IRQ %d.\n", pic);
 		printf("You have two devices at the same IRQ.\n");
 		printf("This won't work.  Reconfigure your hardware and try again.\n");
-		printf("%s%d: port = %x, spl = %d, pic = %d.\n",
+		printf("%s%d: port = %lx, spl = %ld, pic = %d.\n",
 		        dev->name, dev->unit, dev->address,
 			dev->sysdep, dev->sysdep1);
 		while (1);
@@ -144,7 +144,7 @@ void take_dev_irq(
 }
 
 void take_ctlr_irq(
-	struct bus_ctlr *ctlr)
+	const struct bus_ctlr *ctlr)
 {
 	int pic = ctlr->sysdep1;
 	if (intpri[pic] == 0) {

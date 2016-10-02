@@ -46,6 +46,11 @@ typedef thread_t ipc_thread_t;
 #define	ith_lock(thread)	simple_lock(&(thread)->ith_lock_data)
 #define	ith_unlock(thread)	simple_unlock(&(thread)->ith_lock_data)
 
+/*
+ *	Note that this isn't a queue, but rather a stack. This causes
+ *	threads that were recently running to be reused earlier, which
+ *	helps improve locality of reference.
+ */
 typedef struct ipc_thread_queue {
 	ipc_thread_t ithq_base;
 } *ipc_thread_queue_t;
@@ -70,7 +75,7 @@ MACRO_END
 
 #define	ipc_thread_rmqueue_first_macro(queue, thread)			\
 MACRO_BEGIN								\
-	register ipc_thread_t _next;					\
+	ipc_thread_t _next;						\
 									\
 	assert((queue)->ithq_base == (thread));				\
 									\
@@ -79,7 +84,7 @@ MACRO_BEGIN								\
 		assert((thread)->ith_prev == (thread));			\
 		(queue)->ithq_base = ITH_NULL;				\
 	} else {							\
-		register ipc_thread_t _prev = (thread)->ith_prev;	\
+		ipc_thread_t _prev = (thread)->ith_prev;		\
 									\
 		(queue)->ithq_base = _next;				\
 		_next->ith_prev = _prev;				\
@@ -90,19 +95,20 @@ MACRO_END
 
 #define	ipc_thread_enqueue_macro(queue, thread)				\
 MACRO_BEGIN								\
-	register ipc_thread_t _first = (queue)->ithq_base;		\
+	ipc_thread_t _first = (queue)->ithq_base;			\
 									\
 	if (_first == ITH_NULL) {					\
 		(queue)->ithq_base = (thread);				\
 		assert((thread)->ith_next == (thread));			\
 		assert((thread)->ith_prev == (thread));			\
 	} else {							\
-		register ipc_thread_t _last = _first->ith_prev;		\
+		ipc_thread_t _last = _first->ith_prev;			\
 									\
 		(thread)->ith_next = _first;				\
 		(thread)->ith_prev = _last;				\
 		_first->ith_prev = (thread);				\
 		_last->ith_next = (thread);				\
+		(queue)->ithq_base = (thread);				\
 	}								\
 MACRO_END
 

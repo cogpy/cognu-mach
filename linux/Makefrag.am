@@ -36,6 +36,11 @@ liblinux_a_CPPFLAGS = $(AM_CPPFLAGS) \
 # Because of the use of `extern inline' in some Linux header files without
 # corresponding text segment definitions, we must always optimize.
 liblinux_a_CFLAGS = -O2 $(AM_CFLAGS)
+
+# See <http://lists.gnu.org/archive/html/bug-hurd/2006-01/msg00148.html>.
+liblinux_a_CFLAGS += \
+	-fno-strict-aliasing
+
 # TODO.  Do we really need `-traditional'?
 liblinux_a_CCASFLAGS = $(AM_CCASFLAGS) \
 	-D__ASSEMBLY__ -traditional \
@@ -78,6 +83,8 @@ liblinux_a_SOURCES += \
 	linux/src/drivers/block/ide-cd.c \
 	linux/src/drivers/block/ide.c \
 	linux/src/drivers/block/ide.h \
+	linux/dev/drivers/block/ahci.c \
+	linux/dev/include/ahci.h \
 	linux/src/drivers/block/ide_modes.h \
 	linux/src/drivers/block/rz1000.c \
 	linux/src/drivers/block/triton.c
@@ -746,6 +753,12 @@ endif
 EXTRA_DIST += \
 	linux/dev/README \
 	linux/src/COPYING
+
+# Those get #included...
+EXTRA_DIST += \
+	linux/src/drivers/scsi/FlashPoint.c \
+	linux/src/drivers/scsi/eata_pio_proc.c \
+	linux/src/drivers/scsi/scsiiom.c
 
 # Instead of listing each file individually...
 EXTRA_DIST += \

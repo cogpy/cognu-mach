@@ -66,6 +66,7 @@
 
 #include "io_perm.h"
 #include "gdt.h"
+#include "pcb.h"
 
 /* Our device emulation ops.  See below, at the bottom of this file.  */
 static struct device_emulation_ops io_perm_device_emulation_ops;
@@ -130,7 +131,6 @@ no_senders (mach_no_senders_notification_t *notification)
 
   assert (io_perm != IO_PERM_NULL);
 
-  ip_lock (io_perm->port);  /* TODO.  Actually needed?  */
   ipc_kobject_set (io_perm->port, IKO_NULL, IKOT_NONE);
   ipc_port_dealloc_kernel (io_perm->port);
 
@@ -174,7 +174,7 @@ io_bitmap_clear (unsigned char *iopb, io_port_t from, io_port_t to)
 
    The function is exported.  */
 kern_return_t
-i386_io_perm_create (ipc_port_t master_port, io_port_t from, io_port_t to,
+i386_io_perm_create (const ipc_port_t master_port, io_port_t from, io_port_t to,
 		     io_perm_t *new)
 {
   if (master_port != master_device_port)
@@ -219,13 +219,8 @@ i386_io_perm_create (ipc_port_t master_port, io_port_t from, io_port_t to,
   return KERN_SUCCESS;
 }
 
-
-/* From pcb.c.  */
-extern void update_ktss_iopb (unsigned char *new_iopb, int last);
-
-
 /* Modify the I/O permissions for TARGET_TASK.  If ENABLE is TRUE, the
-   permission to acces the I/O ports specified by IO_PERM is granted,
+   permission to access the I/O ports specified by IO_PERM is granted,
    otherwise it is withdrawn.
 
    The function returns KERN_INVALID_ARGUMENT if TARGET_TASK is not a valid

@@ -39,18 +39,52 @@
 /*
  * Routines placed in empty entries in the device tables
  */
-int nulldev()
+int nulldev(void)
 {
 	return (D_SUCCESS);
 }
 
-int nodev()
+int nulldev_open(dev_t dev, int flags, io_req_t ior)
+{
+	return (D_SUCCESS);
+}
+
+void nulldev_close(dev_t dev, int flags)
+{
+}
+
+int nulldev_read(dev_t dev, io_req_t ior)
+{
+	return (D_SUCCESS);
+}
+
+int nulldev_write(dev_t dev, io_req_t ior)
+{
+	return (D_SUCCESS);
+}
+
+io_return_t nulldev_getstat(dev_t dev, int flavor, int *data, natural_t *count)
+{
+	return (D_SUCCESS);
+}
+
+io_return_t nulldev_setstat(dev_t dev, int flavor, int *data, natural_t count)
+{
+	return (D_SUCCESS);
+}
+
+int nulldev_portdeath(dev_t dev, mach_port_t port)
+{
+	return (D_SUCCESS);
+}
+
+int nodev(void)
 {
 	return (D_INVALID_OPERATION);
 }
 
-vm_offset_t
-nomap()
+int
+nomap(dev_t dev, vm_offset_t off, int prot)
 {
 	return (D_INVALID_OPERATION);
 }
@@ -63,11 +97,11 @@ nomap()
  *   src and target are equal in first 'len' characters
  *   next character of target is 0 (end of string).
  */
-boolean_t
+boolean_t __attribute__ ((pure))
 name_equal(src, len, target)
-	register char *	src;
-	register int	len;
-	register char *	target;
+	const char 	*src;
+	int		len;
+	const char 	*target;
 {
 	while (--len >= 0)
 	    if (*src++ != *target++)
@@ -78,10 +112,10 @@ name_equal(src, len, target)
 /*
  * device name lookup
  */
-boolean_t dev_name_lookup(name, ops, unit)
-	char *		name;
-	dev_ops_t	*ops;	/* out */
-	int		*unit;	/* out */
+boolean_t dev_name_lookup(
+	char 		*name,
+	dev_ops_t	*ops,	/* out */
+	int		*unit)	/* out */
 {
 	/*
 	 * Assume that block device names are of the form
@@ -95,18 +129,14 @@ boolean_t dev_name_lookup(name, ops, unit)
 	 * <partition>		is a letter in [a-h] (disks only?)
 	 */
 
-	register char *	cp = name;
+	char 		*cp = name;
 	int		len;
-	register int	j = 0;
-	register int	c;
+	int		j = 0;
+	int		c;
 	dev_ops_t	dev;
-	register boolean_t found;
+	boolean_t 	found;
 
-	int slice_num=0;
-
-#if 0
-	printf("lookup on name %s\n",name);
-#endif /* 0 */
+	int slice_num = 0;
 
 	/*
 	 * Find device type name (characters before digit)
@@ -136,7 +166,7 @@ boolean_t dev_name_lookup(name, ops, unit)
 	}
 	if (!found) {
 	    /* name not found - try indirection list */
-	    register dev_indirect_t	di;
+	    dev_indirect_t	di;
 
 	    dev_indirect_search(di) {
 		if (name_equal(name, len, di->d_name)) {
@@ -167,7 +197,7 @@ boolean_t dev_name_lookup(name, ops, unit)
 	    *unit *= j;
 
 	    /* find slice ? */
-	    if (c=='s') {
+	    if (c == 's') {
 		cp++;
 		while ((c = *cp) != '\0' &&
 			c >= '0' && c <= '9') {
@@ -176,17 +206,14 @@ boolean_t dev_name_lookup(name, ops, unit)
 		}
 	    }
 
-	    *unit += (slice_num <<4);
-		/* if slice==0, it is either compatability or whole device */
+	    *unit += (slice_num << 4);
+		/* if slice==0, it is either compatibility or whole device */
 
 	    if (c >= 'a' && c < 'a' + j) { /* note: w/o this -> whole slice */
 		/*
 		 * Minor number is <subdev_count>*unit + letter.
 		 * NOW it is slice result + letter
 		 */
-#if 0
-		*unit = *unit * j + (c - 'a' +1);  /* +1 to start 'a' at 1 */
-#endif /* 0 */
 		*unit += (c - 'a' +1);
 	    }
 	}
@@ -198,11 +225,11 @@ boolean_t dev_name_lookup(name, ops, unit)
  */
 void
 dev_set_indirection(name, ops, unit)
-	char		*name;
+	const char	*name;
 	dev_ops_t	ops;
 	int		unit;
 {
-	register dev_indirect_t di;
+	dev_indirect_t di;
 
 	dev_indirect_search(di) {
 	    if (!strcmp(di->d_name, name)) {
@@ -214,22 +241,23 @@ dev_set_indirection(name, ops, unit)
 }
 
 boolean_t dev_change_indirect(iname, dname, unit)
-char *iname,*dname;
-int unit;
+	const char 	*iname;
+	const char	*dname;
+	int 		unit;
 {
     struct dev_ops *dp;
     struct dev_indirect *di;
-    int found = FALSE;
+    boolean_t found = FALSE;
 
     dev_search(dp) {
-	if (!strcmp(dp->d_name,dname)) {
+	if (!strcmp(dp->d_name, dname)) {
 	    found = TRUE;
 	    break;
 	}
     }
     if (!found) return FALSE;
     dev_indirect_search(di) {
-	if (!strcmp(di->d_name,iname)) {
+	if (!strcmp(di->d_name, iname)) {
 	    di->d_ops = dp;
 	    di->d_unit = unit;
 	    return TRUE;

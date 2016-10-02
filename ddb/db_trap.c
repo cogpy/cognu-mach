@@ -35,6 +35,7 @@
  */
 #include <mach/boolean.h>
 #include <machine/db_machdep.h>
+#include <machine/setjmp.h>
 #include <ddb/db_command.h>
 #include <ddb/db_access.h>
 #include <ddb/db_break.h>
@@ -42,29 +43,30 @@
 #include <ddb/db_output.h>
 #include <ddb/db_task_thread.h>
 #include <ddb/db_trap.h>
+#include <ddb/db_run.h>
+#include <machine/db_interface.h>
+#include <kern/lock.h>
 
 
 extern jmp_buf_t *db_recover;
-
-extern void		db_restart_at_pc();
-extern boolean_t	db_stop_at_pc();
 
 extern int		db_inst_count;
 extern int		db_load_count;
 extern int		db_store_count;
 
 void
-db_task_trap(type, code, user_space)
-	int	  type, code;
-	boolean_t user_space;
+db_task_trap(
+	int	  type, 
+	int	  code,
+	boolean_t user_space)
 {
 	jmp_buf_t db_jmpbuf;
 	jmp_buf_t *prev;
 	boolean_t	bkpt;
 	boolean_t	watchpt;
-	void		db_init_default_thread();
-	void		db_check_breakpoint_valid();
 	task_t		task_space;
+
+	check_simple_locks_disable();
 
 	task_space = db_target_space(current_thread(), user_space);
 	bkpt = IS_BREAKPOINT_TRAP(type, code);
@@ -90,17 +92,22 @@ db_task_trap(type, code, user_space)
 		db_print_loc_and_inst(db_dot, task_space);
 	    else
 		db_printf("Trouble printing location %#X.\n", db_dot);
+
+	    if (!bkpt && !watchpt && _setjmp(db_recover = &db_jmpbuf) == 0)
+	      db_stack_trace_cmd(0, 0, -1, "");
 	    db_recover = prev;
 
 	    db_command_loop();
 	}
 
+	check_simple_locks_enable();
 	db_restart_at_pc(watchpt, task_space);
 }
 
 void
-db_trap(type, code)
-	int	type, code;
+db_trap(
+	int	type, 
+	int	code)
 {
 	db_task_trap(type, code, !DB_VALID_KERN_ADDR(PC_REGS(DDB_REGS)));
 }

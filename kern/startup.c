@@ -36,60 +36,50 @@
 #include <ipc/ipc_init.h>
 #include <kern/cpu_number.h>
 #include <kern/debug.h>
+#include <kern/gsync.h>
 #include <kern/machine.h>
 #include <kern/mach_factor.h>
 #include <kern/mach_clock.h>
-#include <kern/printf.h>
 #include <kern/processor.h>
+#include <kern/rdxtree.h>
 #include <kern/sched_prim.h>
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
 #include <kern/xpr.h>
+#include <kern/bootstrap.h>
 #include <kern/time_stamp.h>
+#include <kern/startup.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_init.h>
+#include <vm/vm_pageout.h>
 #include <machine/machspl.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/model_dep.h>
 #include <mach/version.h>
+#include <device/device_init.h>
 
-
-
-extern void	vm_mem_init();
-extern void	vm_mem_bootstrap();
-extern void	init_timeout();
-extern void	machine_init();
-
-extern void	idle_thread();
-extern void	vm_pageout();
-extern void	reaper_thread();
-extern void	swapin_thread();
-extern void	sched_thread();
-extern void	intr_thread();
-
-extern void	bootstrap_create();
-extern void	device_service_create();
-
-void cpu_launch_first_thread();		/* forward */
-void start_kernel_threads();	/* forward */
+#if MACH_KDB
+#include <device/cons.h>
+#endif /* MACH_KDB */
 
 #if ! MACH_KBD
-boolean_t reboot_on_panic = 1;
+boolean_t reboot_on_panic = TRUE;
 #endif
 
 #if	NCPUS > 1
-extern void	start_other_cpus();
-extern void	action_thread();
+#include <machine/mp_desc.h>
+#include <kern/machine.h>
 #endif	/* NCPUS > 1 */
 
 /* XX */
-extern vm_offset_t phys_first_addr, phys_last_addr;
 extern char *kernel_cmdline;
+extern void	intr_thread();
 
 /*
  *	Running in virtual memory, on the interrupt stack.
@@ -97,7 +87,7 @@ extern char *kernel_cmdline;
  *
  *	Assumes that master_cpu is set.
  */
-void setup_main()
+void setup_main(void)
 {
 	thread_t		startup_thread;
 
@@ -114,15 +104,15 @@ void setup_main()
 	}
 #else	/* MACH_KDB */
 	if (strstr (kernel_cmdline, "-H ")) {
-	    reboot_on_panic = 0;
+	    reboot_on_panic = FALSE;
 	}
 #endif	/* MACH_KDB */
 
 	panic_init();
-	printf_init();
 
 	sched_init();
 	vm_mem_bootstrap();
+	rdxtree_cache_init();
 	ipc_bootstrap();
 	vm_mem_init();
 	ipc_init();
@@ -142,12 +132,12 @@ void setup_main()
 
 	timestamp_init();
 
-	mapable_time_init();
-
 	machine_init();
 
+	mapable_time_init();
+
 	machine_info.max_cpus = NCPUS;
-	machine_info.memory_size = phys_last_addr - phys_first_addr; /* XXX mem_size */
+	machine_info.memory_size = vm_page_mem_size(); /* XXX phys_addr_t -> vm_size_t */
 	machine_info.avail_cpus = 0;
 	machine_info.major_version = KERNEL_MAJOR_VERSION;
 	machine_info.minor_version = KERNEL_MINOR_VERSION;
@@ -166,8 +156,10 @@ void setup_main()
 	 *	Kick off the time-out driven routines by calling
 	 *	them the first time.
 	 */
-	recompute_priorities();
+	recompute_priorities(NULL);
 	compute_mach_factor();
+
+	gsync_setup ();
 
 	/*
 	 *	Create a kernel thread to start the other kernel
@@ -209,9 +201,9 @@ void setup_main()
  * Now running in a thread.  Create the rest of the kernel threads
  * and the bootstrap task.
  */
-void start_kernel_threads()
+void start_kernel_threads(void)
 {
-	register int	i;
+	int	i;
 
 	/*
 	 *	Create the idle threads and the other
@@ -280,7 +272,7 @@ void start_kernel_threads()
 }
 
 #if	NCPUS > 1
-void slave_main()
+void slave_main(void)
 {
 	cpu_launch_first_thread(THREAD_NULL);
 }
@@ -290,10 +282,9 @@ void slave_main()
  *	Start up the first thread on a CPU.
  *	First thread is specified for the master CPU.
  */
-void cpu_launch_first_thread(th)
-	register thread_t	th;
+void cpu_launch_first_thread(thread_t th)
 {
-	register int	mycpu;
+	int	mycpu;
 
 	mycpu = cpu_number();
 

@@ -111,10 +111,8 @@ linux_kmem_init ()
       for (p = pages, j = 0; j < MEM_CHUNK_SIZE - PAGE_SIZE; j += PAGE_SIZE)
 	{
 	  assert (p->phys_addr < MEM_DMA_LIMIT);
-	  assert (p->phys_addr + PAGE_SIZE
-		  == ((vm_page_t) p->pageq.next)->phys_addr);
-
-	  p = (vm_page_t) p->pageq.next;
+	  assert (p->phys_addr + PAGE_SIZE == (p + 1)->phys_addr);
+	  p++;
 	}
 
       pages_free[i].end = pages_free[i].start + MEM_CHUNK_SIZE;
@@ -218,7 +216,7 @@ void *
 linux_kmalloc (unsigned int size, int priority)
 {
   int order, coalesced = 0;
-  unsigned flags;
+  unsigned long flags;
   struct pagehdr *ph;
   struct blkhdr *bh, *new_bh;
 
@@ -310,7 +308,7 @@ again:
 void
 linux_kfree (void *p)
 {
-  unsigned flags;
+  unsigned long flags;
   struct blkhdr *bh;
   struct pagehdr *ph;
 
@@ -385,7 +383,8 @@ unsigned long
 __get_free_pages (int priority, unsigned long order, int dma)
 {
   int i, pages_collected = 0;
-  unsigned flags, bits, off, j, len;
+  unsigned bits, off, j, len;
+  unsigned long flags;
 
   assert ((PAGE_SIZE << order) <= MEM_CHUNK_SIZE);
 
@@ -444,7 +443,8 @@ void
 free_pages (unsigned long addr, unsigned long order)
 {
   int i;
-  unsigned flags, bits, len, j;
+  unsigned bits, len, j;
+  unsigned long flags;
 
   assert ((addr & PAGE_MASK) == 0);
 
@@ -556,6 +556,12 @@ vfree (void *addr)
   
   kmem_free (kernel_map, (vm_offset_t) addr, p->size);
   vmalloc_list_remove (p);
+}
+
+unsigned long
+vmtophys (void *addr)
+{
+	return kvtophys((vm_offset_t) addr);
 }
 
 /* XXX: Quick hacking. */

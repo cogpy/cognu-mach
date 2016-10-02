@@ -51,7 +51,7 @@
 #include <mach/memory_object.h>
 #include <vm/memory_object_user.user.h>
 				/* For memory_object_data_{request,unlock} */
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <kern/slab.h>
 
 #if	MACH_PCSAMPLE
@@ -88,8 +88,6 @@ struct kmem_cache	vm_fault_state_cache;
 
 int		vm_object_absent_max = 50;
 
-int		vm_fault_debug = 0;
-
 boolean_t	vm_fault_dirty_handling = FALSE;
 boolean_t	vm_fault_interruptible = TRUE;
 
@@ -107,7 +105,7 @@ extern struct db_watchpoint *db_watchpoint_list;
 void vm_fault_init(void)
 {
 	kmem_cache_init(&vm_fault_state_cache, "vm_fault_state",
-			sizeof(vm_fault_state_t), 0, NULL, NULL, NULL, 0);
+			sizeof(vm_fault_state_t), 0, NULL, 0);
 }
 
 /*
@@ -125,9 +123,9 @@ void vm_fault_init(void)
  *		"object" must be locked.
  */
 void
-vm_fault_cleanup(object, top_page)
-	register vm_object_t	object;
-	register vm_page_t	top_page;
+vm_fault_cleanup(
+	vm_object_t	object,
+	vm_page_t	top_page)
 {
 	vm_object_paging_end(object);
 	vm_object_unlock(object);
@@ -156,7 +154,7 @@ vm_fault_cleanup(object, top_page)
       thread_t _thread_ = current_thread(); \
  \
       if (_thread_ != THREAD_NULL) \
-	  take_pc_sample_macro(_thread_, (flavor)); \
+	  take_pc_sample_macro(_thread_, (flavor), 1, 0); \
     MACRO_END
 
 #else
@@ -204,33 +202,26 @@ vm_fault_cleanup(object, top_page)
  *		The "result_page" is also left busy.  It is not removed
  *		from the pageout queues.
  */
-vm_fault_return_t vm_fault_page(first_object, first_offset,
-				fault_type, must_be_resident, interruptible,
-				protection,
-				result_page, top_page,
-				resume, continuation)
+vm_fault_return_t vm_fault_page(
  /* Arguments: */
-	vm_object_t	first_object;	/* Object to begin search */
-	vm_offset_t	first_offset;	/* Offset into object */
-	vm_prot_t	fault_type;	/* What access is requested */
-	boolean_t	must_be_resident;/* Must page be resident? */
-	boolean_t	interruptible;	/* May fault be interrupted? */
+	vm_object_t	first_object,	/* Object to begin search */
+	vm_offset_t	first_offset,	/* Offset into object */
+	vm_prot_t	fault_type,	/* What access is requested */
+	boolean_t	must_be_resident,/* Must page be resident? */
+	boolean_t	interruptible,	/* May fault be interrupted? */
  /* Modifies in place: */
-	vm_prot_t	*protection;	/* Protection for mapping */
+	vm_prot_t	*protection,	/* Protection for mapping */
  /* Returns: */
-	vm_page_t	*result_page;	/* Page found, if successful */
-	vm_page_t	*top_page;	/* Page in top object, if
+	vm_page_t	*result_page,	/* Page found, if successful */
+	vm_page_t	*top_page,	/* Page in top object, if
 					 * not result_page.
 					 */
  /* More arguments: */
-	boolean_t	resume;		/* We are restarting. */
-	void		(*continuation)(); /* Continuation for blocking. */
+	boolean_t	resume,		/* We are restarting. */
+	void		(*continuation)()) /* Continuation for blocking. */
 {
-	register
 	vm_page_t	m;
-	register
 	vm_object_t	object;
-	register
 	vm_offset_t	offset;
 	vm_page_t	first_m;
 	vm_object_t	next_object;
@@ -239,7 +230,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 	vm_prot_t	access_required;
 
 	if (resume) {
-		register vm_fault_state_t *state =
+		vm_fault_state_t *state =
 			(vm_fault_state_t *) current_thread()->ith_other;
 
 		if (state->vmfp_backoff)
@@ -254,6 +245,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 
 	vm_stat_sample(SAMPLED_PC_VM_FAULTS_ANY);
 	vm_stat.faults++;		/* needs lock XXX */
+	current_task()->faults++;
 
 /*
  *	Recovery actions
@@ -356,7 +348,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 				PAGE_ASSERT_WAIT(m, interruptible);
 				vm_object_unlock(object);
 				if (continuation != (void (*)()) 0) {
-					register vm_fault_state_t *state =
+					vm_fault_state_t *state =
 						(vm_fault_state_t *) current_thread()->ith_other;
 
 					/*
@@ -431,7 +423,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 					 * need to allocate a real page.
 					 */
 
-					real_m = vm_page_grab(!object->internal);
+					real_m = vm_page_grab();
 					if (real_m == VM_PAGE_NULL) {
 						vm_fault_cleanup(object, first_m);
 						return(VM_FAULT_MEMORY_SHORTAGE);
@@ -471,6 +463,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 					vm_stat_sample(SAMPLED_PC_VM_ZFILL_FAULTS);
 
 					vm_stat.zero_fill_count++;
+					current_task()->zero_fills++;
 					vm_object_lock(object);
 					pmap_clear_modify(m->phys_addr);
 					break;
@@ -552,6 +545,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 				if (m->inactive)  {
 				    	vm_stat_sample(SAMPLED_PC_VM_REACTIVATION_FAULTS);
 					vm_stat.reactivations++;
+					current_task()->reactivations++;
 				}
 
 				VM_PAGE_QUEUES_REMOVE(m);
@@ -613,7 +607,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 				 *	won't block for pages.
 				 */
 
-				if (m->fictitious && !vm_page_convert(m, FALSE)) {
+				if (m->fictitious && !vm_page_convert(&m)) {
 					VM_PAGE_FREE(m);
 					vm_fault_cleanup(object, first_m);
 					return(VM_FAULT_MEMORY_SHORTAGE);
@@ -651,13 +645,14 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 
 			vm_stat.pageins++;
 		    	vm_stat_sample(SAMPLED_PC_VM_PAGEIN_FAULTS);
+			current_task()->pageins++;
 
 			if ((rc = memory_object_data_request(object->pager,
 				object->pager_request,
 				m->offset + object->paging_offset,
 				PAGE_SIZE, access_required)) != KERN_SUCCESS) {
 				if (rc != MACH_SEND_INTERRUPTED)
-					printf("%s(0x%p, 0x%p, 0x%x, 0x%x, 0x%x) failed, %x\n",
+					printf("%s(0x%p, 0x%p, 0x%lx, 0x%x, 0x%x) failed, %x\n",
 						"memory_object_data_request",
 						object->pager,
 						object->pager_request,
@@ -730,7 +725,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 			assert(m->object == object);
 			first_m = VM_PAGE_NULL;
 
-			if (m->fictitious && !vm_page_convert(m, !object->internal)) {
+			if (m->fictitious && !vm_page_convert(&m)) {
 				VM_PAGE_FREE(m);
 				vm_fault_cleanup(object, VM_PAGE_NULL);
 				return(VM_FAULT_MEMORY_SHORTAGE);
@@ -740,6 +735,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 			vm_page_zero_fill(m);
 			vm_stat_sample(SAMPLED_PC_VM_ZFILL_FAULTS);
 			vm_stat.zero_fill_count++;
+			current_task()->zero_fills++;
 			vm_object_lock(object);
 			pmap_clear_modify(m->phys_addr);
 			break;
@@ -772,12 +768,10 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 	 *	objects.
 	 */
 
-#if	EXTRA_ASSERTIONS
 	assert(m->busy && !m->absent);
 	assert((first_m == VM_PAGE_NULL) ||
 		(first_m->busy && !first_m->absent &&
 		 !first_m->active && !first_m->inactive));
-#endif	/* EXTRA_ASSERTIONS */
 
 	/*
 	 *	If the page is being written, but isn't
@@ -816,7 +810,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 			/*
 			 *	Allocate a page for the copy
 			 */
-			copy_m = vm_page_grab(!first_object->internal);
+			copy_m = vm_page_grab();
 			if (copy_m == VM_PAGE_NULL) {
 				RELEASE_PAGE(m);
 				vm_fault_cleanup(object, first_m);
@@ -855,6 +849,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 
 			vm_stat.cow_faults++;
 			vm_stat_sample(SAMPLED_PC_VM_COW_FAULTS);
+			current_task()->cow_faults++;
 			object = first_object;
 			offset = first_offset;
 
@@ -1088,7 +1083,7 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
 	vm_fault_cleanup(object, first_m);
 
 	if (continuation != (void (*)()) 0) {
-		register vm_fault_state_t *state =
+		vm_fault_state_t *state =
 			(vm_fault_state_t *) current_thread()->ith_other;
 
 		/*
@@ -1135,9 +1130,9 @@ vm_fault_return_t vm_fault_page(first_object, first_offset,
  */
 
 void
-vm_fault_continue()
+vm_fault_continue(void)
 {
-	register vm_fault_state_t *state =
+	vm_fault_state_t *state =
 		(vm_fault_state_t *) current_thread()->ith_other;
 
 	(void) vm_fault(state->vmf_map,
@@ -1148,14 +1143,13 @@ vm_fault_continue()
 	/*NOTREACHED*/
 }
 
-kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
-		       resume, continuation)
-	vm_map_t	map;
-	vm_offset_t	vaddr;
-	vm_prot_t	fault_type;
-	boolean_t	change_wiring;
-	boolean_t	resume;
-	void		(*continuation)();
+kern_return_t vm_fault(
+	vm_map_t	map,
+	vm_offset_t	vaddr,
+	vm_prot_t	fault_type,
+	boolean_t	change_wiring,
+	boolean_t	resume,
+	void		(*continuation)())
 {
 	vm_map_version_t	version;	/* Map version for verificiation */
 	boolean_t		wired;		/* Should mapping be wired down? */
@@ -1167,11 +1161,10 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 	vm_page_t		top_page;	/* Placeholder page */
 	kern_return_t		kr;
 
-	register
 	vm_page_t		m;	/* Fast access to result_page */
 
 	if (resume) {
-		register vm_fault_state_t *state =
+		vm_fault_state_t *state =
 			(vm_fault_state_t *) current_thread()->ith_other;
 
 		/*
@@ -1247,7 +1240,7 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 	vm_object_paging_begin(object);
 
 	if (continuation != (void (*)()) 0) {
-		register vm_fault_state_t *state =
+		vm_fault_state_t *state =
 			(vm_fault_state_t *) current_thread()->ith_other;
 
 		/*
@@ -1301,7 +1294,7 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 			goto done;
 		case VM_FAULT_MEMORY_SHORTAGE:
 			if (continuation != (void (*)()) 0) {
-				register vm_fault_state_t *state =
+				vm_fault_state_t *state =
 					(vm_fault_state_t *) current_thread()->ith_other;
 
 				/*
@@ -1484,7 +1477,7 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 
     done:
 	if (continuation != (void (*)()) 0) {
-		register vm_fault_state_t *state =
+		vm_fault_state_t *state =
 			(vm_fault_state_t *) current_thread()->ith_other;
 
 		kmem_cache_free(&vm_fault_state_cache, (vm_offset_t) state);
@@ -1495,21 +1488,19 @@ kern_return_t vm_fault(map, vaddr, fault_type, change_wiring,
 	return(kr);
 }
 
-kern_return_t	vm_fault_wire_fast();
-
 /*
  *	vm_fault_wire:
  *
  *	Wire down a range of virtual addresses in a map.
  */
-void vm_fault_wire(map, entry)
-	vm_map_t	map;
-	vm_map_entry_t	entry;
+void vm_fault_wire(
+	vm_map_t	map,
+	vm_map_entry_t	entry)
 {
 
-	register vm_offset_t	va;
-	register pmap_t		pmap;
-	register vm_offset_t	end_addr = entry->vme_end;
+	vm_offset_t	va;
+	pmap_t		pmap;
+	vm_offset_t	end_addr = entry->vme_end;
 
 	pmap = vm_map_pmap(map);
 
@@ -1538,14 +1529,14 @@ void vm_fault_wire(map, entry)
  *
  *	Unwire a range of virtual addresses in a map.
  */
-void vm_fault_unwire(map, entry)
-	vm_map_t	map;
-	vm_map_entry_t	entry;
+void vm_fault_unwire(
+	vm_map_t	map,
+	vm_map_entry_t	entry)
 {
-	register vm_offset_t	va;
-	register pmap_t		pmap;
-	register vm_offset_t	end_addr = entry->vme_end;
-	vm_object_t		object;
+	vm_offset_t	va;
+	pmap_t		pmap;
+	vm_offset_t	end_addr = entry->vme_end;
+	vm_object_t	object;
 
 	pmap = vm_map_pmap(map);
 
@@ -1627,17 +1618,18 @@ void vm_fault_unwire(map, entry)
  *	other than the common case will return KERN_FAILURE, and the caller
  *	is expected to call vm_fault().
  */
-kern_return_t vm_fault_wire_fast(map, va, entry)
-	vm_map_t	map;
-	vm_offset_t	va;
-	vm_map_entry_t	entry;
+kern_return_t vm_fault_wire_fast(
+	vm_map_t	map,
+	vm_offset_t	va,
+	vm_map_entry_t	entry)
 {
 	vm_object_t		object;
 	vm_offset_t		offset;
-	register vm_page_t	m;
+	vm_page_t		m;
 	vm_prot_t		prot;
 
 	vm_stat.faults++;		/* needs lock XXX */
+	current_task()->faults++;
 /*
  *	Recovery actions
  */
@@ -1775,9 +1767,9 @@ kern_return_t vm_fault_wire_fast(map, va, entry)
  *		Release a page used by vm_fault_copy.
  */
 
-void	vm_fault_copy_cleanup(page, top_page)
-	vm_page_t	page;
-	vm_page_t	top_page;
+void	vm_fault_copy_cleanup(
+	vm_page_t	page,
+	vm_page_t	top_page)
 {
 	vm_object_t	object = page->object;
 
@@ -1818,23 +1810,14 @@ void	vm_fault_copy_cleanup(page, top_page)
  *		requested.
  */
 kern_return_t	vm_fault_copy(
-			src_object,
-			src_offset,
-			src_size,
-			dst_object,
-			dst_offset,
-			dst_map,
-			dst_version,
-			interruptible
-			)
-	vm_object_t	src_object;
-	vm_offset_t	src_offset;
-	vm_size_t	*src_size;		/* INOUT */
-	vm_object_t	dst_object;
-	vm_offset_t	dst_offset;
-	vm_map_t	dst_map;
-	vm_map_version_t *dst_version;
-	boolean_t	interruptible;
+	vm_object_t	src_object,
+	vm_offset_t	src_offset,
+	vm_size_t	*src_size,		/* INOUT */
+	vm_object_t	dst_object,
+	vm_offset_t	dst_offset,
+	vm_map_t	dst_map,
+	vm_map_version_t *dst_version,
+	boolean_t	interruptible)
 {
 	vm_page_t		result_page;
 	vm_prot_t		prot;
@@ -2015,13 +1998,11 @@ kern_return_t	vm_fault_copy(
  *		XXX Untested.  Also unused.  Eventually, this technology
  *		could be used in vm_fault_copy() to advantage.
  */
-vm_fault_return_t vm_fault_page_overwrite(dst_object, dst_offset, result_page)
-	register
-	vm_object_t	dst_object;
-	vm_offset_t	dst_offset;
-	vm_page_t	*result_page;	/* OUT */
+vm_fault_return_t vm_fault_page_overwrite(
+	vm_object_t	dst_object,
+	vm_offset_t	dst_offset,
+	vm_page_t	*result_page)	/* OUT */
 {
-	register
 	vm_page_t	dst_page;
 
 #define	interruptible	FALSE	/* XXX */

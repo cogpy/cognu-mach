@@ -39,7 +39,10 @@
  *	FILE *fd;
  *	char *format;
  *	{
+ *	va_list listp;
+ *	va_start(listp, fmt);
  *	_doprnt(format, &args, fd);
+ *	va_end(listp);
  *	}
  *
  *  would suffice.  (This example does not handle the fprintf's "return
@@ -123,17 +126,17 @@
 #define isdigit(d) ((d) >= '0' && (d) <= '9')
 #define Ctod(c) ((c) - '0')
 
-#define MAXBUF (sizeof(long int) * 8)		 /* enough for binary */
+#define MAXBUF (sizeof(long long int) * 8)	 /* enough for binary */
 
 
 void printnum(
-	register unsigned long	u,
-	register int		base,
+	unsigned long long	u,
+	int			base,
 	void			(*putc)( char, vm_offset_t ),
 	vm_offset_t		putc_arg)
 {
 	char	buf[MAXBUF];	/* build number here */
-	register char *	p = &buf[MAXBUF-1];
+	char *	p = &buf[MAXBUF-1];
 	static char digs[] = "0123456789abcdef";
 
 	do {
@@ -148,24 +151,9 @@ void printnum(
 
 boolean_t	_doprnt_truncates = FALSE;
 
-/* printf could be called at _any_ point during system initialization,
-   including before printf_init() gets called from the "normal" place
-   in kern/startup.c.  */
-boolean_t	_doprnt_lock_initialized = FALSE;
-decl_simple_lock_data(,_doprnt_lock)
-
-void printf_init(void)
-{
-	if (!_doprnt_lock_initialized)
-	{
-		_doprnt_lock_initialized = TRUE;
-		simple_lock_init(&_doprnt_lock);
-	}
-}
-
 void _doprnt(
-	register const char *fmt,
-	va_list		*argp,
+	const char 	*fmt,
+	va_list		argp,
 					/* character output routine */
  	void		(*putc)( char, vm_offset_t),
 	int		radix,		/* default radix - for '%r' */
@@ -175,29 +163,14 @@ void _doprnt(
 	int		prec;
 	boolean_t	ladjust;
 	char		padc;
-	long		n;
-	unsigned long	u;
+	long long	n;
+	unsigned long long	u;
+	int		have_long_long;
 	int		plus_sign;
 	int		sign_char;
 	boolean_t	altfmt, truncate;
 	int		base;
-	register char	c;
-
-	printf_init();
-
-#if 0
-	/* Make sure that we get *some* printout, no matter what */
-	simple_lock(&_doprnt_lock);
-#else
-	{
-		register int i = 0;
-		while (i < 1*1024*1024) {
-			if (simple_lock_try(&_doprnt_lock))
-				break;
-			i++;
-		}
-	}
-#endif
+	char		c;
 
 	while ((c = *fmt) != '\0') {
 	    if (c != '%') {
@@ -215,6 +188,7 @@ void _doprnt(
 	    plus_sign = 0;
 	    sign_char = 0;
 	    altfmt = FALSE;
+	    have_long_long = FALSE;
 
 	    while (TRUE) {
 		c = *fmt;
@@ -248,7 +222,7 @@ void _doprnt(
 		}
 	    }
 	    else if (c == '*') {
-		length = va_arg(*argp, int);
+		length = va_arg(argp, int);
 		c = *++fmt;
 		if (length < 0) {
 		    ladjust = !ladjust;
@@ -266,13 +240,17 @@ void _doprnt(
 		    }
 		}
 		else if (c == '*') {
-		    prec = va_arg(*argp, int);
+		    prec = va_arg(argp, int);
 		    c = *++fmt;
 		}
 	    }
 
 	    if (c == 'l')
 		c = *++fmt;	/* need it if sizeof(int) < sizeof(long) */
+	    if (c == 'l') {
+		c = *++fmt;	/* handle `long long' */
+		have_long_long = TRUE;
+	    }
 
 	    truncate = FALSE;
 
@@ -280,12 +258,15 @@ void _doprnt(
 		case 'b':
 		case 'B':
 		{
-		    register char *p;
-		    boolean_t	  any;
-		    register int  i;
+		    char 	*p;
+		    boolean_t	any;
+		    int  	i;
 
-		    u = va_arg(*argp, unsigned long);
-		    p = va_arg(*argp, char *);
+		    if (! have_long_long)
+		      u = va_arg(argp, unsigned long);
+		    else
+		      u = va_arg(argp, unsigned long long);
+		    p = va_arg(argp, char *);
 		    base = *p++;
 		    printnum(u, base, putc, putc_arg);
 
@@ -299,7 +280,7 @@ void _doprnt(
 			    /*
 			     * Bit field
 			     */
-			    register int j;
+			    int j;
 			    if (any)
 				(*putc)(',', putc_arg);
 			    else {
@@ -333,19 +314,19 @@ void _doprnt(
 		}
 
 		case 'c':
-		    c = va_arg(*argp, int);
+		    c = va_arg(argp, int);
 		    (*putc)(c, putc_arg);
 		    break;
 
 		case 's':
 		{
-		    register char *p;
-		    register char *p2;
+		    char *p;
+		    char *p2;
 
 		    if (prec == -1)
 			prec = 0x7fffffff;	/* MAXINT */
 
-		    p = va_arg(*argp, char *);
+		    p = va_arg(argp, char *);
 
 		    if (p == (char *)0)
 			p = "";
@@ -428,7 +409,10 @@ void _doprnt(
 		    goto print_unsigned;
 
 		print_signed:
-		    n = va_arg(*argp, long);
+		    if (! have_long_long)
+		      n = va_arg(argp, long);
+		    else
+		      n = va_arg(argp, long long);
 		    if (n >= 0) {
 			u = n;
 			sign_char = plus_sign;
@@ -440,13 +424,16 @@ void _doprnt(
 		    goto print_num;
 
 		print_unsigned:
-		    u = va_arg(*argp, unsigned long);
+		    if (! have_long_long)
+		      u = va_arg(argp, unsigned long);
+		    else
+		      u = va_arg(argp, unsigned long long);
 		    goto print_num;
 
 		print_num:
 		{
 		    char	buf[MAXBUF];	/* build number here */
-		    register char *	p = &buf[MAXBUF-1];
+		    char *	p = &buf[MAXBUF-1];
 		    static char digits[] = "0123456789abcdef";
 		    char *prefix = 0;
 
@@ -504,8 +491,6 @@ void _doprnt(
 	    }
 	fmt++;
 	}
-
-	simple_unlock(&_doprnt_lock);
 }
 
 /*
@@ -514,7 +499,7 @@ void _doprnt(
 
 int vprintf(const char *fmt, va_list listp)
 {
-	_doprnt(fmt, &listp, (void (*)( char, vm_offset_t)) cnputc, 16, 0);
+	_doprnt(fmt, listp, (void (*)( char, vm_offset_t)) cnputc, 16, 0);
 	return 0;
 }
 
@@ -537,7 +522,7 @@ int	indent = 0;
 void iprintf(const char *fmt, ...)
 {
 	va_list	listp;
-	register int i;
+	int i;
 
 	for (i = indent; i > 0; ){
 	    if (i >= 8) {
@@ -550,7 +535,7 @@ void iprintf(const char *fmt, ...)
 	    }
 	}
 	va_start(listp, fmt);
-	_doprnt(fmt, &listp, (void (*)( char, vm_offset_t)) cnputc, 16, 0);
+	_doprnt(fmt, listp, (void (*)( char, vm_offset_t)) cnputc, 16, 0);
 	va_end(listp);
 }
 
@@ -564,8 +549,8 @@ sputc(
 	char		c,
 	vm_offset_t	arg)
 {
-	register char	**bufp = (char **) arg;
-	register char	*p = *bufp;
+	char	**bufp = (char **) arg;
+	char	*p = *bufp;
 	*p++ = c;
 	*bufp = p;
 }
@@ -577,7 +562,7 @@ sprintf(char *buf, const char *fmt, ...)
 	char	*start = buf;
 
 	va_start(listp, fmt);
-	_doprnt(fmt, &listp, sputc, 16, (vm_offset_t)&buf);
+	_doprnt(fmt, listp, sputc, 16, (vm_offset_t)&buf);
 	va_end(listp);
 
 	*buf = 0;
@@ -601,24 +586,34 @@ snputc(char c, vm_offset_t arg)
 }
 
 int
-vsnprintf(char *buf, int size, const char *fmt, va_list args)
+vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
   struct vsnprintf_cookie cookie
     = { .buf = buf, .index = 0, .max_len = size };
 
-  _doprnt (fmt, &args, snputc, 16, (vm_offset_t)&cookie);
+  _doprnt (fmt, args, snputc, 16, (vm_offset_t)&cookie);
   cookie.buf[cookie.index] = '\0';
 
   return cookie.index;
 }
 
-
-void safe_gets(str, maxlen)
-	char *str;
-	int  maxlen;
+int
+snprintf(char *buf, size_t size, const char *fmt, ...)
 {
-	register char *lp;
-	register int c;
+	int written;
+	va_list	listp;
+	va_start(listp, fmt);
+	written = vsnprintf(buf, size, fmt, listp);
+	va_end(listp);
+	return written;
+}
+
+void safe_gets(
+	char *str,
+	int  maxlen)
+{
+	char *lp;
+	int c;
 	char *strmax = str + maxlen - 1; /* allow space for trailing 0 */
 
 	lp = str;

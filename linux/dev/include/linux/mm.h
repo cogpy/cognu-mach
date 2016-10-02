@@ -234,7 +234,7 @@ extern mem_map_t * mem_map;
 #define __get_dma_pages(priority, order) __get_free_pages((priority),(order),1)
 extern unsigned long __get_free_pages(int priority, unsigned long gfporder, int dma);
 
-extern inline unsigned long get_free_page(int priority)
+static inline unsigned long get_free_page(int priority)
 {
 	unsigned long page;
 
@@ -281,6 +281,7 @@ extern void * vmalloc(unsigned long size);
 extern void * vremap(unsigned long offset, unsigned long size);
 extern void vfree(void * addr);
 extern int vread(char *buf, char *addr, int count);
+extern unsigned long vmtophys (void *);
 
 /* mmap.c */
 extern unsigned long do_mmap(struct file * file, unsigned long addr, unsigned long len,

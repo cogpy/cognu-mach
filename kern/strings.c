@@ -50,15 +50,15 @@
  *	the contents are identical up to the length of s2.
  *	It returns < 0 if the first differing character is smaller 
  *	in s1 than in s2 or if s1 is shorter than s2 and the
- *	contents are identical upto the length of s1.
+ *	contents are identical up to the length of s1.
  */
 
-int
+int __attribute__ ((pure))
 strcmp(
-	register const char *s1,
-	register const char *s2)
+	const char *s1,
+	const char *s2)
 {
-	register unsigned int a, b;
+	unsigned int a, b;
 
 	do {
 		a = *s1++;
@@ -80,13 +80,13 @@ strcmp(
  *	comparison runs for at most "n" characters.
  */
 
-int
+int __attribute__ ((pure))
 strncmp(
-	register const char *s1,
-	register const char *s2,
+	const char *s1,
+	const char *s2,
 	size_t n)
 {
-	register unsigned int a, b;
+	unsigned int a, b;
 
 	while (n != 0) {
 		a = *s1++;
@@ -113,10 +113,10 @@ strncmp(
 
 char *
 strcpy(
-	register char *to,
-	register const char *from)
+	char *to,
+	const char *from)
 {
-	register char *ret = to;
+	char *ret = to;
 
 	while ((*to++ = *from++) != '\0')
 		continue;
@@ -135,11 +135,11 @@ strcpy(
 
 char *
 strncpy(
-	register char *to,
-	register const char *from,
-	register size_t count)
+	char *to,
+	const char *from,
+	size_t count)
 {
-	register char *ret = to;
+	char *ret = to;
 
 	while (count != 0) {
 		count--;
@@ -157,15 +157,15 @@ strncpy(
 
 /*
  * Abstract:
- *	strlen returns the number of characters in "string" preceeding 
+ *	strlen returns the number of characters in "string" preceding
  *	the terminating null character.
  */
 
-size_t
+size_t __attribute__ ((pure))
 strlen(
-	register const char *string)
+	const char *string)
 {
-	register const char *ret = string;
+	const char *ret = string;
 
 	while (*string++ != '\0')
 		continue;
@@ -179,15 +179,118 @@ strlen(
  *	The return value is a pointer to the "s" string.
  */
 
+#if 0
 void *
 memset(
 	void *_s, int c, size_t n)
 {
 	char *s = _s;
-	int i;
+	size_t i;
 
 	for (i = 0; i < n ; i++)
 		s[i] = c;
 
 	return _s;
+}
+#endif
+
+/*
+ * Abstract:
+ *	strchr returns a pointer to the first occurrence of the character
+ *	"c" in the string "s". If "c" is not found, return NULL.
+ */
+char *
+strchr(
+	const char *s,
+	int c)
+{
+	while (*s != c) {
+		if (*s == '\0') {
+			return NULL;
+		}
+
+		s++;
+	}
+
+	return (char *)s;
+}
+
+/*
+ * Abstract:
+ *	strsep extracts tokens from strings. If "*sp" is NULL, return NULL
+ *	and do nothing. Otherwise, find the first token in string "*sp".
+ *	Tokens are delimited by characters in the string "delim". If no
+ *	delimiter is found, the token is the entire string "*sp", and "*sp"
+ *	is made NULL. Otherwise, overwrite the delimiter with a null byte,
+ *	and make "*sp" point past it.
+ */
+char *
+strsep(
+	char **sp,
+	const char *delim)
+{
+	const char *d;
+	char *s, *t;
+
+	s = t = *sp;
+
+	if (s == NULL) {
+		return NULL;
+	}
+
+	for (;;) {
+		if (*s == '\0') {
+			*sp = NULL;
+			return t;
+		}
+
+		d = delim;
+
+		for (;;) {
+			if (*d == '\0') {
+				break;
+			}
+
+			if (*d == *s) {
+				*s = '\0';
+				*sp = s + 1;
+				return t;
+			}
+
+			d++;
+		}
+
+		s++;
+	}
+}
+
+/*
+ * Abstract:
+ *	strstr returns a pointer to the first occurrence of the substring
+ *	"find" in the string "s". If no substring was found, return NULL.
+ */
+char *
+strstr(
+	const char *s,
+	const char *find)
+{
+	size_t len;
+
+	len = strlen(find);
+
+	if (len == 0) {
+		return (char *)s;
+	}
+
+	for (;;) {
+		if (*s == '\0') {
+			return NULL;
+		}
+
+		if (strncmp(s, find, len) == 0) {
+			return (char *)s;
+		}
+
+		s++;
+	}
 }

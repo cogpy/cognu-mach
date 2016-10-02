@@ -65,11 +65,6 @@
 
 /* During VM initialization, steal a chunk of memory.  */
 extern vm_offset_t	pmap_steal_memory(vm_size_t);
-/* During VM initialization, report remaining unused physical pages.  */
-extern unsigned int	pmap_free_pages(void);
-/* During VM initialization, use remaining physical pages to allocate page
- * frames.  */
-extern void		pmap_startup(vm_offset_t *, vm_offset_t *);
 /* Initialization, after kernel runs in virtual memory.  */
 extern void		pmap_init(void);
 
@@ -78,20 +73,12 @@ extern void		pmap_init(void);
  *	If machine/pmap.h defines MACHINE_PAGES, it must implement
  *	the above functions.  The pmap module has complete control.
  *	Otherwise, it must implement
- *		pmap_free_pages
  *		pmap_virtual_space
- *		pmap_next_page
  *		pmap_init
- *	and vm/vm_resident.c implements pmap_steal_memory and pmap_startup
- *	using pmap_free_pages, pmap_next_page, pmap_virtual_space,
- *	and pmap_enter.  pmap_free_pages may over-estimate the number
- *	of unused physical pages, and pmap_next_page may return FALSE
- *	to indicate that there are no more unused pages to return.
- *	However, for best performance pmap_free_pages should be accurate.
+ *	and vm/vm_resident.c implements pmap_steal_memory using
+ *	pmap_virtual_space and pmap_enter.
  */
 
-/* During VM initialization, return the next unused physical page.  */
-extern boolean_t	pmap_next_page(vm_offset_t *);
 /* During VM initialization, report virtual space available for the kernel.  */
 extern void		pmap_virtual_space(vm_offset_t *, vm_offset_t *);
 #endif	/* MACHINE_PAGES */
@@ -113,7 +100,7 @@ extern void pmap_reference(pmap_t pmap);
 extern void pmap_destroy(pmap_t pmap);
 
 /* Enter a mapping */
-extern void pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa,
+extern void pmap_enter(pmap_t pmap, vm_offset_t va, phys_addr_t pa,
 		       vm_prot_t prot, boolean_t wired);
 
 
@@ -141,7 +128,7 @@ extern void		pmap_deactivate(pmap_t, thread_t, int);
  */
 
 /* Restrict access to page. */
-void pmap_page_protect(vm_offset_t pa, vm_prot_t prot);
+void pmap_page_protect(phys_addr_t pa, vm_prot_t prot);
 
 /*
  *	Routines to manage reference/modify bits based on
@@ -150,50 +137,28 @@ void pmap_page_protect(vm_offset_t pa, vm_prot_t prot);
  */
 
 /* Clear reference bit */
-void pmap_clear_reference(vm_offset_t pa);
+void pmap_clear_reference(phys_addr_t pa);
 
 /* Return reference bit */
 #ifndef pmap_is_referenced
-boolean_t pmap_is_referenced(vm_offset_t pa);
+boolean_t pmap_is_referenced(phys_addr_t pa);
 #endif /* pmap_is_referenced */
 
 /* Clear modify bit */
-void pmap_clear_modify(vm_offset_t pa);
+void pmap_clear_modify(phys_addr_t pa);
 
 /* Return modify bit */
-boolean_t pmap_is_modified(vm_offset_t pa);
-
-
-/*
- *	Statistics routines
- */
-
-#ifndef	pmap_resident_count
-extern int		pmap_resident_count();
-#endif	/* pmap_resident_count */
+boolean_t pmap_is_modified(phys_addr_t pa);
 
 /*
  *	Sundry required routines
  */
 /* Return a virtual-to-physical mapping, if possible.  */
-extern vm_offset_t	pmap_extract(pmap_t, vm_offset_t);
-/* Is virtual address valid? */
-extern boolean_t	pmap_access();
+extern phys_addr_t	pmap_extract(pmap_t, vm_offset_t);
 /* Perform garbage collection, if any.  */
 extern void		pmap_collect(pmap_t);
 /* Specify pageability.  */
 extern void		pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
-
-#ifndef	pmap_phys_address
-/* Transform address returned by device driver mapping function to physical
- * address known to this module.  */
-extern vm_offset_t	pmap_phys_address();
-#endif	/* pmap_phys_address */
-#ifndef	pmap_phys_to_frame
-/* Inverse of pmap_phys_address, for use by device driver mapping function in
- * machine-independent pseudo-devices.  */
-extern int		pmap_phys_to_frame();
-#endif	/* pmap_phys_to_frame */
 
 /*
  *	Optional routines
@@ -205,7 +170,7 @@ extern void		pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t,
 #endif	/* pmap_copy */
 #ifndef pmap_attribute
 /* Get/Set special memory attributes.  */
-extern kern_return_t	pmap_attribute();
+extern kern_return_t	pmap_attribute(void);
 #endif	/* pmap_attribute */
 
 /*
@@ -214,8 +179,6 @@ extern kern_return_t	pmap_attribute();
  *	during system initialization.
  */
 extern vm_offset_t pmap_grab_page (void);
-
-extern boolean_t pmap_valid_page(vm_offset_t x);
 
 /*
  *      Make the specified pages (by pmap, offset)
@@ -229,14 +192,14 @@ extern void pmap_pageable(
 
 /*
  *      Back-door routine for mapping kernel VM at initialization.
- *      Useful for mapping memory outside the range
- *      [phys_first_addr, phys_last_addr) (i.e., devices).
+ *      Useful for mapping memory outside the range of direct mapped
+ *      physical memory (i.e., devices).
  *      Otherwise like pmap_map.
  */
 extern vm_offset_t pmap_map_bd(
         vm_offset_t virt,
-        vm_offset_t start,
-        vm_offset_t end,
+        phys_addr_t start,
+        phys_addr_t end,
         vm_prot_t prot);
 
 /*

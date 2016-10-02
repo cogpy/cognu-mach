@@ -72,7 +72,7 @@ spl_t linux_intr_pri;
 /*
  * Flag indicating an interrupt is being handled.
  */
-unsigned long intr_count = 0;
+unsigned int intr_count = 0;
 
 /*
  * List of Linux interrupt handlers.
@@ -774,7 +774,7 @@ init_IRQ (void)
    * Program counter 0 of 8253 to interrupt hz times per second.
    */
   outb_p (PIT_C0 | PIT_SQUAREMODE | PIT_READMODE, PITCTL_PORT);
-  outb_p (latch && 0xff, PITCTR0_PORT);
+  outb_p (latch & 0xff, PITCTR0_PORT);
   outb (latch >> 8, PITCTR0_PORT);
   
   /*

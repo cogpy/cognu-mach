@@ -45,7 +45,7 @@
 #include <kern/lock.h>
 #include <kern/assert.h>
 #include <kern/debug.h>
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <vm/pmap.h>
 #include <ipc/ipc_types.h>
 
@@ -62,7 +62,7 @@ typedef struct ipc_port *	pager_request_t;
  */
 
 struct vm_object {
-	queue_chain_t		memq;		/* Resident memory */
+	queue_head_t		memq;		/* Resident memory */
 	decl_simple_lock_data(,	Lock)		/* Synchronization */
 #if	VM_OBJECT_DEBUG
 	thread_t		LockHolder;	/* Thread holding Lock */
@@ -71,8 +71,8 @@ struct vm_object {
 						 * if internal)
 						 */
 
-	short			ref_count;	/* Number of references */
-	short			resident_page_count;
+	int			ref_count;	/* Number of references */
+	unsigned long		resident_page_count;
 						/* number of resident pages */
 
 	struct vm_object	*copy;		/* Object that should receive
@@ -113,6 +113,13 @@ struct vm_object {
 						 * of these fields (i.e., don't
 						 * collapse, destroy or terminate)
 						 */
+	/* boolean_t */		used_for_pageout:1,/* The object carries data sent to
+						 * a memory manager, which signals
+						 * it's done by releasing memory.
+						 * This flag prevents coalescing so
+						 * that unmapping memory immediately
+						 * results in object termination.
+						 */
 	/* boolean_t */		pager_created:1,/* Has pager ever been created? */
 	/* boolean_t */		pager_initialized:1,/* Are fields ready to use? */
 	/* boolean_t */		pager_ready:1,	/* Will manager take requests? */
@@ -148,8 +155,9 @@ struct vm_object {
 						 */
 	/* boolean_t */		use_shared_copy : 1,/* Use shared (i.e.,
 						 * delayed) copy on write */
-	/* boolean_t */		shadowed: 1;	/* Shadow may exist */
+	/* boolean_t */		shadowed: 1,	/* Shadow may exist */
 
+	/* boolean_t */		cached: 1;	/* Object is cached */
 	queue_chain_t		cached_list;	/* Attachment point for the list
 						 * of objects cached as a result
 						 * of their can_persist value
@@ -169,6 +177,7 @@ vm_object_t	kernel_object;		/* the single kernel object */
 
 extern void		vm_object_bootstrap(void);
 extern void		vm_object_init(void);
+extern void		vm_object_collect(vm_object_t);
 extern void		vm_object_terminate(vm_object_t);
 extern vm_object_t	vm_object_allocate(vm_size_t);
 extern void		vm_object_reference(vm_object_t);
@@ -233,8 +242,6 @@ extern void vm_object_page_map(
 	vm_offset_t	(*)(void *, vm_offset_t),
 	void *);
 
-extern void		vm_object_print(vm_object_t);
-
 extern vm_object_t	vm_object_request_object(struct ipc_port *);
 
 extern boolean_t vm_object_coalesce(
@@ -246,6 +253,16 @@ extern boolean_t vm_object_coalesce(
    vm_size_t   next_size);
 
 extern void vm_object_pager_wakeup(ipc_port_t  pager);
+
+void memory_object_release(
+	ipc_port_t	pager,
+	pager_request_t	pager_request,
+	ipc_port_t	pager_name);
+
+void vm_object_deactivate_pages(vm_object_t);
+
+vm_object_t vm_object_copy_delayed(
+	vm_object_t	src_object);
 
 /*
  *	Event waiting handling
@@ -281,6 +298,10 @@ extern void vm_object_pager_wakeup(ipc_port_t  pager);
 /*
  *	Routines implemented as macros
  */
+
+#define vm_object_collectable(object)					\
+	(((object)->ref_count == 0)					\
+	&& ((object)->resident_page_count == 0))
 
 #define	vm_object_paging_begin(object) 					\
 	((object)->paging_in_progress++)
@@ -369,5 +390,13 @@ MACRO_END
 			     (interruptible))
 #define	vm_object_lock_taken(object)	simple_lock_taken(&(object)->Lock)
 #endif	/* VM_OBJECT_DEBUG */
+
+/*
+ *	Page cache accounting.
+ *
+ *	The page queues must be locked when changing these counters.
+ */
+extern int	vm_object_external_count;
+extern int	vm_object_external_pages;
 
 #endif	/* _VM_VM_OBJECT_H_ */

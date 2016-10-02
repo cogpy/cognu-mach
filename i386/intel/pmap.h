@@ -48,7 +48,7 @@
  *	Define the generic in terms of the specific
  */
 
-#if	i386
+#if defined(__i386__)
 #define	INTEL_PGBYTES		I386_PGBYTES
 #define INTEL_PGSHIFT		I386_PGSHIFT
 #define	intel_btop(x)		i386_btop(x)
@@ -58,17 +58,13 @@
 #define trunc_intel_to_vm(x)	trunc_i386_to_vm(x)
 #define round_intel_to_vm(x)	round_i386_to_vm(x)
 #define vm_to_intel(x)		vm_to_i386(x)
-#endif	/* i386 */
+#endif /* __i386__ */
 
 /*
  *	i386/i486 Page Table Entry
  */
 
-#if PAE
-typedef unsigned long long	pt_entry_t;
-#else	/* PAE */
-typedef unsigned int	pt_entry_t;
-#endif	/* PAE */
+typedef phys_addr_t pt_entry_t;
 #define PT_ENTRY_NULL	((pt_entry_t *) 0)
 
 #endif	/* __ASSEMBLER__ */
@@ -101,6 +97,13 @@ typedef unsigned int	pt_entry_t;
 #endif
 
 /*
+ *	Convert linear offset to page directory pointer index
+ */
+#if PAE
+#define lin2pdpnum(a)	(((a) >> PDPSHIFT) & PDPMASK)
+#endif
+
+/*
  *	Convert page descriptor index to linear address
  */
 #define pdenum2lin(a)	((vm_offset_t)(a) << PDESHIFT)
@@ -125,15 +128,15 @@ typedef unsigned int	pt_entry_t;
 #define INTEL_PTE_NCACHE 	0x00000010
 #define INTEL_PTE_REF		0x00000020
 #define INTEL_PTE_MOD		0x00000040
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_PAGETABLES
 /* Not supported */
 #define INTEL_PTE_GLOBAL	0x00000000
-#else	/* MACH_XEN */
+#else	/* MACH_PV_PAGETABLES */
 #define INTEL_PTE_GLOBAL	0x00000100
-#endif	/* MACH_XEN */
+#endif	/* MACH_PV_PAGETABLES */
 #define INTEL_PTE_WIRED		0x00000200
 #ifdef PAE
-#define INTEL_PTE_PFN		0xfffffffffffff000ULL
+#define INTEL_PTE_PFN		0x00007ffffffff000ULL
 #else
 #define INTEL_PTE_PFN		0xfffff000
 #endif
@@ -171,19 +174,29 @@ typedef struct pmap	*pmap_t;
 
 #define PMAP_NULL	((pmap_t) 0)
 
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_PAGETABLES
 extern void pmap_set_page_readwrite(void *addr);
 extern void pmap_set_page_readonly(void *addr);
 extern void pmap_set_page_readonly_init(void *addr);
 extern void pmap_map_mfn(void *addr, unsigned long mfn);
 extern void pmap_clear_bootstrap_pagetable(pt_entry_t *addr);
-#endif	/* MACH_XEN */
+#endif	/* MACH_PV_PAGETABLES */
 
 #if PAE
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->pdpbase))
 #else	/* PAE */
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->dirbase))
 #endif	/* PAE */
+
+typedef struct {
+	pt_entry_t	*entry;
+	vm_offset_t	vaddr;
+} pmap_mapwindow_t;
+
+extern pmap_mapwindow_t *pmap_get_mapwindow(pt_entry_t entry);
+extern void pmap_put_mapwindow(pmap_mapwindow_t *map);
+
+#define PMAP_NMAPWINDOWS 2
 
 #if	NCPUS > 1
 /*
@@ -220,7 +233,7 @@ extern	pmap_t	kernel_pmap;
  *	Machine dependent routines that are used only for i386/i486.
  */
 
-pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
+pt_entry_t *pmap_pte(const pmap_t pmap, vm_offset_t addr);
 
 /*
  *	Macros for speed.
@@ -275,7 +288,7 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 }
 
 #define PMAP_ACTIVATE_USER(pmap, th, my_cpu)	{			\
-	register pmap_t		tpmap = (pmap);				\
+	pmap_t		tpmap = (pmap);					\
 									\
 	if (tpmap == kernel_pmap) {					\
 	    /*								\
@@ -317,7 +330,7 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 }
 
 #define PMAP_DEACTIVATE_USER(pmap, thread, my_cpu)	{		\
-	register pmap_t		tpmap = (pmap);				\
+	pmap_t		tpmap = (pmap);					\
 									\
 	/*								\
 	 *	Do nothing if this is the kernel pmap.			\
@@ -388,7 +401,7 @@ pt_entry_t *pmap_pte(pmap_t pmap, vm_offset_t addr);
 }
 
 #define	PMAP_ACTIVATE_USER(pmap, th, my_cpu)	{			\
-	register pmap_t		tpmap = (pmap);				\
+	pmap_t		tpmap = (pmap);					\
 	(void) (th);							\
 	(void) (my_cpu);						\
 									\
@@ -430,19 +443,33 @@ extern void pmap_unmap_page_zero (void);
 /*
  *  pmap_zero_page zeros the specified (machine independent) page.
  */
-extern void pmap_zero_page (vm_offset_t);
+extern void pmap_zero_page (phys_addr_t);
 
 /*
  *  pmap_copy_page copies the specified (machine independent) pages.
  */
-extern void pmap_copy_page (vm_offset_t, vm_offset_t);
+extern void pmap_copy_page (phys_addr_t, phys_addr_t);
 
 /*
  *  kvtophys(addr)
  *
  *  Convert a kernel virtual address to a physical address
  */
-extern vm_offset_t kvtophys (vm_offset_t);
+extern phys_addr_t kvtophys (vm_offset_t);
+
+void pmap_remove_range(
+	pmap_t			pmap,
+	vm_offset_t		va,
+	pt_entry_t		*spte,
+	pt_entry_t		*epte);
+
+#if NCPUS > 1
+void signal_cpus(
+	cpu_set		use_list,
+	pmap_t		pmap,
+	vm_offset_t	start,
+	vm_offset_t	end);
+#endif	/* NCPUS > 1 */
 
 #endif	/* __ASSEMBLER__ */
 

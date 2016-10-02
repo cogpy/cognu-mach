@@ -36,6 +36,10 @@ extern void machine_init (void);
 /* Conserve power on processor CPU.  */
 extern void machine_idle (int cpu);
 
+extern void resettodr (void);
+
+extern void startrtclock (void);
+
 /*
  * Halt a cpu.
  */
@@ -45,16 +49,5 @@ extern void halt_cpu (void) __attribute__ ((noreturn));
  * Halt the system or reboot.
  */
 extern void halt_all_cpus (boolean_t reboot) __attribute__ ((noreturn));
-
-extern void resettodr (void);
-
-extern void startrtclock (void);
-
-/*
- *	More-specific code provides these;
- *	they indicate the total extent of physical memory
- *	that we know about and might ever have to manage.
- */
-extern vm_offset_t phys_first_addr, phys_last_addr;
 
 #endif /* _I386AT_MODEL_DEP_H_ */

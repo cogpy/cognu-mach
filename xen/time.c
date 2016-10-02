@@ -28,14 +28,15 @@
 #include "time.h"
 #include "store.h"
 
-static unsigned64_t lastnsec;
+static uint64_t lastnsec;
 
 /* 2^64 nanoseconds ~= 500 years */
-static unsigned64_t hyp_get_stime(void) {
-	unsigned32_t version;
-	unsigned64_t cpu_clock, last_cpu_clock, delta, system_time;
-	unsigned32_t mul;
-	signed8_t shift;
+static uint64_t hyp_get_stime(void) {
+	uint32_t version;
+	uint64_t cpu_clock, last_cpu_clock, delta, system_time;
+	uint64_t delta_high, delta_low;
+	uint32_t mul;
+	int8_t shift;
 	volatile struct vcpu_time_info *time = &hyp_shared_info.vcpu_info[0].time;
 
 	do {
@@ -54,12 +55,15 @@ static unsigned64_t hyp_get_stime(void) {
 		delta >>= -shift;
 	else
 		delta <<= shift;
-	return system_time + ((delta * (unsigned64_t) mul) >> 32);
+	delta_high = delta >> 32;
+	delta_low = (uint32_t) delta;
+	return system_time + ((delta_low * (uint64_t) mul) >> 32)
+	  + (delta_high * (uint64_t) mul);
 }
 
-unsigned64_t hyp_get_time(void) {
-	unsigned32_t version;
-	unsigned32_t sec, nsec;
+uint64_t hyp_get_time(void) {
+	uint32_t version;
+	uint32_t sec, nsec;
 
 	do {
 		version = hyp_shared_info.wc_version;
@@ -73,7 +77,7 @@ unsigned64_t hyp_get_time(void) {
 }
 
 static void hypclock_intr(int unit, int old_ipl, void *ret_addr, struct i386_interrupt_state *regs) {
-	unsigned64_t nsec, delta;
+	uint64_t nsec, delta;
 
 	if (!lastnsec)
 		return;
@@ -107,13 +111,12 @@ static void hypclock_intr(int unit, int old_ipl, void *ret_addr, struct i386_int
 }
 
 extern struct timeval time;
-extern struct timezone tz;
 
 int
 readtodc(tp)
 	u_int	*tp;
 {
-	unsigned64_t t = hyp_get_time();
+	uint64_t t = hyp_get_time();
 	u_int n = t / 1000000000;
 
 	*tp = n;
@@ -135,7 +138,7 @@ clkstart()
 	hyp_evt_handler(port, hypclock_intr, 0, SPLHI);
 
 	/* first clock tick */
-	clock_interrupt(0, 0, 0);
+	clock_interrupt(0, 0, 0, 0);
 	lastnsec = hyp_get_stime();
 
 	/* 10ms tick rest */
