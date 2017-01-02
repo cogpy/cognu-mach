@@ -46,12 +46,21 @@
 #include <kern/slab.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <kern/printf.h>
+#include <vm/memory_object.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <machine/locore.h>
+
+#define DEBUG 0
+
+/*
+ * Maximum delay, in milliseconds, between two pageout scans.
+ */
+#define VM_PAGEOUT_TIMEOUT 50
 
 /*
  * Event placeholder for pageout requests, synchronized with
@@ -72,7 +81,7 @@ static int vm_pageout_continue;
  *
  *		Move or copy the page to a new object, as part
  *		of which it will be sent to its memory manager
- *		in a memory_object_data_write or memory_object_initialize
+ *		in a memory_object_data_return or memory_object_initialize
  *		message.
  *
  *		The "paging_offset" argument specifies the offset
@@ -95,7 +104,7 @@ static int vm_pageout_continue;
  *		this routine returns a pointer to a place-holder page,
  *		inserted at the same offset, to block out-of-order
  *		requests for the page.  The place-holder page must
- *		be freed after the data_write or initialize message
+ *		be freed after the data_return or initialize message
  *		has been sent.  If the page is copied,
  *		the holding page is VM_PAGE_NULL.
  *
@@ -245,23 +254,26 @@ vm_pageout_setup(
 
 		assert(!old_object->internal);
 		m->laundry = FALSE;
-	} else if (old_object->internal) {
+	} else if (old_object->internal ||
+		   memory_manager_default_port(old_object->pager)) {
 		m->laundry = TRUE;
 		vm_page_laundry_count++;
 
 		vm_page_wire(m);
 	} else {
-		vm_page_activate(m);
+		m->external_laundry = TRUE;
 
 		/*
-		 *	If vm_page_external_pagedout is negative,
+		 *	If vm_page_external_laundry_count is negative,
 		 *	the pageout daemon isn't expecting to be
 		 *	notified.
 		 */
 
-		if (vm_page_external_pagedout >= 0) {
-			vm_page_external_pagedout++;
+		if (vm_page_external_laundry_count >= 0) {
+			vm_page_external_laundry_count++;
 		}
+
+		vm_page_activate(m);
 	}
 	vm_page_unlock_queues();
 
@@ -288,7 +300,7 @@ vm_pageout_setup(
  *		The "initial" argument specifies whether this
  *		data is an initialization only, and should use
  *		memory_object_data_initialize instead of
- *		memory_object_data_write.
+ *		memory_object_data_return.
  *
  *		The "flush" argument specifies whether the page
  *		should be flushed from the object.  If not, a
@@ -364,10 +376,9 @@ vm_pageout_page(
 	rc = vm_map_copyin_object(new_object, 0, PAGE_SIZE, &copy);
 	assert(rc == KERN_SUCCESS);
 
-	if (initial || old_object->use_old_pageout) {
-		rc = (*(initial ? memory_object_data_initialize
-			     : memory_object_data_write))
-			(old_object->pager,
+	if (initial) {
+		rc = memory_object_data_initialize(
+			 old_object->pager,
 			 old_object->pager_request,
 			 paging_offset, (pointer_t) copy, PAGE_SIZE);
 	}
@@ -461,9 +472,19 @@ void vm_pageout(void)
 				     FALSE);
 		} else if (should_wait) {
 			assert_wait(&vm_pageout_continue, FALSE);
-			thread_set_timeout(500);
+			thread_set_timeout(VM_PAGEOUT_TIMEOUT * hz / 1000);
 			simple_unlock(&vm_page_queue_free_lock);
 			thread_block(NULL);
+
+#if DEBUG
+			if (current_thread()->wait_result != THREAD_AWAKENED) {
+				printf("vm_pageout: timeout,"
+				       " vm_page_laundry_count:%d"
+				       " vm_page_external_laundry_count:%d\n",
+				       vm_page_laundry_count,
+				       vm_page_external_laundry_count);
+			}
+#endif
 		} else {
 			simple_unlock(&vm_page_queue_free_lock);
 		}

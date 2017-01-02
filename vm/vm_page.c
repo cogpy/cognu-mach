@@ -44,6 +44,7 @@
 #include <mach/vm_param.h>
 #include <machine/pmap.h>
 #include <sys/types.h>
+#include <vm/memory_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 
@@ -925,12 +926,6 @@ vm_page_seg_pull_cache_page(struct vm_page_seg *seg,
 }
 
 static boolean_t
-vm_page_seg_min_page_available(const struct vm_page_seg *seg)
-{
-    return (seg->nr_free_pages > seg->min_free_pages);
-}
-
-static boolean_t
 vm_page_seg_page_available(const struct vm_page_seg *seg)
 {
     return (seg->nr_free_pages > seg->high_free_pages);
@@ -939,6 +934,11 @@ vm_page_seg_page_available(const struct vm_page_seg *seg)
 static boolean_t
 vm_page_seg_usable(const struct vm_page_seg *seg)
 {
+    if ((seg->nr_active_pages + seg->nr_inactive_pages) == 0) {
+        /* Nothing to page out, assume segment is usable */
+        return TRUE;
+    }
+
     return (seg->nr_free_pages >= seg->high_free_pages);
 }
 
@@ -1084,16 +1084,17 @@ vm_page_seg_balance(struct vm_page_seg *seg)
 }
 
 static boolean_t
-vm_page_seg_evict(struct vm_page_seg *seg,
-                  boolean_t external_only, boolean_t low_memory)
+vm_page_seg_evict(struct vm_page_seg *seg, boolean_t external_only,
+                  boolean_t alloc_paused)
 {
     struct vm_page *page;
-    boolean_t reclaim, laundry;
+    boolean_t reclaim, double_paging;
     vm_object_t object;
     boolean_t was_active;
 
     page = NULL;
     object = NULL;
+    double_paging = FALSE;
 
 restart:
     vm_page_lock_queues();
@@ -1147,15 +1148,27 @@ restart:
      * processing of this page since it's immediately going to be
      * double paged out to the default pager. The laundry bit is
      * reset and the page is inserted into an internal object by
-     * vm_pageout_setup before the double paging pass.
+     * vm_pageout_setup before the second double paging pass.
+     *
+     * There is one important special case: the default pager can
+     * back external memory objects. When receiving the first
+     * pageout request, where the page is no longer present, a
+     * fault could occur, during which the map would be locked.
+     * This fault would cause a new paging request to the default
+     * pager. Receiving that request would deadlock when trying to
+     * lock the map again. Instead, the page isn't double paged
+     * and vm_pageout_setup wires the page down, trusting the
+     * default pager as for internal pages.
      */
 
     assert(!page->laundry);
+    assert(!(double_paging && page->external));
 
-    if (object->internal || !low_memory) {
-        laundry = FALSE;
+    if (object->internal || !alloc_paused ||
+        memory_manager_default_port(object->pager)) {
+        double_paging = FALSE;
     } else {
-        laundry = page->laundry = TRUE;
+        double_paging = page->laundry = TRUE;
     }
 
 out:
@@ -1202,7 +1215,7 @@ out:
     vm_pageout_page(page, FALSE, TRUE); /* flush it */
     vm_object_unlock(object);
 
-    if (laundry) {
+    if (double_paging) {
         goto restart;
     }
 
@@ -1873,7 +1886,7 @@ vm_page_check_usable(void)
         }
     }
 
-    vm_page_external_pagedout = -1;
+    vm_page_external_laundry_count = -1;
     vm_page_alloc_paused = FALSE;
     thread_wakeup(&vm_page_alloc_paused);
     return TRUE;
@@ -1940,39 +1953,10 @@ vm_page_balance(void)
 }
 
 static boolean_t
-vm_page_evict_once(boolean_t external_only)
+vm_page_evict_once(boolean_t external_only, boolean_t alloc_paused)
 {
-    struct vm_page_seg *seg;
-    boolean_t low_memory, min_page_available, evicted;
+    boolean_t evicted;
     unsigned int i;
-
-    /*
-     * XXX Page allocation currently only uses the DIRECTMAP selector,
-     * allowing us to know which segments to look at when determining
-     * whether we're very low on memory.
-     */
-    low_memory = TRUE;
-
-    simple_lock(&vm_page_queue_free_lock);
-
-    for (i = 0; i < vm_page_segs_size; i++) {
-        if (i > VM_PAGE_SEG_DIRECTMAP) {
-            break;
-        }
-
-        seg = vm_page_seg_get(i);
-
-        simple_lock(&seg->lock);
-        min_page_available = vm_page_seg_min_page_available(seg);
-        simple_unlock(&seg->lock);
-
-        if (min_page_available) {
-            low_memory = FALSE;
-            break;
-        }
-    }
-
-    simple_unlock(&vm_page_queue_free_lock);
 
     /*
      * It's important here that pages are evicted from lower priority
@@ -1981,7 +1965,7 @@ vm_page_evict_once(boolean_t external_only)
 
     for (i = vm_page_segs_size - 1; i < vm_page_segs_size; i--) {
         evicted = vm_page_seg_evict(vm_page_seg_get(i),
-                                    external_only, low_memory);
+                                    external_only, alloc_paused);
 
         if (evicted) {
             return TRUE;
@@ -1997,14 +1981,15 @@ vm_page_evict_once(boolean_t external_only)
 boolean_t
 vm_page_evict(boolean_t *should_wait)
 {
-    boolean_t pause, evicted, external_only;
+    boolean_t pause, evicted, external_only, alloc_paused;
     unsigned int i;
 
     *should_wait = TRUE;
     external_only = TRUE;
 
     simple_lock(&vm_page_queue_free_lock);
-    vm_page_external_pagedout = 0;
+    vm_page_external_laundry_count = 0;
+    alloc_paused = vm_page_alloc_paused;
     simple_unlock(&vm_page_queue_free_lock);
 
 again:
@@ -2018,7 +2003,7 @@ again:
     }
 
     for (i = 0; i < VM_PAGE_MAX_EVICTIONS; i++) {
-        evicted = vm_page_evict_once(external_only);
+        evicted = vm_page_evict_once(external_only, alloc_paused);
 
         if (!evicted) {
             break;
@@ -2031,7 +2016,7 @@ again:
      * Keep in mind eviction may not cause pageouts, since non-precious
      * clean pages are simply released.
      */
-    if ((vm_page_external_pagedout == 0) || (vm_page_laundry_count == 0)) {
+    if ((vm_page_laundry_count == 0) && (vm_page_external_laundry_count == 0)) {
         /*
          * No pageout, but some clean pages were freed. Start a complete
          * scan again without waiting.

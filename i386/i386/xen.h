@@ -169,7 +169,7 @@ MACH_INLINE int hyp_mmu_update_pte(pt_entry_t pte, pt_entry_t val)
 #define HYP_BATCH_MMU_UPDATES 256
 
 #define hyp_mmu_update_la(la, val) hyp_mmu_update_pte( \
-	(kernel_pmap->dirbase[lin2pdenum((vm_offset_t)(la))] & INTEL_PTE_PFN) \
+	(kernel_page_dir[lin2pdenum_cont((vm_offset_t)(la))] & INTEL_PTE_PFN) \
 		+ ptenum((vm_offset_t)(la)) * sizeof(pt_entry_t), val)
 #endif
 
@@ -204,7 +204,7 @@ MACH_INLINE void hyp_free_mfn(unsigned long mfn)
 	reservation.address_bits = 0;
 	reservation.domid = DOMID_SELF;
 	if (hyp_memory_op(XENMEM_decrease_reservation, kvtolin(&reservation)) != 1)
-		panic("couldn't free page %d\n", mfn);
+		panic("couldn't free page %lu\n", mfn);
 }
 
 _hypcall4(int, update_va_mapping, unsigned long, va, unsigned long, val_lo, unsigned long, val_hi, unsigned long, flags);
@@ -221,7 +221,7 @@ MACH_INLINE void hyp_free_page(unsigned long pfn, void *va)
 #ifdef MACH_PV_PAGETABLES
     /* remove from mappings */
     if (hyp_do_update_va_mapping(kvtolin(va), 0, UVMF_INVLPG|UVMF_ALL))
-        panic("couldn't clear page %d at %p\n", pfn, va);
+	    panic("couldn't clear page %lu at %p\n", pfn, va);
 
 #ifdef  MACH_PSEUDO_PHYS
     /* drop machine page */

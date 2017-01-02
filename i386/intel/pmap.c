@@ -388,6 +388,12 @@ struct pmap	kernel_pmap_store;
 pmap_t		kernel_pmap;
 
 struct kmem_cache	pmap_cache;		/* cache of pmap structures */
+struct kmem_cache	pd_cache;		/* cache of page directories */
+#if PAE
+struct kmem_cache	pdpt_cache;		/* cache of page
+						   directory pointer
+						   tables */
+#endif
 
 boolean_t		pmap_debug = FALSE;	/* flag for debugging prints */
 
@@ -415,9 +421,15 @@ static pmap_mapwindow_t mapwindows[PMAP_NMAPWINDOWS];
 static inline pt_entry_t *
 pmap_pde(const pmap_t pmap, vm_offset_t addr)
 {
+	pt_entry_t *page_dir;
 	if (pmap == kernel_pmap)
 		addr = kvtolin(addr);
-	return &pmap->dirbase[lin2pdenum(addr)];
+#if PAE
+	page_dir = (pt_entry_t *) ptetokv(pmap->pdpbase[lin2pdpnum(addr)]);
+#else
+	page_dir = pmap->dirbase;
+#endif
+	return &page_dir[lin2pdenum(addr)];
 }
 
 /*
@@ -433,8 +445,13 @@ pmap_pte(const pmap_t pmap, vm_offset_t addr)
 	pt_entry_t	*ptp;
 	pt_entry_t	pte;
 
+#if PAE
+	if (pmap->pdpbase == 0)
+		return(PT_ENTRY_NULL);
+#else
 	if (pmap->dirbase == 0)
 		return(PT_ENTRY_NULL);
+#endif
 	pte = *pmap_pde(pmap, addr);
 	if ((pte & INTEL_PTE_VALID) == 0)
 		return(PT_ENTRY_NULL);
@@ -617,13 +634,16 @@ void pmap_bootstrap(void)
 	{
 		vm_offset_t addr;
 		init_alloc_aligned(PDPNUM * INTEL_PGBYTES, &addr);
-		kernel_pmap->dirbase = kernel_page_dir = (pt_entry_t*)phystokv(addr);
+		kernel_page_dir = (pt_entry_t*)phystokv(addr);
 	}
 	kernel_pmap->pdpbase = (pt_entry_t*)phystokv(pmap_grab_page());
 	{
 		int i;
 		for (i = 0; i < PDPNUM; i++)
-			WRITE_PTE(&kernel_pmap->pdpbase[i], pa_to_pte(_kvtophys((void *) kernel_pmap->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID);
+			WRITE_PTE(&kernel_pmap->pdpbase[i],
+				  pa_to_pte(_kvtophys((void *) kernel_page_dir
+						      + i * INTEL_PGBYTES))
+				  | INTEL_PTE_VALID);
 	}
 #else	/* PAE */
 	kernel_pmap->dirbase = kernel_page_dir = (pt_entry_t*)phystokv(pmap_grab_page());
@@ -631,7 +651,7 @@ void pmap_bootstrap(void)
 	{
 		unsigned i;
 		for (i = 0; i < NPDES; i++)
-			kernel_pmap->dirbase[i] = 0;
+			kernel_page_dir[i] = 0;
 	}
 
 #ifdef	MACH_PV_PAGETABLES
@@ -704,7 +724,7 @@ void pmap_bootstrap(void)
 		 */
 		for (va = phystokv(0); va >= phystokv(0) && va < kernel_virtual_end; )
 		{
-			pt_entry_t *pde = kernel_page_dir + lin2pdenum(kvtolin(va));
+			pt_entry_t *pde = kernel_page_dir + lin2pdenum_cont(kvtolin(va));
 			pt_entry_t *ptable = (pt_entry_t*)phystokv(pmap_grab_page());
 			pt_entry_t *pte;
 
@@ -976,6 +996,15 @@ void pmap_init(void)
 	 */
 	s = (vm_size_t) sizeof(struct pmap);
 	kmem_cache_init(&pmap_cache, "pmap", s, 0, NULL, 0);
+	kmem_cache_init(&pd_cache, "pd",
+			INTEL_PGBYTES, INTEL_PGBYTES, NULL,
+			KMEM_CACHE_PHYSMEM);
+#if PAE
+	kmem_cache_init(&pdpt_cache, "pdpt",
+			PDPNUM * sizeof(pt_entry_t),
+			PDPNUM * sizeof(pt_entry_t), NULL,
+			KMEM_CACHE_PHYSMEM);
+#endif
 	s = (vm_size_t) sizeof(struct pv_entry);
 	kmem_cache_init(&pv_list_cache, "pv_entry", s, 0, NULL, 0);
 
@@ -1134,6 +1163,8 @@ pmap_page_table_page_dealloc(vm_offset_t pa)
  */
 pmap_t pmap_create(vm_size_t size)
 {
+	pt_entry_t		*page_dir[PDPNUM];
+	int			i;
 	pmap_t			p;
 	pmap_statistics_t	stats;
 
@@ -1152,41 +1183,65 @@ pmap_t pmap_create(vm_size_t size)
 
 	p = (pmap_t) kmem_cache_alloc(&pmap_cache);
 	if (p == PMAP_NULL)
-		panic("pmap_create");
+		return PMAP_NULL;
 
-	if (kmem_alloc_wired(kernel_map,
-			     (vm_offset_t *)&p->dirbase, PDPNUM * INTEL_PGBYTES)
-							!= KERN_SUCCESS)
-		panic("pmap_create");
+	for (i = 0; i < PDPNUM; i++) {
+		page_dir[i] = (pt_entry_t *) kmem_cache_alloc(&pd_cache);
+		if (page_dir[i] == NULL) {
+			i -= 1;
+			while (i >= 0) {
+				kmem_cache_free(&pd_cache,
+						(vm_address_t) page_dir[i]);
+				i -= 1;
+			}
+			kmem_cache_free(&pmap_cache, (vm_address_t) p);
+			return PMAP_NULL;
+		}
+		memcpy(page_dir[i],
+		       (void *) kernel_page_dir + i * INTEL_PGBYTES,
+		       INTEL_PGBYTES);
+	}
 
-	memcpy(p->dirbase, kernel_page_dir, PDPNUM * INTEL_PGBYTES);
 #ifdef LINUX_DEV
 #if VM_MIN_KERNEL_ADDRESS != 0
 	/* Do not map BIOS in user tasks */
-	p->dirbase[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS)] = 0;
+	page_dir
+#if PAE
+		[lin2pdpnum(LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS)]
+#else
+		[0]
+#endif
+		[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS)]
+		= 0;
 #endif
 #endif
 #ifdef	MACH_PV_PAGETABLES
 	{
-		int i;
 		for (i = 0; i < PDPNUM; i++)
-			pmap_set_page_readonly((void*) p->dirbase + i * INTEL_PGBYTES);
+			pmap_set_page_readonly((void *) page_dir[i]);
 	}
 #endif	/* MACH_PV_PAGETABLES */
 
 #if PAE
-	if (kmem_alloc_wired(kernel_map,
-			     (vm_offset_t *)&p->pdpbase, INTEL_PGBYTES)
-							!= KERN_SUCCESS)
-		panic("pmap_create");
-	{
-		int i;
+	p->pdpbase = (pt_entry_t *) kmem_cache_alloc(&pdpt_cache);
+	if (p->pdpbase == NULL) {
 		for (i = 0; i < PDPNUM; i++)
-			WRITE_PTE(&p->pdpbase[i], pa_to_pte(kvtophys((vm_offset_t) p->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID);
+			kmem_cache_free(&pd_cache, (vm_address_t) page_dir[i]);
+		kmem_cache_free(&pmap_cache, (vm_address_t) p);
+		return PMAP_NULL;
+	}
+
+	{
+		for (i = 0; i < PDPNUM; i++)
+			WRITE_PTE(&p->pdpbase[i],
+				  pa_to_pte(kvtophys((vm_offset_t) page_dir[i]))
+				  | INTEL_PTE_VALID);
 	}
 #ifdef	MACH_PV_PAGETABLES
 	pmap_set_page_readonly(p->pdpbase);
 #endif	/* MACH_PV_PAGETABLES */
+#else	/* PAE */
+	p->dirbase = page_dir[0];
 #endif	/* PAE */
 
 	p->ref_count = 1;
@@ -1213,6 +1268,11 @@ pmap_t pmap_create(vm_size_t size)
 
 void pmap_destroy(pmap_t p)
 {
+#if PAE
+	int		i;
+#endif
+	boolean_t	free_all;
+	pt_entry_t     	*page_dir;
 	pt_entry_t	*pdep;
 	phys_addr_t	pa;
 	int		c, s;
@@ -1231,44 +1291,53 @@ void pmap_destroy(pmap_t p)
 	    return;	/* still in use */
 	}
 
-	/*
-	 *	Free the memory maps, then the
-	 *	pmap structure.
-	 */
-	for (pdep = p->dirbase;
-	     pdep < &p->dirbase[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS)];
-	     pdep += ptes_per_vm_page) {
-	    if (*pdep & INTEL_PTE_VALID) {
-		pa = pte_to_pa(*pdep);
-		vm_object_lock(pmap_object);
-		m = vm_page_lookup(pmap_object, pa);
-		if (m == VM_PAGE_NULL)
-		    panic("pmap_destroy: pte page not in object");
-		vm_page_lock_queues();
-#ifdef	MACH_PV_PAGETABLES
-		if (!hyp_mmuext_op_mfn (MMUEXT_UNPIN_TABLE, pa_to_mfn(pa)))
-		    panic("pmap_destroy: couldn't unpin page %p(%p)\n", pa, (vm_offset_t) kv_to_ma(pa));
-		pmap_set_page_readwrite((void*) phystokv(pa));
-#endif	/* MACH_PV_PAGETABLES */
-		vm_page_free(m);
-		inuse_ptepages_count--;
-		vm_page_unlock_queues();
-		vm_object_unlock(pmap_object);
-	    }
-	}
-#ifdef	MACH_PV_PAGETABLES
-	{
-		int i;
-		for (i = 0; i < PDPNUM; i++)
-			pmap_set_page_readwrite((void*) p->dirbase + i * INTEL_PGBYTES);
-	}
-#endif	/* MACH_PV_PAGETABLES */
-	kmem_free(kernel_map, (vm_offset_t)p->dirbase, PDPNUM * INTEL_PGBYTES);
 #if PAE
+	for (i = 0; i <= lin2pdpnum(LINEAR_MIN_KERNEL_ADDRESS); i++) {
+	    free_all = i < lin2pdpnum(LINEAR_MIN_KERNEL_ADDRESS);
+	    page_dir = (pt_entry_t *) ptetokv(p->pdpbase[i]);
+#else
+	    free_all = FALSE;
+	    page_dir = p->dirbase;
+#endif
+
+	    /*
+	     *	Free the memory maps, then the
+	     *	pmap structure.
+	     */
+	    for (pdep = page_dir;
+		 (free_all
+		  || pdep < &page_dir[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS)])
+		     && pdep < &page_dir[NPTES];
+		 pdep += ptes_per_vm_page) {
+		if (*pdep & INTEL_PTE_VALID) {
+		    pa = pte_to_pa(*pdep);
+		    vm_object_lock(pmap_object);
+		    m = vm_page_lookup(pmap_object, pa);
+		    if (m == VM_PAGE_NULL)
+			panic("pmap_destroy: pte page not in object");
+		    vm_page_lock_queues();
+#ifdef	MACH_PV_PAGETABLES
+		    if (!hyp_mmuext_op_mfn (MMUEXT_UNPIN_TABLE, pa_to_mfn(pa)))
+			panic("pmap_destroy: couldn't unpin page %p(%p)\n", pa, (vm_offset_t) kv_to_ma(pa));
+		    pmap_set_page_readwrite((void*) phystokv(pa));
+#endif	/* MACH_PV_PAGETABLES */
+		    vm_page_free(m);
+		    inuse_ptepages_count--;
+		    vm_page_unlock_queues();
+		    vm_object_unlock(pmap_object);
+		}
+	    }
+#ifdef	MACH_PV_PAGETABLES
+	    pmap_set_page_readwrite((void*) page_dir);
+#endif	/* MACH_PV_PAGETABLES */
+	    kmem_cache_free(&pd_cache, (vm_offset_t) page_dir);
+#if PAE
+	}
+
 #ifdef	MACH_PV_PAGETABLES
 	pmap_set_page_readwrite(p->pdpbase);
 #endif	/* MACH_PV_PAGETABLES */
-	kmem_free(kernel_map, (vm_offset_t)p->pdpbase, INTEL_PGBYTES);
+	kmem_cache_free(&pdpt_cache, (vm_offset_t) p->pdpbase);
 #endif	/* PAE */
 	kmem_cache_free(&pmap_cache, (vm_offset_t) p);
 }
@@ -1579,8 +1648,10 @@ void pmap_page_protect(
 		    /*
 		     * Remove the mapping, collecting any modify bits.
 		     */
-		    if (*pte & INTEL_PTE_WIRED)
-			panic("pmap_page_protect removing a wired page");
+
+		    if (*pte & INTEL_PTE_WIRED) {
+			pmap->stats.wired_count--;
+		    }
 
 		    {
 			int	i = ptes_per_vm_page;
@@ -2185,6 +2256,9 @@ void pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
  */
 void pmap_collect(pmap_t p)
 {
+	int			i;
+	boolean_t		free_all;
+	pt_entry_t		*page_dir;
 	pt_entry_t		*pdp, *ptp;
 	pt_entry_t		*eptp;
 	phys_addr_t		pa;
@@ -2196,92 +2270,107 @@ void pmap_collect(pmap_t p)
 	if (p == kernel_pmap)
 		return;
 
-	/*
-	 *	Garbage collect map.
-	 */
-	PMAP_READ_LOCK(p, spl);
-	for (pdp = p->dirbase;
-	     pdp < &p->dirbase[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS)];
-	     pdp += ptes_per_vm_page)
-	{
-	    if (*pdp & INTEL_PTE_VALID) {
+#if PAE
+	for (i = 0; i <= lin2pdpnum(LINEAR_MIN_KERNEL_ADDRESS); i++) {
+	    free_all = i < lin2pdpnum(LINEAR_MIN_KERNEL_ADDRESS);
+	    page_dir = (pt_entry_t *) ptetokv(p->pdpbase[i]);
+#else
+	    i = 0;
+	    free_all = FALSE;
+	    page_dir = p->dirbase;
+#endif
 
-		pa = pte_to_pa(*pdp);
-		ptp = (pt_entry_t *)phystokv(pa);
-		eptp = ptp + NPTES*ptes_per_vm_page;
+	    /*
+	     *	Garbage collect map.
+	     */
+	    PMAP_READ_LOCK(p, spl);
+	    for (pdp = page_dir;
+		 (free_all
+		  || pdp < &page_dir[lin2pdenum(LINEAR_MIN_KERNEL_ADDRESS)])
+		     && pdp < &page_dir[NPTES];
+		 pdp += ptes_per_vm_page) {
+		if (*pdp & INTEL_PTE_VALID) {
 
-		/*
-		 * If the pte page has any wired mappings, we cannot
-		 * free it.
-		 */
-		wired = 0;
-		{
-		    pt_entry_t *ptep;
-		    for (ptep = ptp; ptep < eptp; ptep++) {
-			if (*ptep & INTEL_PTE_WIRED) {
-			    wired = 1;
-			    break;
+		    pa = pte_to_pa(*pdp);
+		    ptp = (pt_entry_t *)phystokv(pa);
+		    eptp = ptp + NPTES*ptes_per_vm_page;
+
+		    /*
+		     * If the pte page has any wired mappings, we cannot
+		     * free it.
+		     */
+		    wired = 0;
+		    {
+			pt_entry_t *ptep;
+			for (ptep = ptp; ptep < eptp; ptep++) {
+			    if (*ptep & INTEL_PTE_WIRED) {
+				wired = 1;
+				break;
+			    }
 			}
 		    }
-		}
-		if (!wired) {
-		    /*
-		     * Remove the virtual addresses mapped by this pte page.
-		     */
-		    { /*XXX big hack*/
-		    vm_offset_t va = pdenum2lin(pdp - p->dirbase);
-		    if (p == kernel_pmap)
-		    	va = lintokv(va);
-		    pmap_remove_range(p,
-				va,
-				ptp,
-				eptp);
-		    }
+		    if (!wired) {
+			/*
+			 * Remove the virtual addresses mapped by this pte page.
+			 */
+			{ /*XXX big hack*/
+			    vm_offset_t va = pdenum2lin(pdp - page_dir
+							+ i * NPTES);
+			    if (p == kernel_pmap)
+				va = lintokv(va);
+			    pmap_remove_range(p,
+					      va,
+					      ptp,
+					      eptp);
+			}
 
-		    /*
-		     * Invalidate the page directory pointer.
-		     */
-		    {
-			int i = ptes_per_vm_page;
-			pt_entry_t *pdep = pdp;
-			do {
+			/*
+			 * Invalidate the page directory pointer.
+			 */
+			{
+			    int i = ptes_per_vm_page;
+			    pt_entry_t *pdep = pdp;
+			    do {
 #ifdef	MACH_PV_PAGETABLES
-			    unsigned long pte = *pdep;
-			    void *ptable = (void*) ptetokv(pte);
-			    if (!(hyp_mmu_update_pte(pa_to_ma(kvtophys((vm_offset_t)pdep++)), 0)))
-			        panic("%s:%d could not clear pde %p\n",__FILE__,__LINE__,pdep-1);
-			    if (!hyp_mmuext_op_mfn (MMUEXT_UNPIN_TABLE, kv_to_mfn(ptable)))
-				panic("couldn't unpin page %p(%p)\n", ptable, (vm_offset_t) pa_to_ma(kvtophys((vm_offset_t)ptable)));
-			    pmap_set_page_readwrite(ptable);
+				unsigned long pte = *pdep;
+				void *ptable = (void*) ptetokv(pte);
+				if (!(hyp_mmu_update_pte(pa_to_ma(kvtophys((vm_offset_t)pdep++)), 0)))
+				    panic("%s:%d could not clear pde %p\n",__FILE__,__LINE__,pdep-1);
+				if (!hyp_mmuext_op_mfn (MMUEXT_UNPIN_TABLE, kv_to_mfn(ptable)))
+				    panic("couldn't unpin page %p(%p)\n", ptable, (vm_offset_t) pa_to_ma(kvtophys((vm_offset_t)ptable)));
+				pmap_set_page_readwrite(ptable);
 #else	/* MACH_PV_PAGETABLES */
-			    *pdep++ = 0;
+				*pdep++ = 0;
 #endif	/* MACH_PV_PAGETABLES */
-			} while (--i > 0);
+			    } while (--i > 0);
+			}
+
+			PMAP_READ_UNLOCK(p, spl);
+
+			/*
+			 * And free the pte page itself.
+			 */
+			{
+			    vm_page_t m;
+
+			    vm_object_lock(pmap_object);
+			    m = vm_page_lookup(pmap_object, pa);
+			    if (m == VM_PAGE_NULL)
+				panic("pmap_collect: pte page not in object");
+			    vm_page_lock_queues();
+			    vm_page_free(m);
+			    inuse_ptepages_count--;
+			    vm_page_unlock_queues();
+			    vm_object_unlock(pmap_object);
+			}
+
+			PMAP_READ_LOCK(p, spl);
 		    }
-
-		    PMAP_READ_UNLOCK(p, spl);
-
-		    /*
-		     * And free the pte page itself.
-		     */
-		    {
-			vm_page_t m;
-
-			vm_object_lock(pmap_object);
-			m = vm_page_lookup(pmap_object, pa);
-			if (m == VM_PAGE_NULL)
-			    panic("pmap_collect: pte page not in object");
-			vm_page_lock_queues();
-			vm_page_free(m);
-			inuse_ptepages_count--;
-			vm_page_unlock_queues();
-			vm_object_unlock(pmap_object);
-		    }
-
-		    PMAP_READ_LOCK(p, spl);
 		}
 	    }
+#if PAE
 	}
+#endif
 	PMAP_UPDATE_TLBS(p, VM_MIN_ADDRESS, VM_MAX_ADDRESS);
 
 	PMAP_READ_UNLOCK(p, spl);
