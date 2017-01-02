@@ -480,19 +480,6 @@ kern_return_t vm_wire_all(const ipc_port_t port, vm_map_t map, vm_wire_t flags)
 	return vm_map_pageable_all(map, flags);
 }
 
-void vm_pages_release(npages, pages, external)
-	int			npages;
-	vm_page_t		*pages;
-	boolean_t		external;
-{
-	int i;
-
-	for (i = 0; i < npages; i++)
-	{
-		vm_page_release (pages[i], external);
-	}
-}
-
 kern_return_t vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr, size)
 	host_t			host_priv;
 	vm_map_t		map;
@@ -500,13 +487,10 @@ kern_return_t vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr,
 	vm_address_t		*result_paddr;
 	vm_size_t		size;
 {
-	extern vm_size_t	vm_page_big_pagenum;
-	extern vm_offset_t	phys_first_addr;
-	extern vm_offset_t	phys_last_addr;
-
-	int			npages;
-	int			i;
-	vm_page_t		*pages;
+	unsigned int		npages;
+	unsigned int		i;
+	unsigned int		order;
+	vm_page_t		pages;
 	vm_object_t		object;
 	vm_map_entry_t		entry;
 	kern_return_t		kr;
@@ -519,26 +503,33 @@ kern_return_t vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr,
 	if (map == VM_MAP_NULL)
 		return KERN_INVALID_TASK;
 
-	size = round_page(size);
+	/*
+	 * XXX The page allocator returns blocks with a power-of-two size.
+	 * The requested size may not be a power-of-two, causing the pages
+	 * at the end of a block to be unused. In order to keep track of
+	 * those pages, they must all be inserted in the VM object created
+	 * by this function.
+	 */
+	order = vm_page_order(size);
+	size = (1 << (order + PAGE_SHIFT));
 
 	/* We allocate the contiguous physical pages for the buffer. */
 
 	npages = size / PAGE_SIZE;
-	pages = (vm_page_t) kalloc (npages * sizeof (vm_page_t));
+	pages = vm_page_grab_contig(size, VM_PAGE_SEL_DIRECTMAP);
 	if (pages == NULL)
 	{
 		return KERN_RESOURCE_SHORTAGE;
 	}
 	
-	if (vm_page_big_pagenum == 0)
-		vm_page_big_pagenum = atop(phys_last_addr - phys_first_addr);
-
-	kr = vm_page_grab_contiguous_pages(npages, pages, NULL, TRUE);
+#if 0
+	kr = vm_page_grab_contig(npages, pages, NULL, TRUE);
 	if (kr)
 	{
 		kfree (pages, npages * sizeof (vm_page_t));
 		return kr;
 	}
+#endif
 
 	/* Allocate the object 
 	 * and find the virtual address for the DMA buffer */
@@ -552,8 +543,7 @@ kern_return_t vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr,
 	{
 		vm_map_unlock(map);
 		vm_object_deallocate(object);
-		kfree (pages, npages * sizeof (vm_page_t));
-		vm_pages_release (npages, pages, TRUE);
+		vm_page_free_contig(pages, size);
 		return kr;
 	}
 	        
@@ -568,28 +558,27 @@ kern_return_t vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr,
 	pmap_pageable (map->pmap, vaddr, vaddr + size, FALSE);
 
 	*result_vaddr = vaddr;
-	*result_paddr = pages[0]->phys_addr;
+	*result_paddr = pages->phys_addr;
 
 	for (i = 0; i < npages; i++)
 	{
 		vm_object_lock(object);
 		vm_page_lock_queues();
-		vm_page_insert(pages[i], object, offset);
-		vm_page_wire(pages[i]);
+		vm_page_insert(&pages[i], object, offset);
+		vm_page_wire(&pages[i]);
 		vm_page_unlock_queues();
 		vm_object_unlock(object);
 
 		/* Enter it in the kernel pmap */
-		PMAP_ENTER(map->pmap, vaddr, pages[i], VM_PROT_DEFAULT, TRUE);
+		PMAP_ENTER(map->pmap, vaddr, &pages[i], VM_PROT_DEFAULT, TRUE);
 
 		vm_object_lock(object);
-		PAGE_WAKEUP_DONE(pages[i]);
+		PAGE_WAKEUP_DONE(&pages[i]);
 		vm_object_unlock(object);
 
 		vaddr += PAGE_SIZE;
 		offset += PAGE_SIZE;
 	}
 
-	kfree ((vm_offset_t) pages, npages * sizeof (vm_page_t));
 	return KERN_SUCCESS;
 }
