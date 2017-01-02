@@ -319,7 +319,7 @@ ds_device_map (device_t dev, vm_prot_t prot, vm_offset_t offset,
 }
 
 io_return_t
-ds_device_intr_register (ipc_port_t master_port, int line,
+experimental_device_intr_register (ipc_port_t master_port, int line,
 		       int id, int flags, ipc_port_t receive_port)
 {
 #ifdef MACH_XEN
@@ -1836,7 +1836,7 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 }
 
 kern_return_t
-ds_device_intr_enable(ipc_port_t master_port, int line, char status)
+experimental_device_intr_enable(ipc_port_t master_port, int line, char status)
 {
 #ifdef MACH_XEN
   return D_INVALID_OPERATION;

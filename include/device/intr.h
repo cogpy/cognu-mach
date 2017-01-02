@@ -12,6 +12,6 @@ typedef struct
 } mach_intr_notification_t;
 
 #define INTR_NOTIFY_MSGH_SEQNO 0
-#define MACH_INTR_NOTIFY 100
+#define MACH_INTR_NOTIFY 424242
 
 #endif

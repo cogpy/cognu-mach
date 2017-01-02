@@ -480,7 +480,7 @@ kern_return_t vm_wire_all(const ipc_port_t port, vm_map_t map, vm_wire_t flags)
 	return vm_map_pageable_all(map, flags);
 }
 
-kern_return_t vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr, size)
+kern_return_t experimental_vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr, size)
 	host_t			host_priv;
 	vm_map_t		map;
 	vm_address_t		*result_vaddr;
