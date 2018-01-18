@@ -92,6 +92,21 @@
 #define	WRITE_PTE(pte_p, pte_entry)		*(pte_p) = (pte_entry);
 #endif	/* MACH_PSEUDO_PHYS */
 
+#ifdef KPTI
+static inline void write_pde(pt_entry_t *pde_p, pt_entry_t *pdeu_p, pt_entry_t pde_entry)
+{
+	if (pde_entry & INTEL_PTE_USER)
+		/* User page, show it in shadow page table too */
+		*pdeu_p = pde_entry;
+	*pde_p = pde_entry;
+}
+#else
+static inline void write_pde(pt_entry_t *pde_p, pt_entry_t *pdeu_p, pt_entry_t pde_entry)
+{
+	*pde_p = pde_entry;
+}
+#endif
+
 /*
  *	Private data structures.
  */
@@ -413,6 +428,19 @@ unsigned int	inuse_ptepages_count = 0;	/* debugging */
 pt_entry_t *kernel_page_dir;
 
 /*
+ * Pointer to the template for user page table.
+ * Initialized by pmap_bootstrap().
+ */
+pt_entry_t *user_page_dir;
+
+
+/*
+ * Current kernel and user page table, used by the user/kernel switch assembly
+ * routine
+ */
+vm_offset_t kernel_pt __section(".data.shared"), user_pt __section(".data.shared");
+
+/*
  * Two slots for temporary physical page mapping, to allow for
  * physical-to-physical transfers.
  */
@@ -428,6 +456,20 @@ pmap_pde(const pmap_t pmap, vm_offset_t addr)
 	page_dir = (pt_entry_t *) ptetokv(pmap->pdpbase[lin2pdpnum(addr)]);
 #else
 	page_dir = pmap->dirbase;
+#endif
+	return &page_dir[lin2pdenum(addr)];
+}
+
+static inline pt_entry_t *
+pmap_user_pde(const pmap_t pmap, vm_offset_t addr)
+{
+	pt_entry_t *page_dir;
+	if (pmap == kernel_pmap)
+		addr = kvtolin(addr);
+#if PAE
+	page_dir = (pt_entry_t *) ptetokv(pmap->pdpbase_user[lin2pdpnum(addr)]);
+#else
+	page_dir = pmap->dirbase_user;
 #endif
 	return &page_dir[lin2pdenum(addr)];
 }
@@ -576,6 +618,40 @@ vm_offset_t pmap_map_bd(
 	return(virt);
 }
 
+#ifdef KPTI
+/* Set this virtual address in the user page table, thus shared between the
+ * kernel and the user page tables. */
+static void pmap_bootstrap_shared_kernel_page(vm_offset_t va, int pteflags)
+{
+	pt_entry_t *pdp = user_page_dir + lin2pdenum_cont(kvtolin(va));
+	pt_entry_t pde = *pdp;
+	pt_entry_t *ptp;
+
+	if (pde & INTEL_PTE_VALID) {
+		ptp = (pt_entry_t *) ptetokv(pde);
+	} else {
+		unsigned i;
+
+		ptp = (pt_entry_t *) phystokv(pmap_grab_page());
+		for (i = 0; i < NPTES; i++)
+			ptp[i] = 0;
+
+		WRITE_PTE(pdp, pa_to_pte((vm_offset_t)_kvtophys(ptp))
+			       | (pteflags & ~INTEL_PTE_GLOBAL));
+	}
+
+	WRITE_PTE(ptp + ptenum(kvtolin(va)),
+		  pa_to_pte(_kvtophys(va)) | pteflags);
+}
+
+
+void pmap_share_kernel_page(pmap_t pmap, vm_offset_t va, int pteflags)
+{
+	pt_entry_t *pgp = pmap_user_pde(pmap, va);
+}
+
+#endif
+
 /*
  *	Bootstrap the system enough to run with virtual memory.
  *	Allocate the kernel page directory and page tables,
@@ -635,7 +711,14 @@ void pmap_bootstrap(void)
 		vm_offset_t addr;
 		init_alloc_aligned(PDPNUM * INTEL_PGBYTES, &addr);
 		kernel_page_dir = (pt_entry_t*)phystokv(addr);
+#ifdef KPTI
+		init_alloc_aligned(PDPNUM * INTEL_PGBYTES, &addr);
+		user_page_dir = (pt_entry_t*)phystokv(addr);
+#endif
 	}
+#ifdef KPTI
+	kernel_pmap->pdpbase_user =
+#endif
 	kernel_pmap->pdpbase = (pt_entry_t*)phystokv(pmap_grab_page());
 	{
 		int i;
@@ -646,12 +729,22 @@ void pmap_bootstrap(void)
 				  | INTEL_PTE_VALID);
 	}
 #else	/* PAE */
+#ifdef KPTI
+	kernel_pmap->dirbase_user =
+#endif
 	kernel_pmap->dirbase = kernel_page_dir = (pt_entry_t*)phystokv(pmap_grab_page());
+#ifdef KPTI
+	user_page_dir = (pt_entry_t*)phystokv(pmap_grab_page());
+#endif
 #endif	/* PAE */
 	{
 		unsigned i;
 		for (i = 0; i < NPDES; i++)
 			kernel_page_dir[i] = 0;
+#ifdef KPTI
+		for (i = 0; i < NPDES; i++)
+			user_page_dir[i] = 0;
+#endif
 	}
 
 #ifdef	MACH_PV_PAGETABLES
@@ -800,6 +893,17 @@ void pmap_bootstrap(void)
 				panic("couldn't pin page %p(%p)\n", ptable, (vm_offset_t) kv_to_ma (ptable));
 #endif	/* MACH_PV_PAGETABLES */
 		}
+
+#ifdef KPTI
+		for (va = (vm_offset_t) _sharedtext_start;
+		     va < (vm_offset_t) _sharedtext_end;
+		     va += INTEL_PGBYTES)
+			pmap_bootstrap_shared_kernel_page(va, INTEL_PTE_VALID | global);
+		for (va = (vm_offset_t) _shareddata_start;
+		     va < (vm_offset_t) _shareddata_end;
+		     va += INTEL_PGBYTES)
+			pmap_bootstrap_shared_kernel_page(va, INTEL_PTE_VALID | INTEL_PTE_WRITE | global);
+#endif
 	}
 
 	/* Architecture-specific code will turn on paging
@@ -1001,8 +1105,7 @@ void pmap_init(void)
 			KMEM_CACHE_PHYSMEM);
 #if PAE
 	kmem_cache_init(&pdpt_cache, "pdpt",
-			PDPNUM * sizeof(pt_entry_t),
-			PDPNUM * sizeof(pt_entry_t), NULL,
+			INTEL_PGBYTES, INTEL_PGBYTES, NULL,
 			KMEM_CACHE_PHYSMEM);
 #endif
 	s = (vm_size_t) sizeof(struct pv_entry);
@@ -1164,6 +1267,9 @@ pmap_page_table_page_dealloc(vm_offset_t pa)
 pmap_t pmap_create(vm_size_t size)
 {
 	pt_entry_t		*page_dir[PDPNUM];
+#ifdef KPTI
+	pt_entry_t		*user_page_dir[PDPNUM];
+#endif
 	int			i;
 	pmap_t			p;
 	pmap_statistics_t	stats;
@@ -1192,14 +1298,40 @@ pmap_t pmap_create(vm_size_t size)
 			while (i >= 0) {
 				kmem_cache_free(&pd_cache,
 						(vm_address_t) page_dir[i]);
+#ifdef KPTI
+				kmem_cache_free(&pd_cache,
+						(vm_address_t) user_page_dir[i]);
+#endif
 				i -= 1;
 			}
 			kmem_cache_free(&pmap_cache, (vm_address_t) p);
 			return PMAP_NULL;
 		}
+#ifdef KPTI
+		user_page_dir[i] = (pt_entry_t *) kmem_cache_alloc(&pd_cache);
+		if (user_page_dir[i] == NULL) {
+			kmem_cache_free(&pd_cache,
+					(vm_address_t) page_dir[i]);
+			i -= 1;
+			while (i >= 0) {
+				kmem_cache_free(&pd_cache,
+						(vm_address_t) page_dir[i]);
+				kmem_cache_free(&pd_cache,
+						(vm_address_t) user_page_dir[i]);
+				i -= 1;
+			}
+			kmem_cache_free(&pmap_cache, (vm_address_t) p);
+			return PMAP_NULL;
+		}
+#endif
 		memcpy(page_dir[i],
 		       (void *) kernel_page_dir + i * INTEL_PGBYTES,
 		       INTEL_PGBYTES);
+#ifdef KPTI
+		memcpy(user_page_dir[i],
+		       (void *) user_page_dir + i * INTEL_PGBYTES,
+		       INTEL_PGBYTES);
+#endif
 	}
 
 #ifdef LINUX_DEV
@@ -1226,22 +1358,51 @@ pmap_t pmap_create(vm_size_t size)
 	p->pdpbase = (pt_entry_t *) kmem_cache_alloc(&pdpt_cache);
 	if (p->pdpbase == NULL) {
 		for (i = 0; i < PDPNUM; i++)
+		{
 			kmem_cache_free(&pd_cache, (vm_address_t) page_dir[i]);
+#ifdef KPTI
+			kmem_cache_free(&pd_cache, (vm_address_t) user_page_dir[i]);
+#endif
+		}
 		kmem_cache_free(&pmap_cache, (vm_address_t) p);
 		return PMAP_NULL;
 	}
 
+#ifdef KPTI
+	p->pdpbase_user = (pt_entry_t *) kmem_cache_alloc(&pdpt_cache);
+	if (p->pdpbase_user == NULL) {
+		kmem_cache_free(&pdpt_cache, (vm_address_t) p->pdpbase);
+		for (i = 0; i < PDPNUM; i++)
+		{
+			kmem_cache_free(&pd_cache, (vm_address_t) page_dir[i]);
+			kmem_cache_free(&pd_cache, (vm_address_t) user_page_dir[i]);
+		}
+		kmem_cache_free(&pmap_cache, (vm_address_t) p);
+		return PMAP_NULL;
+	}
+#endif
+
 	{
 		for (i = 0; i < PDPNUM; i++)
+		{
 			WRITE_PTE(&p->pdpbase[i],
 				  pa_to_pte(kvtophys((vm_offset_t) page_dir[i]))
 				  | INTEL_PTE_VALID);
+#ifdef KPTI
+			WRITE_PTE(&p->pdpbase_user[i],
+				  pa_to_pte(kvtophys((vm_offset_t) user_page_dir[i]))
+				  | INTEL_PTE_VALID);
+#endif
+		}
 	}
 #ifdef	MACH_PV_PAGETABLES
 	pmap_set_page_readonly(p->pdpbase);
 #endif	/* MACH_PV_PAGETABLES */
 #else	/* PAE */
 	p->dirbase = page_dir[0];
+#ifdef KPTI
+	p->dirbase_user = user_page_dir[0];
+#endif
 #endif	/* PAE */
 
 	p->ref_count = 1;
@@ -1273,6 +1434,9 @@ void pmap_destroy(pmap_t p)
 #endif
 	boolean_t	free_all;
 	pt_entry_t     	*page_dir;
+#ifdef KPTI
+	pt_entry_t     	*user_page_dir;
+#endif
 	pt_entry_t	*pdep;
 	phys_addr_t	pa;
 	int		c, s;
@@ -1295,9 +1459,15 @@ void pmap_destroy(pmap_t p)
 	for (i = 0; i <= lin2pdpnum(LINEAR_MIN_KERNEL_ADDRESS); i++) {
 	    free_all = i < lin2pdpnum(LINEAR_MIN_KERNEL_ADDRESS);
 	    page_dir = (pt_entry_t *) ptetokv(p->pdpbase[i]);
+#ifdef KPTI
+	    user_page_dir = (pt_entry_t *) ptetokv(p->pdpbase_user[i]);
+#endif
 #else
 	    free_all = FALSE;
 	    page_dir = p->dirbase;
+#ifdef KPTI
+	    user_page_dir = p->dirbase_user;
+#endif
 #endif
 
 	    /*
@@ -1331,6 +1501,9 @@ void pmap_destroy(pmap_t p)
 	    pmap_set_page_readwrite((void*) page_dir);
 #endif	/* MACH_PV_PAGETABLES */
 	    kmem_cache_free(&pd_cache, (vm_offset_t) page_dir);
+#ifdef KPTI
+	    kmem_cache_free(&pd_cache, (vm_offset_t) user_page_dir);
+#endif
 #if PAE
 	}
 
@@ -1912,7 +2085,7 @@ Retry:
 	     * Need to allocate a new page-table page.
 	     */
 	    vm_offset_t	ptp;
-	    pt_entry_t	*pdp;
+	    pt_entry_t	*pdp, *pdpu;
 	    int		i;
 
 	    if (pmap == kernel_pmap) {
@@ -1953,6 +2126,7 @@ Retry:
 	     */
 	    i = ptes_per_vm_page;
 	    pdp = pmap_pde(pmap, v);
+	    pdpu = pmap_user_pde(pmap, v);
 	    do {
 #ifdef	MACH_PV_PAGETABLES
 		pmap_set_page_readonly((void *) ptp);
@@ -1964,9 +2138,9 @@ Retry:
 					      | INTEL_PTE_WRITE))
 			panic("%s:%d could not set pde %p(%p,%p) to %p(%p,%p) %p\n",__FILE__,__LINE__, pdp, kvtophys((vm_offset_t)pdp), (vm_offset_t) pa_to_ma(kvtophys((vm_offset_t)pdp)), ptp, kvtophys(ptp), (vm_offset_t) pa_to_ma(kvtophys(ptp)), (vm_offset_t) pa_to_pte(kv_to_ma(ptp)));
 #else	/* MACH_PV_PAGETABLES */
-		*pdp = pa_to_pte(kvtophys(ptp)) | INTEL_PTE_VALID
-					        | INTEL_PTE_USER
-					        | INTEL_PTE_WRITE;
+		write_pde(pdp, pdpu, pa_to_pte(kvtophys(ptp)) | INTEL_PTE_VALID
+							      | INTEL_PTE_USER
+							      | INTEL_PTE_WRITE);
 #endif	/* MACH_PV_PAGETABLES */
 		pdp++;	/* Note: This is safe b/c we stay in one page.  */
 		ptp += INTEL_PGBYTES;

@@ -86,6 +86,16 @@ typedef phys_addr_t pt_entry_t;
 #define PTEMASK		0x3ff	/* mask for page table index */
 #endif	/* PAE */
 
+#ifndef MACH_HYP
+#define KPTI	1
+#endif
+
+extern char _sharedtext_start[], _sharedtext_end[];
+extern char _shareddata_start[], _shareddata_end[];
+
+/* These are used by user/kernel switch assembler code to switch page table. */
+extern vm_offset_t kernel_pt, user_pt;
+
 /*
  *	Convert linear offset to page descriptor index
  */
@@ -164,8 +174,14 @@ typedef	volatile long	cpu_set;	/* set of CPUs - must be <= 32 */
 struct pmap {
 #if ! PAE
 	pt_entry_t	*dirbase;	/* page directory table */
+#ifdef KPTI
+	pt_entry_t	*dirbase_user;	/* page directory table for user */
+#endif
 #else
 	pt_entry_t	*pdpbase;	/* page directory pointer table */
+#ifdef KPTI
+	pt_entry_t	*pdpbase_user;	/* page directory pointer table for user */
+#endif
 #endif	/* ! PAE */
 	int		ref_count;	/* reference count */
 	decl_simple_lock_data(,lock)
@@ -185,12 +201,6 @@ extern void pmap_set_page_readonly_init(void *addr);
 extern void pmap_map_mfn(void *addr, unsigned long mfn);
 extern void pmap_clear_bootstrap_pagetable(pt_entry_t *addr);
 #endif	/* MACH_PV_PAGETABLES */
-
-#if PAE
-#define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->pdpbase))
-#else	/* PAE */
-#define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->dirbase))
-#endif	/* PAE */
 
 typedef struct {
 	pt_entry_t	*entry;
@@ -455,11 +465,32 @@ extern void pmap_zero_page (phys_addr_t);
 extern void pmap_copy_page (phys_addr_t, phys_addr_t);
 
 /*
+ *  pmap_share_kernel_page marks
+ */
+#ifdef KPTI
+extern void pmap_share_kernel_page(pmap_t pmap, vm_offset_t va, int pteflags);
+#else
+#define pmap_share_kernel_page(pmap, va, pteflags) ((void)0)
+#endif
+
+/*
  *  kvtophys(addr)
  *
  *  Convert a kernel virtual address to a physical address
  */
 extern phys_addr_t kvtophys (vm_offset_t);
+
+static inline void set_pmap(pmap_t pmap) {
+#if PAE
+	kernel_pt = kvtophys((vm_offset_t)(pmap)->pdpbase);
+	user_pt = kvtophys((vm_offset_t)(pmap)->pdpbase_user);
+#else	/* PAE */
+	kernel_pt = kvtophys((vm_offset_t)(pmap)->dirbase);
+	user_pt = kvtophys((vm_offset_t)(pmap)->dirbase_user);
+#endif	/* PAE */
+	/* We are using the kernel page table for now.  */
+	set_cr3(kernel_pt);
+}
 
 #if NCPUS > 1
 void signal_cpus(

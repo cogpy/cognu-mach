@@ -53,6 +53,13 @@ DATA(recover_table)		;\
 	.text			;\
 9:
 
+#define	RECOVERSHARED(addr)		\
+	.text	2		;\
+	.long	9f		;\
+	.long	addr		;\
+	.section .text.shared	;\
+9:
+
 #define	RECOVER_TABLE_END		\
 	.text	2			;\
 	.globl	EXT(recover_table_end)	;\
@@ -79,6 +86,19 @@ DATA(retry_table)		;\
 	.globl	EXT(retry_table_end)	;\
 LEXT(retry_table_end)			;\
 	.text
+
+#ifdef MACH_HYP
+#define SWITCH_TO_KERNEL_PT
+#define SWITCH_TO_USER_PT
+#else
+#define SWITCH_TO_KERNEL_PT		\
+	movl	EXT(kernel_pt),%edx;	\
+	movl	%edx,%cr3		/* Switch to kernel pagetable */
+
+#define SWITCH_TO_USER_PT		\
+	movl	EXT(user_pt),%edx;	\
+	/*movl	%edx,%cr3		/* Switch to user pagetable */
+#endif
 
 /*
  * Allocate recovery and retry tables.
@@ -611,7 +631,7 @@ ENTRY(call_continuation)
 #define INTERRUPT(n)				\
 	.data	2				;\
 	.long	0f				;\
-	.text					;\
+	.section .text.shared			;\
 	P2ALIGN(TEXT_ALIGN)			;\
 0:						;\
 	pushl	%eax				;\
@@ -644,6 +664,7 @@ INTERRUPT(15)
  * All interrupts enter here.
  * old %eax on stack; interrupt number in %eax.
  */
+.section .text.shared
 ENTRY(all_intrs)
 	pushl	%ecx			/* save registers */
 	pushl	%edx
@@ -663,6 +684,7 @@ ENTRY(all_intrs)
 	mov	%dx,%es
 	mov	%dx,%fs
 	mov	%dx,%gs
+	SWITCH_TO_KERNEL_PT
 
 	CPU_NUMBER(%edx)
 
@@ -701,6 +723,7 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 	cmpl	$0,CX(EXT(need_ast),%edx)
 	jnz	ast_from_interrupt	/* take it if so */
 1:
+	SWITCH_TO_USER_PT
 	pop	%gs			/* restore segment regs */
 	pop	%fs
 	pop	%es
@@ -722,6 +745,7 @@ _return_to_iret_i:			/* ( label for kdb_kintr) */
 
 stack_overflowed:
 	ud2
+.text
 
 /*
  *	Take an AST from an interrupt.
@@ -993,6 +1017,7 @@ ttd_from_iret_i:			/* on interrupt stack */
  *
  * eax contains system call number.
  */
+.section .text.shared
 ENTRY(syscall)
 syscall_entry:
 	pushf				/* save flags as soon as possible */
@@ -1088,7 +1113,7 @@ syscall_native:
 	movl	%esp,%edx		/* save kernel ESP for error recovery */
 
 0:	subl	$4,%esi
-	RECOVER(mach_call_addr_push)
+	RECOVERSHARED(mach_call_addr_push)
 	pushl	%fs:(%esi)		/* push argument on stack */
 	loop	0b			/* loop for all arguments */
 
@@ -1178,9 +1203,10 @@ syscall_addr:
 	.data
 DATA(cpu_features)
 	.long	0
-	.text
+	.section .text.shared
 
 END(syscall)
+	.text
 
 /* Discover what kind of cpu we have; return the family number
    (3, 4, 5, 6, for 386, 486, 586, 686 respectively).  */

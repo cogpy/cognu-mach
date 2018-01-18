@@ -34,7 +34,7 @@
    Here's the header that comes before everything else.  */
 	.data	2
 ENTRY(idt_inittab)
-	.text
+	.section .text.shared
 
 /*
  * Interrupt descriptor table and code vectors for it.
@@ -46,14 +46,14 @@ ENTRY(idt_inittab)
 	.byte	(((type)&ACC_PL)>>5)|((((type)&(ACC_TYPE|ACC_A))==ACC_INTR_GATE)<<2)	;\
 	.word	KERNEL_CS	;\
 	.long	entry		;\
-	.text
+	.section .text.shared
 #else	/* MACH_PV_DESCRIPTORS */
 #define	IDT_ENTRY(n,entry,type) \
 	.data	2		;\
 	.long	entry		;\
 	.word	n		;\
 	.word	type		;\
-	.text
+	.section .text.shared
 #endif	/* MACH_PV_DESCRIPTORS */
 
 /*

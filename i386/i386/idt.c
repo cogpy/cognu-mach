@@ -26,7 +26,7 @@
 #include <i386at/idt.h>
 #include <i386/gdt.h>
 
-struct real_gate idt[IDTSZ];
+struct real_gate idt[IDTSZ] __section(".data.shared");
 
 struct idt_init_entry
 {

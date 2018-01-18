@@ -37,13 +37,13 @@
 #include "ktss.h"
 
 /* A kernel TSS with a complete I/O bitmap.  */
-struct task_tss ktss;
+struct task_tss ktss __section(".data.shared");
 
 void
 ktss_init(void)
 {
 	/* XXX temporary exception stack */
-	static int exception_stack[1024];
+	static int exception_stack[1024] __section(".data.shared");
 
 #ifdef	MACH_RING1
 	/* Xen won't allow us to do any I/O by default anyway, just register

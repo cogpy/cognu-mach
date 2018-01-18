@@ -43,7 +43,7 @@
 /* It is actually defined in xen_boothdr.S */
 extern
 #endif	/* MACH_PV_DESCRIPTORS */
-struct real_descriptor gdt[GDTSZ];
+struct real_descriptor gdt[GDTSZ] __section(".data.shared");
 
 void
 gdt_init(void)

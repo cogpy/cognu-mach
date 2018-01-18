@@ -16,6 +16,14 @@ SECTIONS
   AT (_START_MAP)
   {
     *(.text.start)
+
+    /* Separate pages for what should be mapped along userland */
+    . = ALIGN (CONSTANT(MAXPAGESIZE));
+    PROVIDE (_sharedtext_start = .);
+    *(.text.shared)
+    . = ALIGN (CONSTANT(MAXPAGESIZE));
+    PROVIDE (_sharedtext_end = .);
+
     *(.text .stub .text.* .gnu.linkonce.t.*)
     *(.text.unlikely .text.*_unlikely)
     KEEP (*(.text.*personality*))
@@ -138,6 +146,14 @@ SECTIONS
   .got.plt        : { *(.got.plt)  *(.igot.plt) }
   .data           :
   {
+
+    /* Separate pages for what should be mapped along userland */
+    . = ALIGN (CONSTANT(MAXPAGESIZE));
+    PROVIDE (_shareddata_start = .);
+    *(.data.shared)
+    . = ALIGN (CONSTANT(MAXPAGESIZE));
+    PROVIDE (_shareddata_end = .);
+
     *(.data .data.* .gnu.linkonce.d.*)
     SORT(CONSTRUCTORS)
   }

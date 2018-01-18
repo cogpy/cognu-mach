@@ -449,14 +449,16 @@ i386at_init(void)
 #endif	/* PAE */
 #endif	/* MACH_PV_PAGETABLES */
 #if PAE
-	set_cr3((unsigned)_kvtophys(kernel_pmap->pdpbase));
+	user_pt = kernel_pt = (unsigned)_kvtophys(kernel_pmap->pdpbase);
+	set_cr3(kernel_pt);
 #ifndef	MACH_HYP
 	if (!CPU_HAS_FEATURE(CPU_FEATURE_PAE))
 		panic("CPU doesn't have support for PAE.");
 	set_cr4(get_cr4() | CR4_PAE);
 #endif	/* MACH_HYP */
 #else
-	set_cr3((unsigned)_kvtophys(kernel_page_dir));
+	user_pt = kernel_pt = (unsigned)_kvtophys(kernel_page_dir);
+	set_cr3(kernel_pt);
 #endif	/* PAE */
 #ifndef	MACH_HYP
 	/* Turn paging on.
