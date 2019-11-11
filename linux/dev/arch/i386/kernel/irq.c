@@ -122,7 +122,7 @@ linux_intr (int irq)
 	      mark_intr_removed (irq, action->delivery_port);
 	      ipc_port_release (action->delivery_port);
 	      *prev = action->next;
-	      printk ("irq handler %d: release an dead delivery port\n", irq);
+	      printk ("irq handler %d: release a dead delivery port\n", irq);
 	      linux_kfree(action);
 	      action = *prev;
 	      continue;
