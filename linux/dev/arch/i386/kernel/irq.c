@@ -323,7 +323,7 @@ install_user_intr_handler (unsigned int irq, unsigned long flags,
     {
       if (old->delivery_port == dest)
 	{
-	  printk ("The interrupt handler has been installed on line %d", irq);
+	  printk ("The interrupt handler has already been installed on line %d", irq);
 	  return linux_to_mach_error (-EAGAIN);
 	}
       old = old->next;
