@@ -64,10 +64,6 @@ int		min_quantum;	/* defines max context switch rate */
 
 unsigned	sched_tick;
 
-#if	SIMPLE_CLOCK
-int		sched_usec;
-#endif	/* SIMPLE_CLOCK */
-
 thread_t	sched_thread_id;
 
 timer_elt_data_t recompute_priorities_timer;
@@ -153,15 +149,12 @@ void sched_init(void)
 	recompute_priorities_timer.fcn = recompute_priorities;
 	recompute_priorities_timer.param = NULL;
 
-	min_quantum = hz / 10;		/* context switch 10 times/second */
+	min_quantum = MIN_QUANTUM;
 	wait_queue_init();
 	pset_sys_bootstrap();		/* initialize processor mgmt. */
 	queue_init(&action_queue);
 	simple_lock_init(&action_lock);
 	sched_tick = 0;
-#if	SIMPLE_CLOCK
-	sched_usec = 0;
-#endif	/* SIMPLE_CLOCK */
 	ast_init();
 }
 
@@ -231,7 +224,7 @@ void assert_wait(
 
 	thread = current_thread();
 	if (thread->wait_event != 0) {
-		panic("assert_wait: already asserted event %#x\n",
+		panic("assert_wait: already asserted event %p\n",
 		      thread->wait_event);
 	}
  	s = splsched();
@@ -376,13 +369,14 @@ void clear_wait(
  *	and thread_wakeup_one.
  *
  */
-void thread_wakeup_prim(
+boolean_t thread_wakeup_prim(
 	event_t		event,
 	boolean_t	one_thread,
 	int		result)
 {
 	queue_t			q;
 	int			index;
+	boolean_t woke = FALSE;
 	thread_t		thread, next_th;
 	decl_simple_lock_data( , *lock);
 	spl_t			s;
@@ -435,6 +429,7 @@ void thread_wakeup_prim(
 				break;
 			}
 			thread_unlock(thread);
+			woke = TRUE;
 			if (one_thread)
 				break;
 		}
@@ -442,6 +437,7 @@ void thread_wakeup_prim(
 	}
 	simple_unlock(lock);
 	splx(s);
+	return (woke);
 }
 
 /*
@@ -1086,21 +1082,8 @@ void compute_my_priority(
  */
 void recompute_priorities(void *param)
 {
-#if	SIMPLE_CLOCK
-	int	new_usec;
-#endif	/* SIMPLE_CLOCK */
-
 	sched_tick++;		/* age usage one more time */
 	set_timeout(&recompute_priorities_timer, hz);
-#if	SIMPLE_CLOCK
-	/*
-	 *	Compensate for clock drift.  sched_usec is an
-	 *	exponential average of the number of microseconds in
-	 *	a second.  It decays in the same fashion as cpu_usage.
-	 */
-	new_usec = sched_usec_elapsed();
-	sched_usec = (5*sched_usec + 3*new_usec)/8;
-#endif	/* SIMPLE_CLOCK */
 	/*
 	 *	Wakeup scheduler thread.
 	 */
@@ -1347,17 +1330,12 @@ void thread_setrun(
 
 	    /*
 	     *	Cause ast on processor if processor is on line.
-	     *
-	     *	XXX Don't do this remotely to master because this will
-	     *	XXX send an interprocessor interrupt, and that's too
-	     *  XXX expensive for all the unparallelized U*x code.
 	     */
 	    if (processor == current_processor()) {
 		ast_on(cpu_number(), AST_BLOCK);
 	    }
-	    else if ((processor != master_processor) &&
-	    	     (processor->state != PROCESSOR_OFF_LINE)) {
-			cause_ast_check(processor);
+	    else if ((processor->state != PROCESSOR_OFF_LINE)) {
+		cause_ast_check(processor);
 	    }
 	}
 #else	/* NCPUS > 1 */

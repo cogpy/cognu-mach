@@ -132,6 +132,7 @@ libkernel_a_SOURCES += \
 	kern/assert.h \
 	kern/ast.c \
 	kern/ast.h \
+	kern/atomic.h \
 	kern/boot_script.h \
 	kern/bootstrap.c \
 	kern/bootstrap.h \
@@ -160,6 +161,8 @@ libkernel_a_SOURCES += \
 	kern/ipc_tt.h \
 	kern/kalloc.h \
 	kern/kern_types.h \
+	kern/kmutex.c \
+	kern/kmutex.h \
 	kern/list.h \
 	kern/lock.c \
 	kern/lock.h \
@@ -421,6 +424,7 @@ include_mach_HEADERS = \
 	include/mach/vm_param.h \
 	include/mach/vm_prot.h \
 	include/mach/vm_statistics.h \
+	include/mach/vm_sync.h \
 	include/mach/vm_wire.h \
 	include/mach/inline.h \
 	include/mach/xen.h

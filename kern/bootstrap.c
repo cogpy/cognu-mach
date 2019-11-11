@@ -180,6 +180,12 @@ void bootstrap_create(void)
       if (losers)
 	panic ("cannot set boot-script variable device-port: %s",
 	       boot_script_error_string (losers));
+      losers = boot_script_set_variable
+	("kernel-task", VAL_PORT,
+	 (long) kernel_task->itk_self);
+      if (losers)
+	panic ("cannot set boot-script variable kernel-task: %s",
+	       boot_script_error_string (losers));
 
       losers = boot_script_set_variable ("kernel-command-line", VAL_STR,
 					 (long) kernel_cmdline);
@@ -487,7 +493,7 @@ read_exec(void *handle, vm_offset_t file_ofs, vm_size_t file_size,
 
 static void copy_bootstrap(void *e, exec_info_t *boot_exec_info)
 {
-	//register vm_map_t	user_map = current_task()->map;
+	/* vm_map_t	user_map = current_task()->map; */
 	int err;
 
 	if ((err = exec_load(boot_read, read_exec, e, boot_exec_info)))
@@ -813,7 +819,7 @@ boot_script_free (void *ptr, unsigned int size)
 int
 boot_script_task_create (struct cmd *cmd)
 {
-  kern_return_t rc = task_create(TASK_NULL, FALSE, &cmd->task);
+  kern_return_t rc = task_create_kernel(TASK_NULL, FALSE, &cmd->task);
   if (rc)
     {
       printf("boot_script_task_create failed with %x\n", rc);
