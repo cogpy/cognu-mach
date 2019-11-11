@@ -578,6 +578,7 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
   int cc, err = 0, i, j, nb, nbuf;
   long blk;
   struct buffer_head bhead[MAX_BUF], *bh, *bhp[MAX_BUF];
+  phys_addr_t pa;
 
   assert ((*off & BMASK) == 0);
 
@@ -592,7 +593,10 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
       if (rw == WRITE)
 	set_bit (BH_Dirty, &bh->b_state);
       cc = PAGE_SIZE - (((int) *buf + (nb << bshift)) & PAGE_MASK);
-      if (cc >= BSIZE && (((int) *buf + (nb << bshift)) & 511) == 0)
+      pa = pmap_extract (vm_map_pmap (device_io_map),
+			 (((vm_offset_t) *buf) + (nb << bshift)));
+      if (cc >= BSIZE && (((int) *buf + (nb << bshift)) & 511) == 0
+	  && pa + cc <= VM_PAGE_DIRECTMAP_LIMIT)
 	cc &= ~BMASK;
       else
 	{
@@ -602,9 +606,7 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
       if (cc > ((nbuf - nb) << bshift))
 	cc = (nbuf - nb) << bshift;
       if (! test_bit (BH_Bounce, &bh->b_state))
-	bh->b_data = (char *) phystokv(pmap_extract (vm_map_pmap (device_io_map),
-					    (((vm_offset_t) *buf)
-					     + (nb << bshift))));
+	bh->b_data = (char *) phystokv(pa);
       else
 	{
 	  bh->b_data = alloc_buffer (cc);
@@ -941,7 +943,6 @@ init_partition (struct name_map *np, kdev_t *dev,
       if (gd->part[MINOR (d->inode.i_rdev)].nr_sects <= 0
 	  || gd->part[MINOR (d->inode.i_rdev)].start_sect < 0)
 	continue;
-      linux_intr_pri = SPL6;
       d->file.f_flags = 0;
       d->file.f_mode = O_RDONLY;
       if (ds->fops->open && (*ds->fops->open) (&d->inode, &d->file))
@@ -1087,7 +1088,6 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
   if (ds->fops->open)
     {
       td.inode.i_rdev = dev;
-      linux_intr_pri = SPL6;
       err = (*ds->fops->open) (&td.inode, &td.file);
       if (err)
 	{
@@ -1303,7 +1303,7 @@ device_write (void *d, ipc_port_t reply_port,
   int resid, amt, i;
   int count = (int) orig_count;
   io_return_t err = 0;
-  vm_map_copy_t copy;
+  vm_map_copy_t copy = (vm_map_copy_t) data;
   vm_offset_t addr, uaddr;
   vm_size_t len, size;
   struct block_data *bd = d;
@@ -1327,7 +1327,6 @@ device_write (void *d, ipc_port_t reply_port,
     }
 
   resid = count;
-  copy = (vm_map_copy_t) data;
   uaddr = copy->offset;
 
   /* Allocate a kernel buffer.  */

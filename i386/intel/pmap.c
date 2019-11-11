@@ -83,8 +83,13 @@
 #include <i386/proc_reg.h>
 #include <i386/locore.h>
 #include <i386/model_dep.h>
+#include <i386/spl.h>
 #include <i386at/biosmem.h>
 #include <i386at/model_dep.h>
+
+#if	NCPUS > 1
+#include <i386/mp_desc.h>
+#endif
 
 #ifdef	MACH_PSEUDO_PHYS
 #define	WRITE_PTE(pte_p, pte_entry)		*(pte_p) = pte_entry?pa_to_ma(pte_entry):0;
@@ -543,7 +548,7 @@ vm_offset_t pmap_map_bd(
 	if (prot & VM_PROT_WRITE)
 	    template |= INTEL_PTE_WRITE;
 
-	PMAP_READ_LOCK(pmap, spl);
+	PMAP_READ_LOCK(kernel_pmap, spl);
 	while (start < end) {
 		pte = pmap_pte(kernel_pmap, virt);
 		if (pte == PT_ENTRY_NULL)
@@ -572,7 +577,7 @@ vm_offset_t pmap_map_bd(
 	if (n != i)
 		panic("couldn't pmap_map_bd\n");
 #endif	/* MACH_PV_PAGETABLES */
-	PMAP_READ_UNLOCK(pmap, spl);
+	PMAP_READ_UNLOCK(kernel_pmap, spl);
 	return(virt);
 }
 
@@ -691,7 +696,7 @@ void pmap_bootstrap(void)
 					l1_map[n_l1map][j] = (((pt_entry_t)pfn_to_mfn(lin2pdenum(la - VM_MIN_KERNEL_ADDRESS) * NPTES + j)) << PAGE_SHIFT) | INTEL_PTE_VALID | INTEL_PTE_WRITE;
 				pmap_set_page_readonly_init(l1_map[n_l1map]);
 				if (!hyp_mmuext_op_mfn (MMUEXT_PIN_L1_TABLE, kv_to_mfn (l1_map[n_l1map])))
-					panic("couldn't pin page %p(%p)", l1_map[n_l1map], (vm_offset_t) kv_to_ma (l1_map[n_l1map]));
+					panic("couldn't pin page %p(%lx)", l1_map[n_l1map], (vm_offset_t) kv_to_ma (l1_map[n_l1map]));
 				update.ptr = kv_to_ma(l2_map);
 				update.val = kv_to_ma(l1_map[n_l1map]) | INTEL_PTE_VALID | INTEL_PTE_WRITE;
 				hyp_mmu_update(kv_to_la(&update), 1, kv_to_la(&n), DOMID_SELF);
@@ -797,7 +802,7 @@ void pmap_bootstrap(void)
 #ifdef	MACH_PV_PAGETABLES
 			pmap_set_page_readonly_init(ptable);
 			if (!hyp_mmuext_op_mfn (MMUEXT_PIN_L1_TABLE, kv_to_mfn (ptable)))
-				panic("couldn't pin page %p(%p)\n", ptable, (vm_offset_t) kv_to_ma (ptable));
+				panic("couldn't pin page %p(%lx)\n", ptable, (vm_offset_t) kv_to_ma (ptable));
 #endif	/* MACH_PV_PAGETABLES */
 		}
 	}
@@ -815,10 +820,10 @@ void pmap_set_page_readwrite(void *_vaddr) {
 	vm_offset_t paddr = kvtophys(vaddr);
 	vm_offset_t canon_vaddr = phystokv(paddr);
 	if (hyp_do_update_va_mapping (kvtolin(vaddr), pa_to_pte (pa_to_ma(paddr)) | INTEL_PTE_VALID | INTEL_PTE_WRITE, UVMF_NONE))
-		panic("couldn't set hiMMU readwrite for addr %p(%p)\n", vaddr, (vm_offset_t) pa_to_ma (paddr));
+		panic("couldn't set hiMMU readwrite for addr %lx(%lx)\n", vaddr, (vm_offset_t) pa_to_ma (paddr));
 	if (canon_vaddr != vaddr)
 		if (hyp_do_update_va_mapping (kvtolin(canon_vaddr), pa_to_pte (pa_to_ma(paddr)) | INTEL_PTE_VALID | INTEL_PTE_WRITE, UVMF_NONE))
-			panic("couldn't set hiMMU readwrite for paddr %p(%p)\n", canon_vaddr, (vm_offset_t) pa_to_ma (paddr));
+			panic("couldn't set hiMMU readwrite for paddr %lx(%lx)\n", canon_vaddr, (vm_offset_t) pa_to_ma (paddr));
 }
 
 /* Set a page read only (so as to pin it for instance) */
@@ -828,12 +833,12 @@ void pmap_set_page_readonly(void *_vaddr) {
 	vm_offset_t canon_vaddr = phystokv(paddr);
 	if (*pmap_pde(kernel_pmap, vaddr) & INTEL_PTE_VALID) {
 		if (hyp_do_update_va_mapping (kvtolin(vaddr), pa_to_pte (pa_to_ma(paddr)) | INTEL_PTE_VALID, UVMF_NONE))
-			panic("couldn't set hiMMU readonly for vaddr %p(%p)\n", vaddr, (vm_offset_t) pa_to_ma (paddr));
+			panic("couldn't set hiMMU readonly for vaddr %lx(%lx)\n", vaddr, (vm_offset_t) pa_to_ma (paddr));
 	}
 	if (canon_vaddr != vaddr &&
 		*pmap_pde(kernel_pmap, canon_vaddr) & INTEL_PTE_VALID) {
 		if (hyp_do_update_va_mapping (kvtolin(canon_vaddr), pa_to_pte (pa_to_ma(paddr)) | INTEL_PTE_VALID, UVMF_NONE))
-			panic("couldn't set hiMMU readonly for vaddr %p canon_vaddr %p paddr %p (%p)\n", vaddr, canon_vaddr, paddr, (vm_offset_t) pa_to_ma (paddr));
+			panic("couldn't set hiMMU readonly for vaddr %lx canon_vaddr %lx paddr %lx (%lx)\n", vaddr, canon_vaddr, paddr, (vm_offset_t) pa_to_ma (paddr));
 	}
 }
 
@@ -852,12 +857,12 @@ void pmap_set_page_readonly_init(void *_vaddr) {
 	/* Modify our future kernel map (can't use update_va_mapping for this)... */
 	if (*pmap_pde(kernel_pmap, vaddr) & INTEL_PTE_VALID) {
 		if (!hyp_mmu_update_la (kvtolin(vaddr), pa_to_pte (kv_to_ma(vaddr)) | INTEL_PTE_VALID))
-			panic("couldn't set hiMMU readonly for vaddr %p(%p)\n", vaddr, (vm_offset_t) kv_to_ma (vaddr));
+			panic("couldn't set hiMMU readonly for vaddr %lx(%lx)\n", vaddr, (vm_offset_t) kv_to_ma (vaddr));
 	}
 	/* ... and the bootstrap map.  */
 	if (*pte & INTEL_PTE_VALID) {
 		if (hyp_do_update_va_mapping (vaddr, pa_to_pte (kv_to_ma(vaddr)) | INTEL_PTE_VALID, UVMF_NONE))
-			panic("couldn't set MMU readonly for vaddr %p(%p)\n", vaddr, (vm_offset_t) kv_to_ma (vaddr));
+			panic("couldn't set MMU readonly for vaddr %lx(%lx)\n", vaddr, (vm_offset_t) kv_to_ma (vaddr));
 	}
 }
 
@@ -869,7 +874,7 @@ void pmap_clear_bootstrap_pagetable(pt_entry_t *base) {
 	unsigned j;
 #endif	/* PAE */
 	if (!hyp_mmuext_op_mfn (MMUEXT_UNPIN_TABLE, kv_to_mfn(base)))
-		panic("pmap_clear_bootstrap_pagetable: couldn't unpin page %p(%p)\n", base, (vm_offset_t) kv_to_ma(base));
+		panic("pmap_clear_bootstrap_pagetable: couldn't unpin page %p(%lx)\n", base, (vm_offset_t) kv_to_ma(base));
 #if PAE
 	for (j = 0; j < PDPNUM; j++)
 	{
@@ -1001,8 +1006,7 @@ void pmap_init(void)
 			KMEM_CACHE_PHYSMEM);
 #if PAE
 	kmem_cache_init(&pdpt_cache, "pdpt",
-			PDPNUM * sizeof(pt_entry_t),
-			PDPNUM * sizeof(pt_entry_t), NULL,
+			INTEL_PGBYTES, INTEL_PGBYTES, NULL,
 			KMEM_CACHE_PHYSMEM);
 #endif
 	s = (vm_size_t) sizeof(struct pv_entry);
@@ -1102,7 +1106,7 @@ void pmap_map_mfn(void *_addr, unsigned long mfn) {
 #ifdef	MACH_PV_PAGETABLES
 		pmap_set_page_readonly((void*) ptp);
 		if (!hyp_mmuext_op_mfn (MMUEXT_PIN_L1_TABLE, pa_to_mfn(ptp)))
-			panic("couldn't pin page %p(%p)\n",ptp,(vm_offset_t) kv_to_ma(ptp));
+			panic("couldn't pin page %lx(%lx)\n",ptp,(vm_offset_t) kv_to_ma(ptp));
 #endif	/* MACH_PV_PAGETABLES */
 		pdp = pmap_pde(kernel_pmap, addr);
 
@@ -1111,7 +1115,7 @@ void pmap_map_mfn(void *_addr, unsigned long mfn) {
 			pa_to_pte(kv_to_ma(ptp)) | INTEL_PTE_VALID
 					      | INTEL_PTE_USER
 					      | INTEL_PTE_WRITE))
-			panic("%s:%d could not set pde %p(%p) to %p(%p)\n",__FILE__,__LINE__,kvtophys((vm_offset_t)pdp),(vm_offset_t) kv_to_ma(pdp), ptp, (vm_offset_t) pa_to_ma(ptp));
+			panic("%s:%d could not set pde %llx(%lx) to %lx(%lx)\n",__FILE__,__LINE__,kvtophys((vm_offset_t)pdp),(vm_offset_t) kv_to_ma(pdp), ptp, (vm_offset_t) pa_to_ma(ptp));
 #else	/* MACH_PV_PAGETABLES */
 		*pdp = pa_to_pte(kvtophys(ptp)) | INTEL_PTE_VALID
 						| INTEL_PTE_USER
@@ -1122,7 +1126,7 @@ void pmap_map_mfn(void *_addr, unsigned long mfn) {
 
 #ifdef	MACH_PV_PAGETABLES
 	if (!hyp_mmu_update_pte(kv_to_ma(pte), ma | INTEL_PTE_VALID | INTEL_PTE_WRITE))
-		panic("%s:%d could not set pte %p(%p) to %p(%p)\n",__FILE__,__LINE__,pte,(vm_offset_t) kv_to_ma(pte), ma, ma_to_pa(ma));
+		panic("%s:%d could not set pte %p(%lx) to %llx(%llx)\n",__FILE__,__LINE__,pte,(vm_offset_t) kv_to_ma(pte), ma, ma_to_pa(ma));
 #else	/* MACH_PV_PAGETABLES */
 	/* Note: in this case, mfn is actually a pfn.  */
 	WRITE_PTE(pte, ma | INTEL_PTE_VALID | INTEL_PTE_WRITE);
@@ -1318,7 +1322,7 @@ void pmap_destroy(pmap_t p)
 		    vm_page_lock_queues();
 #ifdef	MACH_PV_PAGETABLES
 		    if (!hyp_mmuext_op_mfn (MMUEXT_UNPIN_TABLE, pa_to_mfn(pa)))
-			panic("pmap_destroy: couldn't unpin page %p(%p)\n", pa, (vm_offset_t) kv_to_ma(pa));
+			panic("pmap_destroy: couldn't unpin page %llx(%lx)\n", pa, (vm_offset_t) kv_to_ma(pa));
 		    pmap_set_page_readwrite((void*) phystokv(pa));
 #endif	/* MACH_PV_PAGETABLES */
 		    vm_page_free(m);
@@ -1370,7 +1374,7 @@ void pmap_reference(pmap_t p)
  *	Assumes that the pte-page exists.
  */
 
-/* static */
+static
 void pmap_remove_range(
 	pmap_t			pmap,
 	vm_offset_t		va,
@@ -1533,7 +1537,6 @@ void pmap_remove(
 	vm_offset_t	e)
 {
 	int			spl;
-	pt_entry_t		*pde;
 	pt_entry_t		*spte, *epte;
 	vm_offset_t		l;
 	vm_offset_t		_s = s;
@@ -1543,8 +1546,9 @@ void pmap_remove(
 
 	PMAP_READ_LOCK(map, spl);
 
-	pde = pmap_pde(map, s);
 	while (s < e) {
+	    pt_entry_t *pde = pmap_pde(map, s);
+
 	    l = (s + PDE_MAPPED_SIZE) & ~(PDE_MAPPED_SIZE-1);
 	    if (l > e)
 		l = e;
@@ -1555,7 +1559,6 @@ void pmap_remove(
 		pmap_remove_range(map, s, spte, epte);
 	    }
 	    s = l;
-	    pde++;
 	}
 	PMAP_UPDATE_TLBS(map, _s, e);
 
@@ -1858,7 +1861,7 @@ void pmap_enter(
 	phys_addr_t		old_pa;
 
 	assert(pa != vm_page_fictitious_addr);
-if (pmap_debug) printf("pmap(%lx, %lx)\n", v, pa);
+	if (pmap_debug) printf("pmap(%lx, %llx)\n", v, pa);
 	if (pmap == PMAP_NULL)
 		return;
 
@@ -1921,7 +1924,7 @@ Retry:
 		 * Would have to enter the new page-table page in
 		 * EVERY pmap.
 		 */
-		panic("pmap_expand kernel pmap to %#x", v);
+		panic("pmap_expand kernel pmap to %#lx", v);
 	    }
 
 	    /*
@@ -1953,24 +1956,23 @@ Retry:
 	     * Enter the new page table page in the page directory.
 	     */
 	    i = ptes_per_vm_page;
-	    /*XX pdp = &pmap->dirbase[pdenum(v) & ~(i-1)];*/
 	    pdp = pmap_pde(pmap, v);
 	    do {
 #ifdef	MACH_PV_PAGETABLES
 		pmap_set_page_readonly((void *) ptp);
 		if (!hyp_mmuext_op_mfn (MMUEXT_PIN_L1_TABLE, kv_to_mfn(ptp)))
-			panic("couldn't pin page %p(%p)\n",ptp,(vm_offset_t) kv_to_ma(ptp));
+			panic("couldn't pin page %lx(%lx)\n",ptp,(vm_offset_t) kv_to_ma(ptp));
 		if (!hyp_mmu_update_pte(pa_to_ma(kvtophys((vm_offset_t)pdp)),
 			pa_to_pte(pa_to_ma(kvtophys(ptp))) | INTEL_PTE_VALID
 					      | INTEL_PTE_USER
 					      | INTEL_PTE_WRITE))
-			panic("%s:%d could not set pde %p(%p,%p) to %p(%p,%p) %p\n",__FILE__,__LINE__, pdp, kvtophys((vm_offset_t)pdp), (vm_offset_t) pa_to_ma(kvtophys((vm_offset_t)pdp)), ptp, kvtophys(ptp), (vm_offset_t) pa_to_ma(kvtophys(ptp)), (vm_offset_t) pa_to_pte(kv_to_ma(ptp)));
+			panic("%s:%d could not set pde %p(%llx,%lx) to %lx(%llx,%lx) %lx\n",__FILE__,__LINE__, pdp, kvtophys((vm_offset_t)pdp), (vm_offset_t) pa_to_ma(kvtophys((vm_offset_t)pdp)), ptp, kvtophys(ptp), (vm_offset_t) pa_to_ma(kvtophys(ptp)), (vm_offset_t) pa_to_pte(kv_to_ma(ptp)));
 #else	/* MACH_PV_PAGETABLES */
 		*pdp = pa_to_pte(kvtophys(ptp)) | INTEL_PTE_VALID
 					        | INTEL_PTE_USER
 					        | INTEL_PTE_WRITE;
 #endif	/* MACH_PV_PAGETABLES */
-		pdp++;
+		pdp++;	/* Note: This is safe b/c we stay in one page.  */
 		ptp += INTEL_PGBYTES;
 	    } while (--i > 0);
 
@@ -2016,7 +2018,7 @@ Retry:
 		    template |= INTEL_PTE_MOD;
 #ifdef	MACH_PV_PAGETABLES
 		if (!hyp_mmu_update_pte(kv_to_ma(pte), pa_to_ma(template)))
-			panic("%s:%d could not set pte %p to %p\n",__FILE__,__LINE__,pte,template);
+			panic("%s:%d could not set pte %p to %llx\n",__FILE__,__LINE__,pte,template);
 #else	/* MACH_PV_PAGETABLES */
 		WRITE_PTE(pte, template)
 #endif	/* MACH_PV_PAGETABLES */
@@ -2126,7 +2128,7 @@ Retry:
 	    do {
 #ifdef	MACH_PV_PAGETABLES
 		if (!(hyp_mmu_update_pte(kv_to_ma(pte), pa_to_ma(template))))
-			panic("%s:%d could not set pte %p to %p\n",__FILE__,__LINE__,pte,template);
+			panic("%s:%d could not set pte %p to %llx\n",__FILE__,__LINE__,pte,template);
 #else	/* MACH_PV_PAGETABLES */
 		WRITE_PTE(pte, template)
 #endif	/* MACH_PV_PAGETABLES */
@@ -2337,7 +2339,7 @@ void pmap_collect(pmap_t p)
 				if (!(hyp_mmu_update_pte(pa_to_ma(kvtophys((vm_offset_t)pdep++)), 0)))
 				    panic("%s:%d could not clear pde %p\n",__FILE__,__LINE__,pdep-1);
 				if (!hyp_mmuext_op_mfn (MMUEXT_UNPIN_TABLE, kv_to_mfn(ptable)))
-				    panic("couldn't unpin page %p(%p)\n", ptable, (vm_offset_t) pa_to_ma(kvtophys((vm_offset_t)ptable)));
+				    panic("couldn't unpin page %p(%lx)\n", ptable, (vm_offset_t) pa_to_ma(kvtophys((vm_offset_t)ptable)));
 				pmap_set_page_readwrite(ptable);
 #else	/* MACH_PV_PAGETABLES */
 				*pdep++ = 0;
@@ -2386,7 +2388,7 @@ void pmap_collect(pmap_t p)
  */
 #if	0
 void pmap_activate(my_pmap, th, my_cpu)
-	register pmap_t	my_pmap;
+	pmap_t	my_pmap;
 	thread_t	th;
 	int		my_cpu;
 {
@@ -2429,9 +2431,9 @@ pmap_t pmap_kernel()
  */
 #if	0
 pmap_zero_page(phys)
-	register vm_offset_t	phys;
+	vm_offset_t	phys;
 {
-	register int	i;
+	int	i;
 
 	assert(phys != vm_page_fictitious_addr);
 	i = PAGE_SIZE / INTEL_PGBYTES;
@@ -2555,7 +2557,7 @@ phys_attribute_clear(
 		    do {
 #ifdef	MACH_PV_PAGETABLES
 			if (!(hyp_mmu_update_pte(kv_to_ma(pte), *pte & ~bits)))
-			    panic("%s:%d could not clear bits %lx from pte %p\n",__FILE__,__LINE__,bits,pte);
+			    panic("%s:%d could not clear bits %x from pte %p\n",__FILE__,__LINE__,bits,pte);
 #else	/* MACH_PV_PAGETABLES */
 			*pte &= ~bits;
 #endif	/* MACH_PV_PAGETABLES */

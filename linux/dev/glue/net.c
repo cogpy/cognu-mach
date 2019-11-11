@@ -380,7 +380,6 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
 
       if (dev->open)
 	{
-	  linux_intr_pri = SPL6;
 	  if ((*dev->open) (dev))
 	    err = D_NO_SUCH_DEVICE;
 	}
@@ -427,8 +426,7 @@ device_write (void *d, ipc_port_t reply_port,
 	      recnum_t bn, io_buf_ptr_t data, unsigned int count,
 	      int *bytes_written)
 {
-  unsigned char *p;
-  int i, s;
+  int s;
   vm_map_copy_t copy = (vm_map_copy_t) data;
   char *map_data;
   vm_offset_t map_addr;

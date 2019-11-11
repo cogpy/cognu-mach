@@ -244,7 +244,8 @@ void halt_all_cpus(boolean_t reboot)
 #ifdef	MACH_HYP
 	    hyp_halt();
 #endif	/* MACH_HYP */
-	    printf("In tight loop: hit ctl-alt-del to reboot\n");
+	    printf("Shutdown completed successfully, now in tight loop.\n");
+	    printf("You can safely power off the system or hit ctl-alt-del to reboot\n");
 	    (void) spl0();
 	}
 	while (TRUE)
@@ -288,7 +289,7 @@ register_boot_data(const struct multiboot_raw_info *mbi)
 					   + strlen((void *)phystokv(mbi->cmdline)) + 1, TRUE);
 	}
 
-	if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
+	if (mbi->flags & MULTIBOOT_LOADER_MODULES && mbi->mods_count) {
 		i = mbi->mods_count * sizeof(struct multiboot_raw_module);
 		biosmem_register_boot_data(mbi->mods_addr, mbi->mods_addr + i, TRUE);
 
@@ -296,7 +297,8 @@ register_boot_data(const struct multiboot_raw_info *mbi)
 
 		for (i = 0; i < mbi->mods_count; i++) {
 			mod = (struct multiboot_raw_module *)tmp + i;
-			biosmem_register_boot_data(mod->mod_start, mod->mod_end, TRUE);
+			if (mod->mod_end != mod->mod_start)
+				biosmem_register_boot_data(mod->mod_start, mod->mod_end, TRUE);
 
 			if (mod->string != 0) {
 				biosmem_register_boot_data(mod->string,
@@ -309,7 +311,8 @@ register_boot_data(const struct multiboot_raw_info *mbi)
 
 	if (mbi->flags & MULTIBOOT_LOADER_SHDR) {
 		tmp = mbi->shdr_num * mbi->shdr_size;
-		biosmem_register_boot_data(mbi->shdr_addr, mbi->shdr_addr + tmp, FALSE);
+		if (tmp != 0)
+			biosmem_register_boot_data(mbi->shdr_addr, mbi->shdr_addr + tmp, FALSE);
 
 		tmp = phystokv(mbi->shdr_addr);
 
@@ -320,7 +323,8 @@ register_boot_data(const struct multiboot_raw_info *mbi)
 			    && (shdr->type != ELF_SHT_STRTAB))
 				continue;
 
-			biosmem_register_boot_data(shdr->addr, shdr->addr + shdr->size, FALSE);
+			if (shdr->size != 0)
+				biosmem_register_boot_data(shdr->addr, shdr->addr + shdr->size, FALSE);
 		}
 	}
 }
@@ -373,7 +377,7 @@ i386at_init(void)
 		boot_info.cmdline = addr;
 	}
 
-	if (boot_info.flags & MULTIBOOT_MODS) {
+	if (boot_info.flags & MULTIBOOT_MODS && boot_info.mods_count) {
 		struct multiboot_module *m;
 		int i;
 
@@ -642,7 +646,7 @@ void c_boot_entry(vm_offset_t bi)
 #include <vm/pmap.h>
 #include <mach/time_value.h>
 
-int
+vm_offset_t
 timemmap(dev, off, prot)
 	dev_t dev;
 	vm_offset_t off;
