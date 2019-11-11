@@ -204,9 +204,9 @@ __disable_irq (unsigned int irq_nr)
 
   save_flags (flags);
   cli ();
-  ndisabled[irq_nr]++;
-  assert (ndisabled[irq_nr] > 0);
-  if (ndisabled[irq_nr] == 1)
+  ndisabled_irq[irq_nr]++;
+  assert (ndisabled_irq[irq_nr] > 0);
+  if (ndisabled_irq[irq_nr] == 1)
     mask_irq (irq_nr);
   restore_flags (flags);
 }
@@ -220,9 +220,9 @@ __enable_irq (unsigned int irq_nr)
 
   save_flags (flags);
   cli ();
-  assert (ndisabled[irq_nr] > 0);
-  ndisabled[irq_nr]--;
-  if (ndisabled[irq_nr] == 0)
+  assert (ndisabled_irq[irq_nr] > 0);
+  ndisabled_irq[irq_nr]--;
+  if (ndisabled_irq[irq_nr] == 0)
     unmask_irq (irq_nr);
   restore_flags (flags);
 }
