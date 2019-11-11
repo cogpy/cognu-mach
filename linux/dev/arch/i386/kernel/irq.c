@@ -129,12 +129,8 @@ linux_intr (int irq)
 	    }
 	  else
 	    {
-	      /* We disable the irq here and it will be enabled
-	       * after the interrupt is handled by the user space driver. */
-	      disable_irq (irq);
 	      queue_intr (irq, action->delivery_port);
 	    }
-
 	}
       else if (action->handler)
 	action->handler (irq, action->dev_id, &regs);

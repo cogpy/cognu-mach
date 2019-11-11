@@ -346,10 +346,17 @@ ds_device_intr_register (ipc_port_t master_port, int line,
   // in order to handle the case that the device driver crashes and restarts.
   ret = install_user_intr_handler (line, flags, receive_port);
 
-  /* If the port is installed successfully, increase its reference by 1.
-   * Thus, the port won't be destroyed after its task is terminated. */
   if (ret == 0)
+  {
+    /* If the port is installed successfully, increase its reference by 1.
+     * Thus, the port won't be destroyed after its task is terminated. */
     ip_reference (receive_port);
+
+    /* For now netdde calls device_intr_enable once after registration. Assume
+     * it does so for now. When we move to IRQ acknowledgment convention we will
+     * change this. */
+    __disable_irq (line);
+  }
 
   return ret;
 #endif	/* MACH_XEN */
@@ -1844,11 +1851,13 @@ ds_device_intr_enable(ipc_port_t master_port, int line, char status)
   if (master_port != master_device_port)
     return D_INVALID_OPERATION;
 
+  /* FIXME: should count how many disable/enable was done for a given receiving
+   * port, to be able to restore proper count on crashes */
   if (status)
     /* TODO: better name for generic-to-arch-specific call */
-    enable_irq (line);
+    __enable_irq (line);
   else
-    disable_irq (line);
+    __disable_irq (line);
   return 0;
 #endif	/* MACH_XEN */
 }

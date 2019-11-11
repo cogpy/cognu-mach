@@ -41,7 +41,11 @@ queue_intr (int line, ipc_port_t dest)
 {
   extern void intr_thread ();
   struct intr_entry *e;
-  
+
+  /* Until userland has handled the IRQ in the driver, we have to keep it
+   * disabled. Level-triggered interrupts would keep raising otherwise. */
+  __disable_irq (line);
+
   cli ();
   e = search_intr (line, dest);
   assert (e);
