@@ -14,4 +14,15 @@ typedef struct
 #define INTR_NOTIFY_MSGH_SEQNO 0
 #define MACH_INTR_NOTIFY 100
 
+void queue_intr (int line, ipc_port_t dest);
+
+int insert_intr_entry (int line, ipc_port_t dest);
+
+void mark_intr_removed (int line, ipc_port_t dest);
+
+void intr_thread (void);
+
+void __disable_irq(unsigned int);
+void __enable_irq(unsigned int);
+
 #endif

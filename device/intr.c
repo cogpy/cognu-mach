@@ -103,7 +103,7 @@ void mark_intr_removed (int line, ipc_port_t dest)
 }
 
 void
-intr_thread ()
+intr_thread (void)
 {
   struct intr_entry *e;
   int line;

@@ -92,6 +92,7 @@
 #include <device/device_port.h>
 #include <device/device_reply.user.h>
 #include <device/device_emul.h>
+#include <device/intr.h>
 
 #include <machine/machspl.h>
 

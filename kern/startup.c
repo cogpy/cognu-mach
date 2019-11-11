@@ -63,6 +63,7 @@
 #include <machine/model_dep.h>
 #include <mach/version.h>
 #include <device/device_init.h>
+#include <device/intr.h>
 
 #if MACH_KDB
 #include <device/cons.h>
@@ -79,7 +80,6 @@ boolean_t reboot_on_panic = TRUE;
 
 /* XX */
 extern char *kernel_cmdline;
-extern void	intr_thread();
 
 /*
  *	Running in virtual memory, on the interrupt stack.
