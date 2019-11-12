@@ -10,15 +10,6 @@
 
 static boolean_t deliver_intr (int line, ipc_port_t dest_port);
 
-struct intr_entry
-{
-  queue_chain_t chain;
-  ipc_port_t dest;
-  int line;
-  /* The number of interrupts occur since last run of intr_thread. */
-  int interrupts;
-};
-
 static queue_head_t intr_queue;
 /* The total number of unprocessed interrupts. */
 static int tot_num_intr;
@@ -35,16 +26,71 @@ search_intr (int line, ipc_port_t dest)
   return NULL;
 }
 
-/* This function can only be used in the interrupt handler. */
-void
-queue_intr (int line, ipc_port_t dest)
+static struct intr_entry *
+search_intr_line (int line)
 {
-  extern void intr_thread ();
   struct intr_entry *e;
-  
+  queue_iterate (&intr_queue, e, struct intr_entry *, chain)
+    {
+      if (e->line == line &&
+	  (e->dest != MACH_PORT_NULL
+	   && e->dest->ip_references != 1
+	   && e->unacked_interrupts))
+	return e;
+    }
+  return NULL;
+}
+
+kern_return_t user_intr_enable (int line, char status)
+{
+  struct intr_entry *e;
+  kern_return_t ret = D_SUCCESS;
+
+  cli();
+  /* FIXME: Use search_intr instead once we get the delivery port from ds_device_intr_enable, and get rid of search_intr_line */
+  e = search_intr_line (line);
+
+  if (!e)
+    printf("didn't find user intr for interrupt %d!?\n", line);
+  else if (status)
+  {
+    if (!e->unacked_interrupts)
+      ret = D_INVALID_OPERATION;
+    else
+      e->unacked_interrupts--;
+  }
+  else
+  {
+    e->unacked_interrupts++;
+    if (!e->unacked_interrupts)
+    {
+      ret = D_INVALID_OPERATION;
+      e->unacked_interrupts--;
+    }
+  }
+  sti();
+
+  if (ret)
+    return ret;
+
+  if (status)
+    /* TODO: better name for generic-to-arch-specific call */
+    __enable_irq (line);
+  else
+    __disable_irq (line);
+  return D_SUCCESS;
+}
+
+/* This function can only be used in the interrupt handler. */
+static void
+queue_intr (int line, user_intr_t *e)
+{
+  /* Until userland has handled the IRQ in the driver, we have to keep it
+   * disabled. Level-triggered interrupts would keep raising otherwise. */
+  __disable_irq (line);
+
   cli ();
-  e = search_intr (line, dest);
-  assert (e);
+  e->unacked_interrupts++;
   e->interrupts++;
   tot_num_intr++;
   sti ();
@@ -52,54 +98,71 @@ queue_intr (int line, ipc_port_t dest)
   thread_wakeup ((event_t) &intr_thread);
 }
 
+int deliver_user_intr (int line, user_intr_t *intr)
+{
+  /* The reference of the port was increased
+   * when the port was installed.
+   * If the reference is 1, it means the port should
+   * have been destroyed and I destroy it now. */
+  if (intr->dest
+      && intr->dest->ip_references == 1)
+    {
+      ipc_port_release (intr->dest);
+      intr->dest = MACH_PORT_NULL;
+      printf ("irq handler %d: release a dead delivery port\n", line);
+      thread_wakeup ((event_t) &intr_thread);
+      return 0;
+    }
+  else
+    {
+      queue_intr (line, intr);
+      return 1;
+    }
+}
+
 /* insert an interrupt entry in the queue.
  * This entry exists in the queue until
  * the corresponding interrupt port is removed.*/
-int
+user_intr_t *
 insert_intr_entry (int line, ipc_port_t dest)
 {
-  int err = 0;
-  struct intr_entry *e, *new;
+  struct intr_entry *e, *new, *ret;
   int free = 0;
 
   new = (struct intr_entry *) kalloc (sizeof (*new));
   if (new == NULL)
-    return D_NO_MEMORY;
+    return NULL;
 
   /* check whether the intr entry has been in the queue. */
   cli ();
   e = search_intr (line, dest);
   if (e)
     {
-      printf ("the interrupt entry for line %d and port %p has been inserted\n",
-	  line, dest);
+      printf ("the interrupt entry for line %d and port %p has already been inserted\n", line, dest);
       free = 1;
-      err = D_ALREADY_OPEN;
+      ret = NULL;
       goto out;
     }
+  ret = new;
   new->line = line;
   new->dest = dest;
   new->interrupts = 0;
+
+  /* For now netdde calls device_intr_enable once after registration. Assume
+   * it does so for now. When we move to IRQ acknowledgment convention we will
+   * change this. */
+  new->unacked_interrupts = 1;
+
   queue_enter (&intr_queue, new, struct intr_entry *, chain);
 out:
   sti ();
   if (free)
     kfree ((vm_offset_t) new, sizeof (*new));
-  return err;
-}
-
-/* this function should be called when line is disabled. */
-void mark_intr_removed (int line, ipc_port_t dest)
-{
-  struct intr_entry *e;
-
-  e = search_intr (line, dest);
-  if (e)
-    e->dest = NULL;
+  return ret;
 }
 
 void
-intr_thread ()
+intr_thread (void)
 {
   struct intr_entry *e;
   int line;
@@ -109,7 +172,32 @@ intr_thread ()
   for (;;)
     {
       assert_wait ((event_t) &intr_thread, FALSE);
+      /* Make sure we wake up from times to times to check for aborted processes */
+      thread_set_timeout (hz);
       cli ();
+
+      /* Check for aborted processes */
+      queue_iterate (&intr_queue, e, struct intr_entry *, chain)
+	{
+	  if (!e->dest || e->dest->ip_references == 1)
+	    {
+	      printf ("irq handler %d: release dead delivery %d unacked irqs\n", e->line, e->unacked_interrupts);
+	      /* The reference of the port was increased
+	       * when the port was installed.
+	       * If the reference is 1, it means the port should
+	       * have been destroyed and I clear unacked irqs now, so the Linux
+	       * handling can trigger, and we will cleanup later after the Linux
+	       * handler is cleared. */
+	      /* TODO: rather immediately remove from Linux handler */
+	      while (e->unacked_interrupts)
+	      {
+		__enable_irq(e->line);
+		e->unacked_interrupts--;
+	      }
+	    }
+	}
+
+      /* Now check for interrupts */
       while (tot_num_intr)
 	{
 	  int del = 0;
@@ -118,7 +206,7 @@ intr_thread ()
 	    {
 	      /* if an entry doesn't have dest port,
 	       * we should remove it. */
-	      if (e->dest == NULL)
+	      if (e->dest == MACH_PORT_NULL)
 		{
 		  clear_wait (current_thread (), 0, 0);
 		  del = 1;
@@ -144,6 +232,11 @@ intr_thread ()
 	    {
 	      assert (!queue_empty (&intr_queue));
 	      queue_remove (&intr_queue, e, struct intr_entry *, chain);
+	      while (e->unacked_interrupts)
+	      {
+		__enable_irq(e->line);
+		e->unacked_interrupts--;
+	      }
 	      sti ();
 	      kfree ((vm_offset_t) e, sizeof (*e));
 	      cli ();
