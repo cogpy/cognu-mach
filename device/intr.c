@@ -2,11 +2,9 @@
 #include <device/ds_routines.h>
 #include <kern/queue.h>
 #include <kern/printf.h>
+#include <machine/spl.h>
 
 #ifndef MACH_XEN
-// TODO this is only for x86 system
-#define sti() __asm__ __volatile__ ("sti": : :"memory")
-#define cli() __asm__ __volatile__ ("cli": : :"memory")
 
 static boolean_t deliver_intr (int line, ipc_port_t dest_port);
 
@@ -46,7 +44,7 @@ kern_return_t user_intr_enable (int line, char status)
   struct intr_entry *e;
   kern_return_t ret = D_SUCCESS;
 
-  cli();
+  spl_t s = splhigh ();
   /* FIXME: Use search_intr instead once we get the delivery port from ds_device_intr_enable, and get rid of search_intr_line */
   e = search_intr_line (line);
 
@@ -68,7 +66,7 @@ kern_return_t user_intr_enable (int line, char status)
       e->unacked_interrupts--;
     }
   }
-  sti();
+  splx (s);
 
   if (ret)
     return ret;
@@ -89,11 +87,11 @@ queue_intr (int line, user_intr_t *e)
    * disabled. Level-triggered interrupts would keep raising otherwise. */
   __disable_irq (line);
 
-  cli ();
+  spl_t s = splhigh ();
   e->unacked_interrupts++;
   e->interrupts++;
   tot_num_intr++;
-  sti ();
+  splx (s);
 
   thread_wakeup ((event_t) &intr_thread);
 }
@@ -134,7 +132,7 @@ insert_intr_entry (int line, ipc_port_t dest)
     return NULL;
 
   /* check whether the intr entry has been in the queue. */
-  cli ();
+  spl_t s = splhigh ();
   e = search_intr (line, dest);
   if (e)
     {
@@ -155,7 +153,7 @@ insert_intr_entry (int line, ipc_port_t dest)
 
   queue_enter (&intr_queue, new, struct intr_entry *, chain);
 out:
-  sti ();
+  splx (s);
   if (free)
     kfree ((vm_offset_t) new, sizeof (*new));
   return ret;
@@ -174,7 +172,7 @@ intr_thread (void)
       assert_wait ((event_t) &intr_thread, FALSE);
       /* Make sure we wake up from times to times to check for aborted processes */
       thread_set_timeout (hz);
-      cli ();
+      spl_t s = splhigh ();
 
       /* Check for aborted processes */
       queue_iterate (&intr_queue, e, struct intr_entry *, chain)
@@ -221,9 +219,9 @@ intr_thread (void)
 		  e->interrupts--;
 		  tot_num_intr--;
 
-		  sti ();
+		  splx (s);
 		  deliver_intr (line, dest);
-		  cli ();
+		  s = splhigh ();
 		}
 	    }
 
@@ -239,13 +237,13 @@ intr_thread (void)
 		__enable_irq(e->line);
 		e->unacked_interrupts--;
 	      }
-	      printf("irq handler %d: removed\n");
-	      sti ();
+	      printf("irq handler %d: removed\n", e->line);
+	      splx (s);
 	      kfree ((vm_offset_t) e, sizeof (*e));
-	      cli ();
+	      s = splhigh ();
 	    }
 	}
-      sti ();
+      splx (s);
       thread_block (NULL);
     }
 }
