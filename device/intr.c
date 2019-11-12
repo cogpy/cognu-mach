@@ -179,7 +179,7 @@ intr_thread (void)
       /* Check for aborted processes */
       queue_iterate (&intr_queue, e, struct intr_entry *, chain)
 	{
-	  if (!e->dest || e->dest->ip_references == 1)
+	  if ((!e->dest || e->dest->ip_references == 1) && e->unacked_interrupts)
 	    {
 	      printf ("irq handler %d: release dead delivery %d unacked irqs\n", e->line, e->unacked_interrupts);
 	      /* The reference of the port was increased
