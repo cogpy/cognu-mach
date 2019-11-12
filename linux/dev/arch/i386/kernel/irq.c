@@ -90,49 +90,6 @@ static struct linux_action *irq_action[16] =
 };
 
 /*
- * Generic interrupt handler for Linux devices.
- * Set up a fake `struct pt_regs' then call the real handler.
- */
-static void
-linux_intr (int irq)
-{
-  struct pt_regs regs;
-  struct linux_action *action = *(irq_action + irq);
-  struct linux_action **prev = &irq_action[irq];
-  unsigned long flags;
-
-  kstat.interrupts[irq]++;
-  intr_count++;
-
-  save_flags (flags);
-  if (action && (action->flags & SA_INTERRUPT))
-    cli ();
-
-  while (action)
-    {
-      // TODO I might need to check whether the interrupt belongs to
-      // the current device. But I don't do it for now.
-      if (action->user_intr)
-	{
-	  if (!deliver_user_intr(irq, action->user_intr))
-	  {
-	    *prev = action->next;
-	    linux_kfree(action);
-	    action = *prev;
-	  }
-	}
-      else if (action->handler)
-	action->handler (irq, action->dev_id, &regs);
-      prev = &action->next;
-      action = action->next;
-    }
-
-  restore_flags (flags);
-
-  intr_count--;
-}
-
-/*
  * Mask an IRQ.
  */
 static inline void
@@ -173,6 +130,58 @@ unmask_irq (unsigned int irq_nr)
       else
 	outb (curr_pic_mask >> 8, PIC_SLAVE_OCW);
     }
+}
+
+/*
+ * Generic interrupt handler for Linux devices.
+ * Set up a fake `struct pt_regs' then call the real handler.
+ */
+static void
+linux_intr (int irq)
+{
+  struct pt_regs regs;
+  struct linux_action *action = *(irq_action + irq);
+  struct linux_action **prev = &irq_action[irq];
+  unsigned long flags;
+
+  kstat.interrupts[irq]++;
+  intr_count++;
+
+  save_flags (flags);
+  if (action && (action->flags & SA_INTERRUPT))
+    cli ();
+
+  while (action)
+    {
+      // TODO I might need to check whether the interrupt belongs to
+      // the current device. But I don't do it for now.
+      if (action->user_intr)
+	{
+	  if (!deliver_user_intr(irq, action->user_intr))
+	  {
+	    *prev = action->next;
+	    linux_kfree(action);
+	    action = *prev;
+	    continue;
+	  }
+	}
+      else if (action->handler)
+	action->handler (irq, action->dev_id, &regs);
+      prev = &action->next;
+      action = action->next;
+    }
+
+  if (!irq_action[irq])
+    {
+      /* No handler any more, disable interrupt */
+      mask_irq (irq);
+      ivect[irq] = intnull;
+      iunit[irq] = irq;
+    }
+
+  restore_flags (flags);
+
+  intr_count--;
 }
 
 /* Count how many subsystems requested to disable each IRQ */
