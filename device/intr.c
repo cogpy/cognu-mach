@@ -232,11 +232,14 @@ intr_thread (void)
 	    {
 	      assert (!queue_empty (&intr_queue));
 	      queue_remove (&intr_queue, e, struct intr_entry *, chain);
+	      if (e->unacked_interrupts)
+		printf("irq handler %d: still %d unacked irqs\n", e->line, e->unacked_interrupts);
 	      while (e->unacked_interrupts)
 	      {
 		__enable_irq(e->line);
 		e->unacked_interrupts--;
 	      }
+	      printf("irq handler %d: removed\n");
 	      sti ();
 	      kfree ((vm_offset_t) e, sizeof (*e));
 	      cli ();
