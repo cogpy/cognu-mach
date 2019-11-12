@@ -319,6 +319,7 @@ ds_device_map (device_t dev, vm_prot_t prot, vm_offset_t offset,
 				offset, size, pager, unmap);
 }
 
+/* TODO: missing deregister support */
 io_return_t
 ds_device_intr_register (ipc_port_t master_port, int line,
 		       int id, int flags, ipc_port_t receive_port)
@@ -326,9 +327,6 @@ ds_device_intr_register (ipc_port_t master_port, int line,
 #ifdef MACH_XEN
   return D_INVALID_OPERATION;
 #else	/* MACH_XEN */
-  extern int install_user_intr_handler (unsigned int line,
-					unsigned long flags,
-					ipc_port_t dest);
   io_return_t ret;
 
   /* Open must be called on the master device port.  */
@@ -339,13 +337,13 @@ ds_device_intr_register (ipc_port_t master_port, int line,
   if (line < 0 || line >= 16)
     return D_INVALID_OPERATION;
 
-  ret = insert_intr_entry (line, receive_port);
-  if (ret)
-    return ret;
+  user_intr_t *user_intr = insert_intr_entry (line, receive_port);
+  if (!user_intr)
+    return D_NO_MEMORY;
   // TODO The original port should be replaced
   // when the same device driver calls it again, 
   // in order to handle the case that the device driver crashes and restarts.
-  ret = install_user_intr_handler (line, flags, receive_port);
+  ret = install_user_intr_handler (line, flags, user_intr);
 
   if (ret == 0)
   {
@@ -1852,14 +1850,7 @@ ds_device_intr_enable(ipc_port_t master_port, int line, char status)
   if (master_port != master_device_port)
     return D_INVALID_OPERATION;
 
-  /* FIXME: should count how many disable/enable was done for a given receiving
-   * port, to be able to restore proper count on crashes */
-  if (status)
-    /* TODO: better name for generic-to-arch-specific call */
-    __enable_irq (line);
-  else
-    __disable_irq (line);
-  return 0;
+  return user_intr_enable(line, status);
 #endif	/* MACH_XEN */
 }
 
