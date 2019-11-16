@@ -105,9 +105,9 @@ int deliver_user_intr (int line, user_intr_t *intr)
   if (intr->dest
       && intr->dest->ip_references == 1)
     {
+      printf ("irq handler %d: release a dead delivery port %p entry %p\n", line, intr->dest, intr);
       ipc_port_release (intr->dest);
       intr->dest = MACH_PORT_NULL;
-      printf ("irq handler %d: release a dead delivery port\n", line);
       thread_wakeup ((event_t) &intr_thread);
       return 0;
     }
@@ -141,6 +141,7 @@ insert_intr_entry (int line, ipc_port_t dest)
       ret = NULL;
       goto out;
     }
+  printf("irq handler %d: new delivery port %p entry %p\n", line, dest, new);
   ret = new;
   new->line = line;
   new->dest = dest;
@@ -179,7 +180,7 @@ intr_thread (void)
 	{
 	  if ((!e->dest || e->dest->ip_references == 1) && e->unacked_interrupts)
 	    {
-	      printf ("irq handler %d: release dead delivery %d unacked irqs\n", e->line, e->unacked_interrupts);
+	      printf ("irq handler %d: release dead delivery %d unacked irqs port %p entry %p\n", e->line, e->unacked_interrupts, e->dest, e);
 	      /* The reference of the port was increased
 	       * when the port was installed.
 	       * If the reference is 1, it means the port should
@@ -231,13 +232,13 @@ intr_thread (void)
 	      assert (!queue_empty (&intr_queue));
 	      queue_remove (&intr_queue, e, struct intr_entry *, chain);
 	      if (e->unacked_interrupts)
-		printf("irq handler %d: still %d unacked irqs\n", e->line, e->unacked_interrupts);
+		printf("irq handler %d: still %d unacked irqs in entry %p\n", e->line, e->unacked_interrupts, e);
 	      while (e->unacked_interrupts)
 	      {
 		__enable_irq(e->line);
 		e->unacked_interrupts--;
 	      }
-	      printf("irq handler %d: removed\n", e->line);
+	      printf("irq handler %d: removed entry %p\n", e->line, e);
 	      splx (s);
 	      kfree ((vm_offset_t) e, sizeof (*e));
 	      s = splhigh ();

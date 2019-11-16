@@ -283,7 +283,6 @@ setup_x86_irq (int irq, struct linux_action *new)
 	}
       while (old);
       shared = 1;
-      printk("store a new irq %d\n", irq);
     }
 
   save_flags (flags);
