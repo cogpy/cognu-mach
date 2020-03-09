@@ -90,6 +90,7 @@ extern char *kernel_cmdline;
 void setup_main(void)
 {
 	thread_t		startup_thread;
+	phys_addr_t		memsize;
 
 #if	MACH_KDB
 	/*
@@ -137,7 +138,11 @@ void setup_main(void)
 	mapable_time_init();
 
 	machine_info.max_cpus = NCPUS;
-	machine_info.memory_size = vm_page_mem_size(); /* XXX phys_addr_t -> vm_size_t */
+	memsize = vm_page_mem_size();
+	machine_info.memory_size = memsize;
+	if (machine_info.memory_size < memsize)
+		/* Overflow, report at least 4GB */
+		machine_info.memory_size = ~0;
 	machine_info.avail_cpus = 0;
 	machine_info.major_version = KERNEL_MAJOR_VERSION;
 	machine_info.minor_version = KERNEL_MINOR_VERSION;
