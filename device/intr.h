@@ -4,13 +4,7 @@
 
 #include <device/device_types.h>
 #include <kern/queue.h>
-
-typedef struct
-{
-  mach_msg_header_t intr_header;
-  mach_msg_type_t   intr_type;
-  int		    line;
-} mach_intr_notification_t;
+#include <device/notify.h>
 
 typedef struct intr_entry
 {
@@ -21,8 +15,7 @@ typedef struct intr_entry
   int unacked_interrupts;	/* Number of times irqs were disabled for this */
 } user_intr_t;
 
-#define INTR_NOTIFY_MSGH_SEQNO 0
-#define MACH_INTR_NOTIFY 100
+#define DEVICE_NOTIFY_MSGH_SEQNO 0
 
 int install_user_intr_handler (unsigned int line,
 					unsigned long flags,
