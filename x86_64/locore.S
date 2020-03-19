@@ -555,8 +555,10 @@ trap_from_kernel:
 #if	MACH_KDB || MACH_TTD
 	movq	%rsp,%rbx		/* save current stack */
 
-	cmpq	EXT(int_stack_high),%rsp	/* on an interrupt stack? */
-	jb	1f			/* OK if so */
+	movq	%rsp,%rdx		/* on an interrupt stack? */
+	and	$(~(KERNEL_STACK_SIZE-1)),%rdx
+	cmpq	EXT(int_stack_base),%rdx
+	je	1f			/* OK if so */
 
 	CPU_NUMBER(%edx)		/* get CPU number */
 	cmpq	CX(EXT(kernel_stack),%edx),%rsp
@@ -665,8 +667,10 @@ ENTRY(all_intrs)
 	pushq	%r11
 	cld				/* clear direction flag */
 
-	cmpq	%ss:EXT(int_stack_high),%rsp /* on an interrupt stack? */
-	jb	int_from_intstack	/* if not: */
+	movq	%rsp,%rdx		/* on an interrupt stack? */
+	and	$(~(KERNEL_STACK_SIZE-1)),%rdx
+	cmpq	%ss:EXT(int_stack_base),%rdx
+	je	int_from_intstack	/* if not: */
 
 	movq	%ds,%rdx			/* save segment registers */
 	pushq	%rdx
