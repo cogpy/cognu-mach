@@ -52,6 +52,8 @@ typedef	void	*event_t;			/* wait event */
 
 typedef	void	(*continuation_t)(void);	/* continuation */
 
+#define thread_no_continuation ((continuation_t) 0) /* no continuation */
+
 /*
  *	Exported interface to sched_prim.c.
  */
@@ -70,7 +72,7 @@ extern void	thread_sleep(
 	simple_lock_t	lock,
 	boolean_t	interruptible);
 extern void	thread_wakeup(void);		/* for function pointers */
-extern void	thread_wakeup_prim(
+extern boolean_t	thread_wakeup_prim(
 	event_t		event,
 	boolean_t	one_thread,
 	int		result);
@@ -150,7 +152,7 @@ extern void	stack_handoff(
  *	or are defined directly by machine-dependent code.
  */
 
-extern void	stack_alloc(
+extern kern_return_t	stack_alloc(
 	thread_t	thread,
 	void		(*resume)(thread_t));
 extern boolean_t stack_alloc_try(
@@ -174,7 +176,9 @@ void do_thread_scan(void);
 thread_t choose_pset_thread(processor_t myprocessor, processor_set_t pset);
 
 #if DEBUG
-void checkrq(run_queue_t rq, char *msg);
+#include <kern/sched.h>	/* for run_queue_t */
+
+void checkrq(run_queue_t rq, const char *msg);
 void thread_check(thread_t th, run_queue_t rq);
 #endif /* DEBUG */
 

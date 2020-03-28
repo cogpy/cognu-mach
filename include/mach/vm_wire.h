@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Free Software Foundation.
+ * Copyright (C) 2017 Free Software Foundation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,15 +11,20 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _GRUB_I18N_H
-#define _GRUB_I18N_H
+#ifndef _MACH_VM_WIRE_H_
+#define _MACH_VM_WIRE_H_
 
-/* No i18n please.  */
-#define _(x) x
-#define N_(x) x
+typedef int vm_wire_t;
 
-#endif /* _GRUB_I18N_H */
+#define VM_WIRE_NONE    0
+#define VM_WIRE_CURRENT 1
+#define VM_WIRE_FUTURE  2
+
+#define VM_WIRE_ALL     (VM_WIRE_CURRENT | VM_WIRE_FUTURE)
+
+#endif /* _MACH_VM_WIRE_H_ */

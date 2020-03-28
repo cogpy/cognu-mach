@@ -82,8 +82,6 @@ AM_CCASFLAGS += -D__ASSEMBLY__
 libkernel_a_SOURCES += \
 	ipc/ipc_entry.c \
 	ipc/ipc_entry.h \
-	ipc/ipc_hash.c \
-	ipc/ipc_hash.h \
 	ipc/ipc_init.c \
 	ipc/ipc_init.h \
 	ipc/ipc_kmsg.c \
@@ -107,8 +105,6 @@ libkernel_a_SOURCES += \
 	ipc/ipc_right.h \
 	ipc/ipc_space.c \
 	ipc/ipc_space.h \
-	ipc/ipc_splay.c \
-	ipc/ipc_splay.h \
 	ipc/ipc_table.c \
 	ipc/ipc_table.h \
 	ipc/ipc_target.c \
@@ -124,7 +120,8 @@ libkernel_a_SOURCES += \
 	ipc/mach_debug.c \
 	ipc/port.h
 EXTRA_DIST += \
-	ipc/mach_port.srv
+	ipc/mach_port.srv \
+	ipc/notify.defs
 
 
 #
@@ -137,6 +134,7 @@ libkernel_a_SOURCES += \
 	kern/assert.h \
 	kern/ast.c \
 	kern/ast.h \
+	kern/atomic.h \
 	kern/boot_script.h \
 	kern/bootstrap.c \
 	kern/bootstrap.h \
@@ -149,6 +147,8 @@ libkernel_a_SOURCES += \
 	kern/eventcount.h \
 	kern/exception.c \
 	kern/exception.h \
+	kern/gsync.c \
+	kern/gsync.h \
 	kern/host.c \
 	kern/host.h \
 	kern/ipc_host.c \
@@ -163,17 +163,20 @@ libkernel_a_SOURCES += \
 	kern/ipc_tt.h \
 	kern/kalloc.h \
 	kern/kern_types.h \
+	kern/kmutex.c \
+	kern/kmutex.h \
 	kern/list.h \
 	kern/lock.c \
 	kern/lock.h \
 	kern/lock_mon.c \
+	kern/log2.h \
 	kern/mach_clock.c \
 	kern/mach_clock.h \
 	kern/mach_factor.c \
 	kern/mach_factor.h \
 	kern/machine.c \
 	kern/machine.h \
-	kern/macro_help.h \
+	kern/macros.h \
 	kern/pc_sample.c \
 	kern/pc_sample.h \
 	kern/printf.c \
@@ -188,6 +191,9 @@ libkernel_a_SOURCES += \
 	kern/rbtree.c \
 	kern/rbtree.h \
 	kern/rbtree_i.h \
+	kern/rdxtree.c \
+	kern/rdxtree.h \
+	kern/rdxtree_i.h \
 	kern/refcount.h \
 	kern/slab.c \
 	kern/slab.h \
@@ -219,6 +225,7 @@ libkernel_a_SOURCES += \
 	kern/elf-load.c \
 	kern/boot_script.c
 EXTRA_DIST += \
+	kern/exc.defs \
 	kern/mach.srv \
 	kern/mach4.srv \
 	kern/gnumach.srv \
@@ -261,6 +268,7 @@ libkernel_a_SOURCES += \
 	vm/vm_map.h \
 	vm/vm_object.c \
 	vm/vm_object.h \
+	vm/vm_page.c \
 	vm/vm_page.h \
 	vm/vm_pageout.c \
 	vm/vm_pageout.h \
@@ -415,6 +423,8 @@ include_mach_HEADERS = \
 	include/mach/vm_param.h \
 	include/mach/vm_prot.h \
 	include/mach/vm_statistics.h \
+	include/mach/vm_sync.h \
+	include/mach/vm_wire.h \
 	include/mach/inline.h \
 	include/mach/xen.h
 
@@ -546,6 +556,16 @@ nodist_libkernel_a_SOURCES += \
 #	kern/gnumach.server.defs
 #	kern/mach_debug.server.defs
 #	kern/mach_host.server.defs
+
+# Stand-alone rule to generate the list of message ids when neither
+# the client nor the server stubs are required.
+nodist_lib_dep_tr_for_defs_a_SOURCES += \
+	ipc/notify.none.defs.c \
+	kern/exc.none.defs.c
+nodist_libkernel_a_SOURCES += \
+	ipc/notify.none.msgids \
+	kern/exc.none.msgids
+#	ipc/notify.none.defs
 
 # rpctrace can make use of that.
 MOSTLYCLEANFILES += \

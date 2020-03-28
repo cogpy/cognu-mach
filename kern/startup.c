@@ -36,11 +36,12 @@
 #include <ipc/ipc_init.h>
 #include <kern/cpu_number.h>
 #include <kern/debug.h>
+#include <kern/gsync.h>
 #include <kern/machine.h>
 #include <kern/mach_factor.h>
 #include <kern/mach_clock.h>
-#include <kern/printf.h>
 #include <kern/processor.h>
+#include <kern/rdxtree.h>
 #include <kern/sched_prim.h>
 #include <kern/task.h>
 #include <kern/thread.h>
@@ -77,7 +78,6 @@ boolean_t reboot_on_panic = TRUE;
 #endif	/* NCPUS > 1 */
 
 /* XX */
-extern vm_offset_t phys_first_addr, phys_last_addr;
 extern char *kernel_cmdline;
 
 /*
@@ -89,6 +89,7 @@ extern char *kernel_cmdline;
 void setup_main(void)
 {
 	thread_t		startup_thread;
+	phys_addr_t		memsize;
 
 #if	MACH_KDB
 	/*
@@ -108,10 +109,10 @@ void setup_main(void)
 #endif	/* MACH_KDB */
 
 	panic_init();
-	printf_init();
 
 	sched_init();
 	vm_mem_bootstrap();
+	rdxtree_cache_init();
 	ipc_bootstrap();
 	vm_mem_init();
 	ipc_init();
@@ -136,7 +137,11 @@ void setup_main(void)
 	mapable_time_init();
 
 	machine_info.max_cpus = NCPUS;
-	machine_info.memory_size = phys_last_addr - phys_first_addr; /* XXX mem_size */
+	memsize = vm_page_mem_size();
+	machine_info.memory_size = memsize;
+	if (machine_info.memory_size < memsize)
+		/* Overflow, report at least 4GB */
+		machine_info.memory_size = ~0;
 	machine_info.avail_cpus = 0;
 	machine_info.major_version = KERNEL_MAJOR_VERSION;
 	machine_info.minor_version = KERNEL_MINOR_VERSION;
@@ -157,6 +162,8 @@ void setup_main(void)
 	 */
 	recompute_priorities(NULL);
 	compute_mach_factor();
+
+	gsync_setup ();
 
 	/*
 	 *	Create a kernel thread to start the other kernel

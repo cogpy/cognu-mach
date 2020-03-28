@@ -37,6 +37,7 @@
 #include <machine/machspl.h>
 #include <machine/db_interface.h>
 #include <machine/db_trace.h>
+#include <i386at/model_dep.h>
 
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>
@@ -137,7 +138,6 @@ db_i386_reg_value(
 	long			*dp = 0;
 	db_expr_t		null_reg = 0;
 	thread_t		thread = ap->thread;
-	extern unsigned		int_stack_high;
 
 	if (db_option(ap->modif, 'u')) {
 	    if (thread == THREAD_NULL) {
@@ -147,7 +147,7 @@ db_i386_reg_value(
 	    if (thread == current_thread()) {
 		if (ddb_regs.cs & 0x3)
 		    dp = vp->valuep;
-		else if (ddb_regs.ebp < int_stack_high)
+		else if (ON_INT_STACK(ddb_regs.ebp))
 		    db_error("cannot get/set user registers in nested interrupt\n");
 	    }
 	} else {
@@ -439,7 +439,7 @@ db_i386_stack_trace(
 	}
 
 	lastframe = 0;
-	while (count-- && frame != 0) {
+	while (count--) {
 	    int 	narg;
 	    char *	name;
 	    db_expr_t	offset;
@@ -467,9 +467,12 @@ db_i386_stack_trace(
 		    goto next_frame;
 		} else {
 		    frame_type = 0;
-		    narg = db_numargs(frame, task);
+		    if (frame)
+			narg = db_numargs(frame, task);
+		    else
+			narg = -1;
 		}
-	    } else if (INKERNEL(callpc) ^ INKERNEL(frame)) {
+	    } else if (!frame || INKERNEL(callpc) ^ INKERNEL(frame)) {
 		frame_type = 0;
 		narg = -1;
 	    } else {
@@ -485,6 +488,10 @@ db_i386_stack_trace(
 	    } else
 	        db_printf("%s(", name);
 
+	    if (!frame) {
+	        db_printf(")\n");
+		break;
+	    }
 	    argp = &frame->f_arg0;
 	    while (narg > 0) {
 		db_printf("%x", db_get_task_value((long)argp,sizeof(long),FALSE,task));
@@ -496,7 +503,7 @@ db_i386_stack_trace(
 		db_printf("...");
 	    db_printf(")");
 	    if (offset) {
-		db_printf("+%x", offset);
+		db_printf("+0x%x", offset);
             }
 	    if (db_line_at_pc(0, &filename, &linenum, callpc)) {
 		db_printf(" [%s", filename);
@@ -509,10 +516,6 @@ db_i386_stack_trace(
 	next_frame:
 	    db_nextframe(&lastframe, &frame, &callpc, frame_type, th);
 
-	    if (frame == 0) {
-		/* end of chain */
-		break;
-	    }
 	    if (!INKERNEL(lastframe) ||
 		(!INKERNEL(callpc) && !INKERNEL(frame)))
 		user_frame++;
@@ -521,7 +524,7 @@ db_i386_stack_trace(
 		if (kernel_only)
 		    break;
 	    }
-	    if (frame <= lastframe) {
+	    if (frame && frame <= lastframe) {
 		if (INKERNEL(lastframe) && !INKERNEL(frame))
 		    continue;
 		db_printf("Bad frame pointer: 0x%x\n", frame);

@@ -9,7 +9,9 @@
 
 /* Optimization barrier */
 /* The "volatile" is due to gcc bugs */
+#ifndef barrier
 #define barrier() __asm__ __volatile__("": : :"memory")
+#endif /* barrier */
 
 /*
  * This macro obfuscates arithmetic on a variable address so that gcc
@@ -91,7 +93,11 @@
 #define __gcc_header(x) #x
 #define _gcc_header(x) __gcc_header(linux/compiler-gcc##x.h)
 #define gcc_header(x) _gcc_header(x)
+#if __GNUC__ < 5
 #include gcc_header(__GNUC__)
+#else
+#include gcc_header(5)
+#endif
 
 #if !defined(__noclone)
 #define __noclone	/* not needed */

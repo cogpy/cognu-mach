@@ -59,6 +59,11 @@
 #include <ddb/db_output.h>
 #endif	/* MACH_KDB */
 
+void memory_object_release(
+	ipc_port_t	pager,
+	pager_request_t	pager_request,
+	ipc_port_t	pager_name); /* forward */
+
 /*
  *	Virtual memory objects maintain the actual data
  *	associated with allocated virtual memory.  A given
@@ -159,8 +164,9 @@ vm_object_t		kernel_object = &kernel_object_store;
  *
  *	The kernel may choose to terminate objects from this
  *	queue in order to reclaim storage.  The current policy
- *	is to permit a fixed maximum number of unreferenced
- *	objects (vm_object_cached_max).
+ *	is to let memory pressure dynamically adjust the number
+ *	of unreferenced objects. The pageout daemon attempts to
+ *	collect objects after removing pages from them.
  *
  *	A simple lock (accessed by routines
  *	vm_object_cache_{lock,lock_try,unlock}) governs the
@@ -175,8 +181,6 @@ vm_object_t		kernel_object = &kernel_object_store;
  *	not be held to make simple references.
  */
 queue_head_t	vm_object_cached_list;
-int		vm_object_cached_count;
-int		vm_object_cached_max = 4000;	/* may be patched*/
 
 decl_simple_lock_data(,vm_object_cached_lock_data)
 
@@ -228,6 +232,8 @@ vm_object_t _vm_object_allocate(
 	vm_object_t object;
 
 	object = (vm_object_t) kmem_cache_alloc(&vm_object_cache);
+	if (!object)
+		return 0;
 
 	_vm_object_setup(object, size);
 
@@ -241,6 +247,8 @@ vm_object_t vm_object_allocate(
 	ipc_port_t port;
 
 	object = _vm_object_allocate(size);
+	if (object == 0)
+		panic("vm_object_allocate");
 	port = ipc_port_alloc_kernel();
 	if (port == IP_NULL)
 		panic("vm_object_allocate");
@@ -258,7 +266,7 @@ vm_object_t vm_object_allocate(
 void vm_object_bootstrap(void)
 {
 	kmem_cache_init(&vm_object_cache, "vm_object",
-			sizeof(struct vm_object), 0, NULL, NULL, NULL, 0);
+			sizeof(struct vm_object), 0, NULL, 0);
 
 	queue_init(&vm_object_cached_list);
 	simple_lock_init(&vm_object_cached_lock_data);
@@ -293,13 +301,14 @@ void vm_object_bootstrap(void)
 	vm_object_template.all_wanted = 0; /* all bits FALSE */
 
 	vm_object_template.paging_in_progress = 0;
+	vm_object_template.used_for_pageout = FALSE;
 	vm_object_template.can_persist = FALSE;
+	vm_object_template.cached = FALSE;
 	vm_object_template.internal = TRUE;
 	vm_object_template.temporary = TRUE;
 	vm_object_template.alive = TRUE;
 	vm_object_template.lock_in_progress = FALSE;
 	vm_object_template.lock_restart = FALSE;
-	vm_object_template.use_old_pageout = TRUE; /* XXX change later */
 	vm_object_template.last_alloc = (vm_offset_t) 0;
 
 #if	MACH_PAGEMAP
@@ -337,6 +346,56 @@ void vm_object_init(void)
 	ipc_kobject_set(kernel_object->pager_name,
 			(ipc_kobject_t) kernel_object,
 			IKOT_PAGING_NAME);
+}
+
+/*
+ *	Object cache management functions.
+ *
+ *	Both the cache and the object must be locked
+ *	before calling these functions.
+ */
+
+static void vm_object_cache_add(
+	vm_object_t	object)
+{
+	assert(!object->cached);
+	queue_enter(&vm_object_cached_list, object, vm_object_t, cached_list);
+	object->cached = TRUE;
+}
+
+static void vm_object_cache_remove(
+	vm_object_t	object)
+{
+	assert(object->cached);
+	queue_remove(&vm_object_cached_list, object, vm_object_t, cached_list);
+	object->cached = FALSE;
+}
+
+void vm_object_collect(
+	vm_object_t	object)
+{
+	vm_object_unlock(object);
+
+	/*
+	 *	The cache lock must be acquired in the proper order.
+	 */
+
+	vm_object_cache_lock();
+	vm_object_lock(object);
+
+	/*
+	 *	If the object was referenced while the lock was
+	 *	dropped, cancel the termination.
+	 */
+
+	if (!vm_object_collectable(object)) {
+		vm_object_unlock(object);
+		vm_object_cache_unlock();
+		return;
+	}
+
+	vm_object_cache_remove(object);
+	vm_object_terminate(object);
 }
 
 /*
@@ -399,103 +458,31 @@ void vm_object_deallocate(
 
 		/*
 		 *	See whether this object can persist.  If so, enter
-		 *	it in the cache, then deactivate all of its
-		 *	pages.
+		 *	it in the cache.
 		 */
-		if (object->can_persist) {
-			boolean_t	overflow;
-
-			/*
-			 *	Enter the object onto the queue
-			 *	of "cached" objects.  Remember whether
-			 *	we've caused the queue to overflow,
-			 *	as a hint.
-			 */
-
-			queue_enter(&vm_object_cached_list, object,
-				vm_object_t, cached_list);
-			overflow = (++vm_object_cached_count > vm_object_cached_max);
-			vm_object_cached_pages_update(object->resident_page_count);
+		if (object->can_persist && (object->resident_page_count > 0)) {
+			vm_object_cache_add(object);
 			vm_object_cache_unlock();
-
-			vm_object_deactivate_pages(object);
 			vm_object_unlock(object);
-
-			/*
-			 *	If we didn't overflow, or if the queue has
-			 *	been reduced back to below the specified
-			 *	minimum, then quit.
-			 */
-			if (!overflow)
-				return;
-
-			while (TRUE) {
-				vm_object_cache_lock();
-				if (vm_object_cached_count <=
-				    vm_object_cached_max) {
-					vm_object_cache_unlock();
-					return;
-				}
-
-				/*
-				 *	If we must trim down the queue, take
-				 *	the first object, and proceed to
-				 *	terminate it instead of the original
-				 *	object.	 Have to wait for pager init.
-				 *  if it's in progress.
-				 */
-				object= (vm_object_t)
-				    queue_first(&vm_object_cached_list);
-				vm_object_lock(object);
-
-				if (!(object->pager_created &&
-				    !object->pager_initialized)) {
-
-					/*
-					 *  Ok to terminate, hang on to lock.
-					 */
-					break;
-				}
-
-				vm_object_assert_wait(object,
-					VM_OBJECT_EVENT_INITIALIZED, FALSE);
-				vm_object_unlock(object);
-				vm_object_cache_unlock();
-				thread_block((void (*)()) 0);
-
-				/*
-				 *  Continue loop to check if cache still
-				 *  needs to be trimmed.
-				 */
-			}
-
-			/*
-			 *	Actually remove object from cache.
-			 */
-
-			queue_remove(&vm_object_cached_list, object,
-					vm_object_t, cached_list);
-			vm_object_cached_count--;
-
-			assert(object->ref_count == 0);
+			return;
 		}
-		else {
-			if (object->pager_created &&
-			    !object->pager_initialized) {
 
-				/*
-				 *	Have to wait for initialization.
-				 *	Put reference back and retry
-				 *	when it's initialized.
-				 */
-				object->ref_count++;
-				vm_object_assert_wait(object,
-					VM_OBJECT_EVENT_INITIALIZED, FALSE);
-				vm_object_unlock(object);
-				vm_object_cache_unlock();
-				thread_block((void (*)()) 0);
-				continue;
-			  }
+		if (object->pager_created &&
+		    !object->pager_initialized) {
+
+			/*
+			 *	Have to wait for initialization.
+			 *	Put reference back and retry
+			 *	when it's initialized.
+			 */
+
+			object->ref_count++;
+			vm_object_assert_wait(object,
+				VM_OBJECT_EVENT_INITIALIZED, FALSE);
+			vm_object_unlock(object);
+			vm_object_cache_unlock();
+			thread_block((void (*)()) 0);
+			continue;
 		}
 
 		/*
@@ -588,19 +575,12 @@ void vm_object_terminate(
 
 			VM_PAGE_CHECK(p);
 
-			if (p->busy && !p->absent)
-				panic("vm_object_terminate.2 0x%x 0x%x",
-				      object, p);
-
 			VM_PAGE_FREE(p);
 		}
 	} else while (!queue_empty(&object->memq)) {
 		p = (vm_page_t) queue_first(&object->memq);
 
 		VM_PAGE_CHECK(p);
-
-		if (p->busy && !p->absent)
-			panic("vm_object_terminate.3 0x%x 0x%x", object, p);
 
 		vm_page_lock_queues();
 		VM_PAGE_QUEUES_REMOVE(p);
@@ -619,9 +599,6 @@ void vm_object_terminate(
 			goto free_page;
 		}
 
-		if (p->fictitious)
-			panic("vm_object_terminate.4 0x%x 0x%x", object, p);
-
 		if (!p->dirty)
 			p->dirty = pmap_is_modified(p->phys_addr);
 
@@ -636,6 +613,15 @@ void vm_object_terminate(
 
 	assert(object->ref_count == 0);
 	assert(object->paging_in_progress == 0);
+	assert(!object->cached);
+
+	if (!object->internal) {
+		assert(object->resident_page_count == 0);
+
+		vm_page_lock_queues();
+		vm_object_external_count--;
+		vm_page_unlock_queues();
+	}
 
 	/*
 	 *	Throw away port rights... note that they may
@@ -866,28 +852,6 @@ kern_return_t memory_object_destroy(
 
 	return KERN_SUCCESS;
 }
-
-/*
- *	vm_object_deactivate_pages
- *
- *	Deactivate all pages in the specified object.  (Keep its pages
- *	in memory even though it is no longer referenced.)
- *
- *	The object must be locked.
- */
-void vm_object_deactivate_pages(
-	vm_object_t	object)
-{
-	vm_page_t	p;
-
-	queue_iterate(&object->memq, p, vm_page_t, listq) {
-		vm_page_lock_queues();
-		if (!p->busy)
-			vm_page_deactivate(p);
-		vm_page_unlock_queues();
-	}
-}
-
 
 /*
  *	Routine:	vm_object_pmap_protect
@@ -1336,16 +1300,6 @@ kern_return_t vm_object_copy_call(
 	vm_page_t	p;
 
 	/*
-	 *	Set the backing object for the new
-	 *	temporary object.
-	 */
-
-	assert(src_object->ref_count > 0);
-	src_object->ref_count++;
-	vm_object_paging_begin(src_object);
-	vm_object_unlock(src_object);
-
-	/*
 	 *	Create a memory object port to be associated
 	 *	with this new vm_object.
 	 *
@@ -1358,10 +1312,18 @@ kern_return_t vm_object_copy_call(
 	 */
 
 	new_memory_object = ipc_port_alloc_kernel();
-	if (new_memory_object == IP_NULL) {
-		panic("vm_object_copy_call: allocate memory object port");
-		/* XXX Shouldn't panic here. */
-	}
+	if (new_memory_object == IP_NULL)
+		return KERN_RESOURCE_SHORTAGE;
+
+	/*
+	 *	Set the backing object for the new
+	 *	temporary object.
+	 */
+
+	assert(src_object->ref_count > 0);
+	src_object->ref_count++;
+	vm_object_paging_begin(src_object);
+	vm_object_unlock(src_object);
 
 	/* we hold a naked receive right for new_memory_object */
 	(void) ipc_port_make_send(new_memory_object);
@@ -1406,6 +1368,7 @@ kern_return_t vm_object_copy_call(
 	 */
 
 	new_object = vm_object_enter(new_memory_object, size, FALSE);
+	assert(new_object);
 	new_object->shadow = src_object;
 	new_object->shadow_offset = src_offset;
 
@@ -1845,12 +1808,8 @@ vm_object_t vm_object_lookup(
 
 			assert(object->alive);
 
-			if (object->ref_count == 0) {
-				queue_remove(&vm_object_cached_list, object,
-					     vm_object_t, cached_list);
-				vm_object_cached_count--;
-				vm_object_cached_pages_update(-object->resident_page_count);
-			}
+			if (object->ref_count == 0)
+				vm_object_cache_remove(object);
 
 			object->ref_count++;
 			vm_object_unlock(object);
@@ -1877,12 +1836,8 @@ vm_object_t vm_object_lookup_name(
 
 			assert(object->alive);
 
-			if (object->ref_count == 0) {
-				queue_remove(&vm_object_cached_list, object,
-					     vm_object_t, cached_list);
-				vm_object_cached_count--;
-				vm_object_cached_pages_update(-object->resident_page_count);
-			}
+			if (object->ref_count == 0)
+				vm_object_cache_remove(object);
 
 			object->ref_count++;
 			vm_object_unlock(object);
@@ -1914,12 +1869,8 @@ void vm_object_destroy(
 
 	object = (vm_object_t) pager->ip_kobject;
 	vm_object_lock(object);
-	if (object->ref_count == 0) {
-		queue_remove(&vm_object_cached_list, object,
-				vm_object_t, cached_list);
-		vm_object_cached_count--;
-		vm_object_cached_pages_update(-object->resident_page_count);
-	}
+	if (object->ref_count == 0)
+		vm_object_cache_remove(object);
 	object->ref_count++;
 
 	object->can_persist = FALSE;
@@ -1969,8 +1920,6 @@ void vm_object_destroy(
 
 	vm_object_deallocate(object);
 }
-
-boolean_t	vm_object_accept_old_init_protocol = FALSE;
 
 /*
  *	Routine:	vm_object_enter
@@ -2067,12 +2016,8 @@ restart:
 
 	if ((object != VM_OBJECT_NULL) && !must_init) {
 		vm_object_lock(object);
-		if (object->ref_count == 0) {
-			queue_remove(&vm_object_cached_list, object,
-					vm_object_t, cached_list);
-			vm_object_cached_count--;
-			vm_object_cached_pages_update(-object->resident_page_count);
-		}
+		if (object->ref_count == 0)
+			vm_object_cache_remove(object);
 		object->ref_count++;
 		vm_object_unlock(object);
 
@@ -2147,6 +2092,9 @@ restart:
 			object->internal = FALSE;
 			object->temporary = FALSE;
 
+			assert(object->resident_page_count == 0);
+			vm_object_external_count++;
+
 			/* user pager objects are not ready until marked so */
 			object->pager_ready = FALSE;
 
@@ -2159,9 +2107,6 @@ restart:
 
 		vm_object_lock(object);
 		object->pager_initialized = TRUE;
-
-		if (vm_object_accept_old_init_protocol)
-			object->pager_ready = TRUE;
 
 		vm_object_wakeup(object, VM_OBJECT_EVENT_INITIALIZED);
 	} else {
@@ -2477,34 +2422,9 @@ void vm_object_collapse(
 					VM_PAGE_FREE(p);
 				    }
 				    else {
-					if (pp != VM_PAGE_NULL) {
-					    /*
-					     *	Parent has an absent page...
-					     *	it's not being paged in, so
-					     *	it must really be missing from
-					     *	the parent.
-					     *
-					     *	Throw out the absent page...
-					     *	any faults looking for that
-					     *	page will restart with the new
-					     *	one.
-					     */
+					assert(pp == VM_PAGE_NULL || !
+					       "vm_object_collapse: bad case");
 
-					    /*
-					     *	This should never happen -- the
-					     *	parent cannot have ever had an
-					     *	external memory object, and thus
-					     *	cannot have absent pages.
-					     */
-					    panic("vm_object_collapse: bad case");
-
-					    VM_PAGE_FREE(pp);
-
-					    /*
-					     *	Fall through to move the backing
-					     *	object's page up.
-					     */
-					}
 					/*
 					 *	Parent now has no page.
 					 *	Move the backing object's page up.
@@ -2606,6 +2526,7 @@ void vm_object_collapse(
 			);
 
 			assert(backing_object->alive);
+			assert(!backing_object->cached);
 			backing_object->alive = FALSE;
 			vm_object_unlock(backing_object);
 
@@ -2734,7 +2655,7 @@ void vm_object_page_remove(
 	 *	It balances vm_object_lookup vs iteration.
 	 */
 
-	if (atop(end - start) < (unsigned)object->resident_page_count/16) {
+	if (atop(end - start) < object->resident_page_count/16) {
 		vm_object_page_remove_lookup++;
 
 		for (; start < end; start += PAGE_SIZE) {
@@ -2823,6 +2744,7 @@ boolean_t vm_object_coalesce(
 
 	if ((prev_object->ref_count > 1) ||
 	    prev_object->pager_created ||
+	    prev_object->used_for_pageout ||
 	    (prev_object->shadow != VM_OBJECT_NULL) ||
 	    (prev_object->copy != VM_OBJECT_NULL) ||
 	    (prev_object->paging_in_progress != 0)) {
@@ -2924,7 +2846,8 @@ vm_object_page_map(
 		VM_PAGE_FREE(old_page);
 	    }
 
-	    vm_page_init(m, addr);
+	    vm_page_init(m);
+	    m->phys_addr = addr;
 	    m->private = TRUE;		/* don`t free page */
 	    m->wire_count = 1;
 	    vm_page_lock_queues();
@@ -2956,13 +2879,14 @@ void vm_object_print(
 	if (object == VM_OBJECT_NULL)
 		return;
 
-	iprintf("Object 0x%X: size=0x%X",
-		(vm_offset_t) object, (vm_offset_t) object->size);
-	 printf(", %d references, %d resident pages,", object->ref_count,
-		object->resident_page_count);
+	iprintf("Object 0x%X: size=0x%X, %d references",
+		(vm_offset_t) object, (vm_offset_t) object->size,
+		object->ref_count);
+	printf("\n");
+	iprintf("%lu resident pages,", object->resident_page_count);
 	 printf(" %d absent pages,", object->absent_count);
 	 printf(" %d paging ops\n", object->paging_in_progress);
-	indent += 2;
+	indent += 1;
 	iprintf("memory object=0x%X (offset=0x%X),",
 		 (vm_offset_t) object->pager, (vm_offset_t) object->paging_offset);
 	 printf("control=0x%X, name=0x%X\n",
@@ -2981,7 +2905,7 @@ void vm_object_print(
 		(vm_offset_t) object->shadow, (vm_offset_t) object->shadow_offset);
 	 printf("copy=0x%X\n", (vm_offset_t) object->copy);
 
-	indent += 2;
+	indent += 1;
 
 	if (vm_object_print_pages) {
 		count = 0;
@@ -2998,7 +2922,7 @@ void vm_object_print(
 		if (count != 0)
 			printf("\n");
 	}
-	indent -= 4;
+	indent -= 2;
 }
 
 #endif	/* MACH_KDB */

@@ -70,6 +70,7 @@ thread_t active_threads[NCPUS];
 vm_offset_t active_stacks[NCPUS];
 
 struct kmem_cache thread_cache;
+struct kmem_cache thread_stack_cache;
 
 queue_head_t		reaper_queue;
 decl_simple_lock_data(,	reaper_lock)
@@ -124,10 +125,6 @@ vm_offset_t stack_free_list;		/* splsched only */
 unsigned int stack_free_count = 0;	/* splsched only */
 unsigned int stack_free_limit = 1;	/* patchable */
 
-unsigned int stack_alloc_hits = 0;	/* debugging */
-unsigned int stack_alloc_misses = 0;	/* debugging */
-unsigned int stack_alloc_max = 0;	/* debugging */
-
 /*
  *	The next field is at the base of the stack,
  *	so the low end is left unsullied.
@@ -160,10 +157,10 @@ boolean_t stack_alloc_try(
 
 	if (stack != 0) {
 		stack_attach(thread, stack, resume);
-		stack_alloc_hits++;
+		counter(c_stack_alloc_hits++);
 		return TRUE;
 	} else {
-		stack_alloc_misses++;
+		counter(c_stack_alloc_misses++);
 		return FALSE;
 	}
 }
@@ -175,7 +172,7 @@ boolean_t stack_alloc_try(
  *	May block.
  */
 
-void stack_alloc(
+kern_return_t stack_alloc(
 	thread_t	thread,
 	void		(*resume)(thread_t))
 {
@@ -199,22 +196,15 @@ void stack_alloc(
 	(void) splx(s);
 
 	if (stack == 0) {
-		/*
-		 *	Kernel stacks should be naturally aligned,
-		 *	so that it is easy to find the starting/ending
-		 *	addresses of a stack given an address in the middle.
-		 */
-
-		if (kmem_alloc_aligned(kmem_map, &stack, KERNEL_STACK_SIZE)
-							!= KERN_SUCCESS)
-			panic("stack_alloc");
-
+		stack = kmem_cache_alloc(&thread_stack_cache);
+		assert(stack != 0);
 #if	MACH_DEBUG
 		stack_init(stack);
 #endif	/* MACH_DEBUG */
 	}
 
 	stack_attach(thread, stack, resume);
+	return KERN_SUCCESS;
 }
 
 /*
@@ -235,8 +225,11 @@ void stack_free(
 		stack_lock();
 		stack_next(stack) = stack_free_list;
 		stack_free_list = stack;
-		if (++stack_free_count > stack_alloc_max)
-			stack_alloc_max = stack_free_count;
+		stack_free_count += 1;
+#if	MACH_COUNTERS
+		if (stack_free_count > c_stack_alloc_max)
+			c_stack_alloc_max = stack_free_count;
+#endif	/* MACH_COUNTERS */
 		stack_unlock();
 	}
 }
@@ -265,7 +258,7 @@ void stack_collect(void)
 #if	MACH_DEBUG
 		stack_finalize(stack);
 #endif	/* MACH_DEBUG */
-		kmem_free(kmem_map, stack, KERNEL_STACK_SIZE);
+		kmem_cache_free(&thread_stack_cache, stack);
 
 		s = splsched();
 		stack_lock();
@@ -298,7 +291,15 @@ void stack_privilege(
 void thread_init(void)
 {
 	kmem_cache_init(&thread_cache, "thread", sizeof(struct thread), 0,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
+	/*
+	 *	Kernel stacks should be naturally aligned,
+	 *	so that it is easy to find the starting/ending
+	 *	addresses of a stack given an address in the middle.
+	 */
+	kmem_cache_init(&thread_stack_cache, "thread_stack",
+			KERNEL_STACK_SIZE, KERNEL_STACK_SIZE,
+			NULL, 0);
 
 	/*
 	 *	Fill in a template thread for fast initialization.
@@ -341,7 +342,7 @@ void thread_init(void)
 	/* thread_template.sched_stamp (later) */
 
 	thread_template.recover = (vm_offset_t) 0;
-	thread_template.vm_privilege = FALSE;
+	thread_template.vm_privilege = 0;
 
 	thread_template.user_stop_count = 1;
 
@@ -430,7 +431,7 @@ kern_return_t thread_create(
 	 *	Create a pcb.  The kernel stack is created later,
 	 *	when the thread is swapped-in.
 	 */
-	pcb_init(new_thread);
+	pcb_init(parent_task, new_thread);
 
 	ipc_thread_init(new_thread);
 
@@ -441,6 +442,17 @@ kern_return_t thread_create(
 	pset = parent_task->processor_set;
 	pset_reference(pset);
 	task_unlock(parent_task);
+
+	/*
+	 *	This thread will mosty probably start working, assume it
+	 *	will take its share of CPU, to avoid having to find it out
+	 *	slowly.  Decaying will however fix that quickly if it actually
+	 *	does not work
+	 */
+	new_thread->cpu_usage = TIMER_RATE * SCHED_SCALE /
+				(pset->load_average >= SCHED_SCALE ?
+				  pset->load_average : SCHED_SCALE);
+	new_thread->sched_usage = TIMER_RATE * SCHED_SCALE;
 
 	/*
 	 *	Lock both the processor set and the task,
@@ -968,7 +980,7 @@ kern_return_t thread_halt(
 		 *	operation can never cause a deadlock.)
 		 */
 		if (cur_thread->ast & AST_HALT) {
-			thread_wakeup_with_result((event_t)&cur_thread->wake_active,
+			thread_wakeup_with_result(TH_EV_WAKE_ACTIVE(cur_thread),
 				THREAD_INTERRUPTED);
 			thread_unlock(thread);
 			thread_unlock(cur_thread);
@@ -1006,7 +1018,7 @@ kern_return_t thread_halt(
 	 */
 	while ((thread->ast & AST_HALT) && (!(thread->state & TH_HALTED))) {
 		thread->wake_active = TRUE;
-		thread_sleep((event_t) &thread->wake_active,
+		thread_sleep(TH_EV_WAKE_ACTIVE(thread),
 			simple_lock_addr(thread->lock), TRUE);
 
 		if (thread->state & TH_HALTED) {
@@ -1045,7 +1057,7 @@ kern_return_t thread_halt(
 			s = splsched();
 			thread_lock(thread);
 			thread_ast_clear(thread, AST_HALT);
-			thread_wakeup_with_result((event_t)&thread->wake_active,
+			thread_wakeup_with_result(TH_EV_WAKE_ACTIVE(thread),
 				THREAD_INTERRUPTED);
 			thread_unlock(thread);
 			(void) splx(s);
@@ -1132,7 +1144,7 @@ void __attribute__((noreturn)) walking_zombie(void)
  *	Thread calls this routine on exit from the kernel when it
  *	notices a halt request.
  */
-void	thread_halt_self(void)
+void	thread_halt_self(continuation_t continuation)
 {
 	thread_t	thread = current_thread();
 	spl_t	s;
@@ -1173,7 +1185,7 @@ void	thread_halt_self(void)
 		thread_unlock(thread);
 		splx(s);
 		counter(c_thread_halt_self_block++);
-		thread_block(thread_exception_return);
+		thread_block(continuation);
 		/*
 		 *	thread_release resets TH_HALTED.
 		 */
@@ -1284,7 +1296,7 @@ thread_dowait(
 		     *	Check for failure if interrupted.
 		     */
 		    thread->wake_active = TRUE;
-		    thread_sleep((event_t) &thread->wake_active,
+		    thread_sleep(TH_EV_WAKE_ACTIVE(thread),
 				simple_lock_addr(thread->lock), TRUE);
 		    thread_lock(thread);
 		    if ((current_thread()->wait_result != THREAD_AWAKENED) &&
@@ -1308,7 +1320,7 @@ thread_dowait(
 	(void) splx(s);
 
 	if (need_wakeup)
-	    thread_wakeup((event_t) &thread->wake_active);
+	    thread_wakeup(TH_EV_WAKE_ACTIVE(thread));
 
 	return ret;
 }
@@ -1346,9 +1358,9 @@ kern_return_t thread_suspend(
 	thread_lock(thread);
 	/* Wait for thread to get interruptible */
 	while (thread->state & TH_UNINT) {
-		assert_wait(&thread->state, TRUE);
+		assert_wait(TH_EV_STATE(thread), TRUE);
 		thread_unlock(thread);
-		thread_block(NULL);
+		thread_block(thread_no_continuation);
 		thread_lock(thread);
 	}
 	if (thread->user_stop_count++ == 0) {
@@ -1424,6 +1436,12 @@ kern_return_t thread_get_state(
 {
 	kern_return_t		ret;
 
+#if defined(__i386__) || defined(__x86_64__)
+	if (flavor == i386_DEBUG_STATE && thread == current_thread())
+		/* This state can be obtained directly for the curren thread.  */
+		return thread_getstatus(thread, flavor, old_state, old_state_count);
+#endif
+
 	if (thread == THREAD_NULL || thread == current_thread()) {
 		return KERN_INVALID_ARGUMENT;
 	}
@@ -1447,6 +1465,12 @@ kern_return_t thread_set_state(
 	natural_t		new_state_count)
 {
 	kern_return_t		ret;
+
+#if defined(__i386__) || defined(__x86_64__)
+	if (flavor == i386_DEBUG_STATE && thread == current_thread())
+		/* This state can be set directly for the curren thread.  */
+		return thread_setstatus(thread, flavor, new_state, new_state_count);
+#endif
 
 	if (thread == THREAD_NULL || thread == current_thread()) {
 		return KERN_INVALID_ARGUMENT;
@@ -1503,7 +1527,8 @@ kern_return_t thread_info(
 			&basic_info->system_time);
 	    basic_info->base_priority	= thread->priority;
 	    basic_info->cur_priority	= thread->sched_pri;
-	    basic_info->creation_time  = thread->creation_time;
+	    read_time_stamp(&thread->creation_time,
+			    &basic_info->creation_time);
 
 	    /*
 	     *	To calculate cpu_usage, first correct for timer rate,
@@ -1513,13 +1538,6 @@ kern_return_t thread_info(
 	    basic_info->cpu_usage = thread->cpu_usage /
 					(TIMER_RATE/TH_USAGE_SCALE);
 	    basic_info->cpu_usage = (basic_info->cpu_usage * 3) / 5;
-#if	SIMPLE_CLOCK
-	    /*
-	     *	Clock drift compensation.
-	     */
-	    basic_info->cpu_usage =
-		(basic_info->cpu_usage * 1000000)/sched_usec;
-#endif	/* SIMPLE_CLOCK */
 
 	    flags = 0;
 	    if (thread->state & TH_SWAPPED)
@@ -1562,8 +1580,11 @@ kern_return_t thread_info(
 	else if (flavor == THREAD_SCHED_INFO) {
 	    thread_sched_info_t	sched_info;
 
-	    if (*thread_info_count < THREAD_SCHED_INFO_COUNT) {
-		return KERN_INVALID_ARGUMENT;
+	    /* Allow *thread_info_count to be one smaller than the
+	       usual amount, because last_processor is a
+	       new member that some callers might not know about. */
+	    if (*thread_info_count < THREAD_SCHED_INFO_COUNT -1) {
+		    return KERN_INVALID_ARGUMENT;
 	    }
 
 	    sched_info = (thread_sched_info_t) thread_info_out;
@@ -1590,6 +1611,12 @@ kern_return_t thread_info(
 	    
 	    sched_info->depressed = (thread->depress_priority >= 0);
 	    sched_info->depress_priority = thread->depress_priority;
+
+#if NCPUS > 1
+	    sched_info->last_processor = thread->last_processor;
+#else
+	    sched_info->last_processor = 0;
+#endif
 
 	    thread_unlock(thread);
 	    splx(s);
@@ -1667,9 +1694,13 @@ thread_t kernel_thread(
 	continuation_t	start,
 	void *		arg)
 {
+	kern_return_t	kr;
 	thread_t	thread;
 
-	(void) thread_create(task, &thread);
+	kr = thread_create(task, &thread);
+	if (kr != KERN_SUCCESS)
+		return THREAD_NULL;
+
 	/* release "extra" ref that thread_create gave us */
 	thread_deallocate(thread);
 	thread_start(thread, start);
@@ -1974,6 +2005,9 @@ kern_return_t thread_get_assignment(
 	thread_t	thread,
 	processor_set_t	*pset)
 {
+	if (thread == THREAD_NULL)
+		return KERN_INVALID_ARGUMENT;
+
 	*pset = thread->processor_set;
 	pset_reference(*pset);
 	return KERN_SUCCESS;
@@ -2212,11 +2246,11 @@ thread_wire(
 	thread_lock(thread);
 
 	if (wired) {
-	    thread->vm_privilege = TRUE;
+	    thread->vm_privilege = 1;
 	    stack_privilege(thread);
 	}
 	else {
-	    thread->vm_privilege = FALSE;
+	    thread->vm_privilege = 0;
 /*XXX	    stack_unprivilege(thread); */
 	    thread->stack_privilege = 0;
 	}
@@ -2236,8 +2270,7 @@ thread_wire(
 
 void thread_collect_scan(void)
 {
-#if	0
-	register thread_t	thread, prev_thread;
+	thread_t	thread, prev_thread;
 	processor_set_t		pset, prev_pset;
 
 	prev_thread = THREAD_NULL;
@@ -2289,7 +2322,6 @@ void thread_collect_scan(void)
 		thread_deallocate(prev_thread);
 	if (prev_pset != PROCESSOR_SET_NULL)
 		pset_deallocate(prev_pset);
-#endif	/* 0 */
 }
 
 boolean_t thread_collect_allowed = TRUE;
@@ -2314,7 +2346,8 @@ void consider_thread_collect(void)
 
 	if (thread_collect_allowed &&
 	    (sched_tick >
-	     (thread_collect_last_tick + thread_collect_max_rate))) {
+	     (thread_collect_last_tick +
+	      thread_collect_max_rate / (hz / 1)))) {
 		thread_collect_last_tick = sched_tick;
 		thread_collect_scan();
 	}
@@ -2325,7 +2358,7 @@ void consider_thread_collect(void)
 vm_size_t stack_usage(
 	vm_offset_t stack)
 {
-	int i;
+	unsigned i;
 
 	for (i = 0; i < KERNEL_STACK_SIZE/sizeof(unsigned int); i++)
 	    if (((unsigned int *)stack)[i] != STACK_MARKER)
@@ -2343,7 +2376,7 @@ void stack_init(
 	vm_offset_t stack)
 {
 	if (stack_check_usage) {
-	    int i;
+	    unsigned i;
 
 	    for (i = 0; i < KERNEL_STACK_SIZE/sizeof(unsigned int); i++)
 		((unsigned int *)stack)[i] = STACK_MARKER;

@@ -84,7 +84,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 static void (*oldvect)();		/* old interrupt vector */
 static int oldunit;
-static spl_t oldspl;
 extern	struct	bus_device *cominfo[];
 
 kd_event_queue mouse_queue;		/* queue of mouse events */
@@ -226,9 +225,6 @@ kd_mouse_open(
 
 	oldvect = ivect[mouse_pic];
 	ivect[mouse_pic] = kdintr;
-	oldspl = intpri[mouse_pic];
-	intpri[mouse_pic] = SPL6;
-	form_pic_mask();
 	splx(s);
 }
 
@@ -290,16 +286,14 @@ kd_mouse_close(
 	spl_t s = splhi();
 
 	ivect[mouse_pic] = oldvect;
-	intpri[mouse_pic] = oldspl;
-	form_pic_mask();
 	splx(s);
 }
 
 io_return_t mousegetstat(
 	dev_t		  dev,
-	int		  flavor,
-	int *		  data,		/* pointer to OUT array */
-	unsigned int	  *count)	/* OUT */
+	dev_flavor_t	  flavor,
+	dev_status_t	  data,		/* pointer to OUT array */
+	mach_msg_type_number_t	*count)	/* OUT */
 {
 	switch (flavor) {
 	    case DEV_GET_SIZE:
@@ -630,6 +624,8 @@ int kd_mouse_read(void)
 	while (mousebufindex <= mouse_char_index) {
 	    mouse_char_wanted = TRUE;
 	    assert_wait((event_t) &mousebuf, FALSE);
+	    /* We are at tty SPL level, interrupts can not happen between
+	     * assert_wait and thread_block.  */
 	    thread_block((void (*)()) 0);
 	}
 
@@ -789,7 +785,7 @@ void
 mouse_enqueue(kd_event *ev)
 {
 	if (kdq_full(&mouse_queue))
-		printf("mouse: queue full\n");
+		printf_once("mouse: queue full\n");
 	else
 		kdq_put(&mouse_queue, ev);
 

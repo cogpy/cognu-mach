@@ -74,35 +74,45 @@ int		timedelta = 0;
 int		tickdelta = 0;
 
 #if	HZ > 500
-int		tickadj = 1;		/* can adjust HZ usecs per second */
+unsigned	tickadj = 1;		/* can adjust HZ usecs per second */
 #else
-int		tickadj = 500 / HZ;	/* can adjust 100 usecs per second */
+unsigned	tickadj = 500 / HZ;	/* can adjust 100 usecs per second */
 #endif
-int		bigadj = 1000000;	/* adjust 10*tickadj if adjustment
+unsigned	bigadj = 1000000;	/* adjust 10*tickadj if adjustment
 					   > bigadj */
 
 /*
  *	This update protocol, with a check value, allows
  *		do {
  *			secs = mtime->seconds;
+ *			__sync_synchronize();
  *			usecs = mtime->microseconds;
+ *			__sync_synchronize();
  *		} while (secs != mtime->check_seconds);
- *	to read the time correctly.  (On a multiprocessor this assumes
- *	that processors see each other's writes in the correct order.
- *	We have to insert write fence operations.) FIXME
+ *	to read the time correctly.
  */
 
-mapped_time_value_t *mtime = 0;
+volatile mapped_time_value_t *mtime = 0;
 
 #define update_mapped_time(time)				\
 MACRO_BEGIN							\
 	if (mtime != 0) {					\
 		mtime->check_seconds = (time)->seconds;		\
-		asm volatile("":::"memory");			\
+		__sync_synchronize();				\
 		mtime->microseconds = (time)->microseconds;	\
-		asm volatile("":::"memory");			\
+		__sync_synchronize();				\
 		mtime->seconds = (time)->seconds;		\
 	}							\
+MACRO_END
+
+#define read_mapped_time(time)					\
+MACRO_BEGIN							\
+	do {							\
+		time->seconds = mtime->seconds;			\
+		__sync_synchronize();				\
+		time->microseconds = mtime->microseconds;	\
+		__sync_synchronize();				\
+	} while (time->seconds != mtime->check_seconds);	\
 MACRO_END
 
 decl_simple_lock_data(,	timer_lock)	/* lock for ... */
@@ -123,7 +133,8 @@ timer_elt_data_t	timer_head;	/* ordered list of timeouts */
 void clock_interrupt(
 	int		usec,		/* microseconds per tick */
 	boolean_t	usermode,	/* executing user code */
-	boolean_t	basepri)	/* at base priority */
+	boolean_t	basepri,	/* at base priority */
+	vm_offset_t	pc)		/* address of interrupted instruction */
 {
 	int		my_cpu = cpu_number();
 	thread_t	thread = current_thread();
@@ -174,8 +185,11 @@ void clock_interrupt(
 	 * This had better be MP safe.  It might be interesting
 	 * to keep track of cpu in the sample.
 	 */
-	if (usermode) {
-		take_pc_sample_macro(thread, SAMPLED_PC_PERIODIC);
+#ifndef MACH_KERNSAMPLE
+	if (usermode)
+#endif
+	{
+		take_pc_sample_macro(thread, SAMPLED_PC_PERIODIC, usermode, pc);
 	}
 #endif /* MACH_PCSAMPLE */
 
@@ -222,8 +236,16 @@ void clock_interrupt(
 		int	delta;
 
 		if (timedelta < 0) {
-		    delta = usec - tickdelta;
-		    timedelta += tickdelta;
+		    if (usec > tickdelta) {
+			delta = usec - tickdelta;
+			timedelta += tickdelta;
+		    } else {
+			/* Not enough time has passed, defer overflowing
+			 * correction for later, keep only one microsecond
+			 * delta */
+			delta = 1;
+			timedelta += usec - 1;
+		    }
 		}
 		else {
 		    delta = usec + tickdelta;
@@ -367,17 +389,47 @@ void init_timeout(void)
 
 	elapsed_ticks = 0;
 }
+
+/*
+ * We record timestamps using the boot-time clock.  We keep track of
+ * the boot-time clock by storing the difference to the real-time
+ * clock.
+ */
+struct time_value clock_boottime_offset;
 
 /*
- * Record a timestamp in STAMP. 
+ * Update the offset of the boot-time clock from the real-time clock.
+ * This function must be called when the real-time clock is updated.
+ * This function must be called at SPLHIGH.
+ */
+void
+clock_boottime_update(struct time_value *new_time)
+{
+	struct time_value delta = time;
+	time_value_sub(&delta, new_time);
+	time_value_add(&clock_boottime_offset, &delta);
+}
+
+/*
+ * Record a timestamp in STAMP.  Records values in the boot-time clock
+ * frame.
  */
 void
 record_time_stamp (time_value_t *stamp)
 {
-	do {
-		stamp->seconds = mtime->seconds;
-		stamp->microseconds = mtime->microseconds;
-	} while (stamp->seconds != mtime->check_seconds);
+	read_mapped_time(stamp);
+	time_value_add(stamp, &clock_boottime_offset);
+}
+
+/*
+ * Read a timestamp in STAMP into RESULT.  Returns values in the
+ * real-time clock frame.
+ */
+void
+read_time_stamp (time_value_t *stamp, time_value_t *result)
+{
+	*result = *stamp;
+	time_value_sub(result, &clock_boottime_offset);
 }
 
 
@@ -392,11 +444,7 @@ host_get_time(host, current_time)
 	if (host == HOST_NULL)
 		return(KERN_INVALID_HOST);
 
-	do {
-		current_time->seconds = mtime->seconds;
-		current_time->microseconds = mtime->microseconds;
-	} while (current_time->seconds != mtime->check_seconds);
-
+	read_mapped_time(current_time);
 	return (KERN_SUCCESS);
 }
 
@@ -423,6 +471,7 @@ host_set_time(host, new_time)
 #endif	/* NCPUS > 1 */
 
 	s = splhigh();
+	clock_boottime_update(&new_time);
 	time = new_time;
 	update_mapped_time(&time);
 	resettodr();
@@ -494,7 +543,7 @@ void mapable_time_init(void)
 	if (kmem_alloc_wired(kernel_map, (vm_offset_t *) &mtime, PAGE_SIZE)
 						!= KERN_SUCCESS)
 		panic("mapable_time_init");
-	memset(mtime, 0, PAGE_SIZE);
+	memset((void *) mtime, 0, PAGE_SIZE);
 	update_mapped_time(&time);
 }
 

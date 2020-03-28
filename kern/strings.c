@@ -173,115 +173,125 @@ strlen(
 	return string - 1 - ret;
 }
 
-char *strchr(const char *s, int c)
-{
-	for (; *s; s++)
-		if (*s == c)
-			return s;
-}
-
-/*
- * Abstract:
- *	strsep splits "string" into tokens separated by "delim", by putting a
- *	\0 at the first occurrence of some of the characters of delim, and
- *	advancing the pointer past it. It returns a pointer to the start of the
- *	string.
- */
-
-char *
-strsep(
-	char **stringp, const char *delim)
-{
-	char *c, *orig = *stringp;
-	if (orig == NULL)
-		return NULL;
-
-	for (c = *stringp; *c; c++)
-		if (strchr(delim, *c)) {
-			*c = 0;
-			*stringp = c+1;
-			return orig;
-		}
-
-	*stringp = NULL;
-	return orig;
-}
-
-/*
- * Abstract:
- *	strstr returns the first occurrence of "needle" in the "haystack"
- *	string, or NULL if there is none.
- */
-
-char *
-strstr(
-	const char *haystack, const char *needle)
-{
-	int n = strlen(needle);
-
-	for (; *haystack; haystack++) {
-		if (!strncmp(haystack, needle, n))
-			return (char*) haystack;
-	}
-}
-
 /*
  * Abstract:
  *	memset writes value "c" in the "n" bytes starting at address "s".
  *	The return value is a pointer to the "s" string.
  */
 
+#if 0
 void *
 memset(
 	void *_s, int c, size_t n)
 {
 	char *s = _s;
-	int i;
+	size_t i;
 
 	for (i = 0; i < n ; i++)
 		s[i] = c;
 
 	return _s;
 }
+#endif
 
 /*
  * Abstract:
- *	memcpy copies "n" bytes starting at address "s" to address "d".
- *	The return value is a pointer to the "d" string.
+ *	strchr returns a pointer to the first occurrence of the character
+ *	"c" in the string "s". If "c" is not found, return NULL.
  */
-
-void *
-memcpy(
-	void *_d, const void *_s, size_t n)
+char *
+strchr(
+	const char *s,
+	int c)
 {
-	char *s = _s;
-	char *d = _d;
-	int i;
+	while (*s != c) {
+		if (*s == '\0') {
+			return NULL;
+		}
 
-	for (i = 0; i < n ; i++)
-		d[i] = s[i];
+		s++;
+	}
 
-	return _d;
+	return (char *)s;
+}
+
+
+/*
+ * Abstract:
+ *	strsep extracts tokens from strings. If "*sp" is NULL, return NULL
+ *	and do nothing. Otherwise, find the first token in string "*sp".
+ *	Tokens are delimited by characters in the string "delim". If no
+ *	delimiter is found, the token is the entire string "*sp", and "*sp"
+ *	is made NULL. Otherwise, overwrite the delimiter with a null byte,
+ *	and make "*sp" point past it.
+ */
+char *
+strsep(
+	char **sp,
+	const char *delim)
+{
+	const char *d;
+	char *s, *t;
+
+	s = t = *sp;
+
+	if (s == NULL) {
+		return NULL;
+	}
+
+	for (;;) {
+		if (*s == '\0') {
+			*sp = NULL;
+			return t;
+		}
+
+		d = delim;
+
+		for (;;) {
+			if (*d == '\0') {
+				break;
+			}
+
+			if (*d == *s) {
+				*s = '\0';
+				*sp = s + 1;
+				return t;
+			}
+
+			d++;
+		}
+
+		s++;
+	}
 }
 
 /*
  * Abstract:
- *	memcmp compares "n" bytes starting at address "s1" with address "s2"
- *	The return value is negative, nul, or positive if s1 is, respectively,
- *	less than, the same as, or greater than s2.
+ *	strstr returns a pointer to the first occurrence of the substring
+ *	"find" in the string "s". If no substring was found, return NULL.
  */
-
-int
-memcmp(
-	const void *_s1, const void *_s2, size_t n)
+char *
+strstr(
+	const char *s,
+	const char *find)
 {
-	char *s1 = _s1;
-	char *s2 = _s2;
-	int i;
+	size_t len;
 
-	for (i = 0; i < n ; i++)
-		if (s1[i] != s2[i])
-			return s1[i]-s2[i];
+	len = strlen(find);
 
-	return 0;
+	if (len == 0) {
+		return (char *)s;
+	}
+
+	for (;;) {
+		if (*s == '\0') {
+			return NULL;
+		}
+
+		if (strncmp(s, find, len) == 0) {
+			return (char *)s;
+		}
+
+		s++;
+	}
 }

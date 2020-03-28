@@ -189,7 +189,7 @@ fpu_module_init(void)
 {
 	kmem_cache_init(&ifps_cache, "i386_fpsave_state",
 			sizeof(struct i386_fpsave_state), 16,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
 }
 
 /*
@@ -492,26 +492,51 @@ ASSERT_IPL(SPL0);
  *	divide by zero
  *	overflow
  *
- * Use 53-bit precision.
+ * Use 64-bit precision.
  */
-void fpinit(void)
+static void fpinit(thread_t thread)
 {
 	unsigned short	control;
 
 ASSERT_IPL(SPL0);
 	clear_ts();
 	fninit();
-	fnstcw(&control);
-	control &= ~(FPC_PC|FPC_RC); /* Clear precision & rounding control */
-	control |= (FPC_PC_53 |		/* Set precision */ 
-			FPC_RC_RN | 	/* round-to-nearest */
-			FPC_ZE |	/* Suppress zero-divide */
-			FPC_OE |	/*  and overflow */
-			FPC_UE |	/*  underflow */
-			FPC_IE |	/* Allow NaNQs and +-INF */
-			FPC_DE |	/* Allow denorms as operands  */
-			FPC_PE);	/* No trap for precision loss */
+	if (thread->pcb->init_control) {
+		control = thread->pcb->init_control;
+	}
+	else
+	{
+		fnstcw(&control);
+		control &= ~(FPC_PC|FPC_RC); /* Clear precision & rounding control */
+		control |= (FPC_PC_64 |		/* Set precision */ 
+				FPC_RC_RN | 	/* round-to-nearest */
+				FPC_ZE |	/* Suppress zero-divide */
+				FPC_OE |	/*  and overflow */
+				FPC_UE |	/*  underflow */
+				FPC_IE |	/* Allow NaNQs and +-INF */
+				FPC_DE |	/* Allow denorms as operands  */
+				FPC_PE);	/* No trap for precision loss */
+	}
 	fldcw(control);
+}
+
+/*
+ * Inherit FPU state from a parent to a child, if any
+ */
+void fpinherit(thread_t parent_thread, thread_t thread)
+{
+	pcb_t pcb = parent_thread->pcb;
+	struct i386_fpsave_state *ifps;
+
+	ifps = pcb->ims.ifps;
+	if (ifps) {
+		/* Parent does have a state, inherit it */
+		if (ifps->fp_valid == TRUE)
+			thread->pcb->init_control = ifps->fp_save_state.fp_control;
+		else
+			/* State is in the FPU, fetch from there */
+			fnstcw(&thread->pcb->init_control);
+	}
 }
 
 /*
@@ -778,7 +803,7 @@ ASSERT_IPL(SPL0);
 	    ifps = (struct i386_fpsave_state *) kmem_cache_alloc(&ifps_cache);
 	    memset(ifps, 0, sizeof *ifps);
 	    pcb->ims.ifps = ifps;
-	    fpinit();
+	    fpinit(thread);
 #if 1
 /* 
  * I'm not sure this is needed. Does the fpu regenerate the interrupt in
@@ -835,7 +860,7 @@ fp_state_alloc(void)
 	if (fp_kind == FP_387X) {
 		ifps->xfp_save_state.fp_control = (0x037f
 				& ~(FPC_IM|FPC_ZM|FPC_OM|FPC_PC))
-				| (FPC_PC_53|FPC_IC_AFF);
+				| (FPC_PC_64|FPC_IC_AFF);
 		ifps->xfp_save_state.fp_status = 0;
 		ifps->xfp_save_state.fp_tag = 0xffff;	/* all empty */
 		if (CPU_HAS_FEATURE(CPU_FEATURE_SSE))
@@ -843,7 +868,7 @@ fp_state_alloc(void)
 	} else {
 		ifps->fp_save_state.fp_control = (0x037f
 				& ~(FPC_IM|FPC_ZM|FPC_OM|FPC_PC))
-				| (FPC_PC_53|FPC_IC_AFF);
+				| (FPC_PC_64|FPC_IC_AFF);
 		ifps->fp_save_state.fp_status = 0;
 		ifps->fp_save_state.fp_tag = 0xffff;	/* all empty */
 	}

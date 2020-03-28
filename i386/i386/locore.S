@@ -542,8 +542,10 @@ trap_from_kernel:
 #if	MACH_KDB || MACH_TTD
 	movl	%esp,%ebx		/* save current stack */
 
-	cmpl	EXT(int_stack_high),%esp	/* on an interrupt stack? */
-	jb	1f			/* OK if so */
+	movl	%esp,%edx		/* on an interrupt stack? */
+	and	$(~(KERNEL_STACK_SIZE-1)),%edx
+	cmpl	EXT(int_stack_base),%edx
+	je	1f			/* OK if so */
 
 	CPU_NUMBER(%edx)		/* get CPU number */
 	cmpl	CX(EXT(kernel_stack),%edx),%esp
@@ -647,8 +649,10 @@ ENTRY(all_intrs)
 	pushl	%edx
 	cld				/* clear direction flag */
 
-	cmpl	%ss:EXT(int_stack_high),%esp /* on an interrupt stack? */
-	jb	int_from_intstack	/* if not: */
+	movl	%esp,%edx		/* on an interrupt stack? */
+	and	$(~(KERNEL_STACK_SIZE-1)),%edx
+	cmpl	%ss:EXT(int_stack_base),%edx
+	je	int_from_intstack	/* if not: */
 
 	pushl	%ds			/* save segment registers */
 	pushl	%es
@@ -707,7 +711,7 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 	iret				/* return to caller */
 
 int_from_intstack:
-	cmpl	$EXT(_intstack),%esp	/* seemingly looping? */
+	cmpl	EXT(int_stack_base),%esp	/* seemingly looping? */
 	jb	stack_overflowed	/* if not: */
 	call	EXT(interrupt)		/* call interrupt routine */
 _return_to_iret_i:			/* ( label for kdb_kintr) */
@@ -1176,6 +1180,8 @@ DATA(cpu_features)
 	.long	0
 	.text
 
+END(syscall)
+
 /* Discover what kind of cpu we have; return the family number
    (3, 4, 5, 6, for 386, 486, 586, 686 respectively).  */
 ENTRY(discover_x86_cpu_type)
@@ -1183,6 +1189,8 @@ ENTRY(discover_x86_cpu_type)
 	movl	%esp,%ebp		/* Save stack pointer */
 	and	$~0x3,%esp		/* Align stack pointer */
 
+#if 0
+/* Seems to hang with kvm linux 4.3.0 */
 #ifdef	MACH_HYP
 #warning Assuming not Cyrix CPU
 #else	/* MACH_HYP */
@@ -1190,6 +1198,7 @@ ENTRY(discover_x86_cpu_type)
 	andb	$0x80,%al		/* ... in CCR4 reg bit7 */
 	outb	%al,$0xe8
 #endif	/* MACH_HYP */
+#endif
 
 	pushfl				/* Fetch flags ... */
 	popl	%eax			/*  ... into eax */
@@ -1232,13 +1241,12 @@ ENTRY(discover_x86_cpu_type)
  */
 
 /*
- * Copy from user address space.
+ * Copy from user address space - generic version.
  * arg0:	user address
  * arg1:	kernel address
  * arg2:	byte count
  */
 ENTRY(copyin)
-Entry(copyinmsg)
 	pushl	%esi
 	pushl	%edi			/* save registers */
 
@@ -1275,13 +1283,48 @@ copyin_fail:
 	jmp	copyin_ret		/* pop frame and return */
 
 /*
- * Copy to user address space.
+ * Copy from user address space - version for copying messages.
+ * arg0:	user address
+ * arg1:	kernel address
+ * arg2:	byte count - must be a multiple of four
+ */
+ENTRY(copyinmsg)
+	pushl	%esi
+	pushl	%edi			/* save registers */
+
+	movl	8+S_ARG0,%esi		/* get user start address */
+	movl	8+S_ARG1,%edi		/* get kernel destination address */
+	movl	8+S_ARG2,%ecx		/* get count */
+
+	movl	$USER_DS,%eax		/* use user data segment for accesses */
+	mov	%ax,%ds
+
+	/*cld*/				/* count up: default mode in all GCC code */
+	shrl	$2,%ecx
+	RECOVER(copyinmsg_fail)
+	rep
+	movsl				/* move longwords */
+	xorl	%eax,%eax		/* return 0 for success */
+
+copyinmsg_ret:
+	mov	%ss,%di			/* restore DS to kernel segment */
+	mov	%di,%ds
+
+	popl	%edi			/* restore registers */
+	popl	%esi
+	ret				/* and return */
+
+copyinmsg_fail:
+	movl	$1,%eax			/* return 1 for failure */
+	jmp	copyinmsg_ret		/* pop frame and return */
+
+/*
+ * Copy to user address space - generic version.
  * arg0:	kernel address
  * arg1:	user address
  * arg2:	byte count
  */
 ENTRY(copyout)
-Entry(copyoutmsg)
 	pushl	%esi
 	pushl	%edi			/* save registers */
 
@@ -1297,14 +1340,13 @@ Entry(copyoutmsg)
 	jbe	copyout_retry		/* Use slow version on i386 */
 #endif /* !defined(MACH_HYP) && !PAE */
 
-	movl	%edx,%eax		/* use count */
 	/*cld*/				/* count up: always this way in GCC code */
-	movl	%eax,%ecx		/* move by longwords first */
+	movl	%edx,%ecx		/* move by longwords first */
 	shrl	$2,%ecx
 	RECOVER(copyout_fail)
 	rep
 	movsl
-	movl	%eax,%ecx		/* now move remaining bytes */
+	movl	%edx,%ecx		/* now move remaining bytes */
 	andl	$3,%ecx
 	RECOVER(copyout_fail)
 	rep
@@ -1322,6 +1364,47 @@ copyout_ret:
 copyout_fail:
 	movl	$1,%eax			/* return 1 for failure */
 	jmp	copyout_ret		/* pop frame and return */
+
+/*
+ * Copy to user address space - version for copying messages.
+ * arg0:	kernel address
+ * arg1:	user address
+ * arg2:	byte count - must be a multiple of four
+ */
+ENTRY(copyoutmsg)
+	pushl	%esi
+	pushl	%edi			/* save registers */
+
+	movl	8+S_ARG0,%esi		/* get kernel start address */
+	movl	8+S_ARG1,%edi		/* get user start address */
+	movl	8+S_ARG2,%ecx		/* get count */
+
+	movl	$USER_DS,%eax		/* use user data segment for accesses */
+	mov	%ax,%es
+
+#if !defined(MACH_HYP) && !PAE
+	movl	8+S_ARG2,%edx		/* copyout_retry expects count here */
+	cmpl	$3,machine_slot+SUB_TYPE_CPU_TYPE
+	jbe	copyout_retry		/* Use slow version on i386 */
+#endif /* !defined(MACH_HYP) && !PAE */
+
+	shrl	$2,%ecx			/* move by longwords */
+	RECOVER(copyoutmsg_fail)
+	rep
+	movsl
+	xorl	%eax,%eax		/* return 0 for success */
+
+copyoutmsg_ret:
+	mov	%ss,%di			/* restore ES to kernel segment */
+	mov	%di,%es
+
+	popl	%edi			/* restore registers */
+	popl	%esi
+	ret				/* and return */
+
+copyoutmsg_fail:
+	movl	$1,%eax			/* return 1 for failure */
+	jmp	copyoutmsg_ret		/* pop frame and return */
 
 #if !defined(MACH_HYP) && !PAE
 /*

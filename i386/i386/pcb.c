@@ -96,7 +96,7 @@ void stack_attach(
 	/*
 	 *	Point top of kernel stack to user`s registers.
 	 */
-	STACK_IEL(stack)->saved_state = &thread->pcb->iss;
+	STACK_IEL(stack)->saved_state = USER_REGS(thread);
 }
 
 /*
@@ -193,8 +193,14 @@ void switch_ktss(pcb_t pcb)
 	for (i=0; i < USER_GDT_SLOTS; i++) {
 	    if (memcmp(gdt_desc_p (mycpu, USER_GDT + (i << 3)),
 		&pcb->ims.user_gdt[i], sizeof pcb->ims.user_gdt[i])) {
+		union {
+			struct real_descriptor real_descriptor;
+			uint64_t descriptor;
+		} user_gdt;
+		user_gdt.real_descriptor = pcb->ims.user_gdt[i];
+
 		if (hyp_do_update_descriptor(kv_to_ma(gdt_desc_p (mycpu, USER_GDT + (i << 3))),
-			*(uint64_t *) &pcb->ims.user_gdt[i]))
+			user_gdt.descriptor))
 		    panic("couldn't set user gdt %d\n",i);
 	    }
 	}
@@ -298,7 +304,7 @@ void stack_handoff(
 	 *	user registers.
 	 */
 
-	STACK_IEL(stack)->saved_state = &new->pcb->iss;
+	STACK_IEL(stack)->saved_state = USER_REGS(new);
 
 }
 
@@ -365,12 +371,12 @@ thread_t switch_context(
 void pcb_module_init(void)
 {
 	kmem_cache_init(&pcb_cache, "pcb", sizeof(struct pcb), 0,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
 
 	fpu_module_init();
 }
 
-void pcb_init(thread_t thread)
+void pcb_init(task_t parent_task, thread_t thread)
 {
 	pcb_t		pcb;
 
@@ -400,6 +406,11 @@ void pcb_init(thread_t thread)
 	pcb->iss.efl = EFL_USER_SET;
 
 	thread->pcb = pcb;
+
+	/* This is a new thread for the current task, make it inherit our FPU
+	   state.  */
+	if (current_thread() && parent_task == current_task())
+		fpinherit(current_thread(), thread);
 }
 
 void pcb_terminate(thread_t thread)

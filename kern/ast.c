@@ -96,7 +96,7 @@ ast_taken(void)
 	if (self != current_processor()->idle_thread) {
 #ifndef MIGRATING_THREADS
 		while (thread_should_halt(self))
-			thread_halt_self();
+			thread_halt_self(thread_exception_return);
 #endif
 
 		/*
@@ -227,7 +227,7 @@ ast_check(void)
 		break;
 
 	    default:
-	        panic("ast_check: Bad processor state (cpu %d processor %08x) state: %d",
+	        panic("ast_check: Bad processor state (cpu %d processor %p) state: %d",
 			mycpu, myprocessor, myprocessor->state);
 	}
 

@@ -109,7 +109,7 @@ void pset_sys_init(void)
 	 * Allocate the cache for processor sets.
 	 */
 	kmem_cache_init(&pset_cache, "processor_set",
-			sizeof(struct processor_set), 0, NULL, NULL, NULL, 0);
+			sizeof(struct processor_set), 0, NULL, 0);
 
 	/*
 	 * Give each processor a control port.
@@ -657,6 +657,8 @@ processor_get_assignment(
 	processor_set_t	*pset)
 {
     	int state;
+	if (processor == PROCESSOR_NULL)
+		return KERN_INVALID_ARGUMENT;
 
 	state = processor->state;
 	if (state == PROCESSOR_SHUTDOWN || state == PROCESSOR_OFF_LINE)
@@ -847,7 +849,7 @@ processor_set_things(
 	int		type)
 {
 	unsigned int actual;	/* this many things */
-	int i;
+	unsigned i;
 
 	vm_size_t size, size_needed;
 	vm_offset_t addr;

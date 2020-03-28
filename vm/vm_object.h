@@ -45,7 +45,7 @@
 #include <kern/lock.h>
 #include <kern/assert.h>
 #include <kern/debug.h>
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <vm/pmap.h>
 #include <ipc/ipc_types.h>
 
@@ -62,7 +62,7 @@ typedef struct ipc_port *	pager_request_t;
  */
 
 struct vm_object {
-	queue_chain_t		memq;		/* Resident memory */
+	queue_head_t		memq;		/* Resident memory */
 	decl_simple_lock_data(,	Lock)		/* Synchronization */
 #if	VM_OBJECT_DEBUG
 	thread_t		LockHolder;	/* Thread holding Lock */
@@ -72,7 +72,7 @@ struct vm_object {
 						 */
 
 	int			ref_count;	/* Number of references */
-	int			resident_page_count;
+	unsigned long		resident_page_count;
 						/* number of resident pages */
 
 	struct vm_object	*copy;		/* Object that should receive
@@ -113,6 +113,13 @@ struct vm_object {
 						 * of these fields (i.e., don't
 						 * collapse, destroy or terminate)
 						 */
+	/* boolean_t */		used_for_pageout:1,/* The object carries data sent to
+						 * a memory manager, which signals
+						 * it's done by releasing memory.
+						 * This flag prevents coalescing so
+						 * that unmapping memory immediately
+						 * results in object termination.
+						 */
 	/* boolean_t */		pager_created:1,/* Has pager ever been created? */
 	/* boolean_t */		pager_initialized:1,/* Are fields ready to use? */
 	/* boolean_t */		pager_ready:1,	/* Will manager take requests? */
@@ -143,13 +150,11 @@ struct vm_object {
 						/* Should lock request in
 						 * progress restart search?
 						 */
-	/* boolean_t */		use_old_pageout : 1,
-						/* Use old pageout primitives?
-						 */
 	/* boolean_t */		use_shared_copy : 1,/* Use shared (i.e.,
 						 * delayed) copy on write */
-	/* boolean_t */		shadowed: 1;	/* Shadow may exist */
+	/* boolean_t */		shadowed: 1,	/* Shadow may exist */
 
+	/* boolean_t */		cached: 1;	/* Object is cached */
 	queue_chain_t		cached_list;	/* Attachment point for the list
 						 * of objects cached as a result
 						 * of their can_persist value
@@ -169,6 +174,7 @@ vm_object_t	kernel_object;		/* the single kernel object */
 
 extern void		vm_object_bootstrap(void);
 extern void		vm_object_init(void);
+extern void		vm_object_collect(vm_object_t);
 extern void		vm_object_terminate(vm_object_t);
 extern vm_object_t	vm_object_allocate(vm_size_t);
 extern void		vm_object_reference(vm_object_t);
@@ -290,6 +296,10 @@ vm_object_t vm_object_copy_delayed(
  *	Routines implemented as macros
  */
 
+#define vm_object_collectable(object)					\
+	(((object)->ref_count == 0)					\
+	&& ((object)->resident_page_count == 0))
+
 #define	vm_object_paging_begin(object) 					\
 	((object)->paging_in_progress++)
 
@@ -381,20 +391,23 @@ MACRO_END
 /*
  *	Page cache accounting.
  *
- *	The number of cached objects and pages can be read
- *	without holding any lock.
+ *	The page queues must be locked when changing these counters.
  */
+extern int	vm_object_external_count;
+extern int	vm_object_external_pages;
 
-extern int	vm_object_cached_count;
+/* Add a reference to a locked VM object. */
+static inline int
+vm_object_reference_locked (vm_object_t obj)
+{
+  return (++obj->ref_count);
+}
 
-extern int	vm_object_cached_pages;
-decl_simple_lock_data(extern,vm_object_cached_pages_lock_data)
-
-#define vm_object_cached_pages_update(page_count)			\
-	MACRO_BEGIN							\
-	simple_lock(&vm_object_cached_pages_lock_data);			\
-	vm_object_cached_pages += (page_count);				\
-	simple_unlock(&vm_object_cached_pages_lock_data);		\
-	MACRO_END
+/* Remove a reference from a locked VM object. */
+static inline int
+vm_object_unreference_locked (vm_object_t obj)
+{
+  return (--obj->ref_count);
+}
 
 #endif	/* _VM_VM_OBJECT_H_ */

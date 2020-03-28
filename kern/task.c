@@ -63,7 +63,7 @@ ipc_port_t new_task_notification = NULL;
 void task_init(void)
 {
 	kmem_cache_init(&task_cache, "task", sizeof(struct task), 0,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
 
 	eml_init();
 	machine_task_module_init ();
@@ -73,11 +73,25 @@ void task_init(void)
 	 * Task_create must assign to kernel_task as a side effect,
 	 * for other initialization. (:-()
 	 */
-	(void) task_create(TASK_NULL, FALSE, &kernel_task);
+	(void) task_create_kernel(TASK_NULL, FALSE, &kernel_task);
 	(void) task_set_name(kernel_task, "gnumach");
+	vm_map_set_name(kernel_map, kernel_task->name);
 }
 
 kern_return_t task_create(
+	task_t		parent_task,
+	boolean_t	inherit_memory,
+	task_t		*child_task)		/* OUT */
+{
+	if (parent_task == TASK_NULL)
+		return KERN_INVALID_TASK;
+
+	return task_create_kernel (parent_task, inherit_memory,
+				   child_task);
+}
+
+kern_return_t
+task_create_kernel(
 	task_t		parent_task,
 	boolean_t	inherit_memory,
 	task_t		*child_task)		/* OUT */
@@ -89,9 +103,8 @@ kern_return_t task_create(
 #endif
 
 	new_task = (task_t) kmem_cache_alloc(&task_cache);
-	if (new_task == TASK_NULL) {
-		panic("task_create: no memory for task structure");
-	}
+	if (new_task == TASK_NULL)
+		return KERN_RESOURCE_SHORTAGE;
 
 	/* one ref for just being alive; one for our caller */
 	new_task->ref_count = 2;
@@ -101,10 +114,23 @@ kern_return_t task_create(
 	} else if (inherit_memory) {
 		new_task->map = vm_map_fork(parent_task->map);
 	} else {
-		new_task->map = vm_map_create(pmap_create(0),
+		pmap_t new_pmap = pmap_create((vm_size_t) 0);
+		if (new_pmap == PMAP_NULL)
+			new_task->map = VM_MAP_NULL;
+		else {
+			new_task->map = vm_map_create(new_pmap,
 					round_page(VM_MIN_ADDRESS),
-					trunc_page(VM_MAX_ADDRESS), TRUE);
+					trunc_page(VM_MAX_ADDRESS));
+			if (new_task->map == VM_MAP_NULL)
+				pmap_destroy(new_pmap);
+		}
 	}
+	if (new_task->map == VM_MAP_NULL) {
+		kmem_cache_free(&task_cache, (vm_address_t) new_task);
+		return KERN_RESOURCE_SHORTAGE;
+	}
+	if (child_task != &kernel_task)
+		vm_map_set_name(new_task->map, new_task->name);
 
 	simple_lock_init(&new_task->lock);
 	queue_init(&new_task->thread_list);
@@ -171,14 +197,21 @@ kern_return_t task_create(
 	}
 #endif	/* FAST_TAS */
 
-	snprintf (new_task->name, sizeof new_task->name, "%p", new_task);
+	if (parent_task == TASK_NULL)
+		snprintf (new_task->name, sizeof new_task->name, "%p",
+			  new_task);
+	else
+		snprintf (new_task->name, sizeof new_task->name, "(%.*s)",
+			  (int) (sizeof new_task->name - 3), parent_task->name);
 
 	if (new_task_notification != NULL) {
 		task_reference (new_task);
 		task_reference (parent_task);
 		mach_notify_new_task (new_task_notification,
 				      convert_task_to_port (new_task),
-				      convert_task_to_port (parent_task));
+				      parent_task
+				      ? convert_task_to_port (parent_task)
+				      : IP_NULL);
 	}
 
 	ipc_task_enable(new_task);
@@ -373,7 +406,7 @@ kern_return_t task_terminate(
                 task_unlock(task);
                 thread_force_terminate(thread);
                 thread_deallocate(thread);
-                thread_block((void (*)()) 0);
+                thread_block(thread_no_continuation);
                 task_lock(task);
         }
         task_unlock(task);
@@ -561,7 +594,7 @@ kern_return_t task_threads(
 	unsigned int actual;	/* this many threads */
 	thread_t thread;
 	thread_t *threads;
-	int i;
+	unsigned i;
 
 	vm_size_t size, size_needed;
 	vm_offset_t addr;
@@ -779,7 +812,8 @@ kern_return_t task_info(
 				= task->total_system_time.seconds;
 		basic_info->system_time.microseconds
 				= task->total_system_time.microseconds;
-		basic_info->creation_time = task->creation_time;
+		read_time_stamp(&task->creation_time,
+				&basic_info->creation_time);
 		task_unlock(task);
 
 		if (*task_info_count > TASK_BASIC_INFO_COUNT)
@@ -888,7 +922,7 @@ task_assign(
 		task->assign_active = TRUE;
 		assert_wait((event_t)&task->assign_active, TRUE);
 		task_unlock(task);
-		thread_block((void (*)()) 0);
+		thread_block(thread_no_continuation);
 		task_lock(task);
 	}
 
@@ -1059,6 +1093,9 @@ kern_return_t task_get_assignment(
 	task_t		task,
 	processor_set_t	*pset)
 {
+	if (task == TASK_NULL)
+		return KERN_INVALID_ARGUMENT;
+
 	if (!task->active)
 		return KERN_FAILURE;
 
@@ -1187,7 +1224,8 @@ void consider_task_collect(void)
 		task_collect_max_rate = hz;
 
 	if (task_collect_allowed &&
-	    (sched_tick > (task_collect_last_tick + task_collect_max_rate))) {
+	    (sched_tick > (task_collect_last_tick +
+			   task_collect_max_rate / (hz / 1)))) {
 		task_collect_last_tick = sched_tick;
 		task_collect_scan();
 	}

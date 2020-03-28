@@ -146,7 +146,7 @@ db_putchar(int c)		/* character to output */
 	    cnputc(c);
 	    db_output_position++;
 	    if (db_max_width >= DB_MIN_MAX_WIDTH
-		&& db_output_position >= db_max_width-1) {
+		&& db_output_position >= db_max_width) {
 		/* auto new line */
 		cnputc('\n');
 		db_output_position = 0;
@@ -203,7 +203,7 @@ void db_end_line(void)
 }
 
 /*VARARGS1*/
-void
+int
 db_printf(const char *fmt, ...)
 {
 	va_list	listp;
@@ -211,6 +211,7 @@ db_printf(const char *fmt, ...)
 	va_start(listp, fmt);
 	_doprnt(fmt, listp, db_id_putc, db_radix, 0);
 	va_end(listp);
+	return 0;
 }
 
 #endif /* MACH_KDB */

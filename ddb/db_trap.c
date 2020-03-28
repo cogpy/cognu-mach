@@ -44,6 +44,8 @@
 #include <ddb/db_task_thread.h>
 #include <ddb/db_trap.h>
 #include <ddb/db_run.h>
+#include <machine/db_interface.h>
+#include <kern/lock.h>
 
 
 extern jmp_buf_t *db_recover;
@@ -63,6 +65,8 @@ db_task_trap(
 	boolean_t	bkpt;
 	boolean_t	watchpt;
 	task_t		task_space;
+
+	check_simple_locks_disable();
 
 	task_space = db_target_space(current_thread(), user_space);
 	bkpt = IS_BREAKPOINT_TRAP(type, code);
@@ -88,11 +92,15 @@ db_task_trap(
 		db_print_loc_and_inst(db_dot, task_space);
 	    else
 		db_printf("Trouble printing location %#X.\n", db_dot);
+
+	    if (!bkpt && !watchpt && _setjmp(db_recover = &db_jmpbuf) == 0)
+	      db_stack_trace_cmd(0, 0, -1, "");
 	    db_recover = prev;
 
 	    db_command_loop();
 	}
 
+	check_simple_locks_enable();
 	db_restart_at_pc(watchpt, task_space);
 }
 

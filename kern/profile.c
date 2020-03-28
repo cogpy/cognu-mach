@@ -71,7 +71,7 @@ void profile_thread()
 		int			arg[SIZE_PROF_BUFFER+1];
 	} msg;
 
-	register spl_t	s;
+	spl_t	s;
 	buf_to_send_t	buf_entry;
 	queue_entry_t	prof_queue_entry;
 	prof_data_t	pbuf;
@@ -113,7 +113,7 @@ void profile_thread()
 	   else {
 		task_t		curr_task;
                 thread_t	curr_th;
-		register int 	*sample;
+		int 	*sample;
                 int 		curr_buf;
 		int 		imax;
 
@@ -172,7 +172,7 @@ printf("profile_thread: mach_msg failed returned %x\n",(int)mr);
 					sizeof(struct buf_to_send));
 	}
 
-	thread_halt_self();
+	thread_halt_self(thread_exception_return);
 }
 
 
@@ -183,7 +183,7 @@ void
 send_last_sample_buf(th)
 thread_t th;
 {
-        register	spl_t s;
+        spl_t s;
         buf_to_send_t buf_entry;
         vm_offset_t vm_buf_entry;
 
@@ -213,7 +213,7 @@ thread_t th;
 		thread_wakeup((event_t) profile_thread);
 		assert_wait((event_t) &buf_entry->wakeme, TRUE);
 		splx(s);
-		thread_block((void (*)()) 0);
+		thread_block(thread_no_continuation);
 	} else {
 		splx(s);
 		kmem_free(kernel_map, vm_buf_entry, sizeof(struct buf_to_send));

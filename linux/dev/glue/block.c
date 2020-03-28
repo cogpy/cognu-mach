@@ -50,6 +50,7 @@
 #include <mach/notify.h>
 
 #include <kern/kalloc.h>
+#include <kern/list.h>
 
 #include <ipc/ipc_port.h>
 #include <ipc/ipc_space.h>
@@ -97,7 +98,7 @@ struct temp_data
   struct inode inode;
   struct file file;
   struct request req;
-  queue_head_t pages;
+  struct list pages;
 };
 
 /* One of these exists for each
@@ -302,11 +303,11 @@ alloc_buffer (int size)
 
   if (! linux_auto_config)
     {
-      while ((m = vm_page_grab (FALSE)) == 0)
+      while ((m = vm_page_grab ()) == 0)
 	VM_PAGE_WAIT (0);
       d = current_thread ()->pcb->data;
       assert (d);
-      queue_enter (&d->pages, m, vm_page_t, pageq);
+      list_insert_tail (&d->pages, &m->node);
       return (void *) phystokv(m->phys_addr);
     }
   return (void *) __get_free_pages (GFP_KERNEL, 0, ~0UL);
@@ -317,7 +318,7 @@ static void
 free_buffer (void *p, int size)
 {
   struct temp_data *d;
-  vm_page_t m;
+  vm_page_t m, tmp;
 
   assert (size <= PAGE_SIZE);
 
@@ -325,11 +326,11 @@ free_buffer (void *p, int size)
     {
       d = current_thread ()->pcb->data;
       assert (d);
-      queue_iterate (&d->pages, m, vm_page_t, pageq)
+      list_for_each_entry_safe (&d->pages, m, tmp, node)
 	{
 	  if (phystokv(m->phys_addr) == (vm_offset_t) p)
 	    {
-	      queue_remove (&d->pages, m, vm_page_t, pageq);
+	      list_remove (&m->node);
 	      VM_PAGE_FREE (m);
 	      return;
 	    }
@@ -577,6 +578,7 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
   int cc, err = 0, i, j, nb, nbuf;
   long blk;
   struct buffer_head bhead[MAX_BUF], *bh, *bhp[MAX_BUF];
+  phys_addr_t pa;
 
   assert ((*off & BMASK) == 0);
 
@@ -591,7 +593,10 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
       if (rw == WRITE)
 	set_bit (BH_Dirty, &bh->b_state);
       cc = PAGE_SIZE - (((int) *buf + (nb << bshift)) & PAGE_MASK);
-      if (cc >= BSIZE && (((int) *buf + (nb << bshift)) & 511) == 0)
+      pa = pmap_extract (vm_map_pmap (device_io_map),
+			 (((vm_offset_t) *buf) + (nb << bshift)));
+      if (cc >= BSIZE && (((int) *buf + (nb << bshift)) & 511) == 0
+	  && pa + cc <= VM_PAGE_DIRECTMAP_LIMIT)
 	cc &= ~BMASK;
       else
 	{
@@ -601,9 +606,7 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
       if (cc > ((nbuf - nb) << bshift))
 	cc = (nbuf - nb) << bshift;
       if (! test_bit (BH_Bounce, &bh->b_state))
-	bh->b_data = (char *) phystokv(pmap_extract (vm_map_pmap (device_io_map),
-					    (((vm_offset_t) *buf)
-					     + (nb << bshift))));
+	bh->b_data = (char *) phystokv(pa);
       else
 	{
 	  bh->b_data = alloc_buffer (cc);
@@ -624,6 +627,7 @@ rdwr_full (int rw, kdev_t dev, loff_t *off, char **buf, int *resid, int bshift)
     }
   if (! err)
     {
+      assert (i > 0);
       ll_rw_block (rw, i, bhp, 0);
       wait_on_buffer (bhp[i - 1]);
     }
@@ -939,7 +943,6 @@ init_partition (struct name_map *np, kdev_t *dev,
       if (gd->part[MINOR (d->inode.i_rdev)].nr_sects <= 0
 	  || gd->part[MINOR (d->inode.i_rdev)].start_sect < 0)
 	continue;
-      linux_intr_pri = SPL6;
       d->file.f_flags = 0;
       d->file.f_mode = O_RDONLY;
       if (ds->fops->open && (*ds->fops->open) (&d->inode, &d->file))
@@ -991,7 +994,7 @@ check:
 #define DECL_DATA	struct temp_data td
 #define INIT_DATA()			\
 {					\
-  queue_init (&td.pages);		\
+  list_init (&td.pages);		\
   td.inode.i_rdev = bd->dev;		\
   td.file.f_mode = bd->mode;		\
   td.file.f_flags = bd->flags;		\
@@ -1045,7 +1048,7 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
     minor <<= gd->minor_shift;
   dev = MKDEV (major, minor);
 
-  queue_init (&td.pages);
+  list_init (&td.pages);
   current_thread ()->pcb->data = &td;
 
   /* Check partition.  */
@@ -1085,7 +1088,6 @@ device_open (ipc_port_t reply_port, mach_msg_type_name_t reply_port_type,
   if (ds->fops->open)
     {
       td.inode.i_rdev = dev;
-      linux_intr_pri = SPL6;
       err = (*ds->fops->open) (&td.inode, &td.file);
       if (err)
 	{
@@ -1156,7 +1158,7 @@ out:
 	    {
 	      ipc_kobject_set (bd->port, IKO_NULL, IKOT_NONE);
 	      ipc_port_dealloc_kernel (bd->port);
-	      *devp = IP_NULL;
+	      *devp = (device_t) IP_NULL;
 	    }
 	  kfree ((vm_offset_t) bd, sizeof (struct block_data));
 	  bd = NULL;
@@ -1301,7 +1303,7 @@ device_write (void *d, ipc_port_t reply_port,
   int resid, amt, i;
   int count = (int) orig_count;
   io_return_t err = 0;
-  vm_map_copy_t copy;
+  vm_map_copy_t copy = (vm_map_copy_t) data;
   vm_offset_t addr, uaddr;
   vm_size_t len, size;
   struct block_data *bd = d;
@@ -1325,7 +1327,6 @@ device_write (void *d, ipc_port_t reply_port,
     }
 
   resid = count;
-  copy = (vm_map_copy_t) data;
   uaddr = copy->offset;
 
   /* Allocate a kernel buffer.  */
@@ -1416,7 +1417,7 @@ device_read (void *d, ipc_port_t reply_port,
   boolean_t dirty;
   int resid, amt;
   io_return_t err = 0;
-  queue_head_t pages;
+  struct list pages;
   vm_map_copy_t copy;
   vm_offset_t addr, offset, alloc_offset, o;
   vm_object_t object;
@@ -1459,7 +1460,7 @@ device_read (void *d, ipc_port_t reply_port,
   if (err)
     goto out;
 
-  queue_init (&pages);
+  list_init (&pages);
 
   while (resid)
     {
@@ -1470,7 +1471,7 @@ device_read (void *d, ipc_port_t reply_port,
 
       /* Map any pages left from previous operation.  */
       o = trunc_page (offset);
-      queue_iterate (&pages, m, vm_page_t, pageq)
+      list_for_each_entry (&pages, m, node)
 	{
 	  pmap_enter (vm_map_pmap (device_io_map),
 		      addr + o - trunc_page (offset),
@@ -1482,11 +1483,11 @@ device_read (void *d, ipc_port_t reply_port,
       /* Allocate and map pages.  */
       while (alloc_offset < trunc_page (offset) + len)
 	{
-	  while ((m = vm_page_grab (FALSE)) == 0)
+	  while ((m = vm_page_grab ()) == 0)
 	    VM_PAGE_WAIT (0);
 	  assert (! m->active && ! m->inactive);
 	  m->busy = TRUE;
-	  queue_enter (&pages, m, vm_page_t, pageq);
+	  list_insert_tail (&pages, &m->node);
 	  pmap_enter (vm_map_pmap (device_io_map),
 		      addr + alloc_offset - trunc_page (offset),
 		      m->phys_addr, VM_PROT_READ|VM_PROT_WRITE, TRUE);
@@ -1528,9 +1529,9 @@ device_read (void *d, ipc_port_t reply_port,
       vm_object_lock (object);
       while (o < trunc_page (offset))
 	{
-	  m = (vm_page_t) queue_first (&pages);
-	  assert (! queue_end (&pages, (queue_entry_t) m));
-	  queue_remove (&pages, m, vm_page_t, pageq);
+	  m = list_first_entry (&pages, struct vm_page, node);
+	  assert (! list_end (&pages, &m->node));
+	  list_remove (&m->node);
 	  assert (m->busy);
 	  vm_page_lock_queues ();
 	  if (dirty)
@@ -1556,7 +1557,7 @@ device_read (void *d, ipc_port_t reply_port,
   /* Delete kernel buffer.  */
   vm_map_remove (device_io_map, addr, addr + size);
 
-  assert (queue_empty (&pages));
+  assert (list_empty (&pages));
 
 out:
   if (! err)
@@ -1658,41 +1659,6 @@ device_get_status (void *d, dev_flavor_t flavor, dev_status_t status,
          makes sure that we will never return more integers than the
          user asked for.  */
       *status_count = DEV_GET_RECORDS_COUNT;
-      break;
-
-    case V_GETPARMS:
-      if (*status_count < (sizeof (struct disk_parms) / sizeof (int)))
-	return D_INVALID_OPERATION;
-      else
-	{
-	  struct disk_parms *dp = status;
-	  struct hd_geometry hg;
-	  DECL_DATA;
-
-	  INIT_DATA();
-
-	  if ((*bd->ds->fops->ioctl) (&td.inode, &td.file,
-				      HDIO_GETGEO, (unsigned long)&hg))
-	    return D_INVALID_OPERATION;
-
-	  dp->dp_type = DPT_WINI;  /* XXX: It may be a floppy...  */
-	  dp->dp_heads = hg.heads;
-	  dp->dp_cyls = hg.cylinders;
-	  dp->dp_sectors = hg.sectors;
-	  dp->dp_dosheads = hg.heads;
-	  dp->dp_doscyls = hg.cylinders;
-	  dp->dp_dossectors = hg.sectors;
-	  dp->dp_secsiz = 512;  /* XXX */
-	  dp->dp_ptag = 0;
-	  dp->dp_pflag = 0;
-
-	  /* XXX */
-	  dp->dp_pstartsec = -1;
-	  dp->dp_pnumsec = -1;
-
-	  *status_count = sizeof (struct disk_parms) / sizeof (int);
-	}
-
       break;
 
     default:

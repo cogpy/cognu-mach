@@ -73,6 +73,10 @@ AC_DEFINE_UNQUOTED([NLPR], [$nlpr], [NLPR])
 # Options.
 #
 
+# The immediate console, useful for debugging early system
+# initialization.  Disabled by default.
+AC_DEFINE([ENABLE_IMMEDIATE_CONSOLE], [0], [ENABLE_IMMEDIATE_CONSOLE])
+
 AC_ARG_ENABLE([lpr],
   AS_HELP_STRING([--enable-lpr], [lpr device; on ix86-at enabled by default]))
 [case $host_platform:$host_cpu in
@@ -115,6 +119,11 @@ if [ x"$enable_pae" = xyes ]; then]
 [else]
   AM_CONDITIONAL([enable_pae], [false])
 [fi]
+
+AC_ARG_WITH([_START_MAP],
+  AS_HELP_STRING([--with-_START_MAP=0x1000000], [specify kernel mapping start address]),
+  [_START_MAP="$withval"], [_START_MAP=0x1000000])
+AC_SUBST(_START_MAP)
 
 dnl Local Variables:
 dnl mode: autoconf

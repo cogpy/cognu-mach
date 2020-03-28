@@ -48,6 +48,7 @@ typedef vm_offset_t mach_port_t;
 typedef mach_port_name_t mach_port_t;
 #endif
 typedef mach_port_t *mach_port_array_t;
+typedef const mach_port_t *const_mach_port_array_t;
 typedef int *rpc_signature_info_t;
 
 /*

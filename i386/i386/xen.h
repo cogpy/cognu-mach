@@ -21,6 +21,7 @@
 
 #ifdef	MACH_XEN
 #ifndef	__ASSEMBLER__
+#include <kern/macros.h>
 #include <kern/printf.h>
 #include <mach/machine/vm_types.h>
 #include <mach/vm_param.h>
@@ -32,7 +33,6 @@
 #include <xen/public/xen.h>
 
 /* TODO: this should be moved in appropriate non-Xen place.  */
-#define barrier() __asm__ __volatile__ ("": : :"memory")
 #define mb() __asm__ __volatile__("lock; addl $0,0(%%esp)":::"memory")
 #define rmb() mb()
 #define wmb() mb()
@@ -180,7 +180,7 @@ MACH_INLINE int hyp_mmu_update_pte(pt_entry_t pte, pt_entry_t val)
 #define HYP_BATCH_MMU_UPDATES 256
 
 #define hyp_mmu_update_la(la, val) hyp_mmu_update_pte( \
-	(kernel_pmap->dirbase[lin2pdenum((vm_offset_t)(la))] & INTEL_PTE_PFN) \
+	(kernel_page_dir[lin2pdenum_cont((vm_offset_t)(la))] & INTEL_PTE_PFN) \
 		+ ptenum((vm_offset_t)(la)) * sizeof(pt_entry_t), val)
 #endif
 
@@ -230,7 +230,7 @@ MACH_INLINE void hyp_free_mfn(unsigned long mfn)
 	reservation.address_bits = 0;
 	reservation.domid = DOMID_SELF;
 	if (hyp_memory_op(XENMEM_decrease_reservation, kvtolin(&reservation)) != 1)
-		panic("couldn't free page %d\n", mfn);
+		panic("couldn't free page %lu\n", mfn);
 }
 
 #ifdef __i386__
@@ -253,7 +253,7 @@ MACH_INLINE void hyp_free_page(unsigned long pfn, void *va)
 #ifdef MACH_PV_PAGETABLES
     /* remove from mappings */
     if (hyp_do_update_va_mapping(kvtolin(va), 0, UVMF_INVLPG|UVMF_ALL))
-        panic("couldn't clear page %d at %p\n", pfn, va);
+	    panic("couldn't clear page %lu at %p\n", pfn, va);
 
 #ifdef  MACH_PSEUDO_PHYS
     /* drop machine page */
@@ -292,7 +292,7 @@ MACH_INLINE void hyp_set_ldt(void *ldt, unsigned long nbentries) {
 		.arg1.linear_addr = kvtolin(ldt),
 		.arg2.nr_ents = nbentries,
 	};
-	int count;
+	unsigned long count;
 	if (((unsigned long)ldt) & PAGE_MASK)
 		panic("ldt %p is not aligned on a page\n", ldt);
 	for (count=0; count<nbentries; count+= PAGE_SIZE/8)
@@ -395,8 +395,8 @@ _hypcall2(int, set_debugreg, int, reg, unsigned long, value);
 _hypcall1(unsigned long, get_debugreg, int, reg);
 
 /* x86-specific */
-MACH_INLINE unsigned64_t hyp_cpu_clock(void) {
-	unsigned64_t tsc;
+MACH_INLINE uint64_t hyp_cpu_clock(void) {
+	uint64_t tsc;
 	asm volatile("rdtsc":"=A"(tsc));
 	return tsc;
 }

@@ -150,10 +150,6 @@ mach_port_names(
 	mach_port_type_t	**typesp,
 	mach_msg_type_number_t	*typesCnt)
 {
-	ipc_tree_entry_t tentry;
-	ipc_entry_t table;
-	ipc_entry_num_t tsize;
-	mach_port_index_t index;
 	ipc_entry_num_t actual;	/* this many names */
 	ipc_port_timestamp_t timestamp;	/* logical time of this operation */
 	mach_port_t *names;
@@ -190,7 +186,7 @@ mach_port_names(
 
 		/* upper bound on number of names in the space */
 
-		bound = space->is_table_size + space->is_tree_total;
+		bound = space->is_size;
 		size_needed = round_page(bound * sizeof(mach_port_t));
 
 		if (size_needed <= size)
@@ -220,11 +216,11 @@ mach_port_names(
 		/* can't fault while we hold locks */
 
 		kr = vm_map_pageable(ipc_kernel_map, addr1, addr1 + size,
-				     VM_PROT_READ|VM_PROT_WRITE);
+				     VM_PROT_READ|VM_PROT_WRITE, TRUE, TRUE);
 		assert(kr == KERN_SUCCESS);
 
 		kr = vm_map_pageable(ipc_kernel_map, addr2, addr2 + size,
-				     VM_PROT_READ|VM_PROT_WRITE);
+				     VM_PROT_READ|VM_PROT_WRITE, TRUE, TRUE);
 		assert(kr == KERN_SUCCESS);
 	}
 	/* space is read-locked and active */
@@ -235,33 +231,16 @@ mach_port_names(
 
 	timestamp = ipc_port_timestamp();
 
-	table = space->is_table;
-	tsize = space->is_table_size;
-
-	for (index = 0; index < tsize; index++) {
-		ipc_entry_t entry = &table[index];
+	ipc_entry_t entry;
+	struct rdxtree_iter iter;
+	rdxtree_for_each(&space->is_map, &iter, entry) {
 		ipc_entry_bits_t bits = entry->ie_bits;
 
 		if (IE_BITS_TYPE(bits) != MACH_PORT_TYPE_NONE) {
-			mach_port_t name = MACH_PORT_MAKEB(index, bits);
-
-			mach_port_names_helper(timestamp, entry, name,
+			mach_port_names_helper(timestamp, entry, entry->ie_name,
 					       names, types, &actual);
 		}
 	}
-
-	for (tentry = ipc_splay_traverse_start(&space->is_tree);
-	     tentry != ITE_NULL;
-	     tentry = ipc_splay_traverse_next(&space->is_tree, FALSE)) {
-		ipc_entry_t entry = &tentry->ite_entry;
-		mach_port_t name = tentry->ite_name;
-
-		assert(IE_BITS_TYPE(tentry->ite_bits) != MACH_PORT_TYPE_NONE);
-
-		mach_port_names_helper(timestamp, entry, name,
-				       names, types, &actual);
-	}
-	ipc_splay_traverse_finish(&space->is_tree);
 	is_read_unlock(space);
 
 	if (actual == 0) {
@@ -284,12 +263,12 @@ mach_port_names(
 
 		kr = vm_map_pageable(ipc_kernel_map,
 				     addr1, addr1 + size_used,
-				     VM_PROT_NONE);
+				     VM_PROT_NONE, TRUE, TRUE);
 		assert(kr == KERN_SUCCESS);
 
 		kr = vm_map_pageable(ipc_kernel_map,
 				     addr2, addr2 + size_used,
-				     VM_PROT_NONE);
+				     VM_PROT_NONE, TRUE, TRUE);
 		assert(kr == KERN_SUCCESS);
 
 		kr = vm_map_copyin(ipc_kernel_map, addr1, size_used,
@@ -571,7 +550,7 @@ mach_port_destroy(
 	kr = ipc_right_lookup_write(space, name, &entry);
 	if (kr != KERN_SUCCESS) {
 		if (MACH_PORT_VALID (name) && space == current_space()) {
-			printf("task %.*s destroying a bogus port %lu, most probably a bug.\n", sizeof current_task()->name, current_task()->name, name);
+			printf("task %.*s destroying a bogus port %lu, most probably a bug.\n", sizeof current_task()->name, current_task()->name, (unsigned long) name);
 			if (mach_port_deallocate_debug)
 				SoftDebugger("mach_port_deallocate");
 		}
@@ -615,7 +594,7 @@ mach_port_deallocate(
 	kr = ipc_right_lookup_write(space, name, &entry);
 	if (kr != KERN_SUCCESS) {
 		if (MACH_PORT_VALID (name) && space == current_space()) {
-			printf("task %.*s deallocating a bogus port %lu, most probably a bug.\n", sizeof current_task()->name, current_task()->name, name);
+			printf("task %.*s deallocating a bogus port %lu, most probably a bug.\n", sizeof current_task()->name, current_task()->name, (unsigned long) name);
 			if (mach_port_deallocate_debug)
 				SoftDebugger("mach_port_deallocate");
 		}
@@ -739,7 +718,7 @@ mach_port_mod_refs(
 		if (MACH_PORT_VALID (name) && space == current_space()) {
 			printf("task %.*s %screasing a bogus port "
 			       "%lu by %d, most probably a bug.\n",
-			       sizeof current_task()->name,
+			       (int) (sizeof current_task()->name),
 			       current_task()->name,
 			       delta < 0 ? "de" : "in", name,
 			       delta < 0 ? -delta : delta);
@@ -946,10 +925,7 @@ mach_port_get_set_status(
 	size = PAGE_SIZE;	/* initial guess */
 
 	for (;;) {
-		ipc_tree_entry_t tentry;
-		ipc_entry_t entry, table;
-		ipc_entry_num_t tsize;
-		mach_port_index_t index;
+		ipc_entry_t entry;
 		mach_port_t *names;
 		ipc_pset_t pset;
 
@@ -962,7 +938,7 @@ mach_port_get_set_status(
 		/* can't fault while we hold locks */
 
 		kr = vm_map_pageable(ipc_kernel_map, addr, addr + size,
-				     VM_PROT_READ|VM_PROT_WRITE);
+				     VM_PROT_READ|VM_PROT_WRITE, TRUE, TRUE);
 		assert(kr == KERN_SUCCESS);
 
 		kr = ipc_right_lookup_read(space, name, &entry);
@@ -986,11 +962,9 @@ mach_port_get_set_status(
 		maxnames = size / sizeof(mach_port_t);
 		actual = 0;
 
-		table = space->is_table;
-		tsize = space->is_table_size;
-
-		for (index = 0; index < tsize; index++) {
-			ipc_entry_t ientry = &table[index];
+		ipc_entry_t ientry;
+		struct rdxtree_iter iter;
+		rdxtree_for_each(&space->is_map, &iter, ientry) {
 			ipc_entry_bits_t bits = ientry->ie_bits;
 
 			if (bits & MACH_PORT_TYPE_RECEIVE) {
@@ -1002,22 +976,6 @@ mach_port_get_set_status(
 			}
 		}
 
-		for (tentry = ipc_splay_traverse_start(&space->is_tree);
-		     tentry != ITE_NULL;
-		     tentry = ipc_splay_traverse_next(&space->is_tree,FALSE)) {
-			ipc_entry_bits_t bits = tentry->ite_bits;
-
-			assert(IE_BITS_TYPE(bits) != MACH_PORT_TYPE_NONE);
-
-			if (bits & MACH_PORT_TYPE_RECEIVE) {
-				ipc_port_t port =
-					(ipc_port_t) tentry->ite_object;
-
-				mach_port_gst_helper(pset, port, maxnames,
-						     names, &actual);
-			}
-		}
-		ipc_splay_traverse_finish(&space->is_tree);
 		is_read_unlock(space);
 
 		if (actual <= maxnames)
@@ -1045,7 +1003,7 @@ mach_port_get_set_status(
 
 		kr = vm_map_pageable(ipc_kernel_map,
 				     addr, addr + size_used,
-				     VM_PROT_NONE);
+				     VM_PROT_NONE, TRUE, TRUE);
 		assert(kr == KERN_SUCCESS);
 
 		kr = vm_map_copyin(ipc_kernel_map, addr, size_used,
@@ -1608,3 +1566,13 @@ mach_port_clear_protected_payload(
 	ip_unlock(port);
 	return KERN_SUCCESS;
 }
+
+#if	MACH_KDB
+
+void
+db_debug_port_references (boolean_t enable)
+{
+	mach_port_deallocate_debug = enable;
+}
+
+#endif	/* MACH_KDB */

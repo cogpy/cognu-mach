@@ -51,7 +51,7 @@
 #include <mach/memory_object.h>
 #include <vm/memory_object_user.user.h>
 				/* For memory_object_data_{request,unlock} */
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <kern/slab.h>
 
 #if	MACH_PCSAMPLE
@@ -105,7 +105,7 @@ extern struct db_watchpoint *db_watchpoint_list;
 void vm_fault_init(void)
 {
 	kmem_cache_init(&vm_fault_state_cache, "vm_fault_state",
-			sizeof(vm_fault_state_t), 0, NULL, NULL, NULL, 0);
+			sizeof(vm_fault_state_t), 0, NULL, 0);
 }
 
 /*
@@ -154,7 +154,7 @@ vm_fault_cleanup(
       thread_t _thread_ = current_thread(); \
  \
       if (_thread_ != THREAD_NULL) \
-	  take_pc_sample_macro(_thread_, (flavor)); \
+	  take_pc_sample_macro(_thread_, (flavor), 1, 0); \
     MACRO_END
 
 #else
@@ -423,7 +423,7 @@ vm_fault_return_t vm_fault_page(
 					 * need to allocate a real page.
 					 */
 
-					real_m = vm_page_grab(!object->internal);
+					real_m = vm_page_grab();
 					if (real_m == VM_PAGE_NULL) {
 						vm_fault_cleanup(object, first_m);
 						return(VM_FAULT_MEMORY_SHORTAGE);
@@ -607,7 +607,7 @@ vm_fault_return_t vm_fault_page(
 				 *	won't block for pages.
 				 */
 
-				if (m->fictitious && !vm_page_convert(m, FALSE)) {
+				if (m->fictitious && !vm_page_convert(&m)) {
 					VM_PAGE_FREE(m);
 					vm_fault_cleanup(object, first_m);
 					return(VM_FAULT_MEMORY_SHORTAGE);
@@ -651,7 +651,7 @@ vm_fault_return_t vm_fault_page(
 				object->pager_request,
 				m->offset + object->paging_offset,
 				PAGE_SIZE, access_required)) != KERN_SUCCESS) {
-				if (rc != MACH_SEND_INTERRUPTED)
+				if (object->pager && rc != MACH_SEND_INTERRUPTED)
 					printf("%s(0x%p, 0x%p, 0x%lx, 0x%x, 0x%x) failed, %x\n",
 						"memory_object_data_request",
 						object->pager,
@@ -725,7 +725,7 @@ vm_fault_return_t vm_fault_page(
 			assert(m->object == object);
 			first_m = VM_PAGE_NULL;
 
-			if (m->fictitious && !vm_page_convert(m, !object->internal)) {
+			if (m->fictitious && !vm_page_convert(&m)) {
 				VM_PAGE_FREE(m);
 				vm_fault_cleanup(object, VM_PAGE_NULL);
 				return(VM_FAULT_MEMORY_SHORTAGE);
@@ -768,12 +768,10 @@ vm_fault_return_t vm_fault_page(
 	 *	objects.
 	 */
 
-#if	EXTRA_ASSERTIONS
 	assert(m->busy && !m->absent);
 	assert((first_m == VM_PAGE_NULL) ||
 		(first_m->busy && !first_m->absent &&
 		 !first_m->active && !first_m->inactive));
-#endif	/* EXTRA_ASSERTIONS */
 
 	/*
 	 *	If the page is being written, but isn't
@@ -812,7 +810,7 @@ vm_fault_return_t vm_fault_page(
 			/*
 			 *	Allocate a page for the copy
 			 */
-			copy_m = vm_page_grab(!first_object->internal);
+			copy_m = vm_page_grab();
 			if (copy_m == VM_PAGE_NULL) {
 				RELEASE_PAGE(m);
 				vm_fault_cleanup(object, first_m);

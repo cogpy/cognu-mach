@@ -58,6 +58,9 @@ skip;	/* old port_select */
 skip;	/* old port_set_backlog */
 skip;	/* old port_status */
 
+/* We use only a handful of RPCs as client.  Skip the rest.  */
+#if	! KERNEL_USER
+
 /*
  *	Create a new task with an empty set of IPC rights,
  *	and having an address space constructed from the
@@ -310,23 +313,19 @@ skip;	/* old u*x_pid */
 skip;	/* old netipc_listen */
 skip;	/* old netipc_ignore */
 
-/*
- *	Provide the data contents of a range of the given memory
- *	object, with the access restriction specified.  [Only
- *	whole virtual pages of data can be accepted; partial pages
- *	will be discarded.  Data should be provided on request, but
- *	may be provided in advance as desired.  When data already
- *	held by this kernel is provided again, the new data is ignored.
- *	The access restriction is the subset of {read, write, execute}
- *	which are prohibited.  The kernel may not provide any data (or
- *	protection) consistency among pages with different virtual page
- *	alignments within the same object.]
- */
-simpleroutine memory_object_data_provided(
-		memory_control	: memory_object_control_t;
-		offset		: vm_offset_t;
-		data		: pointer_t;
-		lock_value	: vm_prot_t);
+#else	/* ! KERNEL_USER */
+
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;
+
+#endif	/* ! KERNEL_USER */
+
+skip;	/* was: memory_object_data_provided */
 
 /*
  *	Indicate that a range of the given temporary memory object does
@@ -351,6 +350,8 @@ routine memory_object_get_attributes(
 	out	may_cache	: boolean_t;
 	out	copy_strategy	: memory_object_copy_strategy_t);
 
+#if	! KERNEL_USER
+
 /*
  *	Sets the default memory manager, the port to which
  *	newly-created temporary memory objects are delivered.
@@ -360,6 +361,12 @@ routine memory_object_get_attributes(
 routine vm_set_default_memory_manager(
 		host_priv	: host_priv_t;
 	inout	default_manager	: mach_port_make_send_t);
+
+#else	/* ! KERNEL_USER */
+
+skip;
+
+#endif	/* ! KERNEL_USER */
 
 skip;	/* old pager_flush_request */
 
@@ -412,6 +419,8 @@ skip;	/* old netport_init */
 skip;	/* old netport_enter */
 skip;	/* old netport_remove */
 skip;	/* old thread_set_priority */
+
+#if	! KERNEL_USER
 
 /*
  *	Increment the suspend count for the target task.
@@ -613,6 +622,18 @@ routine vm_map(
 		inheritance	: vm_inherit_t);
 #endif	/* EMULATOR */
 
+#else	/* ! KERNEL_USER */
+
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;	skip;
+skip;	skip;	skip;	skip;
+
+#endif	/* ! KERNEL_USER */
+
 /*
  *	Indicate that a range of the specified memory object cannot
  *	be provided at this time.  [Threads waiting for memory pages
@@ -625,15 +646,7 @@ simpleroutine memory_object_data_error(
 		size		: vm_size_t;
 		error_value	: kern_return_t);
 
-/*
- *	Make decisions regarding the use of the specified
- *	memory object.
- */
-simpleroutine memory_object_set_attributes(
-		memory_control	: memory_object_control_t;
-		object_ready	: boolean_t;
-		may_cache	: boolean_t;
-		copy_strategy	: memory_object_copy_strategy_t);
+skip;	/* was: memory_object_set_attributes */
 
 /*
  */
@@ -684,6 +697,8 @@ simpleroutine memory_object_change_attributes(
 		reply_to	: mach_port_t =
 			MACH_MSG_TYPE_MAKE_SEND_ONCE|polymorphic);
 
+#if ! KERNEL_USER
+
 skip;	/* old host_callout_statistics_reset */
 skip;	/* old port_set_select */
 skip;	/* old port_set_backup */
@@ -701,6 +716,8 @@ routine vm_machine_attribute(
 	inout	value		: vm_machine_attribute_val_t);
 
 skip;	/* old host_fpa_counters_reset */
+
+#endif	/* ! KERNEL_USER */
 
 /*
  *	There is no more room in this interface for additional calls.

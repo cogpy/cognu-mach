@@ -38,4 +38,7 @@ int	master_cpu;	/* 'master' processor - keeps time */
 #define	cpu_number()	(0)
 
 #endif	/* NCPUS == 1 */
+
+#define CPU_L1_SIZE (1 << CPU_L1_SHIFT)
+
 #endif /* _KERN_CPU_NUMBER_H_ */

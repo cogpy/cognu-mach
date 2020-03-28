@@ -702,6 +702,7 @@ extern void kd_setleds1 (u_char);
 extern void kd_setleds2 (void);
 extern void cnsetleds (u_char);
 extern void kdreboot (void);
+extern void kd_putc_esc (u_char);
 extern void kd_putc (u_char);
 extern void kd_parseesc (void);
 extern void kd_down (void);
@@ -740,6 +741,7 @@ extern int kdcninit(struct consdev *cp);
 extern int kdcngetc(dev_t dev, int wait);
 extern int kdcnmaygetc (void);
 extern int kdcnputc(dev_t dev, int c);
+extern void kd_setpos(csrpos_t newpos);
 
 extern void kd_slmwd (void *start, int count, int value);
 extern void kd_slmscu (void *from, void *to, int count);
@@ -758,18 +760,18 @@ extern int kdwrite(dev_t dev, io_req_t uio);
 
 extern io_return_t kdgetstat(
 	dev_t		dev,
-	int		flavor,
-	int 		*data,
-	natural_t	*count);
+	dev_flavor_t	flavor,
+	dev_status_t	data,
+	mach_msg_type_number_t	*count);
 
 extern io_return_t kdsetstat(
 	dev_t		dev,
-	int		flavor,
-	int *		data,
-	natural_t	count);
+	dev_flavor_t	flavor,
+	dev_status_t	data,
+	mach_msg_type_number_t	count);
 
 extern int kdportdeath(dev_t dev, mach_port_t port);
-extern int kdmmap(dev_t dev, vm_offset_t off, vm_prot_t prot);
+extern vm_offset_t kdmmap(dev_t dev, vm_offset_t off, vm_prot_t prot);
 
 boolean_t kdcheckmagic(Scancode scancode);
 

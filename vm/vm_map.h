@@ -46,13 +46,16 @@
 #include <mach/vm_attributes.h>
 #include <mach/vm_prot.h>
 #include <mach/vm_inherit.h>
+#include <mach/vm_wire.h>
+#include <mach/vm_sync.h>
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_types.h>
+#include <kern/list.h>
 #include <kern/lock.h>
 #include <kern/rbtree.h>
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 
 /* TODO: make it dynamic */
 #define KENTRY_DATA_SIZE (256*PAGE_SIZE)
@@ -105,9 +108,17 @@ struct vm_map_entry {
 #define vme_start		links.start
 #define vme_end			links.end
 	struct rbtree_node	tree_node;	/* links to other entries in tree */
+	struct rbtree_node	gap_node;	/* links to other entries in gap tree */
+	struct list		gap_list;	/* links to other entries with
+						   the same gap size */
+	vm_size_t		gap_size;	/* size of available memory
+						   following this entry */
 	union vm_map_object	object;		/* object I point to */
 	vm_offset_t		offset;		/* offset into object */
 	unsigned int
+	/* boolean_t */		in_gap_tree:1,	/* entry is in the gap tree if true,
+						   or linked to other entries with
+						   the same gap size if false */
 	/* boolean_t */		is_shared:1,	/* region is shared */
 	/* boolean_t */		is_sub_map:1,	/* Is "object" a submap? */
 	/* boolean_t */		in_transition:1, /* Entry being changed */
@@ -120,7 +131,9 @@ struct vm_map_entry {
 	vm_prot_t		max_protection;	/* maximum protection */
 	vm_inherit_t		inheritance;	/* inheritance */
 	unsigned short		wired_count;	/* can be paged if = 0 */
-	unsigned short		user_wired_count; /* for vm_wire */
+	vm_prot_t		wired_access;	/* wiring access types, as accepted
+						   by vm_map_pageable; used on wiring
+						   scans when protection != VM_PROT_NONE */
 	struct vm_map_entry     *projected_on;  /* 0 for normal map entry
            or persistent kernel map projected buffer entry;
            -1 for non-persistent kernel map projected buffer entry;
@@ -141,9 +154,9 @@ typedef struct vm_map_entry	*vm_map_entry_t;
 struct vm_map_header {
 	struct vm_map_links	links;		/* first, last, min, max */
 	struct rbtree		tree;		/* Sorted tree of entries */
+	struct rbtree		gap_tree;	/* Sorted tree of gap lists
+						   for allocations */
 	int			nentries;	/* Number of entries */
-	boolean_t		entries_pageable;
-						/* are map entries pageable? */
 };
 
 /*
@@ -170,6 +183,7 @@ struct vm_map {
 #define max_offset		hdr.links.end	/* end of range */
 	pmap_t			pmap;		/* Physical map */
 	vm_size_t		size;		/* virtual size */
+	vm_size_t		size_wired;	/* wired size */
 	int			ref_count;	/* Reference count */
 	decl_simple_lock_data(,	ref_lock)	/* Lock for ref_count field */
 	vm_map_entry_t		hint;		/* hint for quick lookups */
@@ -179,9 +193,11 @@ struct vm_map {
 	/* Flags */
 	unsigned int	wait_for_space:1,	/* Should callers wait
 						   for space? */
-	/* boolean_t */ wiring_required:1;	/* All memory wired? */
+	/* boolean_t */ wiring_required:1;	/* New mappings are wired? */
 
 	unsigned int		timestamp;	/* Version number */
+
+	const char		*name;		/* Associated name */
 };
 
 #define vm_map_to_entry(map)	((struct vm_map_entry *) &(map)->hdr.links)
@@ -340,13 +356,9 @@ MACRO_BEGIN					\
 	(map)->timestamp = 0;			\
 MACRO_END
 
-#define vm_map_lock(map)			\
-MACRO_BEGIN					\
-	lock_write(&(map)->lock);		\
-	(map)->timestamp++;			\
-MACRO_END
+void vm_map_lock(struct vm_map *map);
+void vm_map_unlock(struct vm_map *map);
 
-#define vm_map_unlock(map)	lock_write_done(&(map)->lock)
 #define vm_map_lock_read(map)	lock_read(&(map)->lock)
 #define vm_map_unlock_read(map)	lock_read_done(&(map)->lock)
 #define vm_map_lock_write_to_read(map) \
@@ -362,18 +374,13 @@ MACRO_END
  *	Exported procedures that operate on vm_map_t.
  */
 
-extern vm_offset_t	kentry_data;
-extern vm_size_t	kentry_data_size;
-extern int		kentry_count;
 /* Initialize the module */
 extern void		vm_map_init(void);
 
 /* Initialize an empty map */
-extern void		vm_map_setup(vm_map_t, pmap_t, vm_offset_t, vm_offset_t,
-				     boolean_t);
+extern void		vm_map_setup(vm_map_t, pmap_t, vm_offset_t, vm_offset_t);
 /* Create an empty map */
-extern vm_map_t		vm_map_create(pmap_t, vm_offset_t, vm_offset_t,
-				      boolean_t);
+extern vm_map_t		vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
 /* Create a map in the image of an existing map */
 extern vm_map_t		vm_map_fork(vm_map_t);
 
@@ -437,6 +444,9 @@ extern kern_return_t	vm_map_machine_attribute(vm_map_t, vm_offset_t,
 						 vm_machine_attribute_t,
 						 vm_machine_attribute_val_t *);
 
+extern kern_return_t	vm_map_msync(vm_map_t,
+				     vm_offset_t, vm_size_t, vm_sync_t);
+
 /* Delete entry from map */
 extern void		vm_map_entry_delete(vm_map_t, vm_map_entry_t);
 
@@ -457,6 +467,12 @@ boolean_t vm_map_lookup_entry(
 	vm_offset_t	address,
 	vm_map_entry_t	*entry); /* OUT */
 
+static inline void vm_map_set_name(vm_map_t map, const char *name)
+{
+	map->name = name;
+}
+
+
 /*
  *	Functions implemented as macros
  */
@@ -476,17 +492,12 @@ boolean_t vm_map_lookup_entry(
 						 * a verified lookup is
 						 * now complete */
 /*
- *	Pageability functions.  Includes macro to preserve old interface.
+ *	Pageability functions.
  */
-extern kern_return_t	vm_map_pageable_common(vm_map_t, vm_offset_t,
-					       vm_offset_t, vm_prot_t,
-					       boolean_t);
+extern kern_return_t	vm_map_pageable(vm_map_t, vm_offset_t, vm_offset_t,
+					vm_prot_t, boolean_t, boolean_t);
 
-#define vm_map_pageable(map, s, e, access)	\
-		vm_map_pageable_common(map, s, e, access, FALSE)
-
-#define vm_map_pageable_user(map, s, e, access)	\
-		vm_map_pageable_common(map, s, e, access, TRUE)
+extern kern_return_t	vm_map_pageable_all(vm_map_t, vm_wire_t);
 
 /*
  *	Submap object.  Must be used to create memory to be put

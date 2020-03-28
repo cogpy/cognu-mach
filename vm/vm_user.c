@@ -39,8 +39,10 @@
 #include <mach/vm_param.h>
 #include <mach/vm_statistics.h>
 #include <mach/vm_cache_statistics.h>
+#include <mach/vm_sync.h>
 #include <kern/host.h>
 #include <kern/task.h>
+#include <kern/mach.server.h>
 #include <vm/vm_fault.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
@@ -182,7 +184,7 @@ kern_return_t vm_statistics(
 	*stat = vm_stat;
 
 	stat->pagesize = PAGE_SIZE;
-	stat->free_count = vm_page_free_count;
+	stat->free_count = vm_page_mem_free();
 	stat->active_count = vm_page_active_count;
 	stat->inactive_count = vm_page_inactive_count;
 	stat->wire_count = vm_page_wire_count;
@@ -197,8 +199,8 @@ kern_return_t vm_cache_statistics(
 	if (map == VM_MAP_NULL)
 		return KERN_INVALID_ARGUMENT;
 
-	stats->cache_object_count = vm_object_cached_count;
-	stats->cache_count = vm_object_cached_pages;
+	stats->cache_object_count = vm_object_external_count;
+	stats->cache_count = vm_object_external_pages;
 
 	/* XXX Not implemented yet */
 	stats->active_tmp_count = 0;
@@ -405,15 +407,29 @@ kern_return_t vm_map(
  *
  *	[ To unwire the pages, specify VM_PROT_NONE. ]
  */
-kern_return_t vm_wire(host, map, start, size, access)
-	const host_t		host;
+kern_return_t vm_wire(port, map, start, size, access)
+	const ipc_port_t	port;
 	vm_map_t		map;
 	vm_offset_t		start;
 	vm_size_t		size;
 	vm_prot_t		access;
 {
-	if (host == HOST_NULL)
+	boolean_t priv;
+
+	if (!IP_VALID(port))
 		return KERN_INVALID_HOST;
+
+	ip_lock(port);
+	if (!ip_active(port) ||
+		  (ip_kotype(port) != IKOT_HOST_PRIV
+		&& ip_kotype(port) != IKOT_HOST))
+	{
+		ip_unlock(port);
+		return KERN_INVALID_HOST;
+	}
+
+	priv = ip_kotype(port) == IKOT_HOST_PRIV;
+	ip_unlock(port);
 
 	if (map == VM_MAP_NULL)
 		return KERN_INVALID_TASK;
@@ -426,8 +442,92 @@ kern_return_t vm_wire(host, map, start, size, access)
 	if (projected_buffer_in_range(map, start, start+size))
 		return(KERN_INVALID_ARGUMENT);
 
-	return vm_map_pageable_user(map,
-				    trunc_page(start),
-				    round_page(start+size),
-				    access);
+	/* TODO: make it tunable */
+	if (!priv && access != VM_PROT_NONE && map->size_wired + size > 65536)
+		return KERN_NO_ACCESS;
+
+	return vm_map_pageable(map, trunc_page(start), round_page(start+size),
+			       access, TRUE, TRUE);
+}
+
+kern_return_t vm_wire_all(const ipc_port_t port, vm_map_t map, vm_wire_t flags)
+{
+	if (!IP_VALID(port))
+		return KERN_INVALID_HOST;
+
+	ip_lock(port);
+
+	if (!ip_active(port)
+	    || (ip_kotype(port) != IKOT_HOST_PRIV)) {
+		ip_unlock(port);
+		return KERN_INVALID_HOST;
+	}
+
+	ip_unlock(port);
+
+	if (map == VM_MAP_NULL) {
+		return KERN_INVALID_TASK;
+	}
+
+	if (flags & ~VM_WIRE_ALL) {
+		return KERN_INVALID_ARGUMENT;
+	}
+
+	/*Check if range includes projected buffer;
+	  user is not allowed direct manipulation in that case*/
+	if (projected_buffer_in_range(map, map->min_offset, map->max_offset)) {
+		return KERN_INVALID_ARGUMENT;
+	}
+
+	return vm_map_pageable_all(map, flags);
+}
+
+/*
+ *	vm_object_sync synchronizes out pages from the memory object to its
+ *	memory manager, if any.
+ */
+kern_return_t vm_object_sync(
+	vm_object_t		object,
+	vm_offset_t		offset,
+	vm_size_t		size,
+	boolean_t		should_flush,
+	boolean_t		should_return,
+	boolean_t		should_iosync)
+{
+	if (object == VM_OBJECT_NULL)
+		return KERN_INVALID_ARGUMENT;
+
+	/* FIXME: we should rather introduce an internal function, e.g.
+	   vm_object_update, rather than calling memory_object_lock_request.  */
+	vm_object_reference(object);
+
+	/* This is already always synchronous for now.  */
+	(void) should_iosync;
+
+	size = round_page(offset + size) - trunc_page(offset);
+	offset = trunc_page(offset);
+
+	return  memory_object_lock_request(object, offset, size,
+					   should_return ?
+						MEMORY_OBJECT_RETURN_ALL :
+						MEMORY_OBJECT_RETURN_NONE,
+					   should_flush,
+					   VM_PROT_NO_CHANGE,
+					   NULL, 0);
+}
+
+/*
+ *	vm_msync synchronizes out pages from the map to their memory manager,
+ *	if any.
+ */
+kern_return_t vm_msync(
+	vm_map_t		map,
+	vm_address_t		address,
+	vm_size_t		size,
+	vm_sync_t		sync_flags)
+{
+	if (map == VM_MAP_NULL)
+		return KERN_INVALID_ARGUMENT;
+
+	return vm_map_msync(map, (vm_offset_t) address, size, sync_flags);
 }

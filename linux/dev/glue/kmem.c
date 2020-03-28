@@ -111,10 +111,8 @@ linux_kmem_init ()
       for (p = pages, j = 0; j < MEM_CHUNK_SIZE - PAGE_SIZE; j += PAGE_SIZE)
 	{
 	  assert (p->phys_addr < MEM_DMA_LIMIT);
-	  assert (p->phys_addr + PAGE_SIZE
-		  == ((vm_page_t) p->pageq.next)->phys_addr);
-
-	  p = (vm_page_t) p->pageq.next;
+	  assert (p->phys_addr + PAGE_SIZE == (p + 1)->phys_addr);
+	  p++;
 	}
 
       pages_free[i].end = pages_free[i].start + MEM_CHUNK_SIZE;
@@ -568,13 +566,12 @@ vmtophys (void *addr)
 
 /* XXX: Quick hacking. */
 /* Remap physical address into virtual address. */
+
+#include <vm/pmap.h>
+
 void *
 vremap (unsigned long offset, unsigned long size)
 {
-  extern vm_offset_t pmap_map_bd (register vm_offset_t virt,
-				  register vm_offset_t start,
-				  register vm_offset_t end,
-				  vm_prot_t prot);
   vm_offset_t addr;
   kern_return_t ret;
   

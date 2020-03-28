@@ -47,13 +47,14 @@
  *	pmap_zero_page zeros the specified (machine independent) page.
  */
 void
-pmap_zero_page(vm_offset_t p)
+pmap_zero_page(phys_addr_t p)
 {
 	assert(p != vm_page_fictitious_addr);
 	vm_offset_t v;
 	pmap_mapwindow_t *map;
+	boolean_t mapped = p >= VM_PAGE_DIRECTMAP_LIMIT;
 
-	if (p >= phys_last_addr)
+	if (mapped)
 	{
 		map = pmap_get_mapwindow(INTEL_PTE_W(p));
 		v = map->vaddr;
@@ -63,7 +64,7 @@ pmap_zero_page(vm_offset_t p)
 
 	memset((void*) v, 0, PAGE_SIZE);
 
-	if (p >= phys_last_addr)
+	if (mapped)
 		pmap_put_mapwindow(map);
 }
 
@@ -72,15 +73,18 @@ pmap_zero_page(vm_offset_t p)
  */
 void
 pmap_copy_page(
-	vm_offset_t src, 
-	vm_offset_t dst)
+	phys_addr_t src,
+	phys_addr_t dst)
 {
 	vm_offset_t src_addr_v, dst_addr_v;
-	pmap_mapwindow_t *src_map, *dst_map;
+	pmap_mapwindow_t *src_map = NULL;
+	pmap_mapwindow_t *dst_map;
+	boolean_t src_mapped = src >= VM_PAGE_DIRECTMAP_LIMIT;
+	boolean_t dst_mapped = dst >= VM_PAGE_DIRECTMAP_LIMIT;
 	assert(src != vm_page_fictitious_addr);
 	assert(dst != vm_page_fictitious_addr);
 
-	if (src >= phys_last_addr)
+	if (src_mapped)
 	{
 		src_map = pmap_get_mapwindow(INTEL_PTE_R(src));
 		src_addr_v = src_map->vaddr;
@@ -88,7 +92,7 @@ pmap_copy_page(
 	else
 		src_addr_v = phystokv(src);
 
-	if (dst >= phys_last_addr)
+	if (dst_mapped)
 	{
 		dst_map = pmap_get_mapwindow(INTEL_PTE_W(dst));
 		dst_addr_v = dst_map->vaddr;
@@ -98,9 +102,9 @@ pmap_copy_page(
 
 	memcpy((void *) dst_addr_v, (void *) src_addr_v, PAGE_SIZE);
 
-	if (src >= phys_last_addr)
+	if (src_mapped)
 		pmap_put_mapwindow(src_map);
-	if (dst >= phys_last_addr)
+	if (dst_mapped)
 		pmap_put_mapwindow(dst_map);
 }
 
@@ -112,15 +116,16 @@ pmap_copy_page(
 void
 copy_to_phys(
 	vm_offset_t 	src_addr_v, 
-	vm_offset_t 	dst_addr_p,
+	phys_addr_t 	dst_addr_p,
 	int 		count)
 {
 	vm_offset_t dst_addr_v;
 	pmap_mapwindow_t *dst_map;
+	boolean_t mapped = dst_addr_p >= VM_PAGE_DIRECTMAP_LIMIT;
 	assert(dst_addr_p != vm_page_fictitious_addr);
 	assert(pa_to_pte(dst_addr_p + count-1) == pa_to_pte(dst_addr_p));
 
-	if (dst_addr_p >= phys_last_addr)
+	if (mapped)
 	{
 		dst_map = pmap_get_mapwindow(INTEL_PTE_W(dst_addr_p));
 		dst_addr_v = dst_map->vaddr;
@@ -130,7 +135,7 @@ copy_to_phys(
 
 	memcpy((void *)dst_addr_v, (void *)src_addr_v, count);
 
-	if (dst_addr_p >= phys_last_addr)
+	if (mapped)
 		pmap_put_mapwindow(dst_map);
 }
 
@@ -142,16 +147,17 @@ copy_to_phys(
  */
 void
 copy_from_phys(
-	vm_offset_t 	src_addr_p, 
+	phys_addr_t 	src_addr_p, 
 	vm_offset_t 	dst_addr_v,
 	int 		count)
 {
 	vm_offset_t src_addr_v;
 	pmap_mapwindow_t *src_map;
+	boolean_t mapped = src_addr_p >= VM_PAGE_DIRECTMAP_LIMIT;
 	assert(src_addr_p != vm_page_fictitious_addr);
 	assert(pa_to_pte(src_addr_p + count-1) == pa_to_pte(src_addr_p));
 
-	if (src_addr_p >= phys_last_addr)
+	if (mapped)
 	{
 		src_map = pmap_get_mapwindow(INTEL_PTE_R(src_addr_p));
 		src_addr_v = src_map->vaddr;
@@ -161,7 +167,7 @@ copy_from_phys(
 
 	memcpy((void *)dst_addr_v, (void *)src_addr_v, count);
 
-	if (src_addr_p >= phys_last_addr)
+	if (mapped)
 		pmap_put_mapwindow(src_map);
 }
 
@@ -170,7 +176,7 @@ copy_from_phys(
  *
  *	Convert a kernel virtual address to a physical address
  */
-vm_offset_t
+phys_addr_t
 kvtophys(vm_offset_t addr)
 {
 	pt_entry_t *pte;

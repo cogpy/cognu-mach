@@ -48,6 +48,7 @@
 #include <kern/sched.h>
 #include <kern/sched_prim.h>
 #include <kern/exception.h>
+#include <kern/macros.h>
 #include <mach/machine/vm_types.h>
 
 #if	MACH_KDB
@@ -230,7 +231,7 @@ exception_no_server(void)
 	 */
 
 	while (thread_should_halt(self))
-		thread_halt_self();
+		thread_halt_self(thread_exception_return);
 
 
 #if 0
@@ -256,7 +257,7 @@ exception_no_server(void)
 	 */
 
 	(void) task_terminate(self->task);
-	thread_halt_self();
+	thread_halt_self(thread_exception_return);
 	panic("terminating the task didn't kill us");
 	/*NOTREACHED*/
 }
@@ -603,29 +604,17 @@ exception_raise(
 	ip_unlock(reply_port);
 
     {
-	ipc_entry_t table;
+	kern_return_t kr;
 	ipc_entry_t entry;
-	mach_port_index_t index;
 
-	/* optimized ipc_entry_get */
-
-	table = space->is_table;
-	index = table->ie_next;
-
-	if (index == 0)
+	kr = ipc_entry_get (space, &exc->Head.msgh_remote_port, &entry);
+	if (kr)
 		goto abort_copyout;
-
-	entry = &table[index];
-	table->ie_next = entry->ie_next;
-	entry->ie_request = 0;
-
     {
 	mach_port_gen_t gen;
 
 	assert((entry->ie_bits &~ IE_BITS_GEN_MASK) == 0);
 	gen = entry->ie_bits + IE_BITS_GEN_ONE;
-
-	exc->Head.msgh_remote_port = MACH_PORT_MAKE(index, gen);
 
 	/* optimized ipc_right_copyout */
 
@@ -766,6 +755,12 @@ exception_raise(
     }
 }
 
+/* Macro used by MIG to cleanly check the type.  */
+#define BAD_TYPECHECK(type, check) unlikely (({\
+  union { mach_msg_type_t t; uint32_t w; } _t, _c;\
+  _t.t = *(type); _c.t = *(check);_t.w != _c.w; }))
+
+/* Type descriptor for the return code.  */
 mach_msg_type_t exc_RetCode_proto = {
 	/* msgt_name = */		MACH_MSG_TYPE_INTEGER_32,
 	/* msgt_size = */		32,
@@ -798,7 +793,7 @@ exception_parse_reply(ipc_kmsg_t kmsg)
 			MACH_MSGH_BITS(MACH_MSG_TYPE_PORT_SEND_ONCE, 0)) ||
 	    (msg->Head.msgh_size != sizeof *msg) ||
 	    (msg->Head.msgh_id != MACH_EXCEPTION_REPLY_ID) ||
-	    (* (int *) &msg->RetCodeType != * (int *) &exc_RetCode_proto)) {
+	    (BAD_TYPECHECK(&msg->RetCodeType, &exc_RetCode_proto))) {
 		/*
 		 *	Bozo user sent us a misformatted reply.
 		 */
@@ -853,6 +848,26 @@ exception_raise_continue(void)
 }
 
 /*
+ *	Routine:	thread_release_and_exception_return
+ *	Purpose:
+ *		Continue after thread was halted.
+ *	Conditions:
+ *		Nothing locked.  We are running on a new kernel stack and
+ *		control goes back to thread_exception_return.
+ *	Returns:
+ *		Doesn't return.
+ */
+static void
+thread_release_and_exception_return(void)
+{
+	ipc_thread_t self = current_thread();
+	/* reply port must be released */
+	ipc_port_release(self->ith_port);
+	thread_exception_return();
+	/*NOTREACHED*/
+}
+
+/*
  *	Routine:	exception_raise_continue_slow
  *	Purpose:
  *		Continue after finishing an ipc_mqueue_receive
@@ -881,10 +896,14 @@ exception_raise_continue_slow(
 		 */
 
 		while (thread_should_halt(self)) {
-			/* don't terminate while holding a reference */
+			/* if thread is about to terminate, release the port */
 			if (self->ast & AST_TERMINATE)
 				ipc_port_release(reply_port);
-			thread_halt_self();
+			/*
+			 *	Use the continuation to release the port in
+			 *	case the thread is about to halt.
+			 */
+			thread_halt_self(thread_release_and_exception_return);
 		}
 
 		ip_lock(reply_port);

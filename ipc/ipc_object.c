@@ -41,7 +41,6 @@
 #include <ipc/ipc_space.h>
 #include <ipc/ipc_entry.h>
 #include <ipc/ipc_object.h>
-#include <ipc/ipc_hash.h>
 #include <ipc/ipc_right.h>
 #include <ipc/ipc_notify.h>
 #include <ipc/ipc_pset.h>
@@ -156,11 +155,12 @@ ipc_object_alloc_dead(
 	ipc_entry_t entry;
 	kern_return_t kr;
 
-
+	is_write_lock(space);
 	kr = ipc_entry_alloc(space, namep, &entry);
-	if (kr != KERN_SUCCESS)
+	if (kr != KERN_SUCCESS) {
+		is_write_unlock(space);
 		return kr;
-	/* space is write-locked */
+	}
 
 	/* null object, MACH_PORT_TYPE_DEAD_NAME, 1 uref */
 
@@ -192,11 +192,12 @@ ipc_object_alloc_dead_name(
 	ipc_entry_t entry;
 	kern_return_t kr;
 
-
+	is_write_lock(space);
 	kr = ipc_entry_alloc_name(space, name, &entry);
-	if (kr != KERN_SUCCESS)
+	if (kr != KERN_SUCCESS) {
+		is_write_unlock(space);
 		return kr;
-	/* space is write-locked */
+	}
 
 	if (ipc_right_inuse(space, name, entry))
 		return KERN_NAME_EXISTS;
@@ -255,12 +256,13 @@ ipc_object_alloc(
 
 		memset(pset, 0, sizeof(*pset));
 	}
+	is_write_lock(space);
 	kr = ipc_entry_alloc(space, namep, &entry);
 	if (kr != KERN_SUCCESS) {
+		is_write_unlock(space);
 		io_free(otype, object);
 		return kr;
 	}
-	/* space is write-locked */
 
 	entry->ie_bits |= type | urefs;
 	entry->ie_object = object;
@@ -322,12 +324,13 @@ ipc_object_alloc_name(
 		memset(pset, 0, sizeof(*pset));
 	}
 
+	is_write_lock(space);
 	kr = ipc_entry_alloc_name(space, name, &entry);
 	if (kr != KERN_SUCCESS) {
+		is_write_unlock(space);
 		io_free(otype, object);
 		return kr;
 	}
-	/* space is write-locked */
 
 	if (ipc_right_inuse(space, name, entry)) {
 		io_free(otype, object);
@@ -630,15 +633,10 @@ ipc_object_copyout(
 			break;
 		}
 
-		kr = ipc_entry_get(space, &name, &entry);
+		kr = ipc_entry_alloc(space, &name, &entry);
 		if (kr != KERN_SUCCESS) {
-			/* unlocks/locks space, so must start again */
-
-			kr = ipc_entry_grow_table(space);
-			if (kr != KERN_SUCCESS)
-				return kr; /* space is unlocked */
-
-			continue;
+			is_write_unlock(space);
+			return kr;
 		}
 
 		assert(IE_BITS_TYPE(entry->ie_bits) == MACH_PORT_TYPE_NONE);
@@ -691,15 +689,10 @@ ipc_object_copyout_multiname(space, object, namep)
 			return KERN_INVALID_TASK;
 		}
 
-		kr = ipc_entry_get(space, &name, &entry);
+		kr = ipc_entry_alloc(space, &name, &entry);
 		if (kr != KERN_SUCCESS) {
-			/* unlocks/locks space, so must start again */
-
-			kr = ipc_entry_grow_table(space);
-			if (kr != KERN_SUCCESS)
-				return kr; /* space is unlocked */
-
-			continue;
+			is_write_unlock(space);
+			return kr; /* space is unlocked */
 		}
 
 		assert(IE_BITS_TYPE(entry->ie_bits) == MACH_PORT_TYPE_NONE);
@@ -764,10 +757,12 @@ ipc_object_copyout_name(
 	assert(IO_VALID(object));
 	assert(io_otype(object) == IOT_PORT);
 
+	is_write_lock(space);
 	kr = ipc_entry_alloc_name(space, name, &entry);
-	if (kr != KERN_SUCCESS)
+	if (kr != KERN_SUCCESS) {
+		is_write_unlock(space);
 		return kr;
-	/* space is write-locked and active */
+	}
 
 	if ((msgt_name != MACH_MSG_TYPE_PORT_SEND_ONCE) &&
 	    ipc_right_reverse(space, object, &oname, &oentry)) {
@@ -941,10 +936,12 @@ ipc_object_rename(
 	ipc_entry_t oentry, nentry;
 	kern_return_t kr;
 
+	is_write_lock(space);
 	kr = ipc_entry_alloc_name(space, nname, &nentry);
-	if (kr != KERN_SUCCESS)
+	if (kr != KERN_SUCCESS) {
+		is_write_unlock(space);
 		return kr;
-	/* space is write-locked and active */
+	}
 
 	if (ipc_right_inuse(space, nname, nentry)) {
 		/* space is unlocked */
@@ -1001,7 +998,8 @@ char *ikot_print_array[IKOT_MAX_TYPE] = {
 	"(SEMAPHORE)        ",
 	"(LOCK_SET)         ",
 	"(CLOCK)            ",
-	"(CLOCK_CTRL)       ",	/* 26 */
+	"(CLOCK_CTRL)       ",
+	"(PAGER_PROXY)      ",	/* 27 */
 				/* << new entries here	*/
 	"(UNKNOWN)     "	/* magic catchall	*/
 };	/* Please keep in sync with kern/ipc_kobject.h	*/

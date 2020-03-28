@@ -42,7 +42,7 @@ AM_LDFLAGS =
 #
 
 AM_CPPFLAGS += \
-	-nostdinc -imacros config.h
+	-ffreestanding -nostdinc -imacros config.h
 
 AM_CPPFLAGS += \
 	-I$(systype) \
@@ -54,12 +54,20 @@ AM_CPPFLAGS += \
 AM_CFLAGS += \
 	-fno-builtin-log
 
+AM_CCASFLAGS += \
+	-D__ASSEMBLY__
+
 # Yes, this makes the eyes hurt.  But perhaps someone will finally take care of
 # all that scruffy Mach code...  Also see <http://savannah.gnu.org/task/?5726>.
 AM_CFLAGS += \
 	-Wall
 
-# See <http://lists.gnu.org/archive/html/bug-hurd/2006-01/msg00148.html>.
+# We need the GNU-style inline
+AM_CFLAGS += \
+	-fgnu89-inline
+
+# Much of the Mach code predates C99 and makes invalid assumptions about
+# type punning.
 AM_CFLAGS += \
 	-fno-strict-aliasing
 
@@ -69,6 +77,10 @@ if disable_smashing_stack_protector
 AM_CFLAGS += \
 	-fno-stack-protector
 endif
+
+# We do not support or need position-independent
+AM_CFLAGS += \
+	-no-pie -fno-pic
 
 #
 # Silent build support.
@@ -151,17 +163,17 @@ include doc/Makefrag.am
 # program `gnumach.o' that is then later used again as an object file.)
 gnumach_o_SOURCES =
 # TODO.  ``-u _start''.  System dependent?
-gnumach_o_LINK = $(LD) -u _start -r -o $@
+gnumach_o_LINK = $(LD) $(LDFLAGS) -u _start -r -o $@
 noinst_PROGRAMS += \
 	gnumach.o
 
 # This is the list of routines we decide is OK to steal from the C library.
-clib_routines := memcmp memcpy memmove				\
-		 strchr strstr strsep strtok			\
-		 htonl htons ntohl ntohs			\
-		 udivdi3 __udivdi3				\
+clib_routines := htonl htons ntohl ntohs			\
+		 udivdi3 __udivdi3 __udivmoddi4 __umoddi3	\
+		 __divdi3 __moddi3				\
 		 __rel_iplt_start __rel_iplt_end		\
 		 __rela_iplt_start __rela_iplt_end		\
+		 __ffsdi2 ffs					\
 		 _START _start etext _edata end _end # actually ld magic, not libc.
 gnumach-undef: gnumach.$(OBJEXT)
 	$(NM_V) $(NM) -u $< | sed 's/  *U  *//' | sort -u > $@
@@ -172,13 +184,13 @@ MOSTLYCLEANFILES += gnumach-undef-bad
 clib-routines.o: gnumach-undef gnumach-undef-bad
 	$(AM_V_at) if test -s gnumach-undef-bad; \
 	then cat gnumach-undef-bad; exit 2; else true; fi
-	$(AM_V_CCLD) $(CCLD) -nostdlib -nostartfiles -r -static \
+	$(AM_V_CCLD) $(CCLD) $(LDFLAGS) -nostdlib -nostartfiles -r -static \
 	  -o $@ `sed 's/^/-Wl,-u,/' < $<` -x c /dev/null -lc -lgcc
-	$(AM_V_at) if nm $@ | grep __init_cpu_features; \
-	then echo Please install a 32bit libc without multiarch support. ; \
+	@if nm $@ | grep __init_cpu_features; \
+	then echo "Please install a 32bit libc without multiarch support (on Debian systems, the libc6-dev:i386 package containing /usr/lib/i386-linux-gnu/libc.a)". ; \
 	false ; fi
 
-gnumach_LINK = $(LD) $(LINKFLAGS) $(gnumach_LINKFLAGS) -o $@
+gnumach_LINK = $(LD) $(LDFLAGS) $(LINKFLAGS) $(gnumach_LINKFLAGS) -o $@
 gnumach_LDADD = gnumach.o clib-routines.o
 
 #
@@ -195,7 +207,8 @@ exec_boot_PROGRAMS = \
 #
 
 EXTRA_DIST += \
-	config.status.dep.patch
+	config.status.dep.patch \
+	Makefile.in.dep.patch
 
 EXTRA_DIST += \
 	DEVELOPMENT

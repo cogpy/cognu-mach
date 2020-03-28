@@ -325,7 +325,7 @@
 #endif /* CONFIG_BLK_DEV_PROMISE */
 
 static const byte	ide_hwif_to_major[MAX_HWIFS] = {IDE0_MAJOR, IDE1_MAJOR, IDE2_MAJOR, IDE3_MAJOR};
-static const unsigned short default_io_base[MAX_HWIFS] = {0x1f0, 0x170, 0x1e8, 0x168};
+static unsigned short default_io_base[MAX_HWIFS] = {0x1f0, 0x170, 0x1e8, 0x168};
 static const byte	default_irqs[MAX_HWIFS]     = {14, 15, 11, 10};
 static int	idebus_parameter; /* holds the "idebus=" parameter */
 static int	system_bus_speed; /* holds what we think is VESA/PCI bus speed */
@@ -367,6 +367,15 @@ static void set_recovery_timer (ide_hwif_t *hwif)
 
 #endif /* DISK_RECOVERY_TIME */
 
+/* Called by other drivers to disable the legacy IDE driver on a given IDE base.  */
+void ide_disable_base(unsigned base)
+{
+	unsigned i;
+	for (i = 0; i < MAX_HWIFS; i++)
+		if (default_io_base[i] == base)
+			default_io_base[i] = 0;
+}
+
 
 /*
  * Do not even *think* about calling this!
@@ -386,6 +395,7 @@ static void init_hwif_data (unsigned int index)
 	/* fill in any non-zero initial values */
 	hwif->index     = index;
 	hwif->io_base	= default_io_base[index];
+	hwif->irq	= default_irqs[index];
 	hwif->ctl_port	= hwif->io_base ? hwif->io_base+0x206 : 0x000;
 #ifdef CONFIG_BLK_DEV_HD
 	if (hwif->io_base == HD_DATA)
@@ -2693,6 +2703,8 @@ static int try_to_identify (ide_drive_t *drive, byte cmd)
 	int irq_off;
 
 	if (!HWIF(drive)->irq) {		/* already got an IRQ? */
+		printk("%s: Not probing legacy IRQs)\n", drive->name);
+		return 2;
 		probe_irq_off(probe_irq_on());	/* clear dangling irqs */
 		irqs_on = probe_irq_on();	/* start monitoring irqs */
 		OUT_BYTE(drive->ctl,IDE_CONTROL_REG);	/* enable device irq */

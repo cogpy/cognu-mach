@@ -42,9 +42,6 @@
 #include <kern/slab.h>
 #include <vm/vm_kern.h>
 
-ipc_table_size_t ipc_table_entries;
-const unsigned int ipc_table_entries_size = 512;
-
 ipc_table_size_t ipc_table_dnrequests;
 const unsigned int ipc_table_dnrequests_size = 64;
 
@@ -92,20 +89,6 @@ ipc_table_fill(
 void
 ipc_table_init(void)
 {
-	ipc_table_entries = (ipc_table_size_t)
-		kalloc(sizeof(struct ipc_table_size) *
-		       ipc_table_entries_size);
-	assert(ipc_table_entries != ITS_NULL);
-
-	ipc_table_fill(ipc_table_entries, ipc_table_entries_size - 1,
-		       4, sizeof(struct ipc_entry));
-
-	/* the last two elements should have the same size */
-
-	ipc_table_entries[ipc_table_entries_size - 1].its_size =
-		ipc_table_entries[ipc_table_entries_size - 2].its_size;
-
-
 	ipc_table_dnrequests = (ipc_table_size_t)
 		kalloc(sizeof(struct ipc_table_size) *
 		       ipc_table_dnrequests_size);
@@ -131,42 +114,7 @@ vm_offset_t
 ipc_table_alloc(
 	vm_size_t	size)
 {
-	vm_offset_t table;
-
-	if (size < PAGE_SIZE)
-		table = kalloc(size);
-	else
-		if (kmem_alloc(kmem_map, &table, size) != KERN_SUCCESS)
-			table = 0;
-
-	return table;
-}
-
-/*
- *	Routine:	ipc_table_realloc
- *	Purpose:
- *		Reallocate a big table.
- *
- *		The new table remaps the old table,
- *		so copying is not necessary.
- *	Conditions:
- *		Only works for page-size or bigger tables.
- *		May block.
- */
-
-vm_offset_t
-ipc_table_realloc(
-	vm_size_t	old_size,
-	vm_offset_t	old_table,
-	vm_size_t	new_size)
-{
-	vm_offset_t new_table;
-
-	if (kmem_realloc(kmem_map, old_table, old_size,
-			 &new_table, new_size) != KERN_SUCCESS)
-		new_table = 0;
-
-	return new_table;
+	return kalloc(size);
 }
 
 /*
@@ -183,8 +131,5 @@ ipc_table_free(
 	vm_size_t	size,
 	vm_offset_t	table)
 {
-	if (size < PAGE_SIZE)
-		kfree(table, size);
-	else
-		kmem_free(kmem_map, table, size);
+	kfree(table, size);
 }

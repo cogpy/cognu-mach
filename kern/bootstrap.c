@@ -107,10 +107,24 @@ task_insert_send_right(
 	return name;
 }
 
+static void
+free_bootstrap_pages(phys_addr_t start, phys_addr_t end)
+{
+  struct vm_page *page;
+
+  while (start < end)
+    {
+      page = vm_page_lookup_pa(start);
+      assert(page != NULL);
+      vm_page_manage(page);
+      start += PAGE_SIZE;
+    }
+}
+
 void bootstrap_create(void)
 {
   int compat;
-  int n = 0;
+  unsigned n = 0;
 #ifdef	MACH_XEN
 #ifdef __x86_64__ // 32_ON_64 actually
   struct multiboot32_module *bmods32 = (struct multiboot32_module *)
@@ -168,7 +182,8 @@ void bootstrap_create(void)
     }
   else
     {
-      int i, losers;
+      unsigned i;
+      int losers;
 
       /* Initialize boot script variables.  We leak these send rights.  */
       losers = boot_script_set_variable
@@ -182,6 +197,12 @@ void bootstrap_create(void)
 	 (long) master_device_port);
       if (losers)
 	panic ("cannot set boot-script variable device-port: %s",
+	       boot_script_error_string (losers));
+      losers = boot_script_set_variable
+	("kernel-task", VAL_PORT,
+	 (long) kernel_task->itk_self);
+      if (losers)
+	panic ("cannot set boot-script variable kernel-task: %s",
 	       boot_script_error_string (losers));
 
       losers = boot_script_set_variable ("kernel-command-line", VAL_STR,
@@ -283,7 +304,7 @@ void bootstrap_create(void)
   /* XXX we could free the memory used
      by the boot loader's descriptors and such.  */
   for (n = 0; n < boot_info.mods_count; n++)
-    vm_page_create(bmods[n].mod_start, bmods[n].mod_end);
+    free_bootstrap_pages(bmods[n].mod_start, bmods[n].mod_end);
 }
 
 static void
@@ -490,7 +511,7 @@ read_exec(void *handle, vm_offset_t file_ofs, vm_size_t file_size,
 
 static void copy_bootstrap(void *e, exec_info_t *boot_exec_info)
 {
-	//register vm_map_t	user_map = current_task()->map;
+	/* vm_map_t	user_map = current_task()->map; */
 	int err;
 
 	if ((err = exec_load(boot_read, read_exec, e, boot_exec_info)))
@@ -737,13 +758,14 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
       thread_t thread;
       struct user_bootstrap_info info = { mod, argv, 0, };
       simple_lock_init (&info.lock);
-      simple_lock (&info.lock);
 
       err = thread_create ((task_t)task, &thread);
       assert(err == 0);
+      simple_lock (&info.lock);
       thread->saved.other = &info;
       thread_start (thread, user_bootstrap);
-      thread_resume (thread);
+      err = thread_resume (thread);
+      assert(err == 0);
 
       /* We need to synchronize with the new thread and block this
 	 main thread until it has finished referring to our local state.  */
@@ -752,6 +774,8 @@ boot_script_exec_cmd (void *hook, task_t task, char *path, int argc,
 	  thread_sleep ((event_t) &info, simple_lock_addr(info.lock), FALSE);
 	  simple_lock (&info.lock);
 	}
+      simple_unlock (&info.lock);
+      thread_deallocate (thread);
       printf ("\n");
     }
 
@@ -786,6 +810,7 @@ static void user_bootstrap(void)
   simple_lock (&info->lock);
   assert (!info->done);
   info->done = 1;
+  simple_unlock (&info->lock);
   thread_wakeup ((event_t) info);
 
   /*
@@ -812,7 +837,7 @@ boot_script_free (void *ptr, unsigned int size)
 int
 boot_script_task_create (struct cmd *cmd)
 {
-  kern_return_t rc = task_create(TASK_NULL, FALSE, &cmd->task);
+  kern_return_t rc = task_create_kernel(TASK_NULL, FALSE, &cmd->task);
   if (rc)
     {
       printf("boot_script_task_create failed with %x\n", rc);
@@ -838,10 +863,18 @@ boot_script_task_resume (struct cmd *cmd)
 int
 boot_script_prompt_task_resume (struct cmd *cmd)
 {
+#if ! MACH_KDB
   char xx[5];
+#endif
 
-  printf ("Hit return to resume %s...", cmd->path);
+  printf ("Pausing for %s...\n", cmd->path);
+
+#if ! MACH_KDB
+  printf ("Hit <return> to resume bootstrap.");
   safe_gets (xx, sizeof xx);
+#else
+  SoftDebugger("Hit `c<return>' to resume bootstrap.");
+#endif
 
   return boot_script_task_resume (cmd);
 }
@@ -851,6 +884,7 @@ boot_script_free_task (task_t task, int aborting)
 {
   if (aborting)
     task_terminate (task);
+  task_deallocate (task);
 }
 
 int

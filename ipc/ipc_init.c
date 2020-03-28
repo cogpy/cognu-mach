@@ -47,7 +47,6 @@
 #include <ipc/ipc_marequest.h>
 #include <ipc/ipc_notify.h>
 #include <ipc/ipc_kmsg.h>
-#include <ipc/ipc_hash.h>
 #include <ipc/ipc_init.h>
 
 
@@ -74,16 +73,16 @@ ipc_bootstrap(void)
 	ipc_port_timestamp_data = 0;
 
 	kmem_cache_init(&ipc_space_cache, "ipc_space",
-			sizeof(struct ipc_space), 0, NULL, NULL, NULL, 0);
+			sizeof(struct ipc_space), 0, NULL, 0);
 
-	kmem_cache_init(&ipc_tree_entry_cache, "ipc_tree_entry",
-			sizeof(struct ipc_tree_entry), 0, NULL, NULL, NULL, 0);
+	kmem_cache_init(&ipc_entry_cache, "ipc_entry",
+			sizeof(struct ipc_entry), 0, NULL, 0);
 
 	kmem_cache_init(&ipc_object_caches[IOT_PORT], "ipc_port",
-			sizeof(struct ipc_port), 0, NULL, NULL, NULL, 0);
+			sizeof(struct ipc_port), 0, NULL, 0);
 
 	kmem_cache_init(&ipc_object_caches[IOT_PORT_SET], "ipc_pset",
-			sizeof(struct ipc_pset), 0, NULL, NULL, NULL, 0);
+			sizeof(struct ipc_pset), 0, NULL, 0);
 
 	/* create special spaces */
 
@@ -97,7 +96,6 @@ ipc_bootstrap(void)
 
 	ipc_table_init();
 	ipc_notify_init();
-	ipc_hash_init();
 	ipc_marequest_init();
 }
 
@@ -113,7 +111,7 @@ ipc_init(void)
 	vm_offset_t min, max;
 
 	kmem_submap(ipc_kernel_map, kernel_map, &min, &max,
-		    ipc_kernel_map_size, TRUE);
+		    ipc_kernel_map_size);
 
 	ipc_host_init();
 }

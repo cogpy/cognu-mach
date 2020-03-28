@@ -64,11 +64,7 @@
  *	i386/i486 Page Table Entry
  */
 
-#if PAE
-typedef unsigned long long	pt_entry_t;
-#else	/* PAE */
-typedef unsigned int	pt_entry_t;
-#endif	/* PAE */
+typedef phys_addr_t pt_entry_t;
 #define PT_ENTRY_NULL	((pt_entry_t *) 0)
 
 #endif	/* __ASSEMBLER__ */
@@ -109,11 +105,14 @@ typedef unsigned int	pt_entry_t;
 /*
  *	Convert linear offset to page descriptor index
  */
-#if PAE
-/* Making it include the page directory pointer table index too */
-#define lin2pdenum(a)	(((a) >> PDESHIFT) & 0x7ff)
-#else
 #define lin2pdenum(a)	(((a) >> PDESHIFT) & PDEMASK)
+
+#if PAE
+/* Special version assuming contiguous page directories.  Making it
+   include the page directory pointer table index too.  */
+#define lin2pdenum_cont(a)	(((a) >> PDESHIFT) & 0x7ff)
+#else
+#define lin2pdenum_cont(a)	lin2pdenum(a)
 #endif
 
 /*
@@ -179,16 +178,17 @@ typedef	volatile long	cpu_set;	/* set of CPUs - must be <= 32 */
 					/* changed by other processors */
 
 struct pmap {
+#if ! PAE
 	pt_entry_t	*dirbase;	/* page directory table */
-#if PAE
+#else
 	pt_entry_t	*pdpbase;	/* page directory pointer table */
-#endif	/* PAE */
+#endif	/* ! PAE */
 #ifdef __x86_64__
 	pt_entry_t	*l4base;	/* l4 table */
 #ifdef MACH_HYP
 	pt_entry_t	*user_l4base;	/* Userland l4 table */
 	pt_entry_t	*user_pdpbase;	/* Userland l4 table */
-#endif
+#endif	/* MACH_HYP */
 #endif	/* x86_64 */
 	int		ref_count;	/* reference count */
 	decl_simple_lock_data(,lock)
@@ -484,25 +484,19 @@ extern void pmap_unmap_page_zero (void);
 /*
  *  pmap_zero_page zeros the specified (machine independent) page.
  */
-extern void pmap_zero_page (vm_offset_t);
+extern void pmap_zero_page (phys_addr_t);
 
 /*
  *  pmap_copy_page copies the specified (machine independent) pages.
  */
-extern void pmap_copy_page (vm_offset_t, vm_offset_t);
+extern void pmap_copy_page (phys_addr_t, phys_addr_t);
 
 /*
  *  kvtophys(addr)
  *
  *  Convert a kernel virtual address to a physical address
  */
-extern vm_offset_t kvtophys (vm_offset_t);
-
-void pmap_remove_range(
-	pmap_t			pmap,
-	vm_offset_t		va,
-	pt_entry_t		*spte,
-	pt_entry_t		*epte);
+extern phys_addr_t kvtophys (vm_offset_t);
 
 #if NCPUS > 1
 void signal_cpus(

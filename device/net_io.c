@@ -353,7 +353,7 @@ decl_simple_lock_data(,net_hash_header_lock)
 
 /* entry_p must be net_rcv_port_t or net_hash_entry_t */
 #define ENQUEUE_DEAD(dead, entry_p, chain) {			\
-	queue_next(&(entry_p)->chain) = (queue_entry_t) (dead);	\
+	(entry_p)->chain.next = (queue_entry_t) (dead);		\
 	(dead) = (queue_entry_t)(entry_p);			\
 }
 
@@ -1374,7 +1374,7 @@ net_getstat(
 	struct ifnet	*ifp,
 	dev_flavor_t	flavor,
 	dev_status_t	status,		/* pointer to OUT array */
-	natural_t	*count)		/* OUT */
+	mach_msg_type_number_t	*count)		/* OUT */
 {
 	switch (flavor) {
 	    case NET_STATUS:
@@ -1495,11 +1495,11 @@ net_io_init(void)
 
 	size = sizeof(struct net_rcv_port);
 	kmem_cache_init(&net_rcv_cache, "net_rcv_port", size, 0,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
 
  	size = sizeof(struct net_hash_entry);
 	kmem_cache_init(&net_hash_entry_cache, "net_hash_entry", size, 0,
-			NULL, NULL, NULL, 0);
+			NULL, 0);
 
 	size = ikm_plus_overhead(sizeof(struct net_rcv_msg));
 	net_kmsg_size = round_page(size);

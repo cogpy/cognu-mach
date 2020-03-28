@@ -401,7 +401,8 @@ retry:
 			goto retry;
 		}
 
-		printf_once("no more room for kmem_alloc in %p\n", map);
+		printf_once("no more room for kmem_alloc in %p (%s)\n",
+			    map, map->name);
 		vm_object_deallocate(object);
 		return kr;
 	}
@@ -431,113 +432,13 @@ retry:
 }
 
 /*
- *	kmem_realloc:
- *
- *	Reallocate wired-down memory in the kernel's address map
- *	or a submap.  Newly allocated pages are not zeroed.
- *	This can only be used on regions allocated with kmem_alloc.
- *
- *	If successful, the pages in the old region are mapped twice.
- *	The old region is unchanged.  Use kmem_free to get rid of it.
- */
-kern_return_t kmem_realloc(
-	vm_map_t 	map,
-	vm_offset_t 	oldaddr,
-	vm_size_t 	oldsize,
-	vm_offset_t 	*newaddrp,
-	vm_size_t 	newsize)
-{
-	vm_offset_t oldmin, oldmax;
-	vm_offset_t newaddr;
-	vm_object_t object;
-	vm_map_entry_t oldentry, newentry;
-	unsigned int attempts;
-	kern_return_t kr;
-
-	oldmin = trunc_page(oldaddr);
-	oldmax = round_page(oldaddr + oldsize);
-	oldsize = oldmax - oldmin;
-	newsize = round_page(newsize);
-
-	/*
-	 *	Find space for the new region.
-	 */
-
-	attempts = 0;
-
-retry:
-	vm_map_lock(map);
-	kr = vm_map_find_entry(map, &newaddr, newsize, (vm_offset_t) 0,
-			       VM_OBJECT_NULL, &newentry);
-	if (kr != KERN_SUCCESS) {
-		vm_map_unlock(map);
-
-		if (attempts == 0) {
-			attempts++;
-			slab_collect();
-			goto retry;
-		}
-
-		printf_once("no more room for kmem_realloc in %p\n", map);
-		return kr;
-	}
-
-	/*
-	 *	Find the VM object backing the old region.
-	 */
-
-	if (!vm_map_lookup_entry(map, oldmin, &oldentry))
-		panic("kmem_realloc");
-	object = oldentry->object.vm_object;
-
-	/*
-	 *	Increase the size of the object and
-	 *	fill in the new region.
-	 */
-
-	vm_object_reference(object);
-	vm_object_lock(object);
-	if (object->size != oldsize)
-		panic("kmem_realloc");
-	object->size = newsize;
-	vm_object_unlock(object);
-
-	newentry->object.vm_object = object;
-	newentry->offset = 0;
-
-	/*
-	 *	Since we have not given out this address yet,
-	 *	it is safe to unlock the map.  We are trusting
-	 *	that nobody will play with either region.
-	 */
-
-	vm_map_unlock(map);
-
-	/*
-	 *	Remap the pages in the old region and
-	 *	allocate more pages for the new region.
-	 */
-
-	kmem_remap_pages(object, 0,
-			 newaddr, newaddr + oldsize,
-			 VM_PROT_DEFAULT);
-	kmem_alloc_pages(object, oldsize,
-			 newaddr + oldsize, newaddr + newsize,
-			 VM_PROT_DEFAULT);
-
-	*newaddrp = newaddr;
-	return KERN_SUCCESS;
-}
-
-/*
  *	kmem_alloc_wired:
  *
  *	Allocate wired-down memory in the kernel's address map
  *	or a submap.  The memory is not zero-filled.
  *
  *	The memory is allocated in the kernel_object.
- *	It may not be copied with vm_map_copy, and
- *	it may not be reallocated with kmem_realloc.
+ *	It may not be copied with vm_map_copy.
  */
 
 kern_return_t
@@ -575,7 +476,8 @@ retry:
 			goto retry;
 		}
 
-		printf_once("no more room for kmem_alloc_wired in %p\n", map);
+		printf_once("no more room for kmem_alloc_wired in %p (%s)\n",
+			    map, map->name);
 		return kr;
 	}
 
@@ -661,7 +563,8 @@ retry:
 			goto retry;
 		}
 
-		printf_once("no more rooom for kmem_alloc_aligned in %p\n", map);
+		printf_once("no more room for kmem_alloc_aligned in %p (%s)\n",
+			    map, map->name);
 		return kr;
 	}
 
@@ -723,7 +626,8 @@ kmem_alloc_pageable(
 			  VM_OBJECT_NULL, (vm_offset_t) 0, FALSE,
 			  VM_PROT_DEFAULT, VM_PROT_ALL, VM_INHERIT_DEFAULT);
 	if (kr != KERN_SUCCESS) {
-		printf_once("no more room for kmem_alloc_pageable in %p\n", map);
+		printf_once("no more room for kmem_alloc_pageable in %p (%s)\n",
+			    map, map->name);
 		return kr;
 	}
 
@@ -878,8 +782,7 @@ kmem_submap(
 	vm_map_t 	parent,
 	vm_offset_t 	*min, 
 	vm_offset_t 	*max,
-	vm_size_t 	size,
-	boolean_t 	pageable)
+	vm_size_t 	size)
 {
 	vm_offset_t addr;
 	kern_return_t kr;
@@ -902,7 +805,7 @@ kmem_submap(
 		panic("kmem_submap");
 
 	pmap_reference(vm_map_pmap(parent));
-	vm_map_setup(map, vm_map_pmap(parent), addr, addr + size, pageable);
+	vm_map_setup(map, vm_map_pmap(parent), addr, addr + size);
 	kr = vm_map_submap(parent, addr, addr + size, map);
 	if (kr != KERN_SUCCESS)
 		panic("kmem_submap");
@@ -921,13 +824,11 @@ void kmem_init(
 	vm_offset_t	start,
 	vm_offset_t	end)
 {
-	vm_map_setup(kernel_map, pmap_kernel(), VM_MIN_KERNEL_ADDRESS, end,
-		     FALSE);
+	vm_map_setup(kernel_map, pmap_kernel(), VM_MIN_KERNEL_ADDRESS, end);
 
 	/*
 	 *	Reserve virtual memory allocated up to this time.
 	 */
-
 	if (start != VM_MIN_KERNEL_ADDRESS) {
 		kern_return_t rc;
 		vm_offset_t addr = VM_MIN_KERNEL_ADDRESS;
@@ -938,7 +839,7 @@ void kmem_init(
 				  VM_PROT_DEFAULT, VM_PROT_ALL,
 				  VM_INHERIT_DEFAULT);
 		if (rc)
-			panic("%s:%d: vm_map_enter failed (%d)\n", rc);
+			panic("vm_map_enter failed (%d)\n", rc);
 	}
 }
 

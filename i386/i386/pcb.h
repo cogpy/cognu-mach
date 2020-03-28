@@ -30,8 +30,9 @@
 #include <mach/exec/exec.h>
 #include <mach/thread_status.h>
 #include <machine/thread.h>
+#include <machine/io_perm.h>
 
-extern void pcb_init (thread_t thread);
+extern void pcb_init (task_t parent_task, thread_t thread);
 
 extern void pcb_terminate (thread_t thread);
 

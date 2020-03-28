@@ -70,7 +70,7 @@ struct bus_ctlr *dev;
 	int	unit = dev->unit;
 	int ret;
 
-	if ((unit < 0) || (unit > NLPR)) {
+	if ((unit < 0) || (unit >= NLPR)) {
 		printf("com %d out of range\n", unit);
 		return(0);
 	}
@@ -105,22 +105,24 @@ void lprattach(struct bus_device *dev)
 }
 
 int
-lpropen(dev, flag, ior)
-dev_t dev;
-int flag;
-io_req_t ior;
+lpropen(dev_t dev, int flag, io_req_t ior)
 {
-int unit = minor(dev);
-struct bus_device *isai;
-struct tty *tp;
-u_short addr;
-  
-	if (unit >= NLPR || (isai = lprinfo[unit]) == 0 || isai->alive == 0)
-		return (D_NO_SUCH_DEVICE);
+	int unit = minor(dev);
+	struct bus_device *isai;
+	struct tty *tp;
+	u_short addr;
+
+	if (unit >= NLPR)
+		return D_NO_SUCH_DEVICE;
+
+	isai = lprinfo[unit];
+	if (isai == NULL || !isai->alive)
+		return D_NO_SUCH_DEVICE;
+
 	tp = &lpr_tty[unit];
 	addr = (u_short) isai->address;
 	tp->t_dev = dev;
-	tp->t_addr = *(caddr_t *)&addr;
+	tp->t_addr = (void*) (natural_t) addr;
 	tp->t_oproc = lprstart;
 	tp->t_state |= TS_WOPEN;
 	tp->t_stop = lprstop;
@@ -176,9 +178,9 @@ mach_port_t	port;
 io_return_t
 lprgetstat(dev, flavor, data, count)
 dev_t		dev;
-int		flavor;
-int		*data;		/* pointer to OUT array */
-natural_t	*count;		/* out */
+dev_flavor_t	flavor;
+dev_status_t	data;		/* pointer to OUT array */
+mach_msg_type_number_t	*count;		/* out */
 {
 	io_return_t	result = D_SUCCESS;
 	int		unit = minor(dev);
@@ -194,9 +196,9 @@ natural_t	*count;		/* out */
 io_return_t
 lprsetstat(
 	dev_t		dev,
-	int		flavor,
-	int *		data,
-	natural_t	count)
+	dev_flavor_t	flavor,
+	dev_status_t	data,
+	mach_msg_type_number_t	count)
 {
 	io_return_t	result = D_SUCCESS;
 	int 		unit = minor(dev);
@@ -230,7 +232,7 @@ void lprstart(struct tty *tp)
 	spl_t s = spltty();
 	u_short addr = (natural_t) tp->t_addr;
 	int status = inb(STATUS(addr));
-	char nch;
+	int nch;
 
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP|TS_BUSY)) {
 		splx(s);
@@ -251,6 +253,10 @@ void lprstart(struct tty *tp)
 		return;
 	}
 	nch = getc(&tp->t_outq);
+	if (nch == -1) {
+		splx(s);
+		return;
+	}
 	if ((tp->t_flags & LITOUT) == 0 && (nch & 0200)) {
 		timeout((timer_func_t *)ttrstrt, (char *)tp, (nch & 0x7f) + 6);
 		tp->t_state |= TS_TIMEOUT;

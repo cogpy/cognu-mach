@@ -29,20 +29,20 @@
 
 /*	assert.h	4.2	85/01/21	*/
 
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 
 #ifndef NDEBUG
 #define MACH_ASSERT 1
 #endif
 
 #if	MACH_ASSERT
-extern void Assert(const char *exp, const char *filename, int line) __attribute__ ((noreturn));
+extern void Assert(const char *exp, const char *filename, int line,
+		   const char *fun) __attribute__ ((noreturn));
 
 #define assert(ex)							\
-MACRO_BEGIN								\
-	if (!(ex))							\
-		Assert(#ex, __FILE__, __LINE__);			\
-MACRO_END
+	((ex)								\
+	 ? (void) (0)							\
+	 : Assert (#ex, __FILE__, __LINE__, __FUNCTION__))
 
 #define	assert_static(x)	assert(x)
 

@@ -44,7 +44,7 @@
 #include <kern/lock.h>
 #include <kern/mach_clock.h>
 #include <kern/mach_factor.h>
-#include <kern/macro_help.h>
+#include <kern/macros.h>
 #include <kern/processor.h>
 #include <kern/queue.h>
 #include <kern/sched.h>
@@ -63,10 +63,6 @@
 int		min_quantum;	/* defines max context switch rate */
 
 unsigned	sched_tick;
-
-#if	SIMPLE_CLOCK
-int		sched_usec;
-#endif	/* SIMPLE_CLOCK */
 
 thread_t	sched_thread_id;
 
@@ -153,15 +149,12 @@ void sched_init(void)
 	recompute_priorities_timer.fcn = recompute_priorities;
 	recompute_priorities_timer.param = NULL;
 
-	min_quantum = hz / 10;		/* context switch 10 times/second */
+	min_quantum = MIN_QUANTUM;
 	wait_queue_init();
 	pset_sys_bootstrap();		/* initialize processor mgmt. */
 	queue_init(&action_queue);
 	simple_lock_init(&action_lock);
 	sched_tick = 0;
-#if	SIMPLE_CLOCK
-	sched_usec = 0;
-#endif	/* SIMPLE_CLOCK */
 	ast_init();
 }
 
@@ -231,7 +224,7 @@ void assert_wait(
 
 	thread = current_thread();
 	if (thread->wait_event != 0) {
-		panic("assert_wait: already asserted event %#x\n",
+		panic("assert_wait: already asserted event %p\n",
 		      thread->wait_event);
 	}
  	s = splsched();
@@ -357,12 +350,17 @@ void clear_wait(
 	splx(s);
 }
 
-static inline void __attribute__((noreturn))
-state_panic(const thread_t thread, const char *caller)
-{
-  panic ("%s: thread %x has unexpected state %x",
-	 caller, thread, thread->state);
-}
+#define state_panic(thread)						\
+  panic ("thread %p has unexpected state %x (%s%s%s%s%s%s%s%s)",	\
+	 thread, thread->state,						\
+	 thread->state & TH_WAIT ? "TH_WAIT|" : "",			\
+	 thread->state & TH_SUSP ? "TH_SUSP|" : "",			\
+	 thread->state & TH_RUN ? "TH_RUN|" : "",			\
+	 thread->state & TH_UNINT ? "TH_UNINT|" : "",			\
+	 thread->state & TH_HALTED ? "TH_HALTED|" : "",			\
+	 thread->state & TH_IDLE ? "TH_IDLE|" : "",			\
+	 thread->state & TH_SWAPPED ? "TH_SWAPPED|" : "",		\
+	 thread->state & TH_SW_COMING_IN ? "TH_SW_COMING_IN|" : "")
 
 /*
  *	thread_wakeup_prim:
@@ -371,13 +369,14 @@ state_panic(const thread_t thread, const char *caller)
  *	and thread_wakeup_one.
  *
  */
-void thread_wakeup_prim(
+boolean_t thread_wakeup_prim(
 	event_t		event,
 	boolean_t	one_thread,
 	int		result)
 {
 	queue_t			q;
 	int			index;
+	boolean_t woke = FALSE;
 	thread_t		thread, next_th;
 	decl_simple_lock_data( , *lock);
 	spl_t			s;
@@ -426,10 +425,11 @@ void thread_wakeup_prim(
 				break;
 
 			    default:
-				state_panic(thread, "thread_wakeup");
+				state_panic(thread);
 				break;
 			}
 			thread_unlock(thread);
+			woke = TRUE;
 			if (one_thread)
 				break;
 		}
@@ -437,6 +437,7 @@ void thread_wakeup_prim(
 	}
 	simple_unlock(lock);
 	splx(s);
+	return (woke);
 }
 
 /*
@@ -446,6 +447,9 @@ void thread_wakeup_prim(
  *	occurs.  The specified lock is unlocked before releasing
  *	the cpu.  (This is a convenient way to sleep without manually
  *	calling assert_wait).
+ *
+ *	Note: if the event may be woken from an interrupt handler, this must be
+ *	called at an spl level that prevents such interrupts.
  */
 void thread_sleep(
 	event_t		event,
@@ -454,7 +458,7 @@ void thread_sleep(
 {
 	assert_wait(event, interruptible);	/* assert event */
 	simple_unlock(lock);			/* release the lock */
-	thread_block((void (*)()) 0);		/* block ourselves */
+	thread_block(thread_no_continuation);	/* block ourselves */
 }
 
 /*
@@ -615,9 +619,9 @@ boolean_t thread_invoke(
 	    thread_lock(new_thread);
 	    new_thread->state &= ~TH_UNINT;
 	    thread_unlock(new_thread);
-	    thread_wakeup(&new_thread->state);
+	    thread_wakeup(TH_EV_STATE(new_thread));
 
-	    if (continuation != (void (*)()) 0) {
+	    if (continuation != thread_no_continuation) {
 		(void) spl0();
 		call_continuation(continuation);
 		/*NOTREACHED*/
@@ -630,14 +634,14 @@ boolean_t thread_invoke(
 	 */
 	thread_lock(new_thread);
 	if ((old_thread->stack_privilege != current_stack()) &&
-	    (continuation != (void (*)()) 0))
+	    (continuation != thread_no_continuation))
 	{
 	    switch (new_thread->state & TH_SWAP_STATE) {
 		case TH_SWAPPED:
 
 		    new_thread->state &= ~(TH_SWAPPED | TH_UNINT);
 		    thread_unlock(new_thread);
-		    thread_wakeup(&new_thread->state);
+		    thread_wakeup(TH_EV_STATE(new_thread));
 
 #if	NCPUS > 1
 		    new_thread->last_processor = current_processor();
@@ -676,7 +680,7 @@ boolean_t thread_invoke(
 			    if (old_thread->wake_active) {
 				old_thread->wake_active = FALSE;
 				thread_unlock(old_thread);
-				thread_wakeup((event_t)&old_thread->wake_active);
+				thread_wakeup(TH_EV_WAKE_ACTIVE(old_thread));
 
 				goto after_old_thread;
 			    }
@@ -713,7 +717,7 @@ boolean_t thread_invoke(
 			    break;
 
 			default:
-			    state_panic(old_thread, "thread_invoke");
+			    state_panic(old_thread);
 		    }
 		    thread_unlock(old_thread);
 		after_old_thread:
@@ -767,7 +771,7 @@ boolean_t thread_invoke(
 
 	new_thread->state &= ~(TH_SWAPPED | TH_UNINT);
 	thread_unlock(new_thread);
-	thread_wakeup(&new_thread->state);
+	thread_wakeup(TH_EV_STATE(new_thread));
 
 	/*
 	 *	Thread is now interruptible.
@@ -915,7 +919,7 @@ void thread_dispatch(
 
 	thread_lock(thread);
 
-	if (thread->swap_func != (void (*)()) 0) {
+	if (thread->swap_func != thread_no_continuation) {
 		assert((thread->state & TH_SWAP_STATE) == 0);
 		thread->state |= TH_SWAPPED;
 		stack_free(thread);
@@ -932,7 +936,7 @@ void thread_dispatch(
 		if (thread->wake_active) {
 		    thread->wake_active = FALSE;
 		    thread_unlock(thread);
-		    thread_wakeup((event_t)&thread->wake_active);
+		    thread_wakeup(TH_EV_WAKE_ACTIVE(thread));
 		    return;
 		}
 		break;
@@ -963,7 +967,7 @@ void thread_dispatch(
 		break;
 
 	    default:
-		state_panic(thread, "thread_dispatch");
+		state_panic(thread);
 	}
 	thread_unlock(thread);
 }
@@ -1078,21 +1082,8 @@ void compute_my_priority(
  */
 void recompute_priorities(void *param)
 {
-#if	SIMPLE_CLOCK
-	int	new_usec;
-#endif	/* SIMPLE_CLOCK */
-
 	sched_tick++;		/* age usage one more time */
 	set_timeout(&recompute_priorities_timer, hz);
-#if	SIMPLE_CLOCK
-	/*
-	 *	Compensate for clock drift.  sched_usec is an
-	 *	exponential average of the number of microseconds in
-	 *	a second.  It decays in the same fashion as cpu_usage.
-	 */
-	new_usec = sched_usec_elapsed();
-	sched_usec = (5*sched_usec + 3*new_usec)/8;
-#endif	/* SIMPLE_CLOCK */
 	/*
 	 *	Wakeup scheduler thread.
 	 */
@@ -1339,17 +1330,12 @@ void thread_setrun(
 
 	    /*
 	     *	Cause ast on processor if processor is on line.
-	     *
-	     *	XXX Don't do this remotely to master because this will
-	     *	XXX send an interprocessor interrupt, and that's too
-	     *  XXX expensive for all the unparallelized U*x code.
 	     */
 	    if (processor == current_processor()) {
 		ast_on(cpu_number(), AST_BLOCK);
 	    }
-	    else if ((processor != master_processor) &&
-	    	     (processor->state != PROCESSOR_OFF_LINE)) {
-			cause_ast_check(processor);
+	    else if ((processor->state != PROCESSOR_OFF_LINE)) {
+		cause_ast_check(processor);
 	    }
 	}
 #else	/* NCPUS > 1 */

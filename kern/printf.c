@@ -126,11 +126,11 @@
 #define isdigit(d) ((d) >= '0' && (d) <= '9')
 #define Ctod(c) ((c) - '0')
 
-#define MAXBUF (sizeof(long int) * 8)		 /* enough for binary */
+#define MAXBUF (sizeof(long long int) * 8)	 /* enough for binary */
 
 
 void printnum(
-	unsigned long		u,
+	unsigned long long	u,
 	int			base,
 	void			(*putc)( char, vm_offset_t ),
 	vm_offset_t		putc_arg)
@@ -151,21 +151,6 @@ void printnum(
 
 boolean_t	_doprnt_truncates = FALSE;
 
-/* printf could be called at _any_ point during system initialization,
-   including before printf_init() gets called from the "normal" place
-   in kern/startup.c.  */
-boolean_t	_doprnt_lock_initialized = FALSE;
-decl_simple_lock_data(,_doprnt_lock)
-
-void printf_init(void)
-{
-	if (!_doprnt_lock_initialized)
-	{
-		_doprnt_lock_initialized = TRUE;
-		simple_lock_init(&_doprnt_lock);
-	}
-}
-
 void _doprnt(
 	const char 	*fmt,
 	va_list		argp,
@@ -178,29 +163,14 @@ void _doprnt(
 	int		prec;
 	boolean_t	ladjust;
 	char		padc;
-	long		n;
-	unsigned long	u;
+	long long	n;
+	unsigned long long	u;
+	int		have_long_long;
 	int		plus_sign;
 	int		sign_char;
 	boolean_t	altfmt, truncate;
 	int		base;
 	char		c;
-
-	printf_init();
-
-#if 0
-	/* Make sure that we get *some* printout, no matter what */
-	simple_lock(&_doprnt_lock);
-#else
-	{
-		int i = 0;
-		while (i < 1*1024*1024) {
-			if (simple_lock_try(&_doprnt_lock))
-				break;
-			i++;
-		}
-	}
-#endif
 
 	while ((c = *fmt) != '\0') {
 	    if (c != '%') {
@@ -218,6 +188,7 @@ void _doprnt(
 	    plus_sign = 0;
 	    sign_char = 0;
 	    altfmt = FALSE;
+	    have_long_long = FALSE;
 
 	    while (TRUE) {
 		c = *fmt;
@@ -276,6 +247,10 @@ void _doprnt(
 
 	    if (c == 'l')
 		c = *++fmt;	/* need it if sizeof(int) < sizeof(long) */
+	    if (c == 'l') {
+		c = *++fmt;	/* handle `long long' */
+		have_long_long = TRUE;
+	    }
 
 	    truncate = FALSE;
 
@@ -287,7 +262,10 @@ void _doprnt(
 		    boolean_t	any;
 		    int  	i;
 
-		    u = va_arg(argp, unsigned long);
+		    if (! have_long_long)
+		      u = va_arg(argp, unsigned long);
+		    else
+		      u = va_arg(argp, unsigned long long);
 		    p = va_arg(argp, char *);
 		    base = *p++;
 		    printnum(u, base, putc, putc_arg);
@@ -431,7 +409,10 @@ void _doprnt(
 		    goto print_unsigned;
 
 		print_signed:
-		    n = va_arg(argp, long);
+		    if (! have_long_long)
+		      n = va_arg(argp, long);
+		    else
+		      n = va_arg(argp, long long);
 		    if (n >= 0) {
 			u = n;
 			sign_char = plus_sign;
@@ -443,7 +424,10 @@ void _doprnt(
 		    goto print_num;
 
 		print_unsigned:
-		    u = va_arg(argp, unsigned long);
+		    if (! have_long_long)
+		      u = va_arg(argp, unsigned long);
+		    else
+		      u = va_arg(argp, unsigned long long);
 		    goto print_num;
 
 		print_num:
@@ -507,8 +491,6 @@ void _doprnt(
 	    }
 	fmt++;
 	}
-
-	simple_unlock(&_doprnt_lock);
 }
 
 /*

@@ -116,8 +116,8 @@ static void hypcnintr(int unit, spl_t spl, void *ret_addr, void *regs) {
 		mb();
 		console->in_cons++;
 #if	MACH_KDB
-		if (c == (char)'£') {
-			printf("£ pressed\n");
+		if (c == (char)0xA3) {
+			printf("pound pressed\n");
 			kdb_kintr();
 			continue;
 		}
@@ -129,14 +129,14 @@ static void hypcnintr(int unit, spl_t spl, void *ret_addr, void *regs) {
 	simple_unlock(&inlock);
 }
 
-int hypcnread(int dev, io_req_t ior)
+int hypcnread(dev_t dev, io_req_t ior)
 {
 	struct tty *tp = &hypcn_tty;
 	tp->t_state |= TS_CARR_ON;
 	return char_read(tp, ior);
 }
 
-int hypcnwrite(int dev, io_req_t ior)
+int hypcnwrite(dev_t dev, io_req_t ior)
 {
 	return char_write(&hypcn_tty, ior);
 }
@@ -169,12 +169,12 @@ void hypcnstop()
 {
 }
 
-io_return_t hypcngetstat(dev_t dev, int flavor, int *data, unsigned int *count)
+io_return_t hypcngetstat(dev_t dev, dev_flavor_t flavor, dev_status_t data, mach_msg_type_number_t *count)
 {
 	return tty_get_status(&hypcn_tty, flavor, data, count);
 }
 
-io_return_t hypcnsetstat(dev_t dev, int flavor, int *data, unsigned int count)
+io_return_t hypcnsetstat(dev_t dev, dev_flavor_t flavor, dev_status_t data, mach_msg_type_number_t count)
 {
 	return tty_set_status(&hypcn_tty, flavor, data, count);
 }
@@ -207,7 +207,7 @@ int hypcnopen(dev_t dev, int flag, io_req_t ior)
 	return (char_open(dev, tp, flag, ior));
 }
 
-int hypcnclose(int dev, int flag)
+void hypcnclose(dev_t dev, int flag)
 {
 	struct tty	*tp = &hypcn_tty;
 	spl_t s = spltty();
@@ -215,7 +215,6 @@ int hypcnclose(int dev, int flag)
 	ttyclose(tp);
 	simple_unlock(&tp->t_lock);
 	splx(s);
-	return 0;
 }
 
 int hypcnprobe(struct consdev *cp)
