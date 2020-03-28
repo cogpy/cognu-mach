@@ -939,6 +939,7 @@ kdb_from_iret_i:			/* on interrupt stack */
 	popa				/* restore general registers */
 	addq	$16,%rsp
 
+// TODO: test it before dropping ud2
 movq (%rsp),%rax
 ud2
 	iretq
@@ -950,6 +951,7 @@ ud2
  * Same code as that above for the keyboard entry into kdb.
  */
 ENTRY(kttd_intr)
+// TODO: test it before dropping ud2
 ud2
 	movq	%rbp,%rax		/* save caller`s frame pointer */
 	movq	$EXT(return_to_iret),%rcx	/* interrupt return address 1 */
@@ -1027,6 +1029,7 @@ ttd_from_iret_i:			/* on interrupt stack */
 	popa				/* restore general registers */
 	addq	$16,%rsp
 
+// TODO: test it before dropping ud2
 movq (%rsp),%rax
 ud2
 	iretq
@@ -1053,6 +1056,7 @@ syscall_entry_2:
 	pushq	%rax			/* save system call number */
 	pushq	$0			/* clear trap number slot */
 
+// TODO: test it before dropping ud2
 	ud2
 
 	pusha				/* save the general registers */
@@ -1237,6 +1241,7 @@ syscall_emul:
 	movq	%rdi,R_UESP(%rbx)	/* set new user stack pointer */
 	movq	%rdx,R_EIP(%rbx)	/* change return address to trap */
 	movq	%rbx,%rsp		/* back to PCB stack */
+// TODO: test it before dropping ud2
 ud2
 	jmp	_return_from_trap	/* return to user */
 
@@ -1341,6 +1346,9 @@ ENTRY(copyinmsg)
 
 	jmp	copyin_remainder
 
+bogus:
+	ud2
+
 ENTRY(copyout)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
@@ -1365,9 +1373,6 @@ copyout_ret:
 copyout_fail:
 	movq	$1,%rax			/* return 1 for failure */
 	jmp	copyout_ret		/* pop frame and return */
-
-bogus:
-	ud2
 
 /*
  * Copy to user address space.
