@@ -267,7 +267,7 @@ EXTRA_DIST += \
 
 if PLATFORM_xen
 libkernel_a_SOURCES += \
-	x86_64/xen.c \
+	i386/i386/xen.c \
 	i386/i386/xen.h
 
 gnumach_LINKFLAGS += \
