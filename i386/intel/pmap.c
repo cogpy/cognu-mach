@@ -1305,7 +1305,7 @@ pmap_t pmap_create(vm_size_t size)
 	{
 		int i;
 		for (i = 0; i < lin2pdpnum(VM_MAX_ADDRESS); i++)
-			WRITE_PTE(&p->user_pdpbase[i], pa_to_pte(kvtophys((vm_offset_t) p->dirbase + i * INTEL_PGBYTES)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
+			WRITE_PTE(&p->user_pdpbase[i], pa_to_pte(kvtophys((vm_offset_t) page_dir[i])) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
 	}
 	if (kmem_alloc_wired(kernel_map,
 			     (vm_offset_t *)&p->user_l4base, INTEL_PGBYTES)
