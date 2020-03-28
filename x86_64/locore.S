@@ -741,7 +741,7 @@ LEXT(return_to_iret)			/* ( label for kdb_kintr and hardclock) */
 	iretq				/* return to caller */
 
 int_from_intstack:
-	cmpq	$EXT(_intstack),%rsp	/* seemingly looping? */
+	cmpq	EXT(int_stack_base),%rsp	/* seemingly looping? */
 	jb	stack_overflowed	/* if not: */
 	call	EXT(interrupt)		/* call interrupt routine */
 _return_to_iret_i:			/* ( label for kdb_kintr) */
