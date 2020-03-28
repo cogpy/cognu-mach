@@ -40,7 +40,7 @@ ENTRY(idt_inittab)
 /*
  * Interrupt descriptor table and code vectors for it.
  */
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_DESCRIPTORS
 #define	IDT_ENTRY(n,entry,type) \
 	.data	2		;\
 	.byte	n		;\
@@ -49,15 +49,15 @@ ENTRY(idt_inittab)
 	.long	0	/*pad*/	;\
 	.quad	entry		;\
 	.text
-#else	/* MACH_XEN */
-/* TODO */
+#else	/* MACH_PV_DESCRIPTORS */
+#error TODO
 #define	IDT_ENTRY(n,entry,type) \
 	.data	2		;\
 	.long	entry		;\
 	.word	n		;\
 	.word	type		;\
 	.text
-#endif	/* MACH_XEN */
+#endif	/* MACH_PV_DESCRIPTORS */
 
 /*
  * No error code.  Clear error code and push trap number.
@@ -114,7 +114,7 @@ EXCEP_SPC(0x0b,t_segnp)
 EXCEP_ERR(0x0c,t_stack_fault)
 EXCEP_SPC(0x0d,t_gen_prot)
 EXCEP_SPC(0x0e,t_page_fault)
-#ifdef MACH_XEN
+#ifdef MACH_PV_DESCRIPTORS
 EXCEP_ERR(0x0f,t_trap_0f)
 #else
 EXCEPTION(0x0f,t_trap_0f)
@@ -139,8 +139,8 @@ EXCEPTION(0x1f,t_trap_1f)
 /* Terminator */
 	.data	2
 	.long	0
-#ifdef	MACH_XEN
+#ifdef	MACH_PV_DESCRIPTORS
 	.long	0
 	.quad	0
-#endif	/* MACH_XEN */
+#endif	/* MACH_PV_DESCRIPTORS */
 
