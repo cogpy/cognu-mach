@@ -1281,8 +1281,8 @@ pmap_t pmap_create(vm_size_t size)
 		kmem_cache_free(&pmap_cache, (vm_address_t) p);
 		return PMAP_NULL;
 	}
-	memset(p->pdpbase, 0, INTEL_PGBYTES);
 
+	memset(p->pdpbase, 0, INTEL_PGBYTES);
 	{
 		for (i = 0; i < PDPNUM; i++)
 			WRITE_PTE(&p->pdpbase[i],
@@ -1290,6 +1290,7 @@ pmap_t pmap_create(vm_size_t size)
 				  | INTEL_PTE_VALID | INTEL_PTE_WRITE);
 	}
 #ifdef __x86_64__
+	// FIXME: use kmem_cache_alloc instead
 	if (kmem_alloc_wired(kernel_map,
 			     (vm_offset_t *)&p->l4base, INTEL_PGBYTES)
 							!= KERN_SUCCESS)
@@ -1297,6 +1298,7 @@ pmap_t pmap_create(vm_size_t size)
 	memset(p->l4base, 0, INTEL_PGBYTES);
 	WRITE_PTE(&p->l4base[0], pa_to_pte(kvtophys((vm_offset_t) p->pdpbase)) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
 #ifdef	MACH_PV_PAGETABLES
+	// FIXME: use kmem_cache_alloc instead
 	if (kmem_alloc_wired(kernel_map,
 			     (vm_offset_t *)&p->user_pdpbase, INTEL_PGBYTES)
 							!= KERN_SUCCESS)
@@ -1307,6 +1309,7 @@ pmap_t pmap_create(vm_size_t size)
 		for (i = 0; i < lin2pdpnum(VM_MAX_ADDRESS); i++)
 			WRITE_PTE(&p->user_pdpbase[i], pa_to_pte(kvtophys((vm_offset_t) page_dir[i])) | INTEL_PTE_VALID | INTEL_PTE_WRITE);
 	}
+	// FIXME: use kmem_cache_alloc instead
 	if (kmem_alloc_wired(kernel_map,
 			     (vm_offset_t *)&p->user_l4base, INTEL_PGBYTES)
 							!= KERN_SUCCESS)
