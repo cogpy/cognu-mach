@@ -215,7 +215,6 @@ strchr(
 	return (char *)s;
 }
 
-
 /*
  * Abstract:
  *	strsep extracts tokens from strings. If "*sp" is NULL, return NULL
