@@ -60,13 +60,6 @@ libkernel_a_SOURCES += \
 	i386/i386at/rtc.h
 endif
 
-if PLATFORM_xen
-libkernel_a_SOURCES += \
-	x86_64/xen_locore.S \
-	x86_64/xen_boothdr.S
-endif
-
-
 #
 # `lpr' device support.
 #
@@ -149,7 +142,6 @@ libkernel_a_SOURCES += \
 	i386/i386/user_ldt.c \
 	i386/i386/user_ldt.h \
 	i386/i386/vm_param.h \
-	i386/i386/vm_tuning.h \
 	i386/i386/xpr.h \
 	i386/intel/pmap.c \
 	i386/intel/pmap.h \
@@ -222,10 +214,10 @@ AM_CPPFLAGS += \
 AM_CFLAGS += \
 	-mno-red-zone \
 	-mcmodel=kernel \
-	-mno-sse \
+	-mno-3dnow \
 	-mno-mmx \
-	-mno-sse2 \
-	-mno-3dnow
+	-mno-sse \
+	-mno-sse2
 
 #
 # Installation.
@@ -267,7 +259,9 @@ EXTRA_DIST += \
 
 if PLATFORM_xen
 libkernel_a_SOURCES += \
-	i386/i386/xen.c \
+	x86_64/xen_locore.S \
+	x86_64/xen_boothdr.S \
+	i386/xen/xen.c \
 	i386/i386/xen.h
 
 gnumach_LINKFLAGS += \
