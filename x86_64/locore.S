@@ -1310,7 +1310,7 @@ copyin_fail:
  * Copy from user address space - version for copying messages.
  * arg0:	user address
  * arg1:	kernel address
- * arg2:	byte count - must be a multiple of eight
+ * arg2:	byte count
  */
 ENTRY(copyinmsg)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
