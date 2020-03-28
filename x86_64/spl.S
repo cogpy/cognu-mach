@@ -19,43 +19,19 @@
 
 #include <mach/machine/asm.h>
 #include <i386/i386/ipl.h>
-#include <i386/i386/pic.h>
 #include <i386/i386/i386asm.h>
 #include <i386/i386/xen.h>
 
-/*
- * Set IPL to the specified value.
- *
- * NOTE: Normally we would not have to enable interrupts
- * here.  Linux drivers, however, use cli()/sti(), so we must
- * guard against the case where a Mach routine which
- * has done an spl() calls a Linux routine that returns
- * with interrupts disabled.  A subsequent splx() can,
- * potentially, return with interrupts disabled.
- */
-#define SETIPL(level)			\
-	movl	$(level),%edx;		\
-	cmpl	EXT(curr_ipl),%edx;	\
-	jne	spl;			\
-	sti;				\
-	movl	%edx,%eax;		\
-	ret
+#if NCPUS > 1
+#define mb lock; addl $0,(%esp)
+#else
+#define mb
+#endif
 
 /*
- * Program PICs with mask in %eax.
+ * Program XEN evt masks from %eax.
  */
-#ifndef	MACH_XEN
-#define SETMASK()				\
-	cmpl	EXT(curr_pic_mask),%eax;	\
-	je	9f;				\
-	outb	%al,$(PIC_MASTER_OCW);		\
-	movl	%eax,EXT(curr_pic_mask);	\
-	movb	%ah,%al;			\
-	outb	%al,$(PIC_SLAVE_OCW);		\
-9:
-#else	/* MACH_XEN */
-#define pic_mask int_mask
-#define SETMASK()				\
+#define XEN_SETMASK()				\
 	pushq	%rbx;				\
 	movl	%eax,%ebx;			\
 	xchgl	%eax,hyp_shared_info+EVTMASK;	\
@@ -67,9 +43,9 @@
 lock	orl	$1,hyp_shared_info+CPU_PENDING_SEL; /* Yes, activate it */ \
 	movb	$1,hyp_shared_info+CPU_PENDING; \
 9:
-#endif	/* MACH_XEN */
 
 ENTRY(spl0)
+	mb;
 	movl	EXT(curr_ipl),%eax	/* save current ipl */
 	pushq	%rax
 	cli				/* disable interrupts */
@@ -101,54 +77,75 @@ ENTRY(spl0)
 	cmpl	$(SPL0),EXT(curr_ipl)	/* are we at spl0? */
 	je	1f			/* yes, all done */
 	movl	$(SPL0),EXT(curr_ipl)	/* set ipl */
-	movl	EXT(pic_mask)+SPL0*4,%eax
-					/* get PIC mask */
-	SETMASK()			/* program PICs with new mask */
+#ifdef MACH_XEN
+	movl	EXT(int_mask)+SPL0*4,%eax
+					/* get xen mask */
+	XEN_SETMASK()			/* program xen evts */
+#endif
 1:
 	sti				/* enable interrupts */
 	popq	%rax			/* return previous mask */
 	ret
 
+
+/*
+ * Historically, SETIPL(level) was called
+ * for spl levels 1-6, now we have combined
+ * all the intermediate levels into the highest level
+ * such that interrupts are either on or off,
+ * since modern hardware can handle it.
+ * This simplifies the interrupt handling
+ * especially for the linux drivers.
+ */
 Entry(splsoftclock)
 ENTRY(spl1)
-	SETIPL(SPL1)
-
 ENTRY(spl2)
-	SETIPL(SPL2)
-
 ENTRY(spl3)
-	SETIPL(SPL3)
-
 Entry(splnet)
 Entry(splhdw)
 ENTRY(spl4)
-	SETIPL(SPL4)
-
 Entry(splbio)
 Entry(spldcm)
 ENTRY(spl5)
-	SETIPL(SPL5)
-
 Entry(spltty)
 Entry(splimp)
 Entry(splvm)
 ENTRY(spl6)
-	SETIPL(SPL6)
-
 Entry(splclock)
 Entry(splsched)
 Entry(splhigh)
 Entry(splhi)
 ENTRY(spl7)
-	SETIPL(SPL7)
+	mb;
+	/* just clear IF */
+	cli
+	movl    $SPL7,%eax
+	xchgl   EXT(curr_ipl),%eax
+	ret
 
 ENTRY(splx)
 	movq	S_ARG0,%rdx		/* get ipl */
+
+#if (MACH_KDB || MACH_TTD) && !defined(MACH_XEN)
+	/* First make sure that if we're exitting from ipl7, IF is still cleared */
+	cmpl	$SPL7,EXT(curr_ipl)	/* from ipl7? */
+	jne	0f
+	pushfl
+	popl	%eax
+	testl	$0x200,%eax		/* IF? */
+	jz	0f
+	int3				/* Oops, interrupts got enabled?! */
+
+0:
+#endif	/* (MACH_KDB || MACH_TTD) && !MACH_XEN */
 	testl	%edx,%edx		/* spl0? */
 	jz	EXT(spl0)		/* yes, handle specially */
 	cmpl	EXT(curr_ipl),%edx	/* same ipl as current? */
 	jne	spl			/* no */
+	cmpl	$SPL7,%edx		/* spl7? */
+	je	1f			/* to ipl7, don't enable interrupts */
 	sti				/* ensure interrupts are enabled */
+1:
 	movl	%edx,%eax		/* return previous ipl */
 	ret
 
@@ -194,9 +191,11 @@ splx_cli:
 	cmpl	EXT(curr_ipl),%edx	/* same ipl as current? */
 	je	1f			/* yes, all done */
 	movl	%edx,EXT(curr_ipl)	/* set ipl */
-	movl	EXT(pic_mask)(,%edx,4),%eax
-					/* get PIC mask */
-	SETMASK()			/* program PICs with new mask */
+#ifdef MACH_XEN
+	movl	EXT(int_mask)(,%edx,4),%eax
+					/* get int mask */
+	XEN_SETMASK()			/* program xen evts with new mask */
+#endif
 1:
 	ret
 
@@ -207,11 +206,29 @@ splx_cli:
 	.align	TEXT_ALIGN
 	.globl	spl
 spl:
-	movl	EXT(pic_mask)(,%edx,4),%eax
-					/* get PIC mask */
+#if (MACH_KDB || MACH_TTD) && !defined(MACH_XEN)
+	/* First make sure that if we're exitting from ipl7, IF is still cleared */
+	cmpl	$SPL7,EXT(curr_ipl)	/* from ipl7? */
+	jne	0f
+	pushfl
+	popl	%eax
+	testl	$0x200,%eax		/* IF? */
+	jz	0f
+	int3				/* Oops, interrupts got enabled?! */
+
+0:
+#endif	/* (MACH_KDB || MACH_TTD) && !MACH_XEN */
+	cmpl	$SPL7,%edx		/* spl7? */
+	je	EXT(spl7)		/* yes, handle specially */
+#ifdef MACH_XEN
+	movl	EXT(int_mask)(,%edx,4),%eax
+					/* get int mask */
+#endif
 	cli				/* disable interrupts */
 	xchgl	EXT(curr_ipl),%edx	/* set ipl */
-	SETMASK()			/* program PICs with new mask */
+#ifdef MACH_XEN
+	XEN_SETMASK()			/* program PICs with new mask */
+#endif
 	sti				/* enable interrupts */
 	movl	%edx,%eax		/* return previous ipl */
 	ret
