@@ -1277,13 +1277,37 @@ ENTRY(discover_x86_cpu_type)
  * Utility routines.
  */
 
+ENTRY(copyin)
+	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
+
+copyin_remainder:
+	/*cld*/				/* count up: default mode in all GCC code */
+	movq	%rdx,%rcx		/* move by longwords first */
+	shrq	$3,%rcx
+	RECOVER(copyin_fail)
+	rep
+	movsq				/* move longwords */
+	movq	%rdx,%rcx		/* now move remaining bytes */
+	andq	$7,%rcx
+	RECOVER(copyin_fail)
+	rep
+	movsb
+	xorq	%rax,%rax		/* return 0 for success */
+
+copyin_ret:
+	ret				/* and return */
+
+copyin_fail:
+	movq	$1,%rax			/* return 1 for failure */
+	jmp	copyin_ret		/* pop frame and return */
+
 /*
- * Copy from user address space.
+ * Copy from user address space - version for copying messages.
  * arg0:	user address
  * arg1:	kernel address
- * arg2:	byte count
+ * arg2:	byte count - must be a multiple of eight
  */
-Entry(copyinmsg)
+ENTRY(copyinmsg)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
 /* 32 on 64 conversion */
@@ -1317,29 +1341,33 @@ Entry(copyinmsg)
 
 	jmp	copyin_remainder
 
-ENTRY(copyin)
+ENTRY(copyout)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
-copyin_remainder:
-	/*cld*/				/* count up: default mode in all GCC code */
-	movq	%rdx,%rcx		/* move by longwords first */
+copyout_remainder:
+	movq	%rdx,%rax		/* use count */
+	/*cld*/				/* count up: always this way in GCC code */
+	movq	%rax,%rcx		/* move by longwords first */
 	shrq	$3,%rcx
-	RECOVER(copyin_fail)
+	RECOVER(copyout_fail)
 	rep
-	movsq				/* move longwords */
-	movq	%rdx,%rcx		/* now move remaining bytes */
+	movsq
+	movq	%rax,%rcx		/* now move remaining bytes */
 	andq	$7,%rcx
-	RECOVER(copyin_fail)
+	RECOVER(copyout_fail)
 	rep
-	movsb
+	movsb				/* move */
 	xorq	%rax,%rax		/* return 0 for success */
 
-copyin_ret:
+copyout_ret:
 	ret				/* and return */
 
-copyin_fail:
+copyout_fail:
 	movq	$1,%rax			/* return 1 for failure */
-	jmp	copyin_ret		/* pop frame and return */
+	jmp	copyout_ret		/* pop frame and return */
+
+bogus:
+	ud2
 
 /*
  * Copy to user address space.
@@ -1347,7 +1375,7 @@ copyin_fail:
  * arg1:	user address
  * arg2:	byte count
  */
-Entry(copyoutmsg)
+ENTRY(copyoutmsg)
 	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
 
 /* 32 on 64 conversion */
@@ -1379,34 +1407,6 @@ Entry(copyoutmsg)
 	movsq
 
 	jmp	copyin_remainder
-
-ENTRY(copyout)
-	xchgq   %rsi,%rdi		/* Get user source and kernel destination */
-
-copyout_remainder:
-	movq	%rdx,%rax		/* use count */
-	/*cld*/				/* count up: always this way in GCC code */
-	movq	%rax,%rcx		/* move by longwords first */
-	shrq	$3,%rcx
-	RECOVER(copyout_fail)
-	rep
-	movsq
-	movq	%rax,%rcx		/* now move remaining bytes */
-	andq	$7,%rcx
-	RECOVER(copyout_fail)
-	rep
-	movsb				/* move */
-	xorq	%rax,%rax		/* return 0 for success */
-
-copyout_ret:
-	ret				/* and return */
-
-copyout_fail:
-	movq	$1,%rax			/* return 1 for failure */
-	jmp	copyout_ret		/* pop frame and return */
-
-bogus:
-	ud2
 
 /*
  * int inst_fetch(int eip, int cs);
