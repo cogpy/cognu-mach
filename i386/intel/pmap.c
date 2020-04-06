@@ -649,7 +649,11 @@ void pmap_bootstrap(void)
 			WRITE_PTE(&kernel_pmap->pdpbase[i],
 				  pa_to_pte(_kvtophys((void *) kernel_page_dir
 						      + i * INTEL_PGBYTES))
-				  | INTEL_PTE_VALID | INTEL_PTE_WRITE);
+				  | INTEL_PTE_VALID
+#ifdef	MACH_PV_PAGETABLES
+				  | INTEL_PTE_WRITE
+#endif
+				  );
 	}
 #ifdef __x86_64__
 #ifdef MACH_HYP
@@ -689,10 +693,10 @@ void pmap_bootstrap(void)
 #endif
 	pt_entry_t *l1_map[NSUP_L1];
 	{
-		pt_entry_t *base = (pt_entry_t*) boot_info.pt_base;
 		vm_offset_t la;
 		int n_l1map;
 		for (n_l1map = 0, la = VM_MIN_KERNEL_ADDRESS; la >= VM_MIN_KERNEL_ADDRESS; la += NPTES * PAGE_SIZE) {
+			pt_entry_t *base = (pt_entry_t*) boot_info.pt_base;
 #ifdef	PAE
 #ifdef __x86_64__
 			base = (pt_entry_t*) ptetokv(base[0]);
@@ -1289,7 +1293,11 @@ pmap_t pmap_create(vm_size_t size)
 		for (i = 0; i < PDPNUM; i++)
 			WRITE_PTE(&p->pdpbase[i],
 				  pa_to_pte(kvtophys((vm_offset_t) page_dir[i]))
-				  | INTEL_PTE_VALID | INTEL_PTE_WRITE);
+				  | INTEL_PTE_VALID
+#ifdef	MACH_PV_PAGETABLES
+				  | INTEL_PTE_WRITE
+#endif
+				  );
 	}
 #ifdef __x86_64__
 	// FIXME: use kmem_cache_alloc instead
@@ -1388,6 +1396,9 @@ void pmap_destroy(pmap_t p)
 	    page_dir = p->dirbase;
 #endif
 
+#ifdef __x86_64__
+#warning FIXME 64bit need to free l3
+#endif
 	    /*
 	     *	Free the memory maps, then the
 	     *	pmap structure.

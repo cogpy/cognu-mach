@@ -73,7 +73,10 @@
    with that.
    */
 #define VM_MIN_ADDRESS		(0)
-//#define VM_MAX_ADDRESS		(0xc0000000UL)
+#ifdef __x86_64__
 #define VM_MAX_ADDRESS		(0x40000000UL)
+#else
+#define VM_MAX_ADDRESS		(0xc0000000UL)
+#endif
 
 #endif	/* _MACH_I386_VM_PARAM_H_ */
