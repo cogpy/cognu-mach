@@ -151,7 +151,7 @@ cnputc(c)
 	kmsg_putchar (c);
 #endif
 	
-#if defined(MACH_HYP) && 0
+#if defined(MACH_HYP) && 1
 	{
 		/* Also output on hypervisor's emergency console, for
 		 * debugging */
