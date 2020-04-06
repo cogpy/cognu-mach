@@ -101,6 +101,7 @@ mach_msg_send(
 	mach_msg_return_t mr;
 
 	mr = ipc_kmsg_get(msg, send_size, &kmsg);
+	printf("ID %d\n", kmsg->ikm_header.msgh_id);
 	if (mr != MACH_MSG_SUCCESS)
 		return mr;
 
@@ -462,7 +463,10 @@ mach_msg_trap(
 		    (send_size < sizeof(mach_msg_header_t)) ||
 		    (send_size & 3) ||
 		    ((kmsg = ikm_cache()) == IKM_NULL))
+		{
+			printf("slow ");
 			goto slow_get;
+		}
 
 		ikm_cache() = IKM_NULL;
 		ikm_check_initialized(kmsg, IKM_SAVED_KMSG_SIZE);
@@ -470,9 +474,11 @@ mach_msg_trap(
 		if (copyinmsg(msg, &kmsg->ikm_header,
 			      send_size)) {
 			ikm_free(kmsg);
+			printf(" slow2");
 			goto slow_get;
 		}
 
+	printf("ID %d\n", kmsg->ikm_header.msgh_id);
 		kmsg->ikm_header.msgh_size = send_size;
 
 	    fast_copyin:
@@ -1217,10 +1223,13 @@ mach_msg_trap(
 
 		mr = ipc_kmsg_get(msg, send_size, &temp_kmsg);
 		if (mr != MACH_MSG_SUCCESS) {
+			printf("can't get\n");
+			assert(0);
 			thread_syscall_return(mr);
 			/*NOTREACHED*/
 		}
 		kmsg = temp_kmsg;
+	printf("ID %d\n", kmsg->ikm_header.msgh_id);
 
 		/* try to get back on optimized path */
 		goto fast_copyin;
@@ -1508,6 +1517,7 @@ mach_msg_trap(
 			ikm_free(kmsg);
 			return mr;
 		}
+	printf("ID %d\n", kmsg->ikm_header.msgh_id);
 
 		mr = ipc_mqueue_send(kmsg, MACH_MSG_OPTION_NONE,
 				     MACH_MSG_TIMEOUT_NONE);
@@ -1562,6 +1572,7 @@ mach_msg_trap(
 			(void) ipc_kmsg_put(msg, kmsg, sizeof *msg);
 			return MACH_RCV_TOO_LARGE;
 		}
+	printf("ID %d\n", kmsg->ikm_header.msgh_id);
 
 		mr = ipc_kmsg_copyout(kmsg, space, map, MACH_PORT_NULL);
 		if (mr != MACH_MSG_SUCCESS) {
@@ -1584,6 +1595,7 @@ mach_msg_trap(
 		 *	with this path.
 		 */
 
+	printf("none\n");
 		thread_syscall_return(MACH_MSG_SUCCESS);
 		/*NOTREACHED*/
 	}
@@ -1596,6 +1608,7 @@ mach_msg_trap(
 	}
 
 	if (option & MACH_RCV_MSG) {
+		printf("generic receive\n");
 		mr = mach_msg_receive(msg, option, rcv_size, rcv_name,
 				      time_out, notify);
 		if (mr != MACH_MSG_SUCCESS)
