@@ -139,6 +139,8 @@ kern_return_t evc_wait(natural_t ev_id)
 	kern_return_t	ret;
 	evc_t		ev;
 
+	printf("%s\n", __func__);
+
 	if ((ev_id >= MAX_EVCS) ||
 	    ((ev = all_eventcounters[ev_id]) == 0) ||
 	    (ev->ev_id != ev_id) || (ev->sanity != ev))
@@ -184,6 +186,8 @@ kern_return_t evc_wait_clear(natural_t ev_id)
 {
 	spl_t		s;
 	evc_t		ev;
+
+	printf("%s\n", __func__);
 
 	if ((ev_id >= MAX_EVCS) ||
 	    ((ev = all_eventcounters[ev_id]) == 0) ||

@@ -517,6 +517,8 @@ mach_task_self(void)
 	task_t task = current_task();
 	ipc_port_t sright;
 
+	printf("%s\n", __func__);
+
 	sright = retrieve_task_self_fast(task);
 	return ipc_port_copyout_send(sright, task->itk_space);
 }
@@ -539,6 +541,8 @@ mach_thread_self(void)
 	task_t task = thread->task;
 	ipc_port_t sright;
 
+	printf("%s\n", __func__);
+
 	sright = retrieve_thread_self_fast(thread);
 	return ipc_port_copyout_send(sright, task->itk_space);
 }
@@ -560,6 +564,8 @@ mach_reply_port(void)
 	ipc_port_t port;
 	mach_port_t name;
 	kern_return_t kr;
+
+	printf("%s\n", __func__);
 
 	kr = ipc_port_alloc(current_task()->itk_space, &name, &port);
 	if (kr == KERN_SUCCESS)

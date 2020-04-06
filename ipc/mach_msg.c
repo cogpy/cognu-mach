@@ -397,6 +397,8 @@ mach_msg_trap(
 	  panic("oops");
 	printf("ID %d, %d %d %x\n", khdr.msgh_id, khdr.msgh_size, khdr.msgh_seqno, khdr.msgh_bits);
 
+	printf("%s %x @%p ", __func__, option, msg);
+
 	/* first check for common cases */
 
 	if (option == (MACH_SEND_MSG|MACH_RCV_MSG)) {

@@ -636,6 +636,8 @@ syscall_vm_map(
 	vm_offset_t		addr;
 	kern_return_t		result;
 
+	printf("%s\n", __func__);
+
 	map = port_name_to_map(target_map);
 	if (map == VM_MAP_NULL)
 		return MACH_SEND_INTERRUPTED;
@@ -674,6 +676,8 @@ kern_return_t syscall_vm_allocate(
 	vm_offset_t		addr;
 	kern_return_t		result;
 
+	printf("%s\n", __func__);
+
 	map = port_name_to_map(target_map);
 	if (map == VM_MAP_NULL)
 		return MACH_SEND_INTERRUPTED;
@@ -695,6 +699,8 @@ kern_return_t syscall_vm_deallocate(
 	vm_map_t		map;
 	kern_return_t		result;
 
+	printf("%s\n", __func__);
+
 	map = port_name_to_map(target_map);
 	if (map == VM_MAP_NULL)
 		return MACH_SEND_INTERRUPTED;
@@ -714,6 +720,8 @@ kern_return_t syscall_task_create(
 	ipc_port_t	port;
 	mach_port_t 	name;
 	kern_return_t	result;
+
+	printf("%s\n", __func__);
 
 	t = port_name_to_task(parent_task);
 	if (t == TASK_NULL)
@@ -739,6 +747,8 @@ kern_return_t syscall_task_terminate(mach_port_t task)
 	task_t		t;
 	kern_return_t	result;
 
+	printf("%s\n", __func__);
+
 	t = port_name_to_task(task);
 	if (t == TASK_NULL)
 		return MACH_SEND_INTERRUPTED;
@@ -753,6 +763,8 @@ kern_return_t syscall_task_suspend(mach_port_t task)
 {
 	task_t		t;
 	kern_return_t	result;
+
+	printf("%s\n", __func__);
 
 	t = port_name_to_task(task);
 	if (t == TASK_NULL)
@@ -772,6 +784,8 @@ kern_return_t syscall_task_set_special_port(
 	task_t		t;
 	ipc_port_t	port;
 	kern_return_t	result;
+
+	printf("%s\n", __func__);
 
 	t = port_name_to_task(task);
 	if (t == TASK_NULL)
@@ -806,6 +820,8 @@ syscall_mach_port_allocate(
 	mach_port_t name;
 	kern_return_t kr;
 
+	printf("%s\n", __func__);
+
 	space = port_name_to_space(task);
 	if (space == IS_NULL)
 		return MACH_SEND_INTERRUPTED;
@@ -827,6 +843,8 @@ syscall_mach_port_allocate_name(
 	ipc_space_t space;
 	kern_return_t kr;
 
+	printf("%s\n", __func__);
+
 	space = port_name_to_space(task);
 	if (space == IS_NULL)
 		return MACH_SEND_INTERRUPTED;
@@ -844,6 +862,8 @@ syscall_mach_port_deallocate(
 {
 	ipc_space_t space;
 	kern_return_t kr;
+
+	printf("%s\n", __func__);
 
 	space = port_name_to_space(task);
 	if (space == IS_NULL)
@@ -866,6 +886,8 @@ syscall_mach_port_insert_right(
 	ipc_object_t object;
 	mach_msg_type_name_t newtype;
 	kern_return_t kr;
+
+	printf("%s\n", __func__);
 
 	space = port_name_to_space(task);
 	if (space == IS_NULL)
@@ -900,6 +922,8 @@ kern_return_t syscall_thread_depress_abort(mach_port_t thread)
 	thread_t	t;
 	kern_return_t	result;
 
+	printf("%s\n", __func__);
+
 	t = port_name_to_thread(thread);
 	if (t == THREAD_NULL)
 		return MACH_SEND_INTERRUPTED;
@@ -924,6 +948,8 @@ syscall_device_write_request(mach_port_t	device_name,
 	device_t	dev;
 	/*ipc_port_t	reply_port;*/
 	io_return_t	res;
+
+	printf("%s\n", __func__);
 
 	/*
 	 * First try to translate the device name.
@@ -975,6 +1001,8 @@ syscall_device_writev_request(mach_port_t	device_name,
 	device_t	dev;
 	/*ipc_port_t	reply_port;*/
 	io_return_t	res;
+
+	printf("%s\n", __func__);
 
 	/*
 	 * First try to translate the device name.

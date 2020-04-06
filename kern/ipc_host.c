@@ -99,6 +99,8 @@ mach_host_self(void)
 {
 	ipc_port_t sright;
 
+	printf("%s\n", __func__);
+
 	sright = ipc_port_make_send(realhost.host_self);
 	return ipc_port_copyout_send(sright, current_space());
 }

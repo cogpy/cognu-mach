@@ -75,6 +75,8 @@ boolean_t swtch(void)
 {
 	processor_t	myprocessor;
 
+	printf("%s\n", __func__);
+
 #if	NCPUS > 1
 	myprocessor = current_processor();
 	if (myprocessor->runq.count == 0 &&
@@ -106,6 +108,8 @@ boolean_t  swtch_pri(int pri)
 {
 	thread_t	thread = current_thread();
 	processor_t	myprocessor;
+
+	printf("%s\n", __func__);
 
 #if	NCPUS > 1
 	myprocessor = current_processor();
@@ -159,6 +163,8 @@ kern_return_t thread_switch(
     thread_t			cur_thread = current_thread();
     processor_t			myprocessor;
     ipc_port_t			port;
+
+	printf("%s\n", __func__);
 
     /*
      *	Process option.
@@ -381,6 +387,8 @@ thread_depress_abort(thread_t thread)
 void
 mach_print(const char *s)
 {
+	printf("%s\n", __func__);
+
 	printf("%s", s);
 }
 #endif /* MACH_KDB */
