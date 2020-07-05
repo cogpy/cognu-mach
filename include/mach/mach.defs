@@ -738,12 +738,12 @@ case. Minimum and maximum addresses and alignment should do. Maybe
 boundary crossing but usually, specifying the right alignment and size
 is enough.
 
-For upstream
-inclusion, we need to do it properly: the RPC should return a special
+Ideally we could make the RPC should return a special
 memory object (similar to device_map() ), which can then be mapped into
 the process address space with vm_map() like any other memory object.
+But we currently do not need it, if we really do we can introduce another RPC.
 
-phys_address_t?
+FIXME: use phys_address_t
  */
 routine vm_allocate_contiguous(
 		host_priv	: host_priv_t;
