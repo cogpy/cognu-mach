@@ -13,3 +13,41 @@ subsystem
 serverprefix experimental_;
 
 /* This is free for experimenting RPCs, with no backward compatibility guarantees.  */
+
+type notify_port_t = MACH_MSG_TYPE_MOVE_SEND_ONCE
+	ctype: mach_port_t;
+
+skip; /*simpleroutine mach_intr_notify(
+		notify	: notify_port_t;
+		name	: int);*/
+
+routine device_intr_register(
+		master_port	: mach_port_t;
+	in	line		: int;
+	in	id		: int;
+	in	flags		: int;
+	in	receive_port	: mach_port_send_t
+	);
+
+/*
+ *	enable/disable the specified line.
+ */
+/* XXX: Naming a function taht can disable something "xxx_enable" is confusing. */
+/* Is the disable part actually used at all? AIUI, the kernel IRQ handler
+should always disable the line; and the userspace driver only has to
+reenable it, after acknowledging and handling the interrupt...
+*/
+routine device_intr_enable(
+		master_port	: mach_port_t;
+		line		: int;
+		status		: char);
+
+/*
+ *	This routine is for compatibility with old userland drivers.
+ */
+routine vm_allocate_contiguous(
+		host_priv	: host_priv_t;
+		target_task	: vm_task_t;
+	out	vaddr		: vm_address_t;
+	out	paddr		: vm_address_t;
+		size		: vm_size_t);

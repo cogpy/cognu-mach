@@ -363,7 +363,6 @@ include_device_HEADERS = \
 	include/device/device_types.h \
 	include/device/disk_status.h \
 	include/device/net_status.h \
-	include/device/notify.defs \
 	include/device/notify.h \
 	include/device/tape_status.h \
 	include/device/tty_status.h

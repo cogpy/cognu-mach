@@ -334,7 +334,7 @@ ds_device_intr_register (device_t dev, int id,
 
   /* No flag is defined for now */
   if (flags != 0)
-    return D_NO_SUCH_DEVICE;
+    return D_INVALID_OPERATION;
 
   /* Must be called on the irq device only */
   if (! name_equal(mdev->dev_ops->d_name, 3, "irq"))
@@ -355,6 +355,82 @@ ds_device_intr_register (device_t dev, int id,
       ip_reference (receive_port);
     }
   return err;
+}
+
+static ipc_port_t intr_receive_ports[16];
+static int ackskip[16];
+io_return_t
+experimental_device_intr_register (ipc_port_t master_port, int line,
+		       int id, int flags, ipc_port_t receive_port)
+{
+  io_return_t ret;
+  /* Open must be called on the master device port.  */
+  if (master_port != master_device_port)
+    return D_INVALID_OPERATION;
+
+  /* XXX: move to arch-specific */
+  if (line < 0 || line >= 16)
+    return D_INVALID_OPERATION;
+
+  if (flags != 0x04000000)
+    return D_INVALID_OPERATION;
+
+  user_intr_t *user_intr = insert_intr_entry (&irqtab, line, receive_port);
+  if (!user_intr)
+    return D_NO_MEMORY;
+  // TODO The original port should be replaced
+  // when the same device driver calls it again, 
+  // in order to handle the case that the device driver crashes and restarts.
+  ret = install_user_intr_handler (&irqtab, line, 0, user_intr);
+  intr_receive_ports[line] = receive_port;
+  /* For now netdde calls device_intr_enable once after registration. Assume
+   * it does so for this RPC. */
+  ackskip[line]++;
+
+  if (ret == 0)
+  {
+    /* If the port is installed successfully, increase its reference by 1.
+     * Thus, the port won't be destroyed after its task is terminated. */
+    ip_reference (receive_port);
+
+    /* For now netdde calls device_intr_enable once after registration. Assume
+     * it does so for now. When we move to IRQ acknowledgment convention we will
+     * change this. */
+    __disable_irq (line);
+  }
+
+  return ret;
+}
+
+kern_return_t
+ds_device_intr_ack (device_t dev, ipc_port_t receive_port)
+{
+  mach_device_t mdev = dev->emul_data;
+
+  /* Refuse if device is dead or not completely open.  */
+  if (dev == DEVICE_NULL)
+    return D_NO_SUCH_DEVICE;
+
+  /* Must be called on the irq device only */
+  if (! name_equal(mdev->dev_ops->d_name, 3, "irq"))
+    return D_INVALID_OPERATION;
+
+  return irq_acknowledge(receive_port);
+}
+
+kern_return_t
+experimental_device_intr_enable(ipc_port_t master_port, int line, char status)
+{
+  if (master_port != master_device_port)
+    return D_INVALID_OPERATION;
+
+  if (ackskip[line])
+  {
+    ackskip[line]--;
+    return D_SUCCESS;
+  }
+
+  return irq_acknowledge(intr_receive_ports[line]);
 }
 
 boolean_t
@@ -1835,22 +1911,6 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 
 	kmem_cache_free(&io_trap_cache, (vm_offset_t) ior);
 	return (result);
-}
-
-kern_return_t
-ds_device_intr_ack (device_t dev, ipc_port_t receive_port)
-{
-  mach_device_t mdev = dev->emul_data;
-
-  /* Refuse if device is dead or not completely open.  */
-  if (dev == DEVICE_NULL)
-    return D_NO_SUCH_DEVICE;
-
-  /* Must be called on the irq device only */
-  if (! name_equal(mdev->dev_ops->d_name, 3, "irq"))
-    return D_INVALID_OPERATION;
-
-  return irq_acknowledge(receive_port);
 }
 
 struct device_emulation_ops mach_device_emulation_ops =

@@ -659,3 +659,17 @@ kern_return_t vm_allocate_contiguous(
 
 	return KERN_SUCCESS;
 }
+
+kern_return_t experimental_vm_allocate_contiguous(host_priv, map, result_vaddr, result_paddr, size)
+	host_t			host_priv;
+	vm_map_t		map;
+	vm_address_t		*result_vaddr;
+	vm_address_t		*result_paddr;
+	vm_size_t		size;
+{
+	rpc_phys_addr_t paddr;
+	kern_return_t ret;
+	ret = vm_allocate_contiguous(host_priv, map, result_vaddr, &paddr, size, 0, ~0ULL, 0);
+	*result_paddr = paddr;
+	return ret;
+}

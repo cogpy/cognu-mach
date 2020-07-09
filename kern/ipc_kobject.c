@@ -160,6 +160,7 @@ ipc_kobject_server(request)
 	 * to perform the kernel function
 	 */
     {
+	extern mig_routine_t	experimental_server_routine();
 	check_simple_locks();
 	if ((routine = mach_server_routine(&request->ikm_header)) != 0
 	 || (routine = mach_port_server_routine(&request->ikm_header)) != 0
