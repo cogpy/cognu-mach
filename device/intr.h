@@ -15,36 +15,48 @@
 #ifndef __INTR_H__
 #define __INTR_H__
 
-#include <device/device_types.h>
-#include <kern/queue.h>
-#include <device/notify.h>
+#ifndef MACH_XEN
 
-typedef struct intr_entry
-{
-  queue_chain_t chain;
-  ipc_port_t dest;
-  int line;
-  int interrupts;		/* The number of interrupts occur since last run of intr_thread. */
-  int unacked_interrupts;	/* Number of times irqs were disabled for this */
-} user_intr_t;
+#include <mach/kern_return.h>
+#include <mach/port.h>
+#include <kern/queue.h>
+#include <ipc/ipc_port.h>
+#include <device/conf.h>
 
 #define DEVICE_NOTIFY_MSGH_SEQNO 0
 
-int install_user_intr_handler (unsigned int line,
-					unsigned long flags,
-					user_intr_t *user_intr);
+#include <sys/types.h>
 
-/* Returns 0 if action should be removed */
-int deliver_user_intr (int line, user_intr_t *intr);
+struct irqdev;
+#include <machine/irq.h>
 
-user_intr_t *insert_intr_entry (int line, ipc_port_t dest);
+typedef struct {
+  queue_chain_t chain;
+  int interrupts; /* Number of interrupts occurred since last run of intr_thread */
+  int n_unacked;  /* Number of times irqs were disabled for this */
+  ipc_port_t dst_port; /* Notification port */
+  int id; /* Mapping to machine dependent irq_t array elem */
+} user_intr_t;
 
-/* TODO: should rather take delivery port */
-kern_return_t user_intr_enable (int line, char status);
+struct irqdev {
+  char *name;
+  void (*irqdev_ack)(struct irqdev *dev, int id);
+
+  queue_head_t *intr_queue;
+  int tot_num_intr; /* Total number of unprocessed interrupts */
+
+  /* Machine dependent */
+  irq_t irq[NINTR];
+};
+
+extern queue_head_t main_intr_queue;
+extern int install_user_intr_handler (struct irqdev *dev, int id, unsigned long flags, user_intr_t *e);
+extern int deliver_user_intr (struct irqdev *dev, int id, user_intr_t *e);
+extern user_intr_t *insert_intr_entry (struct irqdev *dev, int id, ipc_port_t receive_port);
 
 void intr_thread (void);
+kern_return_t irq_acknowledge (ipc_port_t receive_port);
 
-void __disable_irq(unsigned int);
-void __enable_irq(unsigned int);
+#endif /* MACH_XEN */
 
 #endif

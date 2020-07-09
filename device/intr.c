@@ -13,121 +13,98 @@
  */
 
 #include <device/intr.h>
-#include <device/ds_routines.h>
-#include <kern/queue.h>
+#include <device/device_types.h>
+#include <device/device_port.h>
+#include <device/notify.h>
 #include <kern/printf.h>
 #include <machine/spl.h>
+#include <machine/irq.h>
+#include <ipc/ipc_space.h>
 
 #ifndef MACH_XEN
 
-static boolean_t deliver_intr (int line, ipc_port_t dest_port);
+queue_head_t main_intr_queue;
+static boolean_t deliver_intr (int id, ipc_port_t dst_port);
 
-static queue_head_t intr_queue;
-/* The total number of unprocessed interrupts. */
-static int tot_num_intr;
-
-static struct intr_entry *
-search_intr (int line, ipc_port_t dest)
+static user_intr_t *
+search_intr (struct irqdev *dev, ipc_port_t dst_port)
 {
-  struct intr_entry *e;
-  queue_iterate (&intr_queue, e, struct intr_entry *, chain)
+  user_intr_t *e;
+  queue_iterate (dev->intr_queue, e, user_intr_t *, chain)
     {
-      if (e->dest == dest && e->line == line)
+      if (e->dst_port == dst_port)
 	return e;
     }
   return NULL;
 }
 
-static struct intr_entry *
-search_intr_line (int line)
+kern_return_t
+irq_acknowledge (ipc_port_t receive_port)
 {
-  struct intr_entry *e;
-  queue_iterate (&intr_queue, e, struct intr_entry *, chain)
-    {
-      if (e->line == line &&
-	  (e->dest != MACH_PORT_NULL
-	   && e->dest->ip_references != 1
-	   && e->unacked_interrupts))
-	return e;
-    }
-  return NULL;
-}
-
-kern_return_t user_intr_enable (int line, char status)
-{
-  struct intr_entry *e;
-  kern_return_t ret = D_SUCCESS;
+  user_intr_t *e;
+  kern_return_t ret;
 
   spl_t s = splhigh ();
-  /* FIXME: Use search_intr instead once we get the delivery port from ds_device_intr_enable, and get rid of search_intr_line */
-  e = search_intr_line (line);
+  e = search_intr (&irqtab, receive_port);
 
   if (!e)
-    printf("didn't find user intr for interrupt %d!?\n", line);
-  else if (status)
-  {
-    if (!e->unacked_interrupts)
-      ret = D_INVALID_OPERATION;
-    else
-      e->unacked_interrupts--;
-  }
+    printf("didn't find user intr for interrupt !?\n");
   else
-  {
-    e->unacked_interrupts++;
-    if (!e->unacked_interrupts)
     {
-      ret = D_INVALID_OPERATION;
-      e->unacked_interrupts--;
+      if (!e->n_unacked)
+        ret = D_INVALID_OPERATION;
+      else
+        e->n_unacked--;
     }
-  }
   splx (s);
 
   if (ret)
     return ret;
 
-  if (status)
-    /* TODO: better name for generic-to-arch-specific call */
-    __enable_irq (line);
-  else
-    __disable_irq (line);
+  if (irqtab.irqdev_ack)
+    (*(irqtab.irqdev_ack)) (&irqtab, e->id);
+
+  __enable_irq (irqtab.irq[e->id]);
+
   return D_SUCCESS;
 }
 
 /* This function can only be used in the interrupt handler. */
 static void
-queue_intr (int line, user_intr_t *e)
+queue_intr (struct irqdev *dev, int id, user_intr_t *e)
 {
   /* Until userland has handled the IRQ in the driver, we have to keep it
    * disabled. Level-triggered interrupts would keep raising otherwise. */
-  __disable_irq (line);
+  __disable_irq (dev->irq[id]);
 
   spl_t s = splhigh ();
-  e->unacked_interrupts++;
+  e->n_unacked++;
   e->interrupts++;
-  tot_num_intr++;
+  dev->tot_num_intr++;
   splx (s);
 
   thread_wakeup ((event_t) &intr_thread);
 }
 
-int deliver_user_intr (int line, user_intr_t *intr)
+int
+deliver_user_intr (struct irqdev *dev, int id, user_intr_t *e)
 {
   /* The reference of the port was increased
    * when the port was installed.
    * If the reference is 1, it means the port should
    * have been destroyed and I destroy it now. */
-  if (intr->dest
-      && intr->dest->ip_references == 1)
+  if (e->dst_port
+      && e->dst_port->ip_references == 1)
     {
-      printf ("irq handler %d: release a dead delivery port %p entry %p\n", line, intr->dest, intr);
-      ipc_port_release (intr->dest);
-      intr->dest = MACH_PORT_NULL;
+      printf ("irq handler [%d]: release a dead delivery port %p entry %p\n", id, e->dst_port, e);
+      ipc_port_release (e->dst_port);
+      e->dst_port = MACH_PORT_NULL;
       thread_wakeup ((event_t) &intr_thread);
       return 0;
     }
   else
     {
-      queue_intr (line, intr);
+      queue_intr (dev, id, e);
       return 1;
     }
 }
@@ -136,37 +113,32 @@ int deliver_user_intr (int line, user_intr_t *intr)
  * This entry exists in the queue until
  * the corresponding interrupt port is removed.*/
 user_intr_t *
-insert_intr_entry (int line, ipc_port_t dest)
+insert_intr_entry (struct irqdev *dev, int id, ipc_port_t dst_port)
 {
-  struct intr_entry *e, *new, *ret;
+  user_intr_t *e, *new, *ret;
   int free = 0;
 
-  new = (struct intr_entry *) kalloc (sizeof (*new));
+  new = (user_intr_t *) kalloc (sizeof (*new));
   if (new == NULL)
     return NULL;
 
   /* check whether the intr entry has been in the queue. */
   spl_t s = splhigh ();
-  e = search_intr (line, dest);
+  e = search_intr (dev, dst_port);
   if (e)
     {
-      printf ("the interrupt entry for line %d and port %p has already been inserted\n", line, dest);
+      printf ("the interrupt entry for irq[%d] and port %p has already been inserted\n", id, dst_port);
       free = 1;
       ret = NULL;
       goto out;
     }
-  printf("irq handler %d: new delivery port %p entry %p\n", line, dest, new);
+  printf("irq handler [%d]: new delivery port %p entry %p\n", id, dst_port, new);
   ret = new;
-  new->line = line;
-  new->dest = dest;
+  new->id = id;
+  new->dst_port = dst_port;
   new->interrupts = 0;
 
-  /* For now netdde calls device_intr_enable once after registration. Assume
-   * it does so for now. When we move to IRQ acknowledgment convention we will
-   * change this. */
-  new->unacked_interrupts = 1;
-
-  queue_enter (&intr_queue, new, struct intr_entry *, chain);
+  queue_enter (dev->intr_queue, new, user_intr_t *, chain);
 out:
   splx (s);
   if (free)
@@ -177,10 +149,10 @@ out:
 void
 intr_thread (void)
 {
-  struct intr_entry *e;
-  int line;
-  ipc_port_t dest;
-  queue_init (&intr_queue);
+  user_intr_t *e;
+  int id;
+  ipc_port_t dst_port;
+  queue_init (&main_intr_queue);
   
   for (;;)
     {
@@ -190,11 +162,11 @@ intr_thread (void)
       spl_t s = splhigh ();
 
       /* Check for aborted processes */
-      queue_iterate (&intr_queue, e, struct intr_entry *, chain)
+      queue_iterate (&main_intr_queue, e, user_intr_t *, chain)
 	{
-	  if ((!e->dest || e->dest->ip_references == 1) && e->unacked_interrupts)
+	  if ((!e->dst_port || e->dst_port->ip_references == 1) && e->n_unacked)
 	    {
-	      printf ("irq handler %d: release dead delivery %d unacked irqs port %p entry %p\n", e->line, e->unacked_interrupts, e->dest, e);
+	      printf ("irq handler [%d]: release dead delivery %d unacked irqs port %p entry %p\n", e->id, e->n_unacked, e->dst_port, e);
 	      /* The reference of the port was increased
 	       * when the port was installed.
 	       * If the reference is 1, it means the port should
@@ -202,24 +174,24 @@ intr_thread (void)
 	       * handling can trigger, and we will cleanup later after the Linux
 	       * handler is cleared. */
 	      /* TODO: rather immediately remove from Linux handler */
-	      while (e->unacked_interrupts)
+	      while (e->n_unacked)
 	      {
-		__enable_irq(e->line);
-		e->unacked_interrupts--;
+		__enable_irq (irqtab.irq[e->id]);
+		e->n_unacked--;
 	      }
 	    }
 	}
 
       /* Now check for interrupts */
-      while (tot_num_intr)
+      while (irqtab.tot_num_intr)
 	{
 	  int del = 0;
 
-	  queue_iterate (&intr_queue, e, struct intr_entry *, chain)
+	  queue_iterate (&main_intr_queue, e, user_intr_t *, chain)
 	    {
 	      /* if an entry doesn't have dest port,
 	       * we should remove it. */
-	      if (e->dest == MACH_PORT_NULL)
+	      if (e->dst_port == MACH_PORT_NULL)
 		{
 		  clear_wait (current_thread (), 0, 0);
 		  del = 1;
@@ -229,13 +201,13 @@ intr_thread (void)
 	      if (e->interrupts)
 		{
 		  clear_wait (current_thread (), 0, 0);
-		  line = e->line;
-		  dest = e->dest;
+		  id = e->id;
+		  dst_port = e->dst_port;
 		  e->interrupts--;
-		  tot_num_intr--;
+		  irqtab.tot_num_intr--;
 
 		  splx (s);
-		  deliver_intr (line, dest);
+		  deliver_intr (id, dst_port);
 		  s = splhigh ();
 		}
 	    }
@@ -243,16 +215,16 @@ intr_thread (void)
 	  /* remove the entry without dest port from the queue and free it. */
 	  if (del)
 	    {
-	      assert (!queue_empty (&intr_queue));
-	      queue_remove (&intr_queue, e, struct intr_entry *, chain);
-	      if (e->unacked_interrupts)
-		printf("irq handler %d: still %d unacked irqs in entry %p\n", e->line, e->unacked_interrupts, e);
-	      while (e->unacked_interrupts)
+	      assert (!queue_empty (&main_intr_queue));
+	      queue_remove (&main_intr_queue, e, user_intr_t *, chain);
+	      if (e->n_unacked)
+		printf("irq handler [%d]: still %d unacked irqs in entry %p\n", e->id, e->n_unacked, e);
+	      while (e->n_unacked)
 	      {
-		__enable_irq(e->line);
-		e->unacked_interrupts--;
+		__enable_irq (irqtab.irq[e->id]);
+		e->n_unacked--;
 	      }
-	      printf("irq handler %d: removed entry %p\n", e->line, e);
+	      printf("irq handler [%d]: removed entry %p\n", e->id, e);
 	      splx (s);
 	      kfree ((vm_offset_t) e, sizeof (*e));
 	      s = splhigh ();
@@ -264,11 +236,11 @@ intr_thread (void)
 }
 
 static boolean_t
-deliver_intr (int line, ipc_port_t dest_port)
+deliver_intr (int id, ipc_port_t dst_port)
 {
   ipc_kmsg_t kmsg;
   device_intr_notification_t *n;
-  mach_port_t dest = (mach_port_t) dest_port;
+  mach_port_t dest = (mach_port_t) dst_port;
 
   if (dest == MACH_PORT_NULL)
     return FALSE;
@@ -299,11 +271,12 @@ deliver_intr (int line, ipc_port_t dest_port)
   t->msgt_unused = 0;
 
   n->intr_header.msgh_remote_port = dest;
-  n->line = line;
+  n->id = id;
 
-  ipc_port_copy_send (dest_port);
+  ipc_port_copy_send (dst_port);
   ipc_mqueue_send_always(kmsg);
 
   return TRUE;
 }
+
 #endif	/* MACH_XEN */
