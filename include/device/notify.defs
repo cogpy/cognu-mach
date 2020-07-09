@@ -33,4 +33,4 @@ serverdemux device_intr_notify_server;
 
 simpleroutine device_intr_notify(
 		notify	: notify_port_t;
-		name	: int);
+		id	: int);

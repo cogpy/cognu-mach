@@ -322,44 +322,39 @@ ds_device_map (device_t dev, vm_prot_t prot, vm_offset_t offset,
 
 /* TODO: missing deregister support */
 io_return_t
-ds_device_intr_register (ipc_port_t master_port, int line,
-		       int id, int flags, ipc_port_t receive_port)
+ds_device_intr_register (device_t dev, int id,
+                         int flags, ipc_port_t receive_port)
 {
-#ifdef MACH_XEN
-  return D_INVALID_OPERATION;
-#else	/* MACH_XEN */
-  io_return_t ret;
+  kern_return_t err;
+  mach_device_t mdev = dev->emul_data;
 
-  /* Open must be called on the master device port.  */
-  if (master_port != master_device_port)
+  /* Refuse if device is dead or not completely open.  */
+  if (dev == DEVICE_NULL)
+    return D_NO_SUCH_DEVICE;
+
+  /* No flag is defined for now */
+  if (flags != 0)
+    return D_NO_SUCH_DEVICE;
+
+  /* Must be called on the irq device only */
+  if (! name_equal(mdev->dev_ops->d_name, 3, "irq"))
     return D_INVALID_OPERATION;
 
-  /* XXX: move to arch-specific */
-  if (line < 0 || line >= 16)
-    return D_INVALID_OPERATION;
-
-  user_intr_t *user_intr = insert_intr_entry (line, receive_port);
-  if (!user_intr)
+  user_intr_t *e = insert_intr_entry (&irqtab, id, receive_port);
+  if (!e)
     return D_NO_MEMORY;
+
   // TODO The original port should be replaced
   // when the same device driver calls it again, 
   // in order to handle the case that the device driver crashes and restarts.
-  ret = install_user_intr_handler (line, flags, user_intr);
-
-  if (ret == 0)
-  {
-    /* If the port is installed successfully, increase its reference by 1.
-     * Thus, the port won't be destroyed after its task is terminated. */
-    ip_reference (receive_port);
-
-    /* For now netdde calls device_intr_enable once after registration. Assume
-     * it does so for now. When we move to IRQ acknowledgment convention we will
-     * change this. */
-    __disable_irq (line);
-  }
-
-  return ret;
-#endif	/* MACH_XEN */
+  err = install_user_intr_handler (&irqtab, id, flags, e);
+  if (err == D_SUCCESS)
+    {
+      /* If the port is installed successfully, increase its reference by 1.
+       * Thus, the port won't be destroyed after its task is terminated. */
+      ip_reference (receive_port);
+    }
+  return err;
 }
 
 boolean_t
@@ -1843,16 +1838,19 @@ device_writev_trap (mach_device_t device, dev_mode_t mode,
 }
 
 kern_return_t
-ds_device_intr_enable(ipc_port_t master_port, int line, char status)
+ds_device_intr_ack (device_t dev, ipc_port_t receive_port)
 {
-#ifdef MACH_XEN
-  return D_INVALID_OPERATION;
-#else	/* MACH_XEN */
-  if (master_port != master_device_port)
+  mach_device_t mdev = dev->emul_data;
+
+  /* Refuse if device is dead or not completely open.  */
+  if (dev == DEVICE_NULL)
+    return D_NO_SUCH_DEVICE;
+
+  /* Must be called on the irq device only */
+  if (! name_equal(mdev->dev_ops->d_name, 3, "irq"))
     return D_INVALID_OPERATION;
 
-  return user_intr_enable(line, status);
-#endif	/* MACH_XEN */
+  return irq_acknowledge(receive_port);
 }
 
 struct device_emulation_ops mach_device_emulation_ops =

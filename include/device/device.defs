@@ -143,22 +143,20 @@ routine device_set_filter(
 	);
 
 routine device_intr_register(
-		master_port	: mach_port_t;
-	in	line		: int;
+		device		: device_t;
 	in	id		: int;
 	in	flags		: int;
 	in	receive_port	: mach_port_send_t
 	);
 
 /*
- *	enable/disable the specified line.
+ *	Acknowledge the specified interrupt notification.
  */
-/* XXX: Naming a function taht can disable something "xxx_enable" is confusing. */
-/* Is the disable part actually used at all? AIUI, the kernel IRQ handler
-should always disable the line; and the userspace driver only has to
-reenable it, after acknowledging and handling the interrupt...
-*/
-routine device_intr_enable(
-		master_port	: mach_port_t;
-		line		: int;
-		status		: char);
+/*
+ * When an IRQ happens and an intr notification is thus sent, the IRQ line
+ * is kept disabled until the notification is acknowledged with this RPC
+ */
+routine device_intr_ack(
+		device		: device_t;
+	in	receive_port	: mach_port_send_t);
+
