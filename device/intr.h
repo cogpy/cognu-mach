@@ -36,6 +36,7 @@ typedef struct {
   int n_unacked;  /* Number of times irqs were disabled for this */
   ipc_port_t dst_port; /* Notification port */
   int id; /* Mapping to machine dependent irq_t array elem */
+  int compat;
 } user_intr_t;
 
 struct irqdev {
@@ -52,7 +53,7 @@ struct irqdev {
 extern queue_head_t main_intr_queue;
 extern int install_user_intr_handler (struct irqdev *dev, int id, unsigned long flags, user_intr_t *e);
 extern int deliver_user_intr (struct irqdev *dev, int id, user_intr_t *e);
-extern user_intr_t *insert_intr_entry (struct irqdev *dev, int id, ipc_port_t receive_port);
+extern user_intr_t *insert_intr_entry (struct irqdev *dev, int id, ipc_port_t receive_port, int compat);
 
 void intr_thread (void);
 kern_return_t irq_acknowledge (ipc_port_t receive_port);

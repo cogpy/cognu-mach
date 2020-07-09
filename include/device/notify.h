@@ -29,6 +29,6 @@ typedef struct
   int		    id;
 } device_intr_notification_t;
 
-#define DEVICE_INTR_NOTIFY 424242
+#define DEVICE_INTR_NOTIFY 100
 
 #endif	/* _MACH_DEVICE_NOTIFY_H_ */

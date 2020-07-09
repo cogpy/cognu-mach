@@ -340,7 +340,7 @@ ds_device_intr_register (device_t dev, int id,
   if (! name_equal(mdev->dev_ops->d_name, 3, "irq"))
     return D_INVALID_OPERATION;
 
-  user_intr_t *e = insert_intr_entry (&irqtab, id, receive_port);
+  user_intr_t *e = insert_intr_entry (&irqtab, id, receive_port, 0);
   if (!e)
     return D_NO_MEMORY;
 
@@ -375,7 +375,7 @@ experimental_device_intr_register (ipc_port_t master_port, int line,
   if (flags != 0x04000000)
     return D_INVALID_OPERATION;
 
-  user_intr_t *user_intr = insert_intr_entry (&irqtab, line, receive_port);
+  user_intr_t *user_intr = insert_intr_entry (&irqtab, line, receive_port, 1);
   if (!user_intr)
     return D_NO_MEMORY;
   // TODO The original port should be replaced

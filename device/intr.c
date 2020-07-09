@@ -24,7 +24,7 @@
 #ifndef MACH_XEN
 
 queue_head_t main_intr_queue;
-static boolean_t deliver_intr (int id, ipc_port_t dst_port);
+static boolean_t deliver_intr (int id, mach_msg_id_t msgh_id, ipc_port_t dst_port);
 
 static user_intr_t *
 search_intr (struct irqdev *dev, ipc_port_t dst_port)
@@ -113,7 +113,7 @@ deliver_user_intr (struct irqdev *dev, int id, user_intr_t *e)
  * This entry exists in the queue until
  * the corresponding interrupt port is removed.*/
 user_intr_t *
-insert_intr_entry (struct irqdev *dev, int id, ipc_port_t dst_port)
+insert_intr_entry (struct irqdev *dev, int id, ipc_port_t dst_port, int compat)
 {
   user_intr_t *e, *new, *ret;
   int free = 0;
@@ -137,6 +137,7 @@ insert_intr_entry (struct irqdev *dev, int id, ipc_port_t dst_port)
   new->id = id;
   new->dst_port = dst_port;
   new->interrupts = 0;
+  new->compat = compat;
 
   queue_enter (dev->intr_queue, new, user_intr_t *, chain);
 out:
@@ -207,7 +208,7 @@ intr_thread (void)
 		  irqtab.tot_num_intr--;
 
 		  splx (s);
-		  deliver_intr (id, dst_port);
+		  deliver_intr (id, e->compat ? 424242 : DEVICE_INTR_NOTIFY, dst_port);
 		  s = splhigh ();
 		}
 	    }
@@ -236,7 +237,7 @@ intr_thread (void)
 }
 
 static boolean_t
-deliver_intr (int id, ipc_port_t dst_port)
+deliver_intr (int id, mach_msg_id_t msgh_id, ipc_port_t dst_port)
 {
   ipc_kmsg_t kmsg;
   device_intr_notification_t *n;
@@ -260,7 +261,7 @@ deliver_intr (int id, ipc_port_t dst_port)
   m->msgh_seqno = DEVICE_NOTIFY_MSGH_SEQNO;
   m->msgh_local_port = MACH_PORT_NULL;
   m->msgh_remote_port = MACH_PORT_NULL;
-  m->msgh_id = DEVICE_INTR_NOTIFY;
+  m->msgh_id = msgh_id;
 
   t->msgt_name = MACH_MSG_TYPE_INTEGER_32;
   t->msgt_size = 32;
