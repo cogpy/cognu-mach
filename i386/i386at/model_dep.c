@@ -340,8 +340,7 @@ i386at_init(void)
 {
 	/* XXX move to intel/pmap.h */
 	extern pt_entry_t *kernel_page_dir;
-	int nb_direct, i;
-	vm_offset_t addr, delta;
+	int i;
 
 	/*
 	 * Initialize the PIC prior to any possible call to an spl.
@@ -365,6 +364,8 @@ i386at_init(void)
 #ifdef MACH_XEN
 	kernel_cmdline = (char*) boot_info.cmd_line;
 #else	/* MACH_XEN */
+	vm_offset_t addr;
+
 	/* Copy content pointed by boot_info before losing access to it when it
 	 * is too far in physical memory.
 	 * Also avoids leaving them in precious areas such as DMA memory.  */
@@ -428,10 +429,10 @@ i386at_init(void)
 	 * until we start using our new kernel segment descriptors.
 	 */
 #if INIT_VM_MIN_KERNEL_ADDRESS != LINEAR_MIN_KERNEL_ADDRESS
-	delta = INIT_VM_MIN_KERNEL_ADDRESS - LINEAR_MIN_KERNEL_ADDRESS;
+	vm_offset_t delta = INIT_VM_MIN_KERNEL_ADDRESS - LINEAR_MIN_KERNEL_ADDRESS;
 	if ((vm_offset_t)(-delta) < delta)
 		delta = (vm_offset_t)(-delta);
-	nb_direct = delta >> PDESHIFT;
+	int nb_direct = delta >> PDESHIFT;
 	for (i = 0; i < nb_direct; i++)
 		kernel_page_dir[lin2pdenum_cont(INIT_VM_MIN_KERNEL_ADDRESS) + i] =
 			kernel_page_dir[lin2pdenum_cont(LINEAR_MIN_KERNEL_ADDRESS) + i];
@@ -452,14 +453,18 @@ i386at_init(void)
 #endif	/* PAE */
 #endif	/* MACH_PV_PAGETABLES */
 #if PAE
-	set_cr3((unsigned)_kvtophys(kernel_pmap->pdpbase));
+#ifdef __x86_64__
+	set_cr3((unsigned long)_kvtophys(kernel_pmap->l4base));
+#else
+	set_cr3((unsigned long)_kvtophys(kernel_pmap->pdpbase));
+#endif
 #ifndef	MACH_HYP
 	if (!CPU_HAS_FEATURE(CPU_FEATURE_PAE))
 		panic("CPU doesn't have support for PAE.");
 	set_cr4(get_cr4() | CR4_PAE);
 #endif	/* MACH_HYP */
 #else
-	set_cr3((unsigned)_kvtophys(kernel_page_dir));
+	set_cr3((unsigned long)_kvtophys(kernel_page_dir));
 #endif	/* PAE */
 #ifndef	MACH_HYP
 	/* Turn paging on.
@@ -527,7 +532,7 @@ i386at_init(void)
 
 /*
  *	C boot entrypoint - called by boot_entry in boothdr.S.
- *	Running in 32-bit flat mode, but without paging yet.
+ *	Running in flat mode, but without paging yet.
  */
 void c_boot_entry(vm_offset_t bi)
 {
@@ -570,9 +575,9 @@ void c_boot_entry(vm_offset_t bi)
 		strtab_size = (vm_offset_t)phystokv(boot_info.syms.a.strsize);
 		kern_sym_end = kern_sym_start + 4 + symtab_size + strtab_size;
 
-		printf("kernel symbol table at %08lx-%08lx (%d,%d)\n",
+		printf("kernel symbol table at %08lx-%08lx (%ld,%ld)\n",
 		       kern_sym_start, kern_sym_end,
-		       symtab_size, strtab_size);
+		       (unsigned long) symtab_size, (unsigned long) strtab_size);
 	}
 
 	if ((boot_info.flags & MULTIBOOT_ELF_SHDR)
@@ -669,11 +674,11 @@ void
 inittodr(void)
 {
 	time_value_t	new_time;
+	uint64_t	newsecs;
 
-	new_time.seconds = 0;
+	(void) readtodc(&newsecs);
+	new_time.seconds = newsecs;
 	new_time.microseconds = 0;
-
-	(void) readtodc((u_int *)&new_time.seconds);
 
 	{
 	    spl_t	s = splhigh();
