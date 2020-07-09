@@ -345,7 +345,7 @@ ds_device_intr_register (device_t dev, int id,
     return D_NO_MEMORY;
 
   // TODO The original port should be replaced
-  // when the same device driver calls it again, 
+  // when the same device driver calls it again,
   // in order to handle the case that the device driver crashes and restarts.
   err = install_user_intr_handler (&irqtab, id, flags, e);
   if (err == D_SUCCESS)

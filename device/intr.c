@@ -158,7 +158,7 @@ intr_thread (void)
   int id;
   ipc_port_t dst_port;
   queue_init (&main_intr_queue);
-  
+
   for (;;)
     {
       assert_wait ((event_t) &intr_thread, FALSE);
@@ -251,7 +251,7 @@ deliver_intr (int id, mach_msg_id_t msgh_id, ipc_port_t dst_port)
     return FALSE;
 
   kmsg = ikm_alloc(sizeof *n);
-  if (kmsg == IKM_NULL) 
+  if (kmsg == IKM_NULL)
     return FALSE;
 
   ikm_init(kmsg, sizeof *n);
