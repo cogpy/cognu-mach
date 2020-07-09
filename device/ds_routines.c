@@ -358,7 +358,6 @@ ds_device_intr_register (device_t dev, int id,
 }
 
 static ipc_port_t intr_receive_ports[16];
-static int ackskip[16];
 io_return_t
 experimental_device_intr_register (ipc_port_t master_port, int line,
 		       int id, int flags, ipc_port_t receive_port)
@@ -378,14 +377,11 @@ experimental_device_intr_register (ipc_port_t master_port, int line,
   user_intr_t *user_intr = insert_intr_entry (&irqtab, line, receive_port, 1);
   if (!user_intr)
     return D_NO_MEMORY;
+
   // TODO The original port should be replaced
   // when the same device driver calls it again, 
   // in order to handle the case that the device driver crashes and restarts.
   ret = install_user_intr_handler (&irqtab, line, 0, user_intr);
-  intr_receive_ports[line] = receive_port;
-  /* For now netdde calls device_intr_enable once after registration. Assume
-   * it does so for this RPC. */
-  ackskip[line]++;
 
   if (ret == 0)
   {
@@ -393,6 +389,7 @@ experimental_device_intr_register (ipc_port_t master_port, int line,
      * Thus, the port won't be destroyed after its task is terminated. */
     ip_reference (receive_port);
 
+    intr_receive_ports[line] = receive_port;
     /* For now netdde calls device_intr_enable once after registration. Assume
      * it does so for now. When we move to IRQ acknowledgment convention we will
      * change this. */
@@ -424,11 +421,8 @@ experimental_device_intr_enable(ipc_port_t master_port, int line, char status)
   if (master_port != master_device_port)
     return D_INVALID_OPERATION;
 
-  if (ackskip[line])
-  {
-    ackskip[line]--;
-    return D_SUCCESS;
-  }
+  if (status != 1)
+    return D_INVALID_OPERATION;
 
   return irq_acknowledge(intr_receive_ports[line]);
 }
