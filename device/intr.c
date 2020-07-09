@@ -42,7 +42,7 @@ kern_return_t
 irq_acknowledge (ipc_port_t receive_port)
 {
   user_intr_t *e;
-  kern_return_t ret;
+  kern_return_t ret = 0;
 
   spl_t s = splhigh ();
   e = search_intr (&irqtab, receive_port);
@@ -138,6 +138,10 @@ insert_intr_entry (struct irqdev *dev, int id, ipc_port_t dst_port, int compat)
   new->dst_port = dst_port;
   new->interrupts = 0;
   new->compat = compat;
+  if (compat)
+    new->n_unacked = 1;
+  else
+    new->n_unacked = 0;
 
   queue_enter (dev->intr_queue, new, user_intr_t *, chain);
 out:
