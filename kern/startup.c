@@ -48,6 +48,7 @@
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
 #include <kern/xpr.h>
+#include <kern/printf.h>
 #include <kern/bootstrap.h>
 #include <kern/startup.h>
 #include <kern/printf.h>
@@ -135,6 +136,9 @@ void setup_main(void)
 	machine_init();
 
 	mapable_time_init();
+
+	/* Initialize console timestamps after time system is ready */
+	console_timestamp_init();
 
 	machine_info.max_cpus = NCPUS;
 	memsize = vm_page_mem_size();

@@ -26,6 +26,12 @@
 
 #include <sys/types.h>
 #include <stdarg.h>
+#include <mach/boolean.h>
+
+/* Console timestamp configuration */
+extern boolean_t console_timestamps_enabled;
+extern void console_timestamp_init(void);
+extern void console_print_timestamp(void);
 
 extern void _doprnt (const char *fmt,
 		     va_list argp, 

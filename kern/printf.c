@@ -121,6 +121,48 @@
 #include <device/cons.h>
 #include <kern/printf.h>
 #include <mach/boolean.h>
+#include <mach/time_value.h>
+#include <kern/mach_clock.h>
+#include <kern/host.h>
+
+/* Console timestamp support */
+boolean_t console_timestamps_enabled = TRUE;
+static unsigned long console_message_counter = 0;
+static boolean_t console_timestamp_initialized = FALSE;
+
+/*
+ * Initialize console timestamp functionality
+ */
+void console_timestamp_init(void)
+{
+	console_timestamp_initialized = TRUE;
+	console_message_counter = 0;
+}
+
+/*
+ * Wrapper for cnputc to match printnum signature
+ */
+static void
+cnputc_wrapper(char c, vm_offset_t arg)
+{
+	cnputc(c);
+}
+
+/*
+ * Print a timestamp to the console
+ * Format: [counter] for now - will be enhanced with real time later
+ */
+void console_print_timestamp(void)
+{
+	if (!console_timestamps_enabled || !console_timestamp_initialized)
+		return;
+	
+	/* Print message counter in [counter] format */
+	cnputc('[');
+	printnum(console_message_counter++, 10, cnputc_wrapper, 0);
+	cnputc(']');
+	cnputc(' ');
+}
 
 
 #define isdigit(d) ((d) >= '0' && (d) <= '9')
@@ -507,6 +549,24 @@ int vprintf(const char *fmt, va_list listp)
 int printf(const char *fmt, ...)
 {
 	va_list	listp;
+	
+	/* Print timestamp if enabled and this is a new line */
+	if (console_timestamps_enabled && console_timestamp_initialized) {
+		static boolean_t at_line_start = TRUE;
+		
+		/* Check if we're at the start of a new line */
+		if (at_line_start) {
+			console_print_timestamp();
+			at_line_start = FALSE;
+		}
+		
+		/* Check if this printf ends with a newline */
+		size_t len = strlen(fmt);
+		if (len > 0 && fmt[len-1] == '\n') {
+			at_line_start = TRUE;
+		}
+	}
+	
 	va_start(listp, fmt);
 	vprintf(fmt, listp);
 	va_end(listp);
