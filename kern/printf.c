@@ -127,7 +127,7 @@
 
 /* Console timestamp support */
 boolean_t console_timestamps_enabled = TRUE;
-static unsigned long console_message_counter = 0;
+static time_value64_t console_start_time;
 static boolean_t console_timestamp_initialized = FALSE;
 
 /*
@@ -135,8 +135,12 @@ static boolean_t console_timestamp_initialized = FALSE;
  */
 void console_timestamp_init(void)
 {
+	if (console_timestamp_initialized)
+		return;
+	
+	/* Record the current uptime as our reference point */
+	console_start_time = uptime;
 	console_timestamp_initialized = TRUE;
-	console_message_counter = 0;
 }
 
 /*
@@ -150,18 +154,46 @@ cnputc_wrapper(char c, vm_offset_t arg)
 
 /*
  * Print a timestamp to the console
- * Format: [counter] for now - will be enhanced with real time later
+ * Format: [seconds.milliseconds] 
  */
 void console_print_timestamp(void)
 {
+	time_value64_t current_uptime, relative_time;
+	int seconds, milliseconds;
+	
 	if (!console_timestamps_enabled || !console_timestamp_initialized)
 		return;
 	
-	/* Print message counter in [counter] format */
+	/* Get current uptime and calculate relative time */
+	current_uptime = uptime;
+	relative_time = current_uptime;
+	time_value64_sub(&relative_time, &console_start_time);
+	
+	seconds = (int)relative_time.seconds;
+	milliseconds = (int)(relative_time.nanoseconds / 1000000);
+	
+	/* Print timestamp in [seconds.milliseconds] format */
 	cnputc('[');
-	printnum(console_message_counter++, 10, cnputc_wrapper, 0);
+	printnum(seconds, 10, cnputc_wrapper, 0);
+	cnputc('.');
+	if (milliseconds < 100) cnputc('0');  /* Leading zero for < 100ms */
+	if (milliseconds < 10) cnputc('0');   /* Leading zero for < 10ms */
+	printnum(milliseconds, 10, cnputc_wrapper, 0);
 	cnputc(']');
 	cnputc(' ');
+}
+
+/*
+ * Configuration functions for timestamp behavior
+ */
+void console_timestamp_enable(boolean_t enable)
+{
+	console_timestamps_enabled = enable;
+}
+
+boolean_t console_timestamp_is_enabled(void)
+{
+	return console_timestamps_enabled;
 }
 
 
@@ -555,15 +587,17 @@ int printf(const char *fmt, ...)
 		static boolean_t at_line_start = TRUE;
 		
 		/* Check if we're at the start of a new line */
-		if (at_line_start) {
+		if (at_line_start && fmt && *fmt != '\0') {
 			console_print_timestamp();
 			at_line_start = FALSE;
 		}
 		
 		/* Check if this printf ends with a newline */
-		size_t len = strlen(fmt);
-		if (len > 0 && fmt[len-1] == '\n') {
-			at_line_start = TRUE;
+		if (fmt) {
+			size_t len = strlen(fmt);
+			if (len > 0 && fmt[len-1] == '\n') {
+				at_line_start = TRUE;
+			}
 		}
 	}
 	

@@ -20,11 +20,38 @@
 
 int main(int argc, char *argv[], int envc, char *envp[])
 {
-  /* Test console timestamp functionality */
-  printf("Testing console timestamp feature\n");
-  printf("First message\n");
-  printf("Second message\n");
-  printf("Multiple\nlines\nof\ntext\n");
+  printf("=== Console Timestamp Feature Test ===\n");
+  
+  /* Test that timestamps are enabled by default */
+  ASSERT(console_timestamp_is_enabled(), "Timestamps should be enabled by default");
+  
+  /* Test basic printf with timestamps */
+  printf("Testing basic message output\n");
+  printf("Multiple line output:\n");
+  printf("Line 1\n");
+  printf("Line 2\n");
+  printf("Line 3\n");
+  
+  /* Test timestamp disable/enable functionality */
+  printf("Disabling timestamps...\n");
+  console_timestamp_enable(FALSE);
+  ASSERT(!console_timestamp_is_enabled(), "Timestamps should be disabled");
+  
+  printf("This message should have no timestamp\n");
+  printf("Neither should this one\n");
+  
+  printf("Re-enabling timestamps...\n");
+  console_timestamp_enable(TRUE);
+  ASSERT(console_timestamp_is_enabled(), "Timestamps should be re-enabled");
+  
+  printf("This message should have timestamps again\n");
+  printf("And so should this one\n");
+  
+  /* Test mixed output */
+  printf("Testing mixed content: ");
+  printf("same line continuation\n");
+  
+  printf("%s: %s\n", TEST_SUCCESS_MARKER, "Console timestamp test completed successfully");
   
   return 0;
 }
