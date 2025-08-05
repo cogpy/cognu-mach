@@ -72,7 +72,7 @@ void compute_mach_factor(void)
 	     *	No load calculations are performed.
 	     */
 	    pset_lock(pset);
-	    if((ncpus = pset->processor_count) > 0) {
+	    if ((ncpus = pset->processor_count) > 0) {
 
 		/*
 		 *	Count number of threads.
