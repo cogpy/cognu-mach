@@ -131,15 +131,26 @@
 #define lintokv(a)	((vm_offset_t)(a) - LINEAR_MIN_KERNEL_ADDRESS + VM_MIN_KERNEL_ADDRESS)
 
 /*
- * Physical memory properties.
+ * Physical memory properties and segment limits.
+ * 
+ * Memory segment limits for different configurations:
+ * - DMA_LIMIT: 16MB limit for legacy ISA DMA (24-bit addresses)
+ * - DMA32_LIMIT: 4GB limit for 32-bit DMA-capable devices  
+ * - DIRECTMAP_LIMIT: Limit for direct kernel mapping of physical memory
+ * - HIGHMEM_LIMIT: Upper limit for high memory support
+ *
+ * Values differ based on compilation flags:
+ * - MACH_XEN: Xen hypervisor environment
+ * - __LP64__: 64-bit compilation
+ * - PAE: Physical Address Extension (36-bit addresses on 32-bit)
  */
-#define VM_PAGE_DMA_LIMIT       DECL_CONST(0x1000000, UL)
+#define VM_PAGE_DMA_LIMIT       DECL_CONST(0x1000000, UL)    /* 16MB - ISA DMA limit */
 
 #ifdef MACH_XEN
 /* TODO Completely check Xen physical/virtual layout */
 #ifdef __LP64__
 #define VM_PAGE_MAX_SEGS 4
-#define VM_PAGE_DMA32_LIMIT     DECL_CONST(0x100000000, UL)
+#define VM_PAGE_DMA32_LIMIT     DECL_CONST(0x100000000, UL)    /* 4GB - 32-bit DMA limit */
 #define VM_PAGE_DIRECTMAP_LIMIT DECL_CONST(0x400000000000, UL)
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, ULL)
 #else
