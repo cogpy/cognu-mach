@@ -69,8 +69,10 @@ AM_CFLAGS += \
 
 # Much of the Mach code predates C99 and makes invalid assumptions about
 # type punning.
+# Temporarily enable strict aliasing to find violations
 AM_CFLAGS += \
-	-fno-strict-aliasing
+	-fstrict-aliasing \
+	-Wstrict-aliasing=2
 
 # We use a freestanding environment.
 AM_CFLAGS += \
