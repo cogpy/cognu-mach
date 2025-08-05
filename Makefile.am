@@ -68,9 +68,10 @@ AM_CFLAGS += \
 	-fgnu89-inline
 
 # Much of the Mach code predates C99 and makes invalid assumptions about
-# type punning.
+# type punning. Fixed strict aliasing violations, now safe to enable.
 AM_CFLAGS += \
-	-fno-strict-aliasing
+	-fstrict-aliasing \
+	-Wstrict-aliasing=2
 
 # We use a freestanding environment.
 AM_CFLAGS += \

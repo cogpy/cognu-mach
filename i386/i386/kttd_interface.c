@@ -515,10 +515,12 @@ kttd_netentry(struct int_regs *int_regs)
 
 	if ((is->cs & 0x3) != KERNEL_RING) {
 	    /*
-	     * Interrupted from User Space
+	     * Interrupted from User Space - cast to user interrupt state to safely
+	     * access user stack pointer and stack segment without violating strict aliasing
 	     */
-	    kttd_regs.uesp = ((int *)(is+1))[0];
-	    kttd_regs.ss   = ((int *)(is+1))[1];
+	    struct i386_interrupt_state_user *user_is = (struct i386_interrupt_state_user *)is;
+	    kttd_regs.uesp = user_is->uesp;
+	    kttd_regs.ss   = user_is->ss;
 	}
 	else {
 	    /*
@@ -547,8 +549,18 @@ kttd_netentry(struct int_regs *int_regs)
 	kttd_active--;
 
 	if ((kttd_regs.cs & 0x3) != KERNEL_RING) {
-	    ((int *)(is+1))[0] = kttd_regs.uesp;
-	    ((int *)(is+1))[1] = kttd_regs.ss & SEGMENT_SELECTOR_MASK;
+//<<<<<<< copilot/fix-22
+	    /*
+	     * Restoring to User Space - cast to user interrupt state to safely
+	     * modify user stack pointer and stack segment without violating strict aliasing
+	     */
+	    struct i386_interrupt_state_user *user_is = (struct i386_interrupt_state_user *)is;
+	    user_is->uesp = kttd_regs.uesp;
+	    user_is->ss = kttd_regs.ss & 0xffff;
+//=======
+//	    ((int *)(is+1))[0] = kttd_regs.uesp;
+//	    ((int *)(is+1))[1] = kttd_regs.ss & SEGMENT_SELECTOR_MASK;
+//>>>>>>> master
 	}
 	is->efl = kttd_regs.efl;
 	is->cs  = kttd_regs.cs & SEGMENT_SELECTOR_MASK;

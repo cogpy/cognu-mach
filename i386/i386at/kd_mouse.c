@@ -67,6 +67,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <mach/boolean.h>
 #include <sys/types.h>
 #include <kern/printf.h>
+#include <string.h>
 #include <device/ds_routines.h>
 #include <device/device_types.h>
 #include <device/io_req.h>
@@ -343,7 +344,8 @@ mouseread(
 	    kd_event *ev;
 
 	    ev = kdq_get(&mouse_queue);
-	    *(kd_event *)(&ior->io_data[count]) = *ev;
+	    /* Use memcpy to avoid strict aliasing violation */
+	    memcpy(&ior->io_data[count], ev, sizeof(kd_event));
 	    count += sizeof(kd_event);
 	}
 	splx(s);
@@ -369,7 +371,8 @@ boolean_t mouse_read_done(io_req_t ior)
 	    kd_event *ev;
 
 	    ev = kdq_get(&mouse_queue);
-	    *(kd_event *)(&ior->io_data[count]) = *ev;
+	    /* Use memcpy to avoid strict aliasing violation */
+	    memcpy(&ior->io_data[count], ev, sizeof(kd_event));
 	    count += sizeof(kd_event);
 	}
 	splx(s);

@@ -3286,16 +3286,16 @@ AM_CCASFLAGS = -D__ASSEMBLY__ $(am__append_146) $(am__append_149)
 # We need the GNU-style inline
 
 # Much of the Mach code predates C99 and makes invalid assumptions about
-# type punning.
+# type punning. Fixed strict aliasing violations, now safe to enable.
 
 # We use a freestanding environment.
 
 # This must be the same size as port names, see e.g. ipc/ipc_entry.c
 AM_CFLAGS = -fno-builtin-log -Wall -Wstrict-prototypes \
 	-Wold-style-definition -Wmissing-prototypes -fgnu89-inline \
-	-fno-strict-aliasing -ffreestanding -nostdlib $(am__append_1) \
-	-DRDXTREE_KEY_32 $(am__append_3) $(am__append_127) \
-	$(am__append_142)
+	-fstrict-aliasing -Wstrict-aliasing=2 -ffreestanding -nostdlib \
+	$(am__append_1) -DRDXTREE_KEY_32 $(am__append_3) \
+	$(am__append_127) $(am__append_142)
 AM_LDFLAGS = 
 
 #
