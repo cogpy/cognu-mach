@@ -72,7 +72,7 @@ global_act_init(void)
 #else
 	int i;
 
-printf("activations: [%x-%x]\n", &free_acts[0], &free_acts[ACT_STATIC_KLUDGE]);
+printf("activations: [%p-%p]\n", &free_acts[0], &free_acts[ACT_STATIC_KLUDGE]);
 	act_freelist = &free_acts[0];
 	free_acts[0].ipt_next = 0;
 	for (i = 1; i < ACT_STATIC_KLUDGE; i++) {
@@ -587,7 +587,7 @@ kern_return_t act_yank(Act *act)
 	{
 		if (thread->top_act != act)
 		{
-			printf("detaching act %08x from thread %08x\n", act, thread);
+			printf("detaching act %p from thread %p\n", act, thread);
 
 			/* Nudge the activation into a clean point for detachment.  */
 			act_nudge(act);
@@ -1079,7 +1079,7 @@ void dump_act(act)
 	act_count();
 	kact_count();
 	while (act) {
-		printf("%08.8x: thread=%x, task=%x, hi=%x, lo=%x, ref=%x\n",
+		printf("%p: thread=%p, task=%p, hi=%p, lo=%p, ref=%x\n",
 		       act, act->thread, act->task,
 		       act->higher, act->lower, act->ref_count);
 		printf("\talerts=%x, mask=%x, susp=%x, active=%x\n",
