@@ -48,6 +48,7 @@
 #include <i386/user_ldt.h>
 #include <i386/db_interface.h>
 #include <i386/fpu.h>
+#include <i386/constants.h>
 #include "eflags.h"
 #include "gdt.h"
 #include "ldt.h"
@@ -490,13 +491,13 @@ kern_return_t thread_setstatus(
 		     * and must have user protection levels.
 		     * Only the low 16 bits are valid.
 		     */
-		    state->cs &= 0xffff;
-		    state->ss &= 0xffff;
+		    state->cs &= SEGMENT_SELECTOR_MASK;
+		    state->ss &= SEGMENT_SELECTOR_MASK;
 #if !defined(__x86_64__) || defined(USER32)
-		    state->ds &= 0xffff;
-		    state->es &= 0xffff;
-		    state->fs &= 0xffff;
-		    state->gs &= 0xffff;
+		    state->ds &= SEGMENT_SELECTOR_MASK;
+		    state->es &= SEGMENT_SELECTOR_MASK;
+		    state->fs &= SEGMENT_SELECTOR_MASK;
+		    state->gs &= SEGMENT_SELECTOR_MASK;
 #endif
 
 		    if (state->cs == 0 || (state->cs & SEL_PL) != SEL_PL_U
@@ -551,12 +552,12 @@ kern_return_t thread_setstatus(
 		    /*
 		     * Set V8086 mode segment registers.
 		     */
-		    saved_state->cs = state->cs & 0xffff;
-		    saved_state->ss = state->ss & 0xffff;
-		    saved_state->v86_segs.v86_ds = state->ds & 0xffff;
-		    saved_state->v86_segs.v86_es = state->es & 0xffff;
-		    saved_state->v86_segs.v86_fs = state->fs & 0xffff;
-		    saved_state->v86_segs.v86_gs = state->gs & 0xffff;
+		    saved_state->cs = state->cs & SEGMENT_SELECTOR_MASK;
+		    saved_state->ss = state->ss & SEGMENT_SELECTOR_MASK;
+		    saved_state->v86_segs.v86_ds = state->ds & SEGMENT_SELECTOR_MASK;
+		    saved_state->v86_segs.v86_es = state->es & SEGMENT_SELECTOR_MASK;
+		    saved_state->v86_segs.v86_fs = state->fs & SEGMENT_SELECTOR_MASK;
+		    saved_state->v86_segs.v86_gs = state->gs & SEGMENT_SELECTOR_MASK;
 
 		    /*
 		     * Zero protected mode segment registers.
@@ -811,10 +812,10 @@ kern_return_t thread_getstatus(
 		    /*
 		     * V8086 mode.
 		     */
-		    state->ds = saved_state->v86_segs.v86_ds & 0xffff;
-		    state->es = saved_state->v86_segs.v86_es & 0xffff;
-		    state->fs = saved_state->v86_segs.v86_fs & 0xffff;
-		    state->gs = saved_state->v86_segs.v86_gs & 0xffff;
+		    state->ds = saved_state->v86_segs.v86_ds & SEGMENT_SELECTOR_MASK;
+		    state->es = saved_state->v86_segs.v86_es & SEGMENT_SELECTOR_MASK;
+		    state->fs = saved_state->v86_segs.v86_fs & SEGMENT_SELECTOR_MASK;
+		    state->gs = saved_state->v86_segs.v86_gs & SEGMENT_SELECTOR_MASK;
 
 		    if (thread->pcb->ims.v86s.int_table) {
 			/*
@@ -829,10 +830,10 @@ kern_return_t thread_getstatus(
 		    /*
 		     * 386 mode.
 		     */
-		    state->ds = saved_state->ds & 0xffff;
-		    state->es = saved_state->es & 0xffff;
-		    state->fs = saved_state->fs & 0xffff;
-		    state->gs = saved_state->gs & 0xffff;
+		    state->ds = saved_state->ds & SEGMENT_SELECTOR_MASK;
+		    state->es = saved_state->es & SEGMENT_SELECTOR_MASK;
+		    state->fs = saved_state->fs & SEGMENT_SELECTOR_MASK;
+		    state->gs = saved_state->gs & SEGMENT_SELECTOR_MASK;
 		}
 #endif
 		*count = i386_THREAD_STATE_COUNT;
