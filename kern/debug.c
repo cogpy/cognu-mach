@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1993 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -191,11 +191,14 @@ log(int level, const char *fmt, ...)
 }
 
 /* GCC references this for stack protection.  */
+/* Stack canary value - chosen to be unlikely to occur in normal data */
+#define STACK_CHK_GUARD_CANARY 0xff
+
 unsigned char __stack_chk_guard [ sizeof (vm_offset_t) ] =
 {
 	[ sizeof (vm_offset_t) - 3 ] = '\r',
 	[ sizeof (vm_offset_t) - 2 ] = '\n',
-	[ sizeof (vm_offset_t) - 1 ] = 0xff,
+	[ sizeof (vm_offset_t) - 1 ] = STACK_CHK_GUARD_CANARY,
 };
 
 void __stack_chk_fail (void);
