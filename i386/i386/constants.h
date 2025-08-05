@@ -39,11 +39,16 @@
 
 /* Segment register masks */
 #define SEGMENT_SELECTOR_MASK   WORD_MASK   /* Segment selector is 16 bits */
+#define SEGMENT_PL_MASK         0x3         /* Privilege level mask (bits 0-1 of selector) */
 
 /* Trap/exception error code masks */
 #define ERROR_CODE_MASK         WORD_MASK   /* Error code lower 16 bits */
 
 /* i386 instruction opcodes */
 #define I386_BREAKPOINT_OPCODE  0xcc        /* INT 3 breakpoint instruction */
+
+/* x86 instruction pattern constants for disassembly/debugging */
+#define I386_POPL_ECX_OPCODE    0x59        /* POPL %ecx instruction */
+#define I386_ADDL_ESP_OPCODE    0xc483      /* ADDL $n, %esp instruction pattern */
 
 #endif /* _I386_CONSTANTS_H_ */
