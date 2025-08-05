@@ -3286,8 +3286,7 @@ AM_CCASFLAGS = -D__ASSEMBLY__ $(am__append_146) $(am__append_149)
 # We need the GNU-style inline
 
 # Much of the Mach code predates C99 and makes invalid assumptions about
-# type punning.
-# Temporarily enable strict aliasing to find violations
+# type punning. Fixed strict aliasing violations, now safe to enable.
 
 # We use a freestanding environment.
 
