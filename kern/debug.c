@@ -40,7 +40,7 @@
 
 #include <device/cons.h>
 
-#if NCPUS>1
+#if NCPUS > 1
 simple_lock_irq_data_t Assert_print_lock; /* uninited, we take our chances */
 #endif
 
