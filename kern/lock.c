@@ -373,8 +373,6 @@ void lock_done(
 void lock_read(
 	lock_t	l)
 {
-	int	i;
-
 	check_simple_locks();
 	simple_lock(&l->interlock);
 
@@ -388,6 +386,7 @@ void lock_read(
 	}
 
 	while (l->want_write || l->want_upgrade) {
+		int i;
 		if ((i = lock_wait_time) > 0) {
 			simple_unlock(&l->interlock);
 			while (--i > 0 && (l->want_write || l->want_upgrade))

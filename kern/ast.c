@@ -198,14 +198,13 @@ ast_check(void)
 		     */
 		    q = rq->runq + *(volatile int *)&rq->low;
 		    if (queue_empty(q)) {
-			int i;
-
 			/*
 			 *	Need to recheck and possibly update hint.
 			 */
 			runq_lock(rq);
 			q = rq->runq + rq->low;
 			if (rq->count > 0) {
+			    int i;
 			    for (i = rq->low; i < NRQS; i++) {
 				if(!(queue_empty(q)))
 				    break;

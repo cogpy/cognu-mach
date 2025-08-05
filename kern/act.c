@@ -38,7 +38,7 @@
 #include <kern/current.h>
 #include "ipc_target.h"
 
-static void special_handler(ReturnHandler *rh, struct Act *act);
+static void special_handler(ReturnHandler *rh, struct Act *cur_act);
 
 #ifdef ACT_STATIC_KLUDGE
 #undef ACT_STATIC_KLUDGE
@@ -329,8 +329,6 @@ static void install_special_handler(struct Act *act)
 /* Locking: Act */
 static void special_handler(ReturnHandler *rh, struct Act *cur_act)
 {
-      retry:
-
 	act_lock(cur_act);
 
 	/* If someone has killed this invocation,
@@ -559,7 +557,6 @@ kern_return_t act_terminate_task_locked(struct Act *act)
 /* Locking: Task > Act */
 kern_return_t act_terminate(struct Act *act)
 {
-	task_t task = act->task;
 	kern_return_t rc;
 
 	/* act->task never changes,
@@ -1100,14 +1097,13 @@ Act *
 get_next_act(int sp)
 {
 	static int i;
-	Act *act;
 
 	while (1) {
 		if (i == ACT_STATIC_KLUDGE) {
 			i = 0;
 			return 0;
 		}
-		act = &free_acts[i];
+		Act *act = &free_acts[i];
 		i++;
 		if (act->mact.space == sp)
 			return act;
