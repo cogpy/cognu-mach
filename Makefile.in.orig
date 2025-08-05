@@ -3291,7 +3291,7 @@ AM_CCASFLAGS = -D__ASSEMBLY__ $(am__append_146) $(am__append_149)
 # We use a freestanding environment.
 
 # This must be the same size as port names, see e.g. ipc/ipc_entry.c
-AM_CFLAGS = -fno-builtin-log -Wall -Wstrict-prototypes \
+AM_CFLAGS = -fno-builtin-log -Wall -Wextra -Wstrict-prototypes \
 	-Wold-style-definition -Wmissing-prototypes -fgnu89-inline \
 	-fstrict-aliasing -Wstrict-aliasing=2 -ffreestanding -nostdlib \
 	$(am__append_1) -DRDXTREE_KEY_32 $(am__append_3) \
