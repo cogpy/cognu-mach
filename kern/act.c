@@ -38,7 +38,7 @@
 #include <kern/current.h>
 #include "ipc_target.h"
 
-static void special_handler(ReturnHandler *rh, struct Act *act);
+static void special_handler(ReturnHandler *rh, struct Act *cur_act);
 
 #ifdef ACT_STATIC_KLUDGE
 #undef ACT_STATIC_KLUDGE
@@ -72,7 +72,7 @@ global_act_init(void)
 #else
 	int i;
 
-printf("activations: [%x-%x]\n", &free_acts[0], &free_acts[ACT_STATIC_KLUDGE]);
+printf("activations: [%p-%p]\n", &free_acts[0], &free_acts[ACT_STATIC_KLUDGE]);
 	act_freelist = &free_acts[0];
 	free_acts[0].ipt_next = 0;
 	for (i = 1; i < ACT_STATIC_KLUDGE; i++) {
@@ -329,8 +329,6 @@ static void install_special_handler(struct Act *act)
 /* Locking: Act */
 static void special_handler(ReturnHandler *rh, struct Act *cur_act)
 {
-      retry:
-
 	act_lock(cur_act);
 
 	/* If someone has killed this invocation,
@@ -559,7 +557,6 @@ kern_return_t act_terminate_task_locked(struct Act *act)
 /* Locking: Task > Act */
 kern_return_t act_terminate(struct Act *act)
 {
-	task_t task = act->task;
 	kern_return_t rc;
 
 	/* act->task never changes,
@@ -590,7 +587,7 @@ kern_return_t act_yank(Act *act)
 	{
 		if (thread->top_act != act)
 		{
-			printf("detaching act %08x from thread %08x\n", act, thread);
+			printf("detaching act %p from thread %p\n", act, thread);
 
 			/* Nudge the activation into a clean point for detachment.  */
 			act_nudge(act);
@@ -1082,7 +1079,7 @@ void dump_act(act)
 	act_count();
 	kact_count();
 	while (act) {
-		printf("%08.8x: thread=%x, task=%x, hi=%x, lo=%x, ref=%x\n",
+		printf("%p: thread=%p, task=%p, hi=%p, lo=%p, ref=%x\n",
 		       act, act->thread, act->task,
 		       act->higher, act->lower, act->ref_count);
 		printf("\talerts=%x, mask=%x, susp=%x, active=%x\n",
@@ -1100,14 +1097,13 @@ Act *
 get_next_act(int sp)
 {
 	static int i;
-	Act *act;
 
 	while (1) {
 		if (i == ACT_STATIC_KLUDGE) {
 			i = 0;
 			return 0;
 		}
-		act = &free_acts[i];
+		Act *act = &free_acts[i];
 		i++;
 		if (act->mact.space == sp)
 			return act;
