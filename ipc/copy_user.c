@@ -63,11 +63,11 @@ static inline void unpack_msg_type(vm_offset_t addr,
                                    vm_size_t *user_amount,
                                    vm_size_t *kernel_amount)
 {
-  mach_msg_type_t* kmt = (mach_msg_type_t*)addr;
+  const mach_msg_type_t* kmt = (const mach_msg_type_t*)addr;
   *is_inline = kmt->msgt_inline;
   if (kmt->msgt_longform)
     {
-      mach_msg_type_long_t* kmtl = (mach_msg_type_long_t*)addr;
+      const mach_msg_type_long_t* kmtl = (const mach_msg_type_long_t*)addr;
       *name = kmtl->msgtl_name;
       *size = kmtl->msgtl_size;
       *number = kmtl->msgtl_number;

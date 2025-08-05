@@ -174,7 +174,7 @@ ipc_entry_alloc_name(
 	for (prevp = &space->is_free_list, e = space->is_free_list;
 	     e != entry;
 	     ({ prevp = &e->ie_next_free; e = e->ie_next_free; }))
-		continue;
+		;  /* empty loop body */
 
 	*prevp = entry->ie_next_free;
 	space->is_free_list_size -= 1;

@@ -259,7 +259,9 @@ ipc_kmsg_clean_body(
 			if (is_inline) {
 				objects = (ipc_object_t *) saddr;
 				/* sanity check */
-				while (eaddr < (vm_offset_t)&objects[number]) number--;
+				while (eaddr < (vm_offset_t)&objects[number]) {
+					number--;
+				}
 			} else {
 				objects = (ipc_object_t *)
 						* (vm_offset_t *) saddr;
