@@ -204,8 +204,16 @@ fill_descriptor(struct real_descriptor *_desc, vm_offset_t base, vm_offset_t lim
 	desc->granularity = sizebits;
 	desc->base_high = base >> 24;
 #ifdef	MACH_PV_DESCRIPTORS
-	if (hyp_do_update_descriptor(kv_to_ma(_desc), *(uint64_t*)desc))
-		panic("couldn't update descriptor(%zu to %08lx%08lx)\n", (vm_offset_t) kv_to_ma(_desc), *(((unsigned long*)desc)+1), *(unsigned long *)desc);
+	/* Use union to safely convert descriptor to uint64_t without strict aliasing violation */
+	union {
+		struct real_descriptor real_desc;
+		uint64_t raw_desc;
+	} desc_union;
+	desc_union.real_desc = *desc;
+	if (hyp_do_update_descriptor(kv_to_ma(_desc), desc_union.raw_desc)) {
+		panic("couldn't update descriptor(%zu to %08lx%08lx)\n", (vm_offset_t) kv_to_ma(_desc), 
+		      (unsigned long)(desc_union.raw_desc >> 32), (unsigned long)(desc_union.raw_desc & 0xFFFFFFFF));
+	}
 #endif	/* MACH_PV_DESCRIPTORS */
 }
 
@@ -237,8 +245,17 @@ fill_descriptor64(struct real_descriptor64 *_desc, unsigned long base, unsigned 
 	desc->zero = 0;
 	desc->reserved2 = 0;
 #ifdef	MACH_PV_DESCRIPTORS
-	if (hyp_do_update_descriptor(kv_to_ma(_desc), *(uint64_t*)desc))
-		panic("couldn't update descriptor(%lu to %08lx%08lx)\n", (vm_offset_t) kv_to_ma(_desc), *(((unsigned long*)desc)+1), *(unsigned long *)desc);
+	/* Use union to safely convert descriptor to uint64_t without strict aliasing violation */
+	/* Note: real_descriptor64 is 128 bits, but hyp_do_update_descriptor expects 64 bits */
+	union {
+		struct real_descriptor64 real_desc;
+		uint64_t raw_desc[2];  /* 128 bits = 2 * 64 bits */
+	} desc_union;
+	desc_union.real_desc = *desc;
+	if (hyp_do_update_descriptor(kv_to_ma(_desc), desc_union.raw_desc[0])) {
+		panic("couldn't update descriptor(%lu to %08lx%08lx)\n", (vm_offset_t) kv_to_ma(_desc), 
+		      (unsigned long)(desc_union.raw_desc[0] >> 32), (unsigned long)(desc_union.raw_desc[0] & 0xFFFFFFFF));
+	}
 #endif	/* MACH_PV_DESCRIPTORS */
 }
 #endif

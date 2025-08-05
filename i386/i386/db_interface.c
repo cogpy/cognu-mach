@@ -379,8 +379,13 @@ kdb_kentry(
 #endif	/* NCPUS > 1 */
 	{
 	    if ((is->cs & 0x3) != KERNEL_RING) {
-		ddb_regs.uesp = *(uintptr_t *)(is+1);
-		ddb_regs.ss   = *(int *)((uintptr_t *)(is+1)+1);
+		/*
+		 * Interrupted from User Space - cast to user interrupt state to safely
+		 * access user stack pointer and stack segment without violating strict aliasing
+		 */
+		struct i386_interrupt_state_user *user_is = (struct i386_interrupt_state_user *)is;
+		ddb_regs.uesp = user_is->uesp;
+		ddb_regs.ss   = user_is->ss;
 	    }
 	    else {
 		ddb_regs.ss  = KERNEL_DS;
@@ -413,8 +418,13 @@ kdb_kentry(
 	    cnpollc(FALSE);
 
 	    if ((ddb_regs.cs & 0x3) != KERNEL_RING) {
-		((int *)(is+1))[0] = ddb_regs.uesp;
-		((int *)(is+1))[1] = ddb_regs.ss & 0xffff;
+		/*
+		 * Restoring to User Space - cast to user interrupt state to safely
+		 * modify user stack pointer and stack segment without violating strict aliasing
+		 */
+		struct i386_interrupt_state_user *user_is = (struct i386_interrupt_state_user *)is;
+		user_is->uesp = ddb_regs.uesp;
+		user_is->ss = ddb_regs.ss & 0xffff;
 	    }
 	    is->efl = ddb_regs.efl;
 	    is->cs  = ddb_regs.cs & 0xffff;

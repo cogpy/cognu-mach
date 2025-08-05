@@ -199,6 +199,20 @@ struct i386_interrupt_state {
 };
 
 /*
+ *	i386_interrupt_state_user:
+ *
+ *	This structure represents the complete interrupt frame including
+ *	the additional data pushed by the processor when interrupting
+ *	from user mode (ring 3). Used to avoid strict aliasing violations
+ *	when accessing user stack pointer and stack segment.
+ */
+struct i386_interrupt_state_user {
+	struct i386_interrupt_state interrupt_state;
+	long	uesp;		/* user stack pointer (only when from user mode) */
+	long	ss;		/* stack segment (only when from user mode) */
+};
+
+/*
  *	i386_machine_state:
  *
  *	This structure corresponds to special machine state.
