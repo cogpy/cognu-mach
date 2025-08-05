@@ -36,6 +36,7 @@
 #include <i386/seg.h>
 #include <i386/trap.h>
 #include <i386/setjmp.h>
+#include <i386/constants.h>
 #include <i386/pmap.h>
 #include <i386/proc_reg.h>
 #include <i386/locore.h>
@@ -327,17 +328,17 @@ kdb_trap(
 		 * user mode - saved esp and ss valid
 		 */
 		regs->uesp = ddb_regs.uesp;		/* user stack pointer */
-		regs->ss   = ddb_regs.ss & 0xffff;	/* user stack segment */
+		regs->ss   = ddb_regs.ss & SEGMENT_SELECTOR_MASK;	/* user stack segment */
 	    }
 	    regs->ebp    = ddb_regs.ebp;
 	    regs->esi    = ddb_regs.esi;
 	    regs->edi    = ddb_regs.edi;
-	    regs->cs     = ddb_regs.cs & 0xffff;
+	    regs->cs     = ddb_regs.cs & SEGMENT_SELECTOR_MASK;
 #if !defined(__x86_64__) || defined(USER32)
-	    regs->es     = ddb_regs.es & 0xffff;
-	    regs->ds     = ddb_regs.ds & 0xffff;
-	    regs->fs     = ddb_regs.fs & 0xffff;
-	    regs->gs     = ddb_regs.gs & 0xffff;
+	    regs->es     = ddb_regs.es & SEGMENT_SELECTOR_MASK;
+	    regs->ds     = ddb_regs.ds & SEGMENT_SELECTOR_MASK;
+	    regs->fs     = ddb_regs.fs & SEGMENT_SELECTOR_MASK;
+	    regs->gs     = ddb_regs.gs & SEGMENT_SELECTOR_MASK;
 #endif
 	    if ((type == T_INT3) &&
 		(db_get_task_value(regs->eip, BKPT_SIZE, FALSE, TASK_NULL)
@@ -418,6 +419,7 @@ kdb_kentry(
 	    cnpollc(FALSE);
 
 	    if ((ddb_regs.cs & 0x3) != KERNEL_RING) {
+//<<<<<<< copilot/fix-22
 		/*
 		 * Restoring to User Space - cast to user interrupt state to safely
 		 * modify user stack pointer and stack segment without violating strict aliasing
@@ -425,9 +427,13 @@ kdb_kentry(
 		struct i386_interrupt_state_user *user_is = (struct i386_interrupt_state_user *)is;
 		user_is->uesp = ddb_regs.uesp;
 		user_is->ss = ddb_regs.ss & 0xffff;
+//=======
+//		((int *)(is+1))[0] = ddb_regs.uesp;
+//		((int *)(is+1))[1] = ddb_regs.ss & SEGMENT_SELECTOR_MASK;
+//>>>>>>> master
 	    }
 	    is->efl = ddb_regs.efl;
-	    is->cs  = ddb_regs.cs & 0xffff;
+	    is->cs  = ddb_regs.cs & SEGMENT_SELECTOR_MASK;
 	    is->eip = ddb_regs.eip;
 	    is->eax = ddb_regs.eax;
 	    is->ecx = ddb_regs.ecx;
@@ -443,10 +449,10 @@ kdb_kentry(
 	    is->rdi = ddb_regs.edi;
 #endif
 #if !defined(__x86_64__) || defined(USER32)
-	    is->ds  = ddb_regs.ds & 0xffff;
-	    is->es  = ddb_regs.es & 0xffff;
-	    is->fs  = ddb_regs.fs & 0xffff;
-	    is->gs  = ddb_regs.gs & 0xffff;
+	    is->ds  = ddb_regs.ds & SEGMENT_SELECTOR_MASK;
+	    is->es  = ddb_regs.es & SEGMENT_SELECTOR_MASK;
+	    is->fs  = ddb_regs.fs & SEGMENT_SELECTOR_MASK;
+	    is->gs  = ddb_regs.gs & SEGMENT_SELECTOR_MASK;
 #endif
 	}
 #if	NCPUS > 1

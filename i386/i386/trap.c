@@ -35,6 +35,7 @@
 #include <i386/fpu.h>
 #include <i386/locore.h>
 #include <i386/model_dep.h>
+#include <i386/constants.h>
 #include <intel/read_fault.h>
 #include <machine/spl.h>	/* for spl_t */
 #include <machine/db_interface.h>
@@ -463,19 +464,19 @@ int user_trap(struct i386_saved_state *regs)
 	    case 10:		/* invalid TSS == iret with NT flag set */
 		exc = EXC_BAD_INSTRUCTION;
 		code = EXC_I386_INVTSSFLT;
-		subcode = regs->err & 0xffff;
+		subcode = regs->err & ERROR_CODE_MASK;
 		break;
 
 	    case T_SEGMENT_NOT_PRESENT:
 		exc = EXC_BAD_INSTRUCTION;
 		code = EXC_I386_SEGNPFLT;
-		subcode = regs->err & 0xffff;
+		subcode = regs->err & ERROR_CODE_MASK;
 		break;
 
 	    case T_STACK_FAULT:
 		exc = EXC_BAD_INSTRUCTION;
 		code = EXC_I386_STKFLT;
-		subcode = regs->err & 0xffff;
+		subcode = regs->err & ERROR_CODE_MASK;
 		break;
 
 	    case T_GENERAL_PROTECTION:
@@ -510,7 +511,7 @@ int user_trap(struct i386_saved_state *regs)
 #endif
 		exc = EXC_BAD_INSTRUCTION;
 		code = EXC_I386_GPFLT;
-		subcode = regs->err & 0xffff;
+		subcode = regs->err & ERROR_CODE_MASK;
 		break;
 
 	    case T_PAGE_FAULT:

@@ -135,7 +135,7 @@ q_to_b( struct cirbuf *cb,
 	char	*cp,
 	int	count)
 {
-	char 		*ocp = cp;
+	char * const	ocp = cp;
 	int		i;
 
 	while (count != 0) {

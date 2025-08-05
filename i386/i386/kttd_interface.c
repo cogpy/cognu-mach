@@ -36,6 +36,7 @@
 #include <mach/thread_status.h>
 #include <mach/vm_param.h>
 #include <i386/seg.h>
+#include <i386/constants.h>
 
 #include <ttd/ttd_types.h>
 #include <ttd/ttd_stub.h>
@@ -54,7 +55,7 @@ extern int		kttd_debug;
 extern boolean_t	kttd_enabled;
 extern vm_offset_t	virtual_end;
 
-#define	I386_BREAKPOINT	0xcc
+#define	I386_BREAKPOINT	I386_BREAKPOINT_OPCODE
 
 /*
  *	kernel map
@@ -307,7 +308,7 @@ boolean_t kttd_remove_breakpoint(vm_address_t address,
 	/*
 	 * replace it:
 	 */
-	*(unsigned char *)address = (saved_inst & 0xff);
+	*(unsigned char *)address = (saved_inst & BYTE_MASK);
 
 	return TRUE;
 }
@@ -447,16 +448,16 @@ boolean_t kttd_trap(int	type, int code, struct i386_saved_state *regs)
 	     * user mode - saved esp and ss valid
 	     */
 	    regs->uesp = kttd_regs.uesp;		/* user stack pointer */
-	    regs->ss   = kttd_regs.ss & 0xffff;	/* user stack segment */
+	    regs->ss   = kttd_regs.ss & SEGMENT_SELECTOR_MASK;	/* user stack segment */
 	}
 	regs->ebp    = kttd_regs.ebp;
 	regs->esi    = kttd_regs.esi;
 	regs->edi    = kttd_regs.edi;
-	regs->es     = kttd_regs.es & 0xffff;
-	regs->cs     = kttd_regs.cs & 0xffff;
-	regs->ds     = kttd_regs.ds & 0xffff;
-	regs->fs     = kttd_regs.fs & 0xffff;
-	regs->gs     = kttd_regs.gs & 0xffff;
+	regs->es     = kttd_regs.es & SEGMENT_SELECTOR_MASK;
+	regs->cs     = kttd_regs.cs & SEGMENT_SELECTOR_MASK;
+	regs->ds     = kttd_regs.ds & SEGMENT_SELECTOR_MASK;
+	regs->fs     = kttd_regs.fs & SEGMENT_SELECTOR_MASK;
+	regs->gs     = kttd_regs.gs & SEGMENT_SELECTOR_MASK;
 
 	if (--kttd_active < MIN_KTTD_ACTIVE)
 		printf("ttd_trap: kttd_active < 0\n");
@@ -548,6 +549,7 @@ kttd_netentry(struct int_regs *int_regs)
 	kttd_active--;
 
 	if ((kttd_regs.cs & 0x3) != KERNEL_RING) {
+//<<<<<<< copilot/fix-22
 	    /*
 	     * Restoring to User Space - cast to user interrupt state to safely
 	     * modify user stack pointer and stack segment without violating strict aliasing
@@ -555,9 +557,13 @@ kttd_netentry(struct int_regs *int_regs)
 	    struct i386_interrupt_state_user *user_is = (struct i386_interrupt_state_user *)is;
 	    user_is->uesp = kttd_regs.uesp;
 	    user_is->ss = kttd_regs.ss & 0xffff;
+//=======
+//	    ((int *)(is+1))[0] = kttd_regs.uesp;
+//	    ((int *)(is+1))[1] = kttd_regs.ss & SEGMENT_SELECTOR_MASK;
+//>>>>>>> master
 	}
 	is->efl = kttd_regs.efl;
-	is->cs  = kttd_regs.cs & 0xffff;
+	is->cs  = kttd_regs.cs & SEGMENT_SELECTOR_MASK;
 	is->eip = kttd_regs.eip;
 	is->eax = kttd_regs.eax;
 	is->ecx = kttd_regs.ecx;
@@ -566,10 +572,10 @@ kttd_netentry(struct int_regs *int_regs)
 	int_regs->ebp = kttd_regs.ebp;
 	int_regs->esi = kttd_regs.esi;
 	int_regs->edi = kttd_regs.edi;
-	is->ds  = kttd_regs.ds & 0xffff;
-	is->es  = kttd_regs.es & 0xffff;
-	is->fs  = kttd_regs.fs & 0xffff;
-	is->gs  = kttd_regs.gs & 0xffff;
+	is->ds  = kttd_regs.ds & SEGMENT_SELECTOR_MASK;
+	is->es  = kttd_regs.es & SEGMENT_SELECTOR_MASK;
+	is->fs  = kttd_regs.fs & SEGMENT_SELECTOR_MASK;
+	is->gs  = kttd_regs.gs & SEGMENT_SELECTOR_MASK;
 
 	if (kttd_run_status == RUNNING)
 		printf("kttd_netentry: %%%%% run_status already RUNNING! %%%%%\n");

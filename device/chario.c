@@ -665,12 +665,12 @@ io_return_t tty_set_status(
 	    case TTY_STATUS:
 		/* set special characters and speed */
 	    {
-		struct tty_status *tsp;
+		const struct tty_status *tsp;
 
 		if (count < TTY_STATUS_COUNT)
 		    return D_INVALID_OPERATION;
 
-		tsp = (struct tty_status *)data;
+		tsp = (const struct tty_status *)data;
 
 		if (tsp->tt_ispeed < 0 ||
 		    tsp->tt_ispeed >= NSPEEDS ||
