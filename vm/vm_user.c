@@ -48,6 +48,13 @@
 #include <vm/vm_fault.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+
+#ifdef USER32
+/* Constants for 32-bit user space address handling */
+#define USER32_ADDRESS_SIGN_BIT     0x80000000UL
+#define USER32_HIGH_BITS_MASK       0xffffffff00000000ULL
+#define USER32_MAX_ADDRESS          0x100000000ULL
+#endif
 #include <vm/vm_object.h>
 #include <vm/memory_object_proxy.h>
 #include <vm/vm_page.h>
@@ -341,8 +348,8 @@ kern_return_t vm_map(
 		return KERN_INVALID_ARGUMENT;
 
 #ifdef USER32
-        if (mask & 0x80000000)
-            mask |= 0xffffffff00000000;
+        if (mask & USER32_ADDRESS_SIGN_BIT)
+            mask |= USER32_HIGH_BITS_MASK;
 #endif
 
 	*address = trunc_page(*address);
@@ -605,8 +612,8 @@ kern_return_t vm_allocate_contiguous(
 		return KERN_INVALID_ARGUMENT;
 
 #ifdef USER32
-	if (pmax > 0x100000000ULL)
-		pmax = 0x100000000ULL;
+	if (pmax > USER32_MAX_ADDRESS)
+		pmax = USER32_MAX_ADDRESS;
 #endif
 
 	selector = VM_PAGE_SEL_DMA;

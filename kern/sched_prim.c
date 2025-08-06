@@ -1898,7 +1898,7 @@ do_runq_scan(
 
 	s = splsched();
 	simple_lock(&runq->lock);
-	if((count = runq->count) > 0) {
+	if ((count = runq->count) > 0) {
 	    q = runq->runq + runq->low;
 	    while (count > 0) {
 		thread = (thread_t) queue_first(q);
