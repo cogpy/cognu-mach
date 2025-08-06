@@ -49,37 +49,44 @@ typedef vm_offset_t ipc_kobject_t;
 
 typedef unsigned int ipc_kobject_type_t;
 
-#define	IKOT_NONE		0
-#define IKOT_THREAD		1
-#define	IKOT_TASK		2
-#define	IKOT_HOST		3
-#define	IKOT_HOST_PRIV		4
-#define	IKOT_PROCESSOR		5
-#define	IKOT_PSET		6
-#define	IKOT_PSET_NAME		7
-#define	IKOT_PAGER		8
-#define	IKOT_PAGING_REQUEST	9
-#define	IKOT_DEVICE		10
-#define	IKOT_XMM_OBJECT		11
-#define	IKOT_XMM_PAGER		12
-#define	IKOT_XMM_KERNEL		13
-#define	IKOT_XMM_REPLY		14
-#define	IKOT_PAGER_TERMINATING	15
-#define IKOT_PAGING_NAME	16
-#define IKOT_HOST_SECURITY	17
-#define	IKOT_LEDGER		18
-#define IKOT_MASTER_DEVICE	19
-#define IKOT_ACT		20
-#define IKOT_SUBSYSTEM		21
-#define IKOT_IO_DONE_QUEUE	22
-#define IKOT_SEMAPHORE		23
-#define IKOT_LOCK_SET		24
-#define IKOT_CLOCK		25
-#define IKOT_CLOCK_CTRL		26
-#define	IKOT_PAGER_PROXY	27
-					/* << new entries here	*/
-#define	IKOT_UNKNOWN		28	/* magic catchall	*/
-#define	IKOT_MAX_TYPE		29	/* # of IKOT_ types	*/
+/*
+ *	Define types of kernel objects that use IPC.
+ *	These values are used to identify kernel objects in IPC messages.
+ *	Phase 1.1: Document all magic numbers with clear meanings
+ */
+
+/* IPC Kernel Object Types */
+#define	IKOT_NONE		0	/* No kernel object - invalid/null reference */
+#define IKOT_THREAD		1	/* Thread object - represents a kernel thread */
+#define	IKOT_TASK		2	/* Task object - represents a task/process */
+#define	IKOT_HOST		3	/* Host object - represents the host system */
+#define	IKOT_HOST_PRIV		4	/* Privileged host object - host with admin rights */
+#define	IKOT_PROCESSOR		5	/* Processor object - represents a CPU */
+#define	IKOT_PSET		6	/* Processor set object - group of processors */
+#define	IKOT_PSET_NAME		7	/* Processor set name port - naming right */
+#define	IKOT_PAGER		8	/* Memory pager object - handles page faults */
+#define	IKOT_PAGING_REQUEST	9	/* Paging request object - pending page operation */
+#define	IKOT_DEVICE		10	/* Device object - hardware device interface */
+#define	IKOT_XMM_OBJECT		11	/* External memory manager object */
+#define	IKOT_XMM_PAGER		12	/* XMM pager object - external pager */
+#define	IKOT_XMM_KERNEL		13	/* XMM kernel object - kernel memory manager */
+#define	IKOT_XMM_REPLY		14	/* XMM reply object - memory manager reply */
+#define	IKOT_PAGER_TERMINATING	15	/* Terminating pager - being destroyed */
+#define IKOT_PAGING_NAME	16	/* Paging name object - memory object name */
+#define IKOT_HOST_SECURITY	17	/* Host security object - security operations */
+#define	IKOT_LEDGER		18	/* Ledger object - resource accounting */
+#define IKOT_MASTER_DEVICE	19	/* Master device object - device master port */
+#define IKOT_ACT		20	/* Activation object - thread activation */
+#define IKOT_SUBSYSTEM		21	/* Subsystem object - RPC subsystem */
+#define IKOT_IO_DONE_QUEUE	22	/* I/O done queue - completed I/O operations */
+#define IKOT_SEMAPHORE		23	/* Semaphore object - synchronization primitive */
+#define IKOT_LOCK_SET		24	/* Lock set object - group of locks */
+#define IKOT_CLOCK		25	/* Clock object - time services */
+#define IKOT_CLOCK_CTRL		26	/* Clock control object - clock management */
+#define	IKOT_PAGER_PROXY	27	/* Pager proxy object - proxy for remote pager */
+			/*	   << new entries here	*/
+#define	IKOT_UNKNOWN		28	/* magic catchall - unknown object type */
+#define	IKOT_MAX_TYPE		29	/* # of IKOT_ types - must be last */
  /* Please keep ipc/ipc_object.c:ikot_print_array up to date	*/
 
 #define is_ipc_kobject(ikot)	(ikot != IKOT_NONE)

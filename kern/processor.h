@@ -209,12 +209,20 @@ extern processor_t	master_processor;
  *	will often lock both.
  */
 
-#define PROCESSOR_OFF_LINE	0	/* Not in system */
-#define	PROCESSOR_RUNNING	1	/* Running normally */
-#define	PROCESSOR_IDLE		2	/* idle */
-#define PROCESSOR_DISPATCHING	3	/* dispatching (idle -> running) */
-#define	PROCESSOR_ASSIGN	4	/* Assignment is changing */
-#define PROCESSOR_SHUTDOWN	5	/* Being shutdown */
+/*
+ *	Processor state is accessed by locking the scheduling lock
+ *	for the assigned processor set.
+ *
+ *      All processor state constants must be distinct values.
+ */
+
+/* Processor State Constants - Phase 1.1: Document magic numbers */
+#define PROCESSOR_OFF_LINE	0	/* Not in system - processor is offline and not available */
+#define	PROCESSOR_RUNNING	1	/* Running normally - actively executing threads */
+#define	PROCESSOR_IDLE		2	/* idle - waiting for work, no threads to run */
+#define PROCESSOR_DISPATCHING	3	/* dispatching (idle -> running) - transitioning to active */
+#define	PROCESSOR_ASSIGN	4	/* Assignment is changing - being moved to different pset */
+#define PROCESSOR_SHUTDOWN	5	/* Being shutdown - processor going offline */
 
 #define processor_ptr(i)	(&percpu_array[i].processor)
 #define cpu_to_processor	processor_ptr

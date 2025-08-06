@@ -60,7 +60,18 @@
 #include <machine/sched_param.h>
 
 #endif	/* STAT_TIME */
-#define NRQS	64			/* 64 run queues per cpu */
+/*
+ *	Scheduler definitions and constants
+ *	Phase 1.1: Document magic numbers with clear explanations
+ */
+
+/*
+ *	NRQS is the number of run queues per processor.  The run queues
+ *	are organized by priority, with higher priority threads running
+ *	first.  The number should be a power of 2 for efficient modulo
+ *	operations.
+ */
+#define NRQS	64			/* 64 run queues per cpu - allows fine-grained priority levels */
 
 struct run_queue {
 	queue_head_t		runq[NRQS];	/* one for each priority */
@@ -135,10 +146,11 @@ extern int		min_quantum;	/* defines max context switch rate */
 #define MIN_QUANTUM	(hz / 33)	/* context switch 33 times/second */
 
 /*
- *	Default base priorities for threads.
+ *	Default base priorities for different thread classes.
+ *	Lower numbers mean higher priority.
  */
-#define BASEPRI_SYSTEM	6
-#define BASEPRI_USER	25
+#define BASEPRI_SYSTEM	6		/* System thread base priority - high priority for kernel operations */
+#define BASEPRI_USER	25		/* User thread base priority - normal priority for user processes */
 
 /*
  *	Macro to check for invalid priorities.
@@ -164,8 +176,12 @@ typedef	struct shift	*shift_t, shift_data_t;
 
 extern unsigned	sched_tick;
 
-#define SCHED_SCALE	128
-#define SCHED_SHIFT	7
+/*
+ *	Scaling factor for scheduler computations.
+ *	Used to maintain precision in fixed-point arithmetic.
+ */
+#define SCHED_SCALE	128		/* Scaling factor - provides 7 bits of fractional precision */
+#define SCHED_SHIFT	7		/* Shift amount for scale factor (log2(SCHED_SCALE)) */
 
 /*
  *	thread_timer_delta macro takes care of both thread timers.
