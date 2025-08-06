@@ -63,6 +63,22 @@ AM_CCASFLAGS += \
 AM_CFLAGS += \
 	-Wall -Wextra -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 
+# Phase 1.1: Add comprehensive compiler warnings for better code quality
+# These additional warnings help catch common issues early
+AM_CFLAGS += \
+	-Wextra \
+	-Wshadow \
+	-Wpointer-arith \
+	-Wcast-align \
+	-Wwrite-strings \
+	-Wredundant-decls \
+	-Wnested-externs \
+	-Winline \
+	-Wno-long-long \
+	-Wuninitialized \
+	-Wconversion \
+	-Wstrict-overflow=2
+
 # We need the GNU-style inline
 AM_CFLAGS += \
 	-fgnu89-inline
