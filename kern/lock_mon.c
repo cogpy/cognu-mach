@@ -50,6 +50,7 @@
 #include <machine/ipl.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_output.h>
+#include <kern/constants.h>
 
 def_simple_lock_data(, kdb_lock)
 def_simple_lock_data(, printf_lock)
@@ -58,10 +59,10 @@ def_simple_lock_data(, printf_lock)
 #define TIME_STAMP 1
 typedef unsigned int time_stamp_t;
 /* in milliseconds */
-#define	time_stamp (elapsed_ticks * 1000 / hz)
+#define	time_stamp (elapsed_ticks * MICROSECONDS_PER_MILLISEC / hz)
 
-#define LOCK_INFO_MAX	     (1024*32)
-#define LOCK_INFO_HASH_COUNT 1024
+#define LOCK_INFO_MAX	     LOCK_INFO_MAX_ENTRIES
+#define LOCK_INFO_HASH_COUNT LOCK_INFO_HASH_BUCKETS
 #define LOCK_INFO_PER_BUCKET	(LOCK_INFO_MAX/LOCK_INFO_HASH_COUNT)
 
 #define HASH_LOCK(lock)	((long)lock>>5 & (LOCK_INFO_HASH_COUNT-1))
@@ -211,7 +212,7 @@ static void lock_info_sort(int arg, int abs, int count)
 					break;
 				case 1:
 				case 2:
-					curval = (curval*100) / sum;
+					curval = (curval*PERF_PERCENTAGE_SCALE) / sum;
 					break;
 				case 3:
 				case 4:

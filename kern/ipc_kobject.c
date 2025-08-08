@@ -48,6 +48,7 @@
 #include <vm/vm_object.h>
 #include <vm/memory_object_proxy.h>
 #include <device/ds_routines.h>
+#include <kern/constants.h>
 
 #include <kern/mach.server.h>
 #include <ipc/mach_port.server.h>
@@ -80,7 +81,7 @@
 ipc_kmsg_t
 ipc_kobject_server(ipc_kmsg_t request)
 {
-	mach_msg_size_t reply_size = ikm_less_overhead(8192);
+	mach_msg_size_t reply_size = ikm_less_overhead(IPC_REPLY_SIZE_DEFAULT);
 	ipc_kmsg_t reply;
 	kern_return_t kr;
 	mig_routine_t routine;
@@ -116,7 +117,7 @@ ipc_kobject_server(ipc_kmsg_t request)
 	    OutP->Head.msgh_remote_port = InP->msgh_local_port;
 	    OutP->Head.msgh_local_port  = MACH_PORT_NULL;
 	    OutP->Head.msgh_seqno = 0;
-	    OutP->Head.msgh_id = InP->msgh_id + 100;
+	    OutP->Head.msgh_id = InP->msgh_id + MACH_EXCEPTION_REPLY_OFFSET;
 #if 0
 	    if (InP->msgh_id) {
 		    static long _calls;

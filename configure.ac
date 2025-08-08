@@ -274,6 +274,22 @@ AC_CONFIG_COMMANDS_POST([
 
 
 CFLAGS="$saved_CFLAGS"
+
+# Add compiler warning flags for better code quality
+if test "$GCC" = yes; then
+  # Basic warning flags
+  CFLAGS="$CFLAGS -Wall -Wextra"
+  
+  # Additional useful warnings
+  CFLAGS="$CFLAGS -Wstrict-aliasing -Wpointer-arith"
+  CFLAGS="$CFLAGS -Wmissing-prototypes -Wmissing-declarations"
+  CFLAGS="$CFLAGS -Wformat=2 -Wformat-security"
+  CFLAGS="$CFLAGS -Wold-style-definition -Wstrict-prototypes"
+  
+  # Disable some warnings that may be too noisy initially
+  CFLAGS="$CFLAGS -Wno-unused-parameter -Wno-sign-compare"
+fi
+
 #
 # Fire.
 #

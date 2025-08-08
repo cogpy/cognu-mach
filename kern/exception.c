@@ -50,6 +50,7 @@
 #include <kern/sched_prim.h>
 #include <kern/exception.h>
 #include <kern/macros.h>
+#include <kern/constants.h>
 #include <mach/machine/vm_types.h>
 
 #if	MACH_KDB
@@ -263,8 +264,8 @@ exception_no_server(void)
 	/*NOTREACHED*/
 }
 
-#define MACH_EXCEPTION_ID		2400	/* from mach/exc.defs */
-#define MACH_EXCEPTION_REPLY_ID		(MACH_EXCEPTION_ID + 100)
+#define MACH_EXCEPTION_ID		MACH_EXCEPTION_BASE_ID	/* from mach/exc.defs */
+#define MACH_EXCEPTION_REPLY_ID		(MACH_EXCEPTION_ID + MACH_EXCEPTION_REPLY_OFFSET)
 
 struct mach_exception {
 	mach_msg_header_t	Head;
