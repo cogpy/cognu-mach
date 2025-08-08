@@ -398,8 +398,8 @@ void _doprnt(
 		    char *p;
 		    char *p2;
 
-		    if (prec == -1)
-			prec = 0x7fffffff;	/* MAXINT */
+            if (prec == -1)
+		prec = PRINTF_MAX_PRECISION;	/* MAXINT */
 
 		    p = va_arg(argp, char *);
 

@@ -52,4 +52,7 @@
 /* Console output constants */
 #define CONSOLE_TIMESTAMP_WIDTH     12           /* Width of console timestamp field */
 
+/* General formatting limits */
+#define PRINTF_MAX_PRECISION        0x7fffffff   /* Max precision fallback for printf */
+
 #endif /* _KERN_CONSTANTS_H_ */
