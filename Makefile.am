@@ -61,16 +61,33 @@ AM_CCASFLAGS += \
 # Yes, this makes the eyes hurt.  But perhaps someone will finally take care of
 # all that scruffy Mach code...  Also see <http://savannah.gnu.org/task/?5726>.
 AM_CFLAGS += \
-	-Wall -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
+	-Wall -Wextra -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
+
+# Phase 1.1: Add comprehensive compiler warnings for better code quality
+# These additional warnings help catch common issues early
+AM_CFLAGS += \
+	-Wextra \
+	-Wshadow \
+	-Wpointer-arith \
+	-Wcast-align \
+	-Wwrite-strings \
+	-Wredundant-decls \
+	-Wnested-externs \
+	-Winline \
+	-Wno-long-long \
+	-Wuninitialized \
+	-Wconversion \
+	-Wstrict-overflow=2
 
 # We need the GNU-style inline
 AM_CFLAGS += \
 	-fgnu89-inline
 
 # Much of the Mach code predates C99 and makes invalid assumptions about
-# type punning.
+# type punning. Fixed strict aliasing violations, now safe to enable.
 AM_CFLAGS += \
-	-fno-strict-aliasing
+	-fstrict-aliasing \
+	-Wstrict-aliasing=2
 
 # We use a freestanding environment.
 AM_CFLAGS += \

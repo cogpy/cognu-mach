@@ -205,7 +205,7 @@ static void lock_info_sort(int arg, int abs, int count)
 				total++;
 				curval = *((int *)li + arg);
 				sum = li->success + li->fail;
-				if(!sum && !abs)
+				if (!sum && !abs)
 					continue;
 				if (!abs) switch(arg) {
 				case 0:

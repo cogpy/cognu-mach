@@ -1362,10 +1362,9 @@ boolean_t ds_read_done(const io_req_t ior)
 	 */
 	{
 	    vm_offset_t			touch;
-	    int				c;
 
 	    for (touch = start_sent; touch < end_sent; touch += PAGE_SIZE) {
-		c = *(volatile char *)touch;
+		int c = *(volatile char *)touch;
 		*(volatile char *)touch = c;
 	    }
 	}

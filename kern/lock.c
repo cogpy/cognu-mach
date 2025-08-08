@@ -42,6 +42,9 @@
 #include <kern/lock.h>
 #include <kern/thread.h>
 #include <kern/sched_prim.h>
+
+/* Sentinel value indicating no thread owns the lock */
+#define LOCK_THREAD_INVALID ((struct thread *)-1)
 #if	MACH_KDB
 #include <machine/db_machdep.h>
 #include <ddb/db_output.h>
@@ -248,7 +251,7 @@ void lock_init(
 	l->want_upgrade = FALSE;
 	l->read_count = 0;
 	l->can_sleep = can_sleep;
-	l->thread = (struct thread *)-1;	/* XXX */
+	l->thread = LOCK_THREAD_INVALID;
 	l->recursion_depth = 0;
 }
 
@@ -373,8 +376,6 @@ void lock_done(
 void lock_read(
 	lock_t	l)
 {
-	int	i;
-
 	check_simple_locks();
 	simple_lock(&l->interlock);
 
@@ -388,6 +389,7 @@ void lock_read(
 	}
 
 	while (l->want_write || l->want_upgrade) {
+		int i;
 		if ((i = lock_wait_time) > 0) {
 			simple_unlock(&l->interlock);
 			while (--i > 0 && (l->want_write || l->want_upgrade))
@@ -657,7 +659,7 @@ void lock_clear_recursive(
 		panic("lock_clear_recursive: wrong thread");
 	}
 	if (l->recursion_depth == 0)
-		l->thread = (struct thread *)-1;	/* XXX */
+		l->thread = LOCK_THREAD_INVALID;
 	simple_unlock(&l->interlock);
 }
 

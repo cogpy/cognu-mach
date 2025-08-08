@@ -39,6 +39,7 @@
 #include <i386/seg.h>
 #include <i386/thread.h>
 #include <i386/user_ldt.h>
+#include <i386/constants.h>
 #include <i386/i386/mach_i386.server.h>
 #include <stddef.h>
 #include "ldt.h"
@@ -170,8 +171,8 @@ i386_set_ldt(
 
 		new_ldt->desc.limit_low   = ldt_size_needed - 1;
 		new_ldt->desc.limit_high  = 0;
-		new_ldt->desc.base_low    = ldt_base & 0xffff;
-		new_ldt->desc.base_med    = (ldt_base >> 16) & 0xff;
+		new_ldt->desc.base_low    = ldt_base & WORD_MASK;
+		new_ldt->desc.base_med    = (ldt_base >> 16) & BYTE_MASK;
 		new_ldt->desc.base_high   = ldt_base >> 24;
 		new_ldt->desc.access      = ACC_P | ACC_LDT;
 		new_ldt->desc.granularity = 0;

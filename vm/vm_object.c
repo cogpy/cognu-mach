@@ -759,8 +759,7 @@ static void vm_object_abort_activity(
 			VM_PAGE_FREE(p);
 		}
 		 else {
-		 	if (p->unlock_request != VM_PROT_NONE)
-			 	p->unlock_request = VM_PROT_NONE;
+		 	p->unlock_request = VM_PROT_NONE;
 			PAGE_WAKEUP(p);
 		}
 		

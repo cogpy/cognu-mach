@@ -39,6 +39,7 @@
 #include <machine/db_trace.h>
 #include <machine/cpu_number.h>
 #include <i386at/model_dep.h>
+#include <i386/constants.h>
 
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>
@@ -244,10 +245,10 @@ db_numargs(
 	    args = db_numargs_default;
 	else {
 	    inst = db_get_task_value((long)argp, sizeof(long), FALSE, task);
-	    if ((inst & 0xff) == 0x59)	/* popl %ecx */
+	    if ((inst & BYTE_MASK) == I386_POPL_ECX_OPCODE)	/* popl %ecx */
 		args = 1;
-	    else if ((inst & 0xffff) == 0xc483)	/* addl %n, %esp */
-		args = ((inst >> 16) & 0xff) / 4;
+	    else if ((inst & WORD_MASK) == I386_ADDL_ESP_OPCODE)	/* addl %n, %esp */
+		args = ((inst >> 16) & BYTE_MASK) / 4;
 	    else
 		args = db_numargs_default;
 	}

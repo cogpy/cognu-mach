@@ -231,7 +231,8 @@ kbdread(
 	    kd_event *ev;
 
 	    ev = kdq_get(&kbd_queue);
-	    *(kd_event *)(&ior->io_data[count]) = *ev;
+	    /* Use memcpy to avoid strict aliasing violation */
+	    memcpy(&ior->io_data[count], ev, sizeof(kd_event));
 	    count += sizeof(kd_event);
 	}
 	splx(s);
@@ -257,7 +258,8 @@ boolean_t kbd_read_done(io_req_t ior)
 	    kd_event *ev;
 
 	    ev = kdq_get(&kbd_queue);
-	    *(kd_event *)(&ior->io_data[count]) = *ev;
+	    /* Use memcpy to avoid strict aliasing violation */
+	    memcpy(&ior->io_data[count], ev, sizeof(kd_event));
 	    count += sizeof(kd_event);
 	}
 	splx(s);

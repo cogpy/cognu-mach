@@ -357,10 +357,11 @@ host_processor_sets(
 	/* take for for convert_pset_name_to_port */
 	pset_reference(&default_pset);
 	/* do the conversion that Mig should handle */
-	*((mach_port_t *) addr) = 
-			(mach_port_t) convert_pset_name_to_port(&default_pset);
+	/* Phase 1.1: Fix strict aliasing - use proper type instead of casting */
+	mach_port_t *port_list = (mach_port_t *) addr;
+	port_list[0] = (mach_port_t) convert_pset_name_to_port(&default_pset);
 
-	*pset_list = (mach_port_t *) addr;
+	*pset_list = port_list;
 	*count = 1;
 
 	return KERN_SUCCESS;

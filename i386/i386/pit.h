@@ -49,44 +49,51 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define	_I386_PIT_H_
 
 #if	defined(AT386) || defined(ATX86_64)
-/* Definitions for 8254 Programmable Interrupt Timer ports on AT 386 */
-#define PITCTR0_PORT	0x40		/* counter 0 port */
-#define PITCTR1_PORT	0x41		/* counter 1 port */
-#define PITCTR2_PORT	0x42		/* counter 2 port */
-#define PITCTL_PORT	0x43		/* PIT control port */
-#define PITAUX_PORT	0x61		/* PIT auxiliary port */
-/* bits used in auxiliary control port for timer 2 */
-#define PITAUX_GATE2	0x01		/* aux port, PIT gate 2 input */
+/* 
+ * Definitions for 8254 Programmable Interrupt Timer ports on AT 386
+ * The 8254 contains three independent 16-bit counters that can be programmed
+ * to operate in various modes for timing, counting, and waveform generation.
+ */
+#define PITCTR0_PORT	0x40		/* counter 0 port - system timer */
+#define PITCTR1_PORT	0x41		/* counter 1 port - memory refresh */
+#define PITCTR2_PORT	0x42		/* counter 2 port - speaker tone */
+#define PITCTL_PORT	0x43		/* PIT control port - mode/command register */
+#define PITAUX_PORT	0x61		/* PIT auxiliary port - speaker control */
+
+/* Bit values used in auxiliary control port for timer 2 (speaker) */
+#define PITAUX_GATE2	0x01		/* aux port, PIT gate 2 input enable */
 #define PITAUX_OUT2	0x02		/* aux port, PIT clock out 2 enable */
-#define PITAUX_VAL	0x20		/* aux port, output */
+#define PITAUX_VAL	0x20		/* aux port, speaker output enable */
 #endif	/* defined(AT386) */
 
-/* Following are used for Timer 0 */
-#define PIT_C0          0x00            /* select counter 0 */
+/* PIT counter selection and control bit masks */
+#define PIT_C0          0x00            /* select counter 0 (system timer) */
 #define PIT_LOADMODE	0x30		/* load least significant byte followed
 					 * by most significant byte */
-#define PIT_NDIVMODE	0x04		/*divide by N counter */
+#define PIT_NDIVMODE	0x04		/* divide by N counter mode */
 
-/* Used for Timer 1. Used for delay calculations in countdown mode */
-#define PIT_C1          0x40            /* select counter 1 */
+/* PIT operating modes for Timer 1 (used for delay calculations in countdown mode) */
+#define PIT_C1          0x40            /* select counter 1 (memory refresh) */
 #define PIT_READMODE	0x30		/* read or load least significant byte
 					 * followed by most significant byte */
 
-#define PIT_SQUAREMODE	0x06		/* square-wave mode */
-#define PIT_RATEMODE	0x04		/* rate generator mode */
-#define PIT_ONESHOTMODE	0x02		/* one-shot mode */
+/* PIT timer operating modes */
+#define PIT_SQUAREMODE	0x06		/* square-wave mode (mode 3) */
+#define PIT_RATEMODE	0x04		/* rate generator mode (mode 2) */
+#define PIT_ONESHOTMODE	0x02		/* one-shot mode (mode 1) */
 
-/* Used for Timer 2. */
-#define PIT_C2		0x80            /* select counter 2 */
+/* Timer 2 selection (used for speaker control) */
+#define PIT_C2		0x80            /* select counter 2 (speaker) */
 
-#define POST_PORT	0x80		/* used for tiny i/o delay */
+#define POST_PORT	0x80		/* diagnostic port for tiny i/o delay */
 
 /*
- * Clock speed for the timer in hz divided by the constant HZ
- * (defined in param.h)
+ * PIT frequency constants
+ * Clock speed for the timer in Hz. The 8254 PIT runs at a fixed frequency
+ * of 1.193182 MHz on PC-compatible hardware.
  */
 #if	defined(AT386) || defined(ATX86_64)
-#define CLKNUM		1193182
+#define CLKNUM		1193182		/* PIT base frequency in Hz */
 #endif	/* AT386 */
 
 extern void clkstart(void);
