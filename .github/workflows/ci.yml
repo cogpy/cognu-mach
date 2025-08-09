@@ -37,10 +37,18 @@ jobs:
       - name: Static analysis (cppcheck)
         run: |
           cppcheck --std=c11 --platform=unix32 --enable=warning,performance,portability \
-            --inline-suppr --error-exitcode=2 . || true
+            --inline-suppr --error-exitcode=2 . 2> cppcheck-report.txt || true
       - name: Static analysis (scan-build)
         run: |
           scan-build --status-bugs -o scan-out make -j$(nproc) clean all || true
+      - name: Upload analysis reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-reports
+          path: |
+            cppcheck-report.txt
+            scan-out/
       - name: Run tests
         run: make check
       - name: Upload QEMU logs on failure
