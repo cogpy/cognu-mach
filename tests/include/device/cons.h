@@ -21,7 +21,7 @@
 
 #include <mach/machine/vm_types.h>
 
-void cnputc(char c, vm_offset_t cookie);
+void cnputc(char c);
 static inline int cngetc() { return 0; }
 
 #endif  /* CONS_H */
