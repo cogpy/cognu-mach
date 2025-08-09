@@ -130,6 +130,7 @@
 boolean_t console_timestamps_enabled = TRUE;
 static time_value64_t console_start_time;
 static boolean_t console_timestamp_initialized = FALSE;
+static console_timestamp_format_t console_timestamp_format = TIMESTAMP_FORMAT_RELATIVE;
 
 /*
  * Initialize console timestamp functionality
@@ -155,12 +156,12 @@ cnputc_wrapper(char c, vm_offset_t arg)
 
 /*
  * Print a timestamp to the console
- * Format: [seconds.milliseconds] 
+ * Format depends on console_timestamp_format setting
  */
 void console_print_timestamp(void)
 {
 	time_value64_t current_uptime, relative_time;
-	int seconds, milliseconds;
+	int seconds, milliseconds, microseconds;
 	
 	if (!console_timestamps_enabled || !console_timestamp_initialized)
 		return;
@@ -171,15 +172,63 @@ void console_print_timestamp(void)
 	time_value64_sub(&relative_time, &console_start_time);
 	
 	seconds = (int)relative_time.seconds;
-	milliseconds = (int)(relative_time.nanoseconds / NANOSECONDS_PER_MILLISEC);
+//<<<<<<< copilot/fix-18
+	milliseconds = (int)(relative_time.nanoseconds / 1000000);
+	microseconds = (int)((relative_time.nanoseconds % 1000000) / 1000);
+//=======
+//	milliseconds = (int)(relative_time.nanoseconds / NANOSECONDS_PER_MILLISEC);
+//>>>>>>> master
 	
-	/* Print timestamp in [seconds.milliseconds] format */
+	/* Print timestamp based on format */
 	cnputc('[');
-	printnum(seconds, 10, cnputc_wrapper, 0);
-	cnputc('.');
-	if (milliseconds < 100) cnputc('0');  /* Leading zero for < 100ms */
-	if (milliseconds < 10) cnputc('0');   /* Leading zero for < 10ms */
-	printnum(milliseconds, 10, cnputc_wrapper, 0);
+	
+	switch (console_timestamp_format) {
+	case TIMESTAMP_FORMAT_RELATIVE:
+		/* [seconds.milliseconds] format */
+		printnum(seconds, 10, cnputc_wrapper, 0);
+		cnputc('.');
+		if (milliseconds < 100) cnputc('0');
+		if (milliseconds < 10) cnputc('0');
+		printnum(milliseconds, 10, cnputc_wrapper, 0);
+		break;
+		
+	case TIMESTAMP_FORMAT_UPTIME:
+		/* [uptime] absolute format */
+		printnum((int)current_uptime.seconds, 10, cnputc_wrapper, 0);
+		cnputc('.');
+		int abs_ms = (int)(current_uptime.nanoseconds / 1000000);
+		if (abs_ms < 100) cnputc('0');
+		if (abs_ms < 10) cnputc('0');
+		printnum(abs_ms, 10, cnputc_wrapper, 0);
+		break;
+		
+	case TIMESTAMP_FORMAT_SIMPLE:
+		/* [sss.mmm] simple format */
+		if (seconds < 100) cnputc('0');
+		if (seconds < 10) cnputc('0');
+		printnum(seconds, 10, cnputc_wrapper, 0);
+		cnputc('.');
+		if (milliseconds < 100) cnputc('0');
+		if (milliseconds < 10) cnputc('0');
+		printnum(milliseconds, 10, cnputc_wrapper, 0);
+		break;
+		
+	case TIMESTAMP_FORMAT_PRECISE:
+		/* [sss.mmm.uuu] precise format with microseconds */
+		if (seconds < 100) cnputc('0');
+		if (seconds < 10) cnputc('0');
+		printnum(seconds, 10, cnputc_wrapper, 0);
+		cnputc('.');
+		if (milliseconds < 100) cnputc('0');
+		if (milliseconds < 10) cnputc('0');
+		printnum(milliseconds, 10, cnputc_wrapper, 0);
+		cnputc('.');
+		if (microseconds < 100) cnputc('0');
+		if (microseconds < 10) cnputc('0');
+		printnum(microseconds, 10, cnputc_wrapper, 0);
+		break;
+	}
+	
 	cnputc(']');
 	cnputc(' ');
 }
@@ -195,6 +244,23 @@ void console_timestamp_enable(boolean_t enable)
 boolean_t console_timestamp_is_enabled(void)
 {
 	return console_timestamps_enabled;
+}
+
+void console_timestamp_set_format(console_timestamp_format_t format)
+{
+	console_timestamp_format = format;
+}
+
+console_timestamp_format_t console_timestamp_get_format(void)
+{
+	return console_timestamp_format;
+}
+
+void console_timestamp_get_boot_time(time_value64_t *boot_time)
+{
+	if (boot_time) {
+		*boot_time = console_start_time;
+	}
 }
 
 

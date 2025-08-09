@@ -3283,6 +3283,9 @@ AM_CCASFLAGS = -D__ASSEMBLY__ $(am__append_146) $(am__append_149)
 # Yes, this makes the eyes hurt.  But perhaps someone will finally take care of
 # all that scruffy Mach code...  Also see <http://savannah.gnu.org/task/?5726>.
 
+# Phase 1.1: Add comprehensive compiler warnings for better code quality
+# These additional warnings help catch common issues early
+
 # We need the GNU-style inline
 
 # Much of the Mach code predates C99 and makes invalid assumptions about
@@ -3292,7 +3295,10 @@ AM_CCASFLAGS = -D__ASSEMBLY__ $(am__append_146) $(am__append_149)
 
 # This must be the same size as port names, see e.g. ipc/ipc_entry.c
 AM_CFLAGS = -fno-builtin-log -Wall -Wextra -Wstrict-prototypes \
-	-Wold-style-definition -Wmissing-prototypes -fgnu89-inline \
+	-Wold-style-definition -Wmissing-prototypes -Wextra -Wshadow \
+	-Wpointer-arith -Wcast-align -Wwrite-strings -Wredundant-decls \
+	-Wnested-externs -Winline -Wno-long-long -Wuninitialized \
+	-Wconversion -Wstrict-overflow=2 -fgnu89-inline \
 	-fstrict-aliasing -Wstrict-aliasing=2 -ffreestanding -nostdlib \
 	$(am__append_1) -DRDXTREE_KEY_32 $(am__append_3) \
 	$(am__append_127) $(am__append_142)
