@@ -171,13 +171,10 @@ void console_print_timestamp(void)
 	relative_time = current_uptime;
 	time_value64_sub(&relative_time, &console_start_time);
 	
-	seconds = (int)relative_time.seconds;
-//<<<<<<< copilot/fix-18
-	milliseconds = (int)(relative_time.nanoseconds / 1000000);
-	microseconds = (int)((relative_time.nanoseconds % 1000000) / 1000);
-//=======
-//	milliseconds = (int)(relative_time.nanoseconds / NANOSECONDS_PER_MILLISEC);
-//>>>>>>> master
+    seconds = (int)relative_time.seconds;
+    /* derive ms/us consistently from nanoseconds */
+    milliseconds = (int)(relative_time.nanoseconds / 1000000);
+    microseconds = (int)((relative_time.nanoseconds % 1000000) / 1000);
 	
 	/* Print timestamp based on format */
 	cnputc('[');
@@ -196,7 +193,7 @@ void console_print_timestamp(void)
 		/* [uptime] absolute format */
 		printnum((int)current_uptime.seconds, 10, cnputc_wrapper, 0);
 		cnputc('.');
-		int abs_ms = (int)(current_uptime.nanoseconds / 1000000);
+        int abs_ms = (int)(current_uptime.nanoseconds / 1000000);
 		if (abs_ms < 100) cnputc('0');
 		if (abs_ms < 10) cnputc('0');
 		printnum(abs_ms, 10, cnputc_wrapper, 0);

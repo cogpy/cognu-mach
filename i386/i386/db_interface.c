@@ -425,8 +425,8 @@ kdb_kentry(
 		 * modify user stack pointer and stack segment without violating strict aliasing
 		 */
 		struct i386_interrupt_state_user *user_is = (struct i386_interrupt_state_user *)is;
-		user_is->uesp = ddb_regs.uesp;
-		user_is->ss = ddb_regs.ss & 0xffff;
+        user_is->uesp = ddb_regs.uesp;
+        user_is->ss = ddb_regs.ss & SEGMENT_SELECTOR_MASK;
 //=======
 //		((int *)(is+1))[0] = ddb_regs.uesp;
 //		((int *)(is+1))[1] = ddb_regs.ss & SEGMENT_SELECTOR_MASK;

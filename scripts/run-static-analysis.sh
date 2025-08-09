@@ -85,7 +85,6 @@ check_tool() {
     return 0
 }
 
-#<<<<<<< copilot/fix-18
 # Define file patterns based on focus
 if [[ "$DEBUG_FOCUS" == "true" ]]; then
     FILE_PATTERNS="ddb/ kern/debug.c kern/printf.c i386/i386/db_*.c i386/i386/kttd_*.c"
@@ -96,7 +95,8 @@ elif [[ "$TIMESTAMP_FOCUS" == "true" ]]; then
 else
     FILE_PATTERNS="kern/ ddb/ device/ ipc/ vm/ i386/"
     echo -e "${YELLOW}Scope: Full codebase analysis${NC}"
-#=======
+fi
+
 # Ensure configure exists
 if [ ! -x ./configure ]; then
     echo "'configure' not found. Bootstrapping autotools (autoreconf)..."
@@ -105,7 +105,6 @@ if [ ! -x ./configure ]; then
     else
         echo "Warning: autoreconf not available; skipping configure generation."
     fi
-#>>>>>>> master
 fi
 
 # Run cppcheck if available
@@ -129,19 +128,13 @@ if check_tool clang; then
     cd "$OUTPUT_DIR/build-analyze"
     
     if check_tool scan-build; then
-#<<<<<<< copilot/fix-18
-        scan-build "$PROJECT_ROOT/configure" --host=i686-gnu || true
-        scan-build -o scan-results make -j$(nproc) || true
-        echo -e "${GREEN}Clang static analyzer results saved in $OUTPUT_DIR/build-analyze/scan-results/${NC}"
-#=======
-        if [ -x ../configure ]; then
-            scan-build ../configure --host=i686-gnu || true
+        if [ -x "$PROJECT_ROOT/configure" ]; then
+            scan-build "$PROJECT_ROOT/configure" --host=i686-gnu || true
             scan-build -o scan-results make -j$(nproc) || true
-            echo "Clang static analyzer results saved in build-analyze/scan-results/"
+            echo -e "${GREEN}Clang static analyzer results saved in $OUTPUT_DIR/build-analyze/scan-results/${NC}"
         else
             echo "Skipping scan-build configure step (no configure script)."
         fi
-#>>>>>>> master
     else
         echo -e "${YELLOW}scan-build not found. Install clang-tools for static analysis.${NC}"
     fi
@@ -179,30 +172,18 @@ if [[ "$DEBUG_FOCUS" == "true" || "$TIMESTAMP_FOCUS" == "true" ]]; then
 fi
 
 # Run compiler with extra warnings to identify issues
-#<<<<<<< copilot/fix-18
 echo -e "${BLUE}=== Checking for compiler warnings ===${NC}"
 echo "Building with enhanced warnings to identify issues..."
 mkdir -p "$OUTPUT_DIR/build-warnings"
 cd "$OUTPUT_DIR/build-warnings"
-"$PROJECT_ROOT/configure" --host=i686-gnu --enable-kdb CFLAGS="-g -O2 -Wall -Wextra" 2>&1 | tee ../configure-warnings.txt || true
-make -j$(nproc) 2>&1 | tee ../compiler-warnings.txt || true
-cd "$PROJECT_ROOT"
-echo -e "${GREEN}Compiler warnings saved to $OUTPUT_DIR/compiler-warnings.txt${NC}"
-#=======
-echo "=== Checking for compiler warnings ==="
-echo "Building with -Werror to identify all warnings..."
-mkdir -p build-warnings
-cd build-warnings
-if [ -x ../configure ]; then
-    ../configure --host=i686-gnu CFLAGS="-g -O2 -Werror" || true
+if [ -x "$PROJECT_ROOT/configure" ]; then
+    "$PROJECT_ROOT/configure" --host=i686-gnu --enable-kdb CFLAGS="-g -O2 -Wall -Wextra" 2>&1 | tee ../configure-warnings.txt || true
     make -j$(nproc) 2>&1 | tee ../compiler-warnings.txt || true
 else
-    echo "No configure script; skipping build with warnings."
-    echo "No configure script; skipping build with warnings." > ../compiler-warnings.txt
+    echo "No configure script; skipping build with warnings." | tee ../compiler-warnings.txt
 fi
-cd ..
-echo "Compiler warnings saved to compiler-warnings.txt"
-#>>>>>>> master
+cd "$PROJECT_ROOT"
+echo -e "${GREEN}Compiler warnings saved to $OUTPUT_DIR/compiler-warnings.txt${NC}"
 echo
 
 echo -e "${GREEN}=== Static analysis complete ===${NC}"
