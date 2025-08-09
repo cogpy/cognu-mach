@@ -287,9 +287,9 @@ static void * kmem_buf_verify_bytes(void *buf, void *pattern, size_t size)
 {
     char *ptr, *pattern_ptr, *end;
 
-    end = buf + size;
+    end = (char *)buf + size;
 
-    for (ptr = buf, pattern_ptr = pattern; ptr < end; ptr++, pattern_ptr++)
+    for (ptr = (char *)buf, pattern_ptr = (char *)pattern; ptr < end; ptr++, pattern_ptr++)
         if (*ptr != *pattern_ptr)
             return ptr;
 
@@ -303,9 +303,9 @@ static void * kmem_buf_verify(void *buf, uint64_t pattern, vm_size_t size)
     assert(P2ALIGNED((unsigned long)buf, sizeof(uint64_t)));
     assert(P2ALIGNED(size, sizeof(uint64_t)));
 
-    end = buf + size;
+    end = (uint64_t *)((char *)buf + size);
 
-    for (ptr = buf; ptr < end; ptr++)
+    for (ptr = (uint64_t *)buf; ptr < end; ptr++)
         if (*ptr != pattern)
             return kmem_buf_verify_bytes(ptr, &pattern, sizeof(pattern));
 
@@ -319,9 +319,9 @@ static void kmem_buf_fill(void *buf, uint64_t pattern, size_t size)
     assert(P2ALIGNED((unsigned long)buf, sizeof(uint64_t)));
     assert(P2ALIGNED(size, sizeof(uint64_t)));
 
-    end = buf + size;
+    end = (uint64_t *)((char *)buf + size);
 
-    for (ptr = buf; ptr < end; ptr++)
+    for (ptr = (uint64_t *)buf; ptr < end; ptr++)
         *ptr = pattern;
 }
 
@@ -333,9 +333,9 @@ static void * kmem_buf_verify_fill(void *buf, uint64_t old, uint64_t new,
     assert(P2ALIGNED((unsigned long)buf, sizeof(uint64_t)));
     assert(P2ALIGNED(size, sizeof(uint64_t)));
 
-    end = buf + size;
+    end = (uint64_t *)((char *)buf + size);
 
-    for (ptr = buf; ptr < end; ptr++) {
+    for (ptr = (uint64_t *)buf; ptr < end; ptr++) {
         if (*ptr != old)
             return kmem_buf_verify_bytes(ptr, &old, sizeof(old));
 
@@ -348,19 +348,19 @@ static void * kmem_buf_verify_fill(void *buf, uint64_t old, uint64_t new,
 static inline union kmem_bufctl *
 kmem_buf_to_bufctl(void *buf, struct kmem_cache *cache)
 {
-    return (union kmem_bufctl *)(buf + cache->bufctl_dist);
+    return (union kmem_bufctl *)((char *)buf + cache->bufctl_dist);
 }
 
 static inline struct kmem_buftag *
 kmem_buf_to_buftag(void *buf, struct kmem_cache *cache)
 {
-    return (struct kmem_buftag *)(buf + cache->buftag_dist);
+    return (struct kmem_buftag *)((char *)buf + cache->buftag_dist);
 }
 
 static inline void * kmem_bufctl_to_buf(union kmem_bufctl *bufctl,
                                         struct kmem_cache *cache)
 {
-    return (void *)bufctl - cache->bufctl_dist;
+    return (void *)((char *)bufctl - cache->bufctl_dist);
 }
 
 static vm_offset_t
@@ -447,10 +447,10 @@ static void kmem_slab_create_verify(struct kmem_slab *slab,
     struct kmem_buftag *buftag;
     size_t buf_size;
     unsigned long buffers;
-    void *buf;
+    char *buf;
 
     buf_size = cache->buf_size;
-    buf = slab->addr;
+    buf = (char *)slab->addr;
     buftag = kmem_buf_to_buftag(buf, cache);
 
     for (buffers = cache->bufs_per_slab; buffers != 0; buffers--) {
@@ -512,7 +512,7 @@ static struct kmem_slab * kmem_slab_create(struct kmem_cache *cache,
     for (buffers = cache->bufs_per_slab; buffers != 0; buffers--) {
         bufctl->next = slab->first_free;
         slab->first_free = bufctl;
-        bufctl = (union kmem_bufctl *)((void *)bufctl + buf_size);
+        bufctl = (union kmem_bufctl *)((char *)bufctl + buf_size);
     }
 
     if (cache->flags & KMEM_CF_VERIFY)
@@ -527,10 +527,11 @@ static void kmem_slab_destroy_verify(struct kmem_slab *slab,
     struct kmem_buftag *buftag;
     size_t buf_size;
     unsigned long buffers;
-    void *buf, *addr;
+    char *buf;
+    void *addr;
 
     buf_size = cache->buf_size;
-    buf = slab->addr;
+    buf = (char *)slab->addr;
     buftag = kmem_buf_to_buftag(buf, cache);
 
     for (buffers = cache->bufs_per_slab; buffers != 0; buffers--) {
@@ -718,12 +719,18 @@ static void kmem_cache_error(struct kmem_cache *cache, void *buf, int error,
                    (void *)buftag->state);
         break;
     case KMEM_ERR_MODIFIED:
-        kmem_error("free buffer modified, fault address: %p, "
-                   "offset in buffer: %td", arg, arg - buf);
+        {
+            ptrdiff_t offset = (char *)arg - (char *)buf;
+            kmem_error("free buffer modified, fault address: %p, "
+                       "offset in buffer: %td", arg, offset);
+        }
         break;
     case KMEM_ERR_REDZONE:
-        kmem_error("write beyond end of buffer, fault address: %p, "
-                   "offset in buffer: %td", arg, arg - buf);
+        {
+            ptrdiff_t offset = (char *)arg - (char *)buf;
+            kmem_error("write beyond end of buffer, fault address: %p, "
+                       "offset in buffer: %td", arg, offset);
+        }
         break;
     default:
         kmem_error("unknown error");
@@ -1068,7 +1075,7 @@ static void kmem_cache_alloc_verify(struct kmem_cache *cache, void *buf,
     if (addr != NULL)
         kmem_cache_error(cache, buf, KMEM_ERR_MODIFIED, addr);
 
-    addr = buf + cache->obj_size;
+    addr = (char *)buf + cache->obj_size;
     memset(addr, KMEM_REDZONE_BYTE, cache->redzone_pad);
 
     bufctl = kmem_buf_to_bufctl(buf, cache);
@@ -1189,7 +1196,7 @@ static void kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
             kmem_cache_error(cache, buf, KMEM_ERR_BUFTAG, buftag);
     }
 
-    redzone_byte = buf + cache->obj_size;
+    redzone_byte = (unsigned char *)buf + cache->obj_size;
     bufctl = kmem_buf_to_bufctl(buf, cache);
 
     while (redzone_byte < (unsigned char *)bufctl) {
@@ -1375,7 +1382,7 @@ static void kalloc_verify(struct kmem_cache *cache, void *buf, size_t size)
 
     assert(size <= cache->obj_size);
 
-    redzone = buf + size;
+    redzone = (char *)buf + size;
     redzone_size = cache->obj_size - size;
     memset(redzone, KMEM_REDZONE_BYTE, redzone_size);
 }
@@ -1413,8 +1420,8 @@ static void kfree_verify(struct kmem_cache *cache, void *buf, size_t size)
 
     assert(size <= cache->obj_size);
 
-    redzone_byte = buf + size;
-    redzone_end = buf + cache->obj_size;
+    redzone_byte = (unsigned char *)buf + size;
+    redzone_end = (unsigned char *)buf + cache->obj_size;
 
     while (redzone_byte < redzone_end) {
         if (*redzone_byte != KMEM_REDZONE_BYTE)

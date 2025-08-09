@@ -206,6 +206,20 @@ tests/test-%: tests/test-%.iso $(srcdir)/tests/run-qemu.sh.template
 		>$@
 	chmod +x $@
 
+# Specialized runner for console timestamp verification
+tests/test-console-timestamps: tests/test-console-timestamps.iso $(srcdir)/tests/run-qemu.sh.template
+	< $(srcdir)/tests/run-qemu.sh.template \
+		sed -e "s|TESTNAME|$(subst tests/test-,,$@)|g" \
+		    -e "s/QEMU_OPTS/$(QEMU_OPTS)/g" \
+		    -e "s/QEMU_BIN/$(QEMU_BIN)/g" \
+		    -e "s/TEST_START_MARKER/$(TEST_START_MARKER)/g" \
+		    -e "s/TEST_SUCCESS_MARKER/$(TEST_SUCCESS_MARKER)/g" \
+		    -e "s/TEST_FAILURE_MARKER/$(TEST_FAILURE_MARKER)/g" \
+		>$@
+	@chmod +x $@
+	@echo "# Verify console timestamps like [seconds.milliseconds] appear in kernel log" >> $@
+	@echo "grep -Eq '^\\[[0-9]+\\.[0-9]{2,3}\\] ' \"$$log\" || { echo 'missing console timestamps'; exit 98; }" >> $@
+
 clean-test-%:
 	rm -f tests/test-$* tests/test-$*.iso tests/test-$*.log tests/test-$*.raw tests/test-$*.trs tests/module-$*
 
@@ -216,12 +230,16 @@ USER_TESTS := \
 	tests/test-gsync \
 	tests/test-mach_port \
 	tests/test-vm \
+	tests/test-vm-boundary \
+	tests/test-ipc-large \
+	tests/test-vm-fault \
 	tests/test-syscalls \
 	tests/test-machmsg \
 	tests/test-task \
 	tests/test-threads \
 	tests/test-thread-state \
-	tests/test-thread-state-fp
+	tests/test-thread-state-fp \
+	tests/test-console-timestamps
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 

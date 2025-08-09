@@ -124,6 +124,7 @@
 #include <mach/time_value.h>
 #include <kern/mach_clock.h>
 #include <kern/host.h>
+#include <kern/constants.h>
 
 /* Console timestamp support */
 boolean_t console_timestamps_enabled = TRUE;
@@ -171,8 +172,12 @@ void console_print_timestamp(void)
 	time_value64_sub(&relative_time, &console_start_time);
 	
 	seconds = (int)relative_time.seconds;
+//<<<<<<< copilot/fix-18
 	milliseconds = (int)(relative_time.nanoseconds / 1000000);
 	microseconds = (int)((relative_time.nanoseconds % 1000000) / 1000);
+//=======
+//	milliseconds = (int)(relative_time.nanoseconds / NANOSECONDS_PER_MILLISEC);
+//>>>>>>> master
 	
 	/* Print timestamp based on format */
 	cnputc('[');
@@ -459,8 +464,8 @@ void _doprnt(
 		    char *p;
 		    char *p2;
 
-		    if (prec == -1)
-			prec = 0x7fffffff;	/* MAXINT */
+            if (prec == -1)
+		prec = PRINTF_MAX_PRECISION;	/* MAXINT */
 
 		    p = va_arg(argp, char *);
 

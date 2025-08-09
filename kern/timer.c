@@ -378,10 +378,10 @@ static void timer_grab(
 	} while ( (save)->high != (timer)->high_bits_check);
 }
 
-#define TIMER_TO_TIME_VALUE64(tv, timer) 				\
-MACRO_BEGIN								\
-		(tv)->seconds = (timer)->high + (timer)->low / 1000000;	\
-		(tv)->nanoseconds = (timer)->low % 1000000 * 1000;	\
+#define TIMER_TO_TIME_VALUE64(tv, timer) \
+MACRO_BEGIN \
+		(tv)->seconds = (timer)->high + (timer)->low / MICROSECONDS_PER_SECOND; \
+		(tv)->nanoseconds = (timer)->low % MICROSECONDS_PER_SECOND * 1000; \
 MACRO_END
 
 /*

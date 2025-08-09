@@ -50,6 +50,7 @@
 #include <machine/ipl.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_output.h>
+#include <kern/constants.h>
 
 def_simple_lock_data(, kdb_lock)
 def_simple_lock_data(, printf_lock)
@@ -58,10 +59,10 @@ def_simple_lock_data(, printf_lock)
 #define TIME_STAMP 1
 typedef unsigned int time_stamp_t;
 /* in milliseconds */
-#define	time_stamp (elapsed_ticks * 1000 / hz)
+#define	time_stamp (elapsed_ticks * MICROSECONDS_PER_MILLISEC / hz)
 
-#define LOCK_INFO_MAX	     (1024*32)
-#define LOCK_INFO_HASH_COUNT 1024
+#define LOCK_INFO_MAX	     LOCK_INFO_MAX_ENTRIES
+#define LOCK_INFO_HASH_COUNT LOCK_INFO_HASH_BUCKETS
 #define LOCK_INFO_PER_BUCKET	(LOCK_INFO_MAX/LOCK_INFO_HASH_COUNT)
 
 #define HASH_LOCK(lock)	((long)lock>>5 & (LOCK_INFO_HASH_COUNT-1))
@@ -211,7 +212,7 @@ static void lock_info_sort(int arg, int abs, int count)
 					break;
 				case 1:
 				case 2:
-					curval = (curval*100) / sum;
+					curval = (curval*PERF_PERCENTAGE_SCALE) / sum;
 					break;
 				case 3:
 				case 4:
@@ -333,8 +334,8 @@ decl_simple_lock_data(, *lock)
 {
 	count = 0;
 
-	while(!simple_lock_try(lock))
-		if (count++ > 1000000 && lock != &kdb_lock) {
+    while(!simple_lock_try(lock))
+        if (count++ > LOCK_SPIN_LIMIT && lock != &kdb_lock) {
 			if (lock == &printf_lock)
 				return;
 			db_printf("cpu %d looping on simple_lock(%x) called by %x\n",
@@ -349,8 +350,8 @@ retry_bit_lock(index, addr)
 {
 	count = 0;
 
-	while(!bit_lock_try(index, addr))
-		if (count++ > 1000000) {
+    while(!bit_lock_try(index, addr))
+        if (count++ > LOCK_SPIN_LIMIT) {
 			db_printf("cpu %d looping on bit_lock(%x, %x) called by %x\n",
 				cpu_number(), index, addr, *(((int *)&index) -1));
 			SoftDebugger("bit_lock timeout");

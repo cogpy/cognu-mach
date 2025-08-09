@@ -44,7 +44,7 @@ static int envc = 0;
 static mach_port_t host_priv_port = 1;
 static mach_port_t device_master_port = 2;
 
-void cnputc(char c, vm_offset_t cookie)
+void cnputc(char c)
 {
     char buf[2] = {c, 0};
     mach_print(buf);

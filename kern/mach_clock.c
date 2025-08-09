@@ -64,7 +64,8 @@
 #include <kern/pc_sample.h>
 #endif
 
-#define MICROSECONDS_IN_ONE_SECOND 1000000
+#include <kern/constants.h>
+#define MICROSECONDS_IN_ONE_SECOND MICROSECONDS_PER_SECOND
 
 int		hz = HZ;		/* number of ticks per second */
 int		tick = (MICROSECONDS_IN_ONE_SECOND / HZ);	/* number of usec per tick */
@@ -80,7 +81,7 @@ unsigned	tickadj = 1;		/* can adjust HZ usecs per second */
 #else
 unsigned	tickadj = 500 / HZ;	/* can adjust 100 usecs per second */
 #endif
-unsigned	bigadj = 1000000;	/* adjust 10*tickadj if adjustment
+unsigned	bigadj = MICROSECONDS_PER_SECOND;	/* adjust 10*tickadj if adjustment
 					   > bigadj */
 
 /* A high-precision (hardware) clock is taken into account to increase the
