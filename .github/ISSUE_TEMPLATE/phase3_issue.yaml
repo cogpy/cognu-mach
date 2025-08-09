@@ -1,0 +1,37 @@
+name: Phase 3 - New Features & Architecture Modifications
+description: New subsystem features and architecture changes
+title: "[Phase 3] <short title>"
+labels: ["phase:3"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for feature work requiring design choices and cohesive edits.
+  - type: input
+    id: context
+    attributes:
+      label: Context
+      description: Link to related docs, constraints, and current state
+  - type: textarea
+    id: design
+    attributes:
+      label: Design options and chosen approach
+      description: Present 2–3 options with pros/cons and justify selection
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope of edits
+      description: Structures, processes, APIs to add/change
+  - type: textarea
+    id: files
+    attributes:
+      label: Files / functions to touch
+  - type: textarea
+    id: verify
+    attributes:
+      label: Verify (tests/benchmarks)
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of Done
+

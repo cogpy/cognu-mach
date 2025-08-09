@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Build/CI is failing
+    url: https://github.com/OWNER/REPO/actions
+    about: Check recent CI runs for error logs and artifacts
+

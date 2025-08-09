@@ -1,0 +1,50 @@
+name: Phase 2 - Improvements to Existing Subsystems
+description: Targeted improvements to core subsystems using known methods
+title: "[Phase 2] <short title>"
+labels: ["phase:2"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for focused subsystem improvements using known approaches.
+  - type: input
+    id: context
+    attributes:
+      label: Context
+      description: One or two sentences linking to code/docs and current behavior
+  - type: input
+    id: goal
+    attributes:
+      label: Goal
+      description: Exact target outcome and metric if applicable
+  - type: textarea
+    id: approach
+    attributes:
+      label: Approach (Phase 2)
+      description: Known improvement method; change points; risks
+      placeholder: |
+        - Optimize IPC virtual copy path
+        - Adjust page cache replacement policy
+  - type: textarea
+    id: files
+    attributes:
+      label: Files / functions to touch
+  - type: textarea
+    id: verify
+    attributes:
+      label: Verify (commands/benchmarks)
+      placeholder: |
+        - make check
+        - microbenchmark X shows ≥N% improvement
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of Done
+      placeholder: |
+        - No regressions in tests
+        - Improvement verified
+  - type: textarea
+    id: notes
+    attributes:
+      label: Constraints / risks
+

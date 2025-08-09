@@ -1,0 +1,33 @@
+name: Phase 4 - Experimental R&D
+description: Exploratory work with vague requirements and experiments
+title: "[Phase 4] <short title>"
+labels: ["phase:4", "research"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for research tasks. Expect iteration, failures, and redesign.
+  - type: input
+    id: hypothesis
+    attributes:
+      label: Hypothesis / question
+      description: What are we testing or trying to learn?
+  - type: textarea
+    id: plan
+    attributes:
+      label: Experiment plan
+      description: Steps to try, variants to test, instrumentation to collect
+  - type: textarea
+    id: signals
+    attributes:
+      label: Success signals
+      description: What observations would indicate success? thresholds if any
+  - type: textarea
+    id: files
+    attributes:
+      label: Areas to touch
+  - type: textarea
+    id: notes
+    attributes:
+      label: Risks / unknowns
+

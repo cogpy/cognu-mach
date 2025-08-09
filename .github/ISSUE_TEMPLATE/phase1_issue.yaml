@@ -1,0 +1,61 @@
+name: Phase 1 - Foundation & Quick Wins
+description: Housekeeping, quick fixes, well-known solutions (no significant feature changes)
+title: "[Phase 1] <short title>"
+labels: ["phase:1", "good first issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for standard, well-known fixes. Keep edits minimal and targeted.
+  - type: input
+    id: context
+    attributes:
+      label: Context
+      description: One or two sentences linking to code or docs providing background
+      placeholder: e.g., See kern/printf.c timestamp path; docs/console-timestamps.md
+  - type: input
+    id: goal
+    attributes:
+      label: Goal
+      description: Exact outcome in one sentence
+      placeholder: e.g., Eliminate warning XYZ and add missing header guard
+  - type: textarea
+    id: approach
+    attributes:
+      label: Approach (Phase 1)
+      description: List concrete quick-fix steps; avoid refactors
+      placeholder: |
+        - Add/adjust flags in Makefile.am
+        - Replace magic number with named constant in kern/constants.h
+        - Update doc and test
+  - type: textarea
+    id: files
+    attributes:
+      label: Files / functions to touch
+      placeholder: |
+        - kern/printf.c: console_print_timestamp
+        - i386/i386/db_interface.c: kdb_trap
+  - type: textarea
+    id: verify
+    attributes:
+      label: Verify (commands and expected output)
+      placeholder: |
+        - autoreconf --install && ./configure --host=i686-gnu && make -j$(nproc)
+        - make check
+        - Expect no warnings; test passes
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of Done
+      placeholder: |
+        - Zero new warnings
+        - CI green
+        - Updated docs/tests where applicable
+  - type: textarea
+    id: notes
+    attributes:
+      label: Constraints / risks
+      placeholder: |
+        - Avoid broad refactors
+        - Keep PR small and reversible
+
