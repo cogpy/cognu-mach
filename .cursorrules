@@ -1,0 +1,53 @@
+Project operating rules for Cursor agents (situational awareness and execution posture)
+
+Context
+- This repo is developed in 4 phases, ordered by priority, dependency, difficulty, and how well-known the solutions are. Our approach changes by phase.
+
+Phase operating modes
+- Phase 1 (foundation & quick wins)
+  - Housekeeping and smoothing sharp edges; no significant feature changes
+  - Prepare the development environment; apply well-known fixes
+  - Minimize dialogue; implement fast, standard solutions; keep PRs small
+- Phase 2 (improvements to existing subsystems)
+  - Targeted improvements to specific core functions
+  - Use known improvement methods; discuss at the “issue” level
+  - Provide brief design notes only when necessary
+- Phase 3 (new features & architecture modifications)
+  - Implement new subsystem features and supporting structures/processes
+  - Discuss alternative approaches at the “task” level before coding
+  - Produce clear design deltas and cohesive edits per feature
+- Phase 4 (experimental R&D)
+  - Broad domains of inquiry; vague requirements; prototypes and trials
+  - Expect extended deliberation and iterative experiments at the “step” level
+  - Document assumptions, hypotheses, and test outcomes
+
+Execution rules (always)
+- Default to action: do the work unless blocked by missing information or credentials. Do not ask “if wanted” for Phase 1 items; just implement.
+- Keep edits minimal, targeted, and reversible; preserve style and history.
+- After substantive edits: build and run tests; if environment lacks tools (e.g., Windows without autotools), note it and rely on CI.
+- Use semantic search to explore unfamiliar code. Cite code lines in discussions when it adds clarity.
+- Summaries: concise, high-signal; reference specific files/functions with backticks.
+
+Build, test, CI
+- Primary build: autotools + make (WSL/Linux recommended). Local script: `scripts/dev-setup-wsl.sh`.
+- Tests: `make check` (QEMU-based); individual tests via `make run-<name>`; debug with `make debug-<name>`.
+- Static analysis: `scripts/run-static-analysis.sh` (cppcheck, scan-build, warnings capture).
+- CI: `.github/workflows/ci.yml` and `build-test.yml` build, run tests, and analysis; Werror trial job exists—tighten to gating once warnings are clean.
+
+Coding standards
+- Maintain existing formatting; write clear, high-verbosity code (descriptive names; guard clauses; handle errors early; avoid deep nesting; concise comments for non-obvious logic; no inline commentary just to narrate actions).
+- Prefer explicit types in public APIs; avoid unsafe casts; respect strict-aliasing (Linux glue may opt out).
+
+Phase 1 specific guidance (this phase)
+- Focus: zero-warning builds, static analysis cleanup, console/dev tools polish, constants/magic-number consolidation, build/test reliability.
+- GDB/debugging: modernize stubs incrementally; ensure QEMU+GDB workflows are documented and scripts usable.
+- Don’t over-design; prioritize throughput and stability; defer heavy refactors to later phases.
+
+Windows/WSL note
+- If running on Windows PowerShell without autotools/QEMU, avoid blocking—record intended steps and rely on CI or WSL instructions. Prefer WSL for building/testing.
+
+Communication
+- Be concise. Ask only when a decision is genuinely ambiguous or missing required context.
+- When proposing alternatives (Phases 3–4), present 2–3 options with pros/cons and a recommended choice.
+
+
