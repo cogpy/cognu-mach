@@ -49,6 +49,9 @@
 #include <kern/timer.h>
 #include <kern/xpr.h>
 #include <kern/printf.h>
+#ifdef MACH_KDB
+#include <gdb_stub.h>
+#endif
 #include <kern/bootstrap.h>
 #include <kern/startup.h>
 #include <kern/printf.h>
@@ -68,6 +71,7 @@
 
 #if MACH_KDB
 #include <device/cons.h>
+#include <gdb_stub.h>
 #endif /* MACH_KDB */
 
 #if ! MACH_KBD
@@ -139,6 +143,11 @@ void setup_main(void)
 
 	/* Initialize console timestamps after time system is ready */
 	console_timestamp_init();
+
+	/* Initialize modern GDB stub for enhanced debugging */
+#ifdef MACH_KDB
+	gdb_stub_init();
+#endif
 
 	machine_info.max_cpus = NCPUS;
 	memsize = vm_page_mem_size();

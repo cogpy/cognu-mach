@@ -33,9 +33,20 @@ extern boolean_t console_timestamps_enabled;
 extern void console_timestamp_init(void);
 extern void console_print_timestamp(void);
 
+/* Timestamp format options */
+typedef enum {
+    TIMESTAMP_FORMAT_RELATIVE,   /* [seconds.milliseconds] from boot */
+    TIMESTAMP_FORMAT_UPTIME,     /* [uptime] absolute */
+    TIMESTAMP_FORMAT_SIMPLE,     /* [sss.mmm] simple format */
+    TIMESTAMP_FORMAT_PRECISE     /* [sss.mmm.uuu] with microseconds */
+} console_timestamp_format_t;
+
 /* Configuration functions for timestamp behavior */
 extern void console_timestamp_enable(boolean_t enable);
 extern boolean_t console_timestamp_is_enabled(void);
+extern void console_timestamp_set_format(console_timestamp_format_t format);
+extern console_timestamp_format_t console_timestamp_get_format(void);
+extern void console_timestamp_get_boot_time(time_value64_t *boot_time);
 
 extern void _doprnt (const char *fmt,
 		     va_list argp, 

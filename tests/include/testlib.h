@@ -34,6 +34,14 @@
 #include <util/atoi.h>
 #include <syscalls.h>
 
+/* Timestamp format options */
+typedef enum {
+    TIMESTAMP_FORMAT_RELATIVE,   /* [seconds.milliseconds] from boot */
+    TIMESTAMP_FORMAT_UPTIME,     /* [uptime] absolute */
+    TIMESTAMP_FORMAT_SIMPLE,     /* [sss.mmm] simple format */
+    TIMESTAMP_FORMAT_PRECISE     /* [sss.mmm.uuu] with microseconds */
+} console_timestamp_format_t;
+
 #define ASSERT(cond, msg) do {                                          \
     if (!(cond))                                                        \
       {                                                                 \

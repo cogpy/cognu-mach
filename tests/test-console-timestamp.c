@@ -20,10 +20,14 @@
 
 int main(int argc, char *argv[], int envc, char *envp[])
 {
-  printf("=== Console Timestamp Feature Test ===\n");
+  printf("=== Enhanced Console Timestamp Feature Test ===\n");
   
   /* Test that timestamps are enabled by default */
   ASSERT(console_timestamp_is_enabled(), "Timestamps should be enabled by default");
+  
+  /* Test default format */
+  ASSERT(console_timestamp_get_format() == TIMESTAMP_FORMAT_RELATIVE, 
+         "Default format should be TIMESTAMP_FORMAT_RELATIVE");
   
   /* Test basic printf with timestamps */
   printf("Testing basic message output\n");
@@ -31,6 +35,29 @@ int main(int argc, char *argv[], int envc, char *envp[])
   printf("Line 1\n");
   printf("Line 2\n");
   printf("Line 3\n");
+  
+  /* Test different timestamp formats */
+  printf("Testing TIMESTAMP_FORMAT_SIMPLE...\n");
+  console_timestamp_set_format(TIMESTAMP_FORMAT_SIMPLE);
+  ASSERT(console_timestamp_get_format() == TIMESTAMP_FORMAT_SIMPLE,
+         "Format should be set to SIMPLE");
+  printf("Message with simple timestamp format\n");
+  
+  printf("Testing TIMESTAMP_FORMAT_PRECISE...\n");
+  console_timestamp_set_format(TIMESTAMP_FORMAT_PRECISE);
+  ASSERT(console_timestamp_get_format() == TIMESTAMP_FORMAT_PRECISE,
+         "Format should be set to PRECISE");
+  printf("Message with precise timestamp format (microseconds)\n");
+  
+  printf("Testing TIMESTAMP_FORMAT_UPTIME...\n");
+  console_timestamp_set_format(TIMESTAMP_FORMAT_UPTIME);
+  ASSERT(console_timestamp_get_format() == TIMESTAMP_FORMAT_UPTIME,
+         "Format should be set to UPTIME");
+  printf("Message with absolute uptime format\n");
+  
+  /* Reset to default format */
+  console_timestamp_set_format(TIMESTAMP_FORMAT_RELATIVE);
+  printf("Reset to default format\n");
   
   /* Test timestamp disable/enable functionality */
   printf("Disabling timestamps...\n");
@@ -47,11 +74,17 @@ int main(int argc, char *argv[], int envc, char *envp[])
   printf("This message should have timestamps again\n");
   printf("And so should this one\n");
   
+  /* Test boot time retrieval */
+  time_value64_t boot_time;
+  console_timestamp_get_boot_time(&boot_time);
+  printf("Boot time recorded: %d.%09d seconds\n", 
+         (int)boot_time.seconds, (int)boot_time.nanoseconds);
+  
   /* Test mixed output */
   printf("Testing mixed content: ");
   printf("same line continuation\n");
   
-  printf("%s: %s\n", TEST_SUCCESS_MARKER, "Console timestamp test completed successfully");
+  printf("%s: %s\n", TEST_SUCCESS_MARKER, "Enhanced console timestamp test completed successfully");
   
   return 0;
 }
