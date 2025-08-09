@@ -50,6 +50,36 @@ jobs:
           name: qemu-logs
           path: tests/*.raw
 
+  build-werror-trial:
+    runs-on: ubuntu-22.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc-multilib binutils binutils-multiarch \
+            autoconf automake libtool pkg-config gawk bison flex nasm \
+            xorriso grub-pc-bin mtools qemu-system-x86 \
+            git python3
+          if ! sudo apt-get install -y mig; then
+            sudo apt-get install -y texinfo
+            git clone https://git.savannah.gnu.org/git/hurd/mig.git
+            pushd mig
+            ./bootstrap
+            ./configure
+            make -j$(nproc)
+            sudo make install
+            popd
+          fi
+      - name: Autoreconf (if needed)
+        run: |
+          if [ -f bootstrap ]; then ./bootstrap; fi
+      - name: Configure (Werror trial)
+        run: CFLAGS='-Werror' ./configure --host=i686-gnu CC='gcc -m32' LD='ld -melf_i386' MIG='mig'
+      - name: Build (Werror)
+        run: make -j$(nproc)
+
   build-x86_64-user32:
     runs-on: ubuntu-22.04
     steps:

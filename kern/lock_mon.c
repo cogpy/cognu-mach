@@ -334,8 +334,8 @@ decl_simple_lock_data(, *lock)
 {
 	count = 0;
 
-	while(!simple_lock_try(lock))
-		if (count++ > 1000000 && lock != &kdb_lock) {
+    while(!simple_lock_try(lock))
+        if (count++ > LOCK_SPIN_LIMIT && lock != &kdb_lock) {
 			if (lock == &printf_lock)
 				return;
 			db_printf("cpu %d looping on simple_lock(%x) called by %x\n",
@@ -350,8 +350,8 @@ retry_bit_lock(index, addr)
 {
 	count = 0;
 
-	while(!bit_lock_try(index, addr))
-		if (count++ > 1000000) {
+    while(!bit_lock_try(index, addr))
+        if (count++ > LOCK_SPIN_LIMIT) {
 			db_printf("cpu %d looping on bit_lock(%x, %x) called by %x\n",
 				cpu_number(), index, addr, *(((int *)&index) -1));
 			SoftDebugger("bit_lock timeout");

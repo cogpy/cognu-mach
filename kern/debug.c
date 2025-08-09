@@ -34,6 +34,7 @@
 #include <kern/thread.h>
 
 #include <kern/debug.h>
+#include <kern/constants.h>
 
 #include <machine/loose_ends.h>
 #include <machine/model_dep.h>
@@ -166,9 +167,9 @@ Panic(const char *file, int line, const char *fun, const char *s, ...)
 # else
 	/* Give the user time to see the message */
 	{
-	  int i = 1000;		/* seconds */
+      int i = 1000;		/* seconds */
 	  while (i--)
-	    delay (1000000);	/* microseconds */
+        delay (MICROSECONDS_PER_SECOND);	/* microseconds */
 	}
 
 	halt_all_cpus (reboot_on_panic);

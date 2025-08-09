@@ -231,6 +231,8 @@ USER_TESTS := \
 	tests/test-mach_port \
 	tests/test-vm \
 	tests/test-vm-boundary \
+	tests/test-ipc-large \
+	tests/test-vm-fault \
 	tests/test-syscalls \
 	tests/test-machmsg \
 	tests/test-task \

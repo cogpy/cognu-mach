@@ -1,3 +1,17 @@
+Windows/WSL notes
+------------------
+
+On Windows, use WSL to run the build and static analysis:
+
+1) Open WSL and ensure the repo is mounted at /mnt/d/curso/cognu-mach
+2) Install deps:
+   ./scripts/dev-setup-wsl.sh
+3) Run analysis:
+   ./scripts/run-static-analysis.sh
+
+If WSL is not installed, install it from an elevated PowerShell:
+  wsl --install
+
 This is GNU Mach, the GNU distribution of the Mach microkernel,
 <http://www.gnu.org/software/hurd/microkernel/mach/gnumach.html>.  Welcome.
 

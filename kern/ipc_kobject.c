@@ -140,7 +140,7 @@ ipc_kobject_server(ipc_kmsg_t request)
 			    _counts[i].id = id;
 			    _counts[i].count++;
 		    }
-		    if ((++_calls & 0x7fff) == 0)
+            if ((++_calls & IPC_CALL_STATS_MASK) == 0)
 			    for (i = 0; i < 512; i++) {
 				    if (_counts[i].id == 0)
 					    break;

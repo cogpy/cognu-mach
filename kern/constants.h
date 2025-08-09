@@ -45,6 +45,8 @@
 /* Time conversion constants */
 #define MICROSECONDS_PER_MILLISEC   1000         /* Microseconds in a millisecond */
 #define NANOSECONDS_PER_MILLISEC    1000000      /* Nanoseconds in a millisecond */
+#define MICROSECONDS_PER_SECOND     1000000      /* Microseconds in a second */
+#define NANOSECONDS_PER_SECOND      1000000000   /* Nanoseconds in a second */
 
 /* Performance monitoring */
 #define PERF_PERCENTAGE_SCALE       100          /* Scale factor for percentage calculations */
