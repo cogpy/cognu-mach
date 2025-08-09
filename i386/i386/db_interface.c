@@ -418,8 +418,7 @@ kdb_kentry(
 	    db_task_trap(-1, 0, (ddb_regs.cs & 0x3) != 0);
 	    cnpollc(FALSE);
 
-	    if ((ddb_regs.cs & 0x3) != KERNEL_RING) {
-//<<<<<<< copilot/fix-22
+    if ((ddb_regs.cs & 0x3) != KERNEL_RING) {
 		/*
 		 * Restoring to User Space - cast to user interrupt state to safely
 		 * modify user stack pointer and stack segment without violating strict aliasing
