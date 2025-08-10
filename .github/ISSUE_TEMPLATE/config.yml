@@ -3,5 +3,8 @@ contact_links:
   - name: Build/CI is failing
     url: https://github.com/OWNER/REPO/actions
     about: Check recent CI runs for error logs and artifacts
+  - name: Generate Kernel Feature Issue (Automated)
+    url: https://github.com/Kaw-Ai/cognu-mach/actions/workflows/generate-kernel-feature-issue.yml
+    about: Use the automated workflow to generate structured kernel feature issues
 
 

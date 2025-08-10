@@ -1,0 +1,212 @@
+name: Kernel Feature Issue
+description: Create a structured issue for implementing kernel features
+title: "[KERNEL] {{feature}} - {{context}}"
+labels: ["kernel-feature", "enhancement"]
+body:
+  - type: input
+    id: feature
+    attributes:
+      label: Feature Name
+      description: Name of the kernel feature to implement
+      placeholder: e.g., Memory Protection, Device Driver Framework
+    validations:
+      required: true
+  
+  - type: input
+    id: context
+    attributes:
+      label: Context
+      description: Context or component area for this feature
+      placeholder: e.g., Virtual Memory System, I/O Subsystem
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: Feature category
+      options:
+        - Core Kernel
+        - Memory Management
+        - Device Drivers
+        - Inter-Process Communication
+        - File System
+        - Network Stack
+        - Security
+        - Performance
+        - Architecture Support
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Implementation priority level
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Complexity
+      description: Implementation complexity estimate
+      options:
+        - Simple
+        - Moderate
+        - Complex
+        - Very Complex
+    validations:
+      required: true
+      
+  - type: input
+    id: duration
+    attributes:
+      label: Estimated Effort
+      description: Time estimation for implementation
+      placeholder: e.g., 2-3 weeks, 1 month, 2 months
+    validations:
+      required: true
+      
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Detailed description of the feature implementation
+      placeholder: Implement [feature] for [context]...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Implementation Requirements
+      description: List of specific implementation tasks (one per line, will be converted to checkboxes)
+      placeholder: |
+        Define kernel data structures
+        Implement core algorithms
+        Add system call interface
+        Update documentation
+    validations:
+      required: true
+      
+  - type: textarea
+    id: performance_targets
+    attributes:
+      label: Performance Targets
+      description: Performance goals and benchmarks
+      placeholder: |
+        Memory usage < 1MB overhead
+        Latency < 10μs for critical operations
+        Throughput > 100MB/s
+        
+  - type: textarea
+    id: supported_devices
+    attributes:
+      label: Supported Devices
+      description: Target devices or platforms
+      placeholder: |
+        x86 (32-bit)
+        x86_64 
+        ARM64
+        QEMU virtual devices
+        
+  - type: textarea
+    id: files_to_implement
+    attributes:
+      label: Files to Implement
+      description: Main source files that need implementation
+      placeholder: |
+        kern/feature_core.c
+        include/kern/feature.h
+        i386/i386/feature_arch.c
+        
+  - type: textarea
+    id: key_functions
+    attributes:
+      label: Key Functions
+      description: Important functions to implement
+      placeholder: |
+        feature_init()
+        feature_enable()
+        feature_process_request()
+        
+  - type: textarea
+    id: testing_requirements
+    attributes:
+      label: Testing Requirements
+      description: Testing strategy and requirements
+      placeholder: |
+        Unit tests for core functions
+        Integration tests with existing subsystems
+        Performance benchmarks
+        Stress testing under load
+        
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Dependencies on other features or external components
+      placeholder: |
+        Requires VM subsystem changes
+        Depends on updated MIG interface
+        Needs new compiler flags
+        
+  - type: textarea
+    id: files_to_create
+    attributes:
+      label: Files to Create
+      description: New files that need to be created (one per line, will be converted to checkboxes)
+      placeholder: |
+        kern/feature_main.c
+        kern/feature_utils.c
+        include/kern/feature_types.h
+        tests/feature_test.c
+        
+  - type: input
+    id: epic
+    attributes:
+      label: Epic/Project
+      description: Parent epic or project this feature belongs to
+      placeholder: e.g., Phase 2 Kernel Modernization
+      
+  - type: input
+    id: spec_path
+    attributes:
+      label: Specification Path
+      description: Path to implementation specification (without https://github.com/)
+      placeholder: e.g., Kaw-Ai/cognu-mach/blob/main/docs/feature-spec.md
+      
+  - type: input
+    id: standards
+    attributes:
+      label: Standards Compliance
+      description: Standards or guidelines to follow
+      placeholder: e.g., POSIX, GNU Coding Standards
+      
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Criteria for considering this feature complete (one per line, will be converted to checkboxes)
+      placeholder: |
+        Feature compiles without warnings
+        All tests pass
+        Performance targets met
+        Documentation updated
+        Code review completed
+    validations:
+      required: true
+      
+  - type: input
+    id: feature_id
+    attributes:
+      label: Feature ID
+      description: Unique identifier for this feature (auto-generated if empty)
+      placeholder: Will be auto-generated if left empty

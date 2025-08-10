@@ -1,0 +1,262 @@
+name: Generate Kernel Feature Issue
+
+on:
+  workflow_dispatch:
+    inputs:
+      feature:
+        description: 'Feature Name'
+        required: true
+        type: string
+      context:
+        description: 'Context or component area'
+        required: true
+        type: string
+      category:
+        description: 'Feature category'
+        required: true
+        type: choice
+        options:
+          - Core Kernel
+          - Memory Management
+          - Device Drivers
+          - Inter-Process Communication
+          - File System
+          - Network Stack
+          - Security
+          - Performance
+          - Architecture Support
+      priority:
+        description: 'Priority level'
+        required: true
+        type: choice
+        options:
+          - Critical
+          - High
+          - Medium
+          - Low
+      complexity:
+        description: 'Implementation complexity'
+        required: true
+        type: choice
+        options:
+          - Simple
+          - Moderate
+          - Complex
+          - Very Complex
+      duration:
+        description: 'Estimated effort'
+        required: true
+        type: string
+      epic:
+        description: 'Parent epic or project'
+        required: false
+        type: string
+        default: 'Kernel Modernization'
+      spec_path:
+        description: 'Path to specification (without https://github.com/)'
+        required: false
+        type: string
+      standards:
+        description: 'Standards compliance'
+        required: false
+        type: string
+        default: 'GNU Coding Standards'
+      tasks:
+        description: 'Implementation tasks (JSON array format)'
+        required: true
+        type: string
+        default: '["Define kernel data structures", "Implement core algorithms", "Add system call interface"]'
+      targets:
+        description: 'Performance targets (JSON array format)'
+        required: false
+        type: string
+        default: '["Memory efficient implementation", "Low latency operations"]'
+      devices:
+        description: 'Supported devices (JSON array format)'
+        required: false
+        type: string
+        default: '["x86 (32-bit)", "x86_64", "QEMU virtual devices"]'
+      mainfiles:
+        description: 'Main files to implement (JSON array format)'
+        required: false
+        type: string
+        default: '["kern/feature.c", "include/kern/feature.h"]'
+      functions:
+        description: 'Key functions (JSON array format)'
+        required: false
+        type: string
+        default: '["feature_init()", "feature_enable()"]'
+      tests:
+        description: 'Testing requirements (JSON array format)'
+        required: false
+        type: string
+        default: '["Unit tests for core functions", "Integration tests"]'
+      dependencies:
+        description: 'Dependencies (JSON array format)'
+        required: false
+        type: string
+        default: '["Updated kernel headers", "Compatible build system"]'
+      files:
+        description: 'Files to create (JSON array format)'
+        required: false
+        type: string
+        default: '["kern/new_feature.c", "include/kern/new_feature.h"]'
+      criteria:
+        description: 'Acceptance criteria (JSON array format)'
+        required: true
+        type: string
+        default: '["Feature compiles without warnings", "All tests pass", "Documentation updated"]'
+
+jobs:
+  create_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Feature ID
+        id: feature_id
+        run: |
+          FEATURE_ID="KERN-$(date +%Y%m%d)-$(echo '${{ inputs.feature }}' | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | cut -c1-10)"
+          echo "feature_id=$FEATURE_ID" >> $GITHUB_OUTPUT
+          
+      - name: Format arrays as markdown lists
+        id: format_lists
+        run: |
+          # Function to convert JSON array to markdown list
+          format_array() {
+            echo "$1" | jq -r '.[] | "- [ ] " + .'
+          }
+          
+          format_array_simple() {
+            echo "$1" | jq -r '.[] | "- " + .'
+          }
+          
+          # Format all the arrays
+          TASKS=$(format_array '${{ inputs.tasks }}')
+          TARGETS=$(format_array_simple '${{ inputs.targets }}')
+          DEVICES=$(format_array_simple '${{ inputs.devices }}')
+          MAINFILES=$(format_array_simple '${{ inputs.mainfiles }}')
+          FUNCTIONS=$(format_array_simple '${{ inputs.functions }}')
+          TESTS=$(format_array_simple '${{ inputs.tests }}')
+          DEPENDENCIES=$(format_array_simple '${{ inputs.dependencies }}')
+          FILES=$(format_array '${{ inputs.files }}')
+          CRITERIA=$(format_array '${{ inputs.criteria }}')
+          
+          # Use delimiter to handle multiline
+          delimiter=$(openssl rand -hex 8)
+          echo "tasks<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$TASKS" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+          
+          echo "targets<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$TARGETS" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+          
+          echo "devices<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$DEVICES" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+          
+          echo "mainfiles<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$MAINFILES" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+          
+          echo "functions<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$FUNCTIONS" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+          
+          echo "tests<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$TESTS" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+          
+          echo "dependencies<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$DEPENDENCIES" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+          
+          echo "files<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$FILES" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+          
+          echo "criteria<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$CRITERIA" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+
+      - name: Create Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const specPath = '${{ inputs.spec_path }}' || `${context.repo.owner}/${context.repo.repo}/blob/main/docs/architecture-overview.md`;
+            const specUrl = `https://github.com/${specPath}`;
+            
+            const issueBody = `## ${{ inputs.feature }}
+            
+            **Category:** ${{ inputs.category }} | **Priority:** ${{ inputs.priority }} | **Complexity:** ${{ inputs.complexity }}
+            **Estimated Effort:** ${{ inputs.duration }}
+            
+            ---
+            
+            ### Description
+            Implement ${{ inputs.feature }} for ${{ inputs.context }}
+            
+            ### Implementation Requirements
+            
+            ${{ steps.format_lists.outputs.tasks }}
+            
+            ---
+            
+            ### Technical Specifications
+            
+            **Performance Targets:**
+            ${{ steps.format_lists.outputs.targets }}
+            
+            **Supported Devices:**
+            ${{ steps.format_lists.outputs.devices }}
+            
+            ---
+            
+            ### Code Structure
+            
+            **Files to implement:**
+            ${{ steps.format_lists.outputs.mainfiles }}
+            
+            **Key Functions:**
+            ${{ steps.format_lists.outputs.functions }}
+            
+            ---
+            
+            ### Testing Requirements
+            
+            ${{ steps.format_lists.outputs.tests }}
+            
+            ### Dependencies
+            
+            ${{ steps.format_lists.outputs.dependencies }}
+            
+            ### Files to Create
+            
+            ${{ steps.format_lists.outputs.files }}
+            
+            ---
+            
+            ### Implementation Notes
+            
+            This feature is part of the ${{ inputs.epic }} implementation.
+            
+            See the [${{ inputs.epic }} implementation specification](${specUrl}) for architectural context.
+            
+            **${{ inputs.standards }} Compliance:** All implementations must follow ${{ inputs.standards }}
+            
+            ### Acceptance Criteria
+            
+            ${{ steps.format_lists.outputs.criteria }}
+            
+            ---
+            
+            *Feature ID: ${{ steps.feature_id.outputs.feature_id }} | Auto-generated from ${{ inputs.epic }} implementation workflow*`;
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[KERNEL] ${{ inputs.feature }} - ${{ inputs.context }}`,
+              body: issueBody,
+              labels: ['kernel-feature', 'enhancement', '${{ inputs.category }}', '${{ inputs.priority }}']
+            });
+            
+            console.log(`Created issue #${issue.data.number}: ${issue.data.html_url}`);
