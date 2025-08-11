@@ -3832,12 +3832,16 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_110)
 @PLATFORM_xen_FALSE@	tests/test-gsync \
 @PLATFORM_xen_FALSE@	tests/test-mach_port \
 @PLATFORM_xen_FALSE@	tests/test-vm \
+@PLATFORM_xen_FALSE@	tests/test-vm-boundary \
+@PLATFORM_xen_FALSE@	tests/test-ipc-large \
+@PLATFORM_xen_FALSE@	tests/test-vm-fault \
 @PLATFORM_xen_FALSE@	tests/test-syscalls \
 @PLATFORM_xen_FALSE@	tests/test-machmsg \
 @PLATFORM_xen_FALSE@	tests/test-task \
 @PLATFORM_xen_FALSE@	tests/test-threads \
 @PLATFORM_xen_FALSE@	tests/test-thread-state \
-@PLATFORM_xen_FALSE@	tests/test-thread-state-fp
+@PLATFORM_xen_FALSE@	tests/test-thread-state-fp \
+@PLATFORM_xen_FALSE@	tests/test-console-timestamps
 
 @PLATFORM_xen_FALSE@USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 mach_TEXINFOS = \
@@ -5505,7 +5509,15 @@ distclean-compile:
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
+	# Ugly bootstrap hack to get to-be-generated files created
+	# Try to guess what file this dependency file is from...
+	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
+	for f in "$$f"*; do \
+		case $$f in \
+			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
+			*) echo '# dummy';; \
+		esac ; \
+	done >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
@@ -8426,6 +8438,27 @@ tests/test-vm.log: tests/test-vm
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-vm-boundary.log: tests/test-vm-boundary
+	@p='tests/test-vm-boundary'; \
+	b='tests/test-vm-boundary'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-ipc-large.log: tests/test-ipc-large
+	@p='tests/test-ipc-large'; \
+	b='tests/test-ipc-large'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-vm-fault.log: tests/test-vm-fault
+	@p='tests/test-vm-fault'; \
+	b='tests/test-vm-fault'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-syscalls.log: tests/test-syscalls
 	@p='tests/test-syscalls'; \
 	b='tests/test-syscalls'; \
@@ -8464,6 +8497,13 @@ tests/test-thread-state.log: tests/test-thread-state
 tests/test-thread-state-fp.log: tests/test-thread-state-fp
 	@p='tests/test-thread-state-fp'; \
 	b='tests/test-thread-state-fp'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-console-timestamps.log: tests/test-console-timestamps
+	@p='tests/test-console-timestamps'; \
+	b='tests/test-console-timestamps'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -10004,6 +10044,20 @@ dist-hook-linux:
 @PLATFORM_xen_FALSE@		    -e "s/TEST_FAILURE_MARKER/$(TEST_FAILURE_MARKER)/g"	\
 @PLATFORM_xen_FALSE@		>$@
 @PLATFORM_xen_FALSE@	chmod +x $@
+
+# Specialized runner for console timestamp verification
+@PLATFORM_xen_FALSE@tests/test-console-timestamps: tests/test-console-timestamps.iso $(srcdir)/tests/run-qemu.sh.template
+@PLATFORM_xen_FALSE@	< $(srcdir)/tests/run-qemu.sh.template \
+@PLATFORM_xen_FALSE@		sed -e "s|TESTNAME|$(subst tests/test-,,$@)|g" \
+@PLATFORM_xen_FALSE@		    -e "s/QEMU_OPTS/$(QEMU_OPTS)/g" \
+@PLATFORM_xen_FALSE@		    -e "s/QEMU_BIN/$(QEMU_BIN)/g" \
+@PLATFORM_xen_FALSE@		    -e "s/TEST_START_MARKER/$(TEST_START_MARKER)/g" \
+@PLATFORM_xen_FALSE@		    -e "s/TEST_SUCCESS_MARKER/$(TEST_SUCCESS_MARKER)/g" \
+@PLATFORM_xen_FALSE@		    -e "s/TEST_FAILURE_MARKER/$(TEST_FAILURE_MARKER)/g" \
+@PLATFORM_xen_FALSE@		>$@
+@PLATFORM_xen_FALSE@	@chmod +x $@
+@PLATFORM_xen_FALSE@	@echo "# Verify console timestamps like [seconds.milliseconds] appear in kernel log" >> $@
+@PLATFORM_xen_FALSE@	@echo "grep -Eq '^\\[[0-9]+\\.[0-9]{2,3}\\] ' \"$$log\" || { echo 'missing console timestamps'; exit 98; }" >> $@
 
 @PLATFORM_xen_FALSE@clean-test-%:
 @PLATFORM_xen_FALSE@	rm -f tests/test-$* tests/test-$*.iso tests/test-$*.log tests/test-$*.raw tests/test-$*.trs tests/module-$*

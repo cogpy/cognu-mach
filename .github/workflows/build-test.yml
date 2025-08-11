@@ -25,14 +25,28 @@ jobs:
           gcc-multilib g++-multilib \
           texinfo \
           cppcheck \
-          clang clang-tools
+          clang clang-tools \
+          build-essential binutils binutils-multiarch \
+          pkg-config gawk bison flex nasm \
+          git python3
+        # MIG from distro if available; otherwise build
+        if ! sudo apt-get install -y mig; then
+          sudo apt-get install -y texinfo
+          git clone https://git.savannah.gnu.org/git/hurd/mig.git
+          pushd mig
+          ./bootstrap
+          ./configure
+          make -j$(nproc)
+          sudo make install
+          popd
+        fi
     
     - name: Configure for ${{ matrix.arch }}
       run: |
         autoreconf --install
         mkdir build-${{ matrix.arch }}
         cd build-${{ matrix.arch }}
-        ../configure --host=${{ matrix.arch }}-gnu
+        ../configure --host=${{ matrix.arch }}-gnu MIG='mig'
     
     - name: Build
       run: |
@@ -66,12 +80,26 @@ jobs:
         sudo apt-get install -y \
           autoconf automake libtool \
           qemu-system-x86 \
-          grub-pc-bin xorriso
+          grub-pc-bin xorriso \
+          build-essential gcc-multilib \
+          pkg-config gawk bison flex nasm \
+          git python3
+        # MIG from distro if available; otherwise build
+        if ! sudo apt-get install -y mig; then
+          sudo apt-get install -y texinfo
+          git clone https://git.savannah.gnu.org/git/hurd/mig.git
+          pushd mig
+          ./bootstrap
+          ./configure
+          make -j$(nproc)
+          sudo make install
+          popd
+        fi
     
     - name: Build for testing
       run: |
         autoreconf --install
-        ./configure --host=i686-gnu
+        ./configure --host=i686-gnu MIG='mig'
         make -j$(nproc)
     
     - name: Run tests
