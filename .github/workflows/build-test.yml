@@ -32,7 +32,7 @@ jobs:
         # MIG from distro if available; otherwise build
         if ! sudo apt-get install -y mig; then
           sudo apt-get install -y texinfo
-          git clone https://git.savannah.gnu.org/git/hurd/mig.git
+          git clone https://github.com/Unicorn-Forest/mig.git
           pushd mig
           ./bootstrap
           ./configure
@@ -87,7 +87,7 @@ jobs:
         # MIG from distro if available; otherwise build
         if ! sudo apt-get install -y mig; then
           sudo apt-get install -y texinfo
-          git clone https://git.savannah.gnu.org/git/hurd/mig.git
+          git clone https://github.com/Unicorn-Forest/mig.git
           pushd mig
           ./bootstrap
           ./configure
