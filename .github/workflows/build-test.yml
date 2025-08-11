@@ -34,7 +34,6 @@ jobs:
           sudo apt-get install -y texinfo
           git clone https://github.com/Unicorn-Forest/mig.git
           pushd mig
-          ./bootstrap
           ./configure
           make -j$(nproc)
           sudo make install
@@ -89,7 +88,6 @@ jobs:
           sudo apt-get install -y texinfo
           git clone https://github.com/Unicorn-Forest/mig.git
           pushd mig
-          ./bootstrap
           ./configure
           make -j$(nproc)
           sudo make install
