@@ -15,7 +15,7 @@ jobs:
         arch: [i686, x86_64]
         
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Install dependencies
       run: |
@@ -44,7 +44,7 @@ jobs:
         ./scripts/run-static-analysis.sh || true
         
     - name: Upload analysis reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: analysis-reports-${{ matrix.arch }}
@@ -58,7 +58,7 @@ jobs:
     needs: build
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Install test dependencies
       run: |
