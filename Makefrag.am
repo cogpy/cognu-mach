@@ -68,6 +68,10 @@ libkernel_a_SOURCES += \
 
 # We need frame pointers for trace to work properly.
 AM_CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
+
+# Include the modern GDB stub when KDB is enabled
+libkernel_a_SOURCES += \
+	kern/gdb_stub.c
 endif
 
 
