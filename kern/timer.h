@@ -37,6 +37,11 @@
  */
 
 /*
+*   MICROSECONDS_PER_SECOND is referenced in kern/timer.c but is not defined anywhere.
+*/
+#define MICROSECONDS_PER_SECOND 1000000UL
+
+/*
  *	TIMER_MAX is needed if a 32-bit rollover timer needs to be adjusted for
  *	maximum value.
  */
