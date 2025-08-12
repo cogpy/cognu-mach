@@ -904,9 +904,9 @@ kern_return_t thread_set_self_state(
 {
 	thread_t	t = current_thread();
 	kern_return_t	kr;
-	natural_t	new_state_copy[THREAD_STATE_MAX_SIZE];
+	natural_t	new_state_copy[THREAD_STATE_MAX];
 
-	if (new_state_count <= 0 || new_state_count > THREAD_STATE_MAX_SIZE)
+	if (new_state_count <= 0 || new_state_count > THREAD_STATE_MAX)
 		return KERN_INVALID_ARGUMENT;
 
 	if (copyin(new_state, new_state_copy, new_state_count * sizeof(natural_t)))
