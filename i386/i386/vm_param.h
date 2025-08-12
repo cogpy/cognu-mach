@@ -31,6 +31,14 @@
 #include <xen/public/xen.h>
 #endif
 
+#ifndef KERNEL_MAP_BASE
+#ifdef __x86_64__
+#define KERNEL_MAP_BASE 0xffffffff80000000ULL
+#else
+#define KERNEL_MAP_BASE 0xC0000000UL
+#endif
+#endif
+
 /* To avoid ambiguity in kernel code, make the name explicit */
 #define VM_MIN_USER_ADDRESS VM_MIN_ADDRESS
 #define VM_MAX_USER_ADDRESS VM_MAX_ADDRESS
