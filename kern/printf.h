@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <stdarg.h>
 #include <mach/boolean.h>
+#include <mach/time_value.h>
 
 /* Console timestamp configuration */
 extern boolean_t console_timestamps_enabled;
