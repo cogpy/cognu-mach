@@ -70,28 +70,36 @@ typedef phys_addr_t pt_entry_t;
 #endif	/* __ASSEMBLER__ */
 
 #define INTEL_OFFMASK	0xfff	/* offset within page */
-#if PAE
+/*
+ * Paging geometry constants
+ *
+ * Prioritize __x86_64__ so 64-bit builds do not depend on PAE being defined.
+ */
 #ifdef __x86_64__
 #define L4SHIFT		39	/* L4 shift */
 #define L4MASK		0x1ff	/* mask for L4 index */
 #define PDPNUM_KERNEL	(((VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) >> PDPSHIFT) + 1)
 #define PDPMASK		0x1ff	/* mask for page directory pointer index */
-#else /* __x86_64__ */
-#define PDPNUM		4	/* number of page directory pointers */
-#define PDPMASK		3	/* mask for page directory pointer index */
-#endif /* __x86_64__ */
 #define PDPSHIFT	30	/* page directory pointer */
 #define PDESHIFT	21	/* page descriptor shift */
 #define PDEMASK		0x1ff	/* mask for page descriptor index */
 #define PTESHIFT	12	/* page table shift */
 #define PTEMASK		0x1ff	/* mask for page table index */
-#else	/* PAE */
+#elif PAE
+#define PDPNUM		4	/* number of page directory pointers */
+#define PDPMASK	3	/* mask for page directory pointer index */
+#define PDPSHIFT	30	/* page directory pointer */
+#define PDESHIFT	21	/* page descriptor shift */
+#define PDEMASK		0x1ff	/* mask for page descriptor index */
+#define PTESHIFT	12	/* page table shift */
+#define PTEMASK		0x1ff	/* mask for page table index */
+#else	/* !PAE and !__x86_64__ */
 #define PDPNUM		1	/* number of page directory pointers */
 #define PDESHIFT	22	/* page descriptor shift */
 #define PDEMASK		0x3ff	/* mask for page descriptor index */
 #define PTESHIFT	12	/* page table shift */
 #define PTEMASK		0x3ff	/* mask for page table index */
-#endif	/* PAE */
+#endif	/* geometry */
 
 /*
  *	Convert linear offset to L4 pointer index
@@ -120,7 +128,7 @@ typedef phys_addr_t pt_entry_t;
 /*
  *	Convert linear offset to page directory pointer index
  */
-#if PAE
+#if PAE || defined(__x86_64__)
 #define lin2pdpnum(a)	(((a) >> PDPSHIFT) & PDPMASK)
 #endif
 
@@ -129,20 +137,18 @@ typedef phys_addr_t pt_entry_t;
  */
 #define pdenum2lin(a)	((vm_offset_t)(a) << PDESHIFT)
 
-#if PAE
 #ifdef __x86_64__
 #define pagenum2lin(l4num, l3num, l2num, l1num) \
     (((vm_offset_t)(l4num) << L4SHIFT) +        \
      ((vm_offset_t)(l3num) << PDPSHIFT) +       \
      ((vm_offset_t)(l2num) << PDESHIFT) +       \
      ((vm_offset_t)(l1num) << PTESHIFT))
-#else /* __x86_64__ */
+#elif PAE
 #define pagenum2lin(l4num, l3num, l2num, l1num) \
     (((vm_offset_t)(l3num) << PDPSHIFT) +       \
      ((vm_offset_t)(l2num) << PDESHIFT) +       \
      ((vm_offset_t)(l1num) << PTESHIFT))
-#endif
-#else /* PAE */
+#else /* !PAE */
 #define pagenum2lin(l4num, l3num, l2num, l1num) \
     (((vm_offset_t)(l2num) << PDESHIFT) +       \
      ((vm_offset_t)(l1num) << PTESHIFT))
@@ -177,12 +183,10 @@ typedef phys_addr_t pt_entry_t;
 #define INTEL_PTE_GLOBAL	0x00000100
 #endif	/* MACH_PV_PAGETABLES */
 #define INTEL_PTE_WIRED		0x00000200
-#ifdef PAE
 #ifdef __x86_64__
 #define INTEL_PTE_PFN		0xfffffffffffff000ULL
-#else /* __x86_64__ */
+#elif defined(PAE)
 #define INTEL_PTE_PFN		0x00007ffffffff000ULL
-#endif/* __x86_64__ */
 #else
 #define INTEL_PTE_PFN		0xfffff000
 #endif
@@ -202,25 +206,23 @@ typedef phys_addr_t pt_entry_t;
 
 #ifndef	__ASSEMBLER__
 typedef	volatile long	cpu_set;	/* set of CPUs - must be <= 32 */
-					/* changed by other processors */
+				/* changed by other processors */
 
 struct pmap {
-#if ! PAE
-	pt_entry_t	*dirbase;	/* page directory table */
-#else	/* PAE */
 #ifdef __x86_64__
 	pt_entry_t	*l4base;	/* l4 table */
 #ifdef MACH_HYP
 	pt_entry_t	*user_l4base;	/* Userland l4 table */
 	pt_entry_t	*user_pdpbase;	/* Userland l4 table */
 #endif	/* MACH_HYP */
-#else	/* x86_64 */
+#elif PAE
 	pt_entry_t	*pdpbase;	/* page directory pointer table */
-#endif	/* x86_64 */
-#endif	/* PAE */
+#else	/* !PAE && !__x86_64__ */
+	pt_entry_t	*dirbase;	/* page directory table */
+#endif
 	int		ref_count;	/* reference count */
 	decl_simple_lock_data(,lock)
-					/* lock on map */
+				/* lock on map */
 	struct pmap_statistics	stats;	/* map statistics */
 	cpu_set		cpus_using;	/* bitmap of cpus using pmap */
 };
@@ -237,7 +239,6 @@ extern void pmap_map_mfn(void *addr, unsigned long mfn);
 extern void pmap_clear_bootstrap_pagetable(pt_entry_t *addr);
 #endif	/* MACH_PV_PAGETABLES */
 
-#if PAE
 #ifdef __x86_64__
 /* TODO: support PCID */
 #ifdef MACH_HYP
@@ -251,12 +252,11 @@ extern void pmap_clear_bootstrap_pagetable(pt_entry_t *addr);
 #else	/* MACH_HYP */
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->l4base))
 #endif	/* MACH_HYP */
-#else	/* x86_64 */
+#elif PAE
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->pdpbase))
-#endif	/* x86_64 */
-#else	/* PAE */
+#else	/* !PAE && !__x86_64__ */
 #define	set_pmap(pmap)	set_cr3(kvtophys((vm_offset_t)(pmap)->dirbase))
-#endif	/* PAE */
+#endif
 
 typedef struct {
 	pt_entry_t	*entry;
@@ -320,12 +320,12 @@ pt_entry_t *pmap_pte(const pmap_t pmap, vm_offset_t addr);
 #define	PMAP_ACTIVATE_KERNEL(my_cpu)					\
 MACRO_BEGIN 								\
 									\
-	/*								\
+	/*									\
 	 *	Let pmap updates proceed while we wait for this pmap.	\
 	 */								\
 	i_bit_clear((my_cpu), &cpus_active);				\
 									\
-	/*								\
+	/*									\
 	 *	Lock the pmap to put this cpu in its active set.	\
 	 *	Wait for updates here.					\
 	 */								\
