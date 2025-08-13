@@ -458,28 +458,28 @@ am__append_1 = \
 # Do we want the icky kernel debugger?
 
 # Include the modern GDB stub when KDB is enabled
-#am__append_2 = ddb/db_access.c ddb/db_access.h \
-#	ddb/db_elf.c ddb/db_elf.h ddb/db_break.c \
-#	ddb/db_break.h ddb/db_command.c \
-#	ddb/db_command.h ddb/db_cond.c ddb/db_cond.h \
-#	ddb/db_examine.c ddb/db_examine.h \
-#	ddb/db_expr.c ddb/db_expr.h \
-#	ddb/db_ext_symtab.c ddb/db_input.c \
-#	ddb/db_input.h ddb/db_lex.c ddb/db_lex.h \
-#	ddb/db_macro.c ddb/db_macro.h ddb/db_mp.c \
-#	ddb/db_mp.h ddb/db_output.c ddb/db_output.h \
-#	ddb/db_print.c ddb/db_print.h ddb/db_run.c \
-#	ddb/db_run.h ddb/db_sym.c ddb/db_sym.h \
-#	ddb/db_task_thread.c ddb/db_task_thread.h \
-#	ddb/db_trap.c ddb/db_trap.h \
-#	ddb/db_variables.c ddb/db_variables.h \
-#	ddb/db_watch.c ddb/db_watch.h \
-#	ddb/db_write_cmd.c ddb/db_write_cmd.h \
-#	ddb/nlist.h ddb/stab.h ddb/tr.h \
-#	kern/gdb_stub.c
+am__append_2 = ddb/db_access.c ddb/db_access.h \
+	ddb/db_elf.c ddb/db_elf.h ddb/db_break.c \
+	ddb/db_break.h ddb/db_command.c \
+	ddb/db_command.h ddb/db_cond.c ddb/db_cond.h \
+	ddb/db_examine.c ddb/db_examine.h \
+	ddb/db_expr.c ddb/db_expr.h \
+	ddb/db_ext_symtab.c ddb/db_input.c \
+	ddb/db_input.h ddb/db_lex.c ddb/db_lex.h \
+	ddb/db_macro.c ddb/db_macro.h ddb/db_mp.c \
+	ddb/db_mp.h ddb/db_output.c ddb/db_output.h \
+	ddb/db_print.c ddb/db_print.h ddb/db_run.c \
+	ddb/db_run.h ddb/db_sym.c ddb/db_sym.h \
+	ddb/db_task_thread.c ddb/db_task_thread.h \
+	ddb/db_trap.c ddb/db_trap.h \
+	ddb/db_variables.c ddb/db_variables.h \
+	ddb/db_watch.c ddb/db_watch.h \
+	ddb/db_write_cmd.c ddb/db_write_cmd.h \
+	ddb/nlist.h ddb/stab.h ddb/tr.h \
+	kern/gdb_stub.c
 
 # We need frame pointers for trace to work properly.
-#am__append_3 = -fno-omit-frame-pointer -fno-optimize-sibling-calls
+am__append_3 = -fno-omit-frame-pointer -fno-optimize-sibling-calls
 
 #
 # `kmsg' device.
@@ -1232,8 +1232,8 @@ am__append_121 = \
 #
 # KDB support.
 #
-#am__append_122 = \
-#	i386/i386/_setjmp.S
+am__append_122 = \
+	i386/i386/_setjmp.S
 
 
 #
@@ -1376,8 +1376,8 @@ am__append_127 = -no-pie -fno-PIE -fno-pie -fno-pic \
 #
 # KDB support.
 #
-##am__append_137 = \
-##	x86_64/_setjmp.S
+#am__append_137 = \
+#	x86_64/_setjmp.S
 
 
 #
@@ -1696,24 +1696,24 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	x86_64/cswitch.S x86_64/debug_trace.S x86_64/idt_inittab.S \
 	x86_64/locore.S x86_64/spl.S x86_64/_setjmp.S \
 	x86_64/xen_locore.S x86_64/xen_boothdr.S
-#am__objects_3 = ddb/db_access.$(OBJEXT) \
-#	ddb/db_elf.$(OBJEXT) ddb/db_break.$(OBJEXT) \
-#	ddb/db_command.$(OBJEXT) \
-#	ddb/db_cond.$(OBJEXT) \
-#	ddb/db_examine.$(OBJEXT) \
-#	ddb/db_expr.$(OBJEXT) \
-#	ddb/db_ext_symtab.$(OBJEXT) \
-#	ddb/db_input.$(OBJEXT) ddb/db_lex.$(OBJEXT) \
-#	ddb/db_macro.$(OBJEXT) ddb/db_mp.$(OBJEXT) \
-#	ddb/db_output.$(OBJEXT) \
-#	ddb/db_print.$(OBJEXT) ddb/db_run.$(OBJEXT) \
-#	ddb/db_sym.$(OBJEXT) \
-#	ddb/db_task_thread.$(OBJEXT) \
-#	ddb/db_trap.$(OBJEXT) \
-#	ddb/db_variables.$(OBJEXT) \
-#	ddb/db_watch.$(OBJEXT) \
-#	ddb/db_write_cmd.$(OBJEXT) \
-#	kern/gdb_stub.$(OBJEXT)
+am__objects_3 = ddb/db_access.$(OBJEXT) \
+	ddb/db_elf.$(OBJEXT) ddb/db_break.$(OBJEXT) \
+	ddb/db_command.$(OBJEXT) \
+	ddb/db_cond.$(OBJEXT) \
+	ddb/db_examine.$(OBJEXT) \
+	ddb/db_expr.$(OBJEXT) \
+	ddb/db_ext_symtab.$(OBJEXT) \
+	ddb/db_input.$(OBJEXT) ddb/db_lex.$(OBJEXT) \
+	ddb/db_macro.$(OBJEXT) ddb/db_mp.$(OBJEXT) \
+	ddb/db_output.$(OBJEXT) \
+	ddb/db_print.$(OBJEXT) ddb/db_run.$(OBJEXT) \
+	ddb/db_sym.$(OBJEXT) \
+	ddb/db_task_thread.$(OBJEXT) \
+	ddb/db_trap.$(OBJEXT) \
+	ddb/db_variables.$(OBJEXT) \
+	ddb/db_watch.$(OBJEXT) \
+	ddb/db_write_cmd.$(OBJEXT) \
+	kern/gdb_stub.$(OBJEXT)
 am__objects_4 = device/kmsg.$(OBJEXT)
 #am__objects_5 = xen/block.$(OBJEXT) \
 #	xen/console.$(OBJEXT) xen/evt.$(OBJEXT) \
@@ -1803,8 +1803,8 @@ am__objects_12 =  \
 #am__objects_13 = i386/i386at/ioapic.$(OBJEXT)
 am__objects_14 = i386/i386/pic.$(OBJEXT) \
 	i386/i386at/pic_isa.$(OBJEXT)
-#am__objects_15 =  \
-#	i386/i386/_setjmp.$(OBJEXT)
+am__objects_15 =  \
+	i386/i386/_setjmp.$(OBJEXT)
 am__objects_16 = chips/busses.$(OBJEXT) \
 	device/cirbuf.$(OBJEXT)
 #am__objects_17 =  \
@@ -1847,8 +1847,8 @@ am__objects_16 = chips/busses.$(OBJEXT) \
 ##am__objects_23 = i386/i386at/ioapic.$(OBJEXT)
 #am__objects_24 = i386/i386/pic.$(OBJEXT) \
 #	i386/i386at/pic_isa.$(OBJEXT)
-##am__objects_25 =  \
-##	x86_64/_setjmp.$(OBJEXT)
+#am__objects_25 =  \
+#	x86_64/_setjmp.$(OBJEXT)
 #am__objects_26 = chips/busses.$(OBJEXT) \
 #	device/cirbuf.$(OBJEXT)
 ##am__objects_27 = x86_64/xen_locore.$(OBJEXT) \

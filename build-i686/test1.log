@@ -1,0 +1,9 @@
+In file included from /usr/lib/gcc/x86_64-linux-gnu/14/include/stdint.h:9,
+                 from ../include/mach/machine/vm_types.h:40,
+                 from ../include/sys/types.h:29,
+                 from ../include/string.h:29,
+                 from ../kern/startup.c:30:
+/usr/include/stdint.h:26:10: fatal error: bits/libc-header-start.h: No such file or directory
+   26 | #include <bits/libc-header-start.h>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.

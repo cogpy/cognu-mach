@@ -470,7 +470,7 @@
 #define MACH_IPC_TEST 0
 
 /* Use the in-kernel debugger? */
-#define MACH_KDB 0
+#define MACH_KDB 1
 
 /* Standalone MACH kernel */
 #define MACH_KERNEL 1
