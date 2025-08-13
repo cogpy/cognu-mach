@@ -491,7 +491,12 @@ pmap_pde(const pmap_t pmap, vm_offset_t addr)
 		return PT_ENTRY_NULL;
 	page_dir = (pt_entry_t *) ptetokv(pde);
 #else /* PAE */
+#ifdef __x86_64__
+	/* This code path should not be reached on x86_64 as PAE is always enabled */
+	#error "Invalid configuration: x86_64 requires PAE"
+#else
 	page_dir = pmap->dirbase;
+#endif /* __x86_64__ */
 #endif /* PAE */
 	return &page_dir[lin2pdenum(addr)];
 }
@@ -634,6 +639,7 @@ static void pmap_bootstrap_pae(void)
 #endif
 	kernel_pmap->l4base = (pt_entry_t*)phystokv(pmap_grab_page());
 	memset(kernel_pmap->l4base, 0, INTEL_PGBYTES);
+	/* PDPNUM_KERNEL is defined in pmap.h for x86_64 */
 #else
 	const int PDPNUM_KERNEL = PDPNUM;
 #endif	/* x86_64 */
@@ -784,12 +790,17 @@ void pmap_bootstrap(void)
 #if PAE
 	pmap_bootstrap_pae();
 #else	/* PAE */
+#ifdef __x86_64__
+	/* This code path should not be reached on x86_64 as PAE is always enabled */
+	#error "Invalid configuration: x86_64 requires PAE"
+#else
 	kernel_pmap->dirbase = kernel_page_dir = (pt_entry_t*)phystokv(pmap_grab_page());
 	{
 		unsigned i;
 		for (i = 0; i < NPDES; i++)
 			kernel_page_dir[i] = 0;
 	}
+#endif /* __x86_64__ */
 #endif	/* PAE */
 
 #ifdef	MACH_PV_PAGETABLES
@@ -1329,6 +1340,7 @@ pmap_t pmap_create(vm_size_t size)
 	// needs to be reworked if we want to dynamically allocate PDPs for kernel
 	const int PDPNUM = PDPNUM_KERNEL;
 #endif
+	/* PDPNUM is defined in pmap.h for all architectures */
 	pt_entry_t		*page_dir[PDPNUM];
 	int			i;
 	pmap_t			p;
@@ -1454,7 +1466,12 @@ pmap_t pmap_create(vm_size_t size)
 #endif
 #endif	/* MACH_PV_PAGETABLES */
 #else	/* PAE */
+#ifdef __x86_64__
+	/* This code path should not be reached on x86_64 as PAE is always enabled */
+	#error "Invalid configuration: x86_64 requires PAE"
+#else
 	p->dirbase = page_dir[0];
+#endif /* __x86_64__ */
 #endif	/* PAE */
 
 	p->ref_count = 1;
@@ -1524,8 +1541,13 @@ void pmap_destroy(pmap_t p)
 			    )
 			for (int l2i = 0; l2i < NPTES; l2i++)
 #else /* PAE */
+#ifdef __x86_64__
+			/* This code path should not be reached on x86_64 as PAE is always enabled */
+			#error "Invalid configuration: x86_64 requires PAE"
+#else
 			pt_entry_t *pdebase = p->dirbase;
 			for (int l2i = 0; l2i < lin2pdenum(VM_MAX_USER_ADDRESS); l2i++)
+#endif /* __x86_64__ */
 #endif /* PAE */
 			{
 				pt_entry_t pte = (pt_entry_t) pdebase[l2i];
@@ -2536,8 +2558,13 @@ void pmap_collect(pmap_t p)
 			pt_entry_t *pdebase = (pt_entry_t*) ptetokv(pde);
 			for (int l2i = 0; l2i < NPTES; l2i++)
 #else /* PAE */
+#ifdef __x86_64__
+			/* This code path should not be reached on x86_64 as PAE is always enabled */
+			#error "Invalid configuration: x86_64 requires PAE"
+#else
 			pt_entry_t *pdebase = p->dirbase;
 			for (int l2i = 0; l2i < lin2pdenum(VM_MAX_USER_ADDRESS); l2i++)
+#endif /* __x86_64__ */
 #endif /* PAE */
 			{
 				pt_entry_t pte = (pt_entry_t) pdebase[l2i];
@@ -2668,7 +2695,12 @@ int pmap_whatis(pmap_t p, vm_offset_t a)
 			pt_entry_t *pdebase = (pt_entry_t*) ptetokv(pde);
 #else /* PAE */
 			int l4i = 0, l3i = 0;
+#ifdef __x86_64__
+			/* This code path should not be reached on x86_64 as PAE is always enabled */
+			#error "Invalid configuration: x86_64 requires PAE"
+#else
 			pt_entry_t *pdebase = p->dirbase;
+#endif /* __x86_64__ */
 #endif /* PAE */
 			if (a >= (vm_offset_t) pdebase && a < (vm_offset_t) (&pdebase[NPTES])) {
 				db_printf("PDE %d %d for pmap %p\n", l4i, l3i, p);

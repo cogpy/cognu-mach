@@ -31,6 +31,7 @@
 #include <mach/time_value.h>
 #include <kern/timer.h>
 #include <kern/cpu_number.h>
+#include <kern/constants.h>
 
 #include <kern/assert.h>
 #include <kern/macros.h>
