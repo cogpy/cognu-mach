@@ -49,7 +49,7 @@
 #include <kern/timer.h>
 #include <kern/xpr.h>
 #include <kern/printf.h>
-#ifdef MACH_KDB
+#if MACH_KDB
 #include <gdb_stub.h>
 #endif
 #include <kern/bootstrap.h>
@@ -145,7 +145,7 @@ void setup_main(void)
 	console_timestamp_init();
 
 	/* Initialize modern GDB stub for enhanced debugging */
-#ifdef MACH_KDB
+#if MACH_KDB
 	gdb_stub_init();
 #endif
 
