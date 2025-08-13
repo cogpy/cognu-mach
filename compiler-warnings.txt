@@ -1,6 +1,1 @@
-<<<<<<< HEAD
 make: *** No targets specified and no makefile found.  Stop.
-
-=======
-make: *** No targets specified and no makefile found.  Stop.
->>>>>>> aa0d18e47e778a761b80d125741fb7ad4a4a4e79
