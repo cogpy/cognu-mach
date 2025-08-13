@@ -3265,13 +3265,13 @@ pmap_unmap_page_zero (void)
 void
 pmap_make_temporary_mapping(void)
 {
-	int i;
 	/*
 	 * We'll have to temporarily install a direct mapping
 	 * between physical memory and low linear memory,
 	 * until we start using our new kernel segment descriptors.
 	 */
 #if INIT_VM_MIN_KERNEL_ADDRESS != LINEAR_MIN_KERNEL_ADDRESS
+	int i;
 	vm_offset_t delta = INIT_VM_MIN_KERNEL_ADDRESS - LINEAR_MIN_KERNEL_ADDRESS;
 	if ((vm_offset_t)(-delta) < delta)
 		delta = (vm_offset_t)(-delta);
@@ -3290,6 +3290,7 @@ pmap_make_temporary_mapping(void)
 #endif /* LINUX_DEV */
 
 #ifdef	MACH_PV_PAGETABLES
+	int i;
 #ifndef __x86_64__
 	const int PDPNUM_KERNEL = PDPNUM;
 #endif
