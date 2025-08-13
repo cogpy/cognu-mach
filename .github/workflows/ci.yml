@@ -128,7 +128,7 @@ jobs:
         run: |
           if [ -f bootstrap ]; then ./bootstrap; fi
       - name: Configure (x86_64, user32)
-        run: ./configure --host=x86_64-gnu --enable-user32 MIG='mig'
+        run: ./configure --host=x86_64-gnu --enable-user32 --enable-pae MIG='mig'
       - name: Build
         run: make -j$(nproc)
 

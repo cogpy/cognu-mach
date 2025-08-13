@@ -51,7 +51,11 @@ jobs:
         autoreconf --install
         mkdir -p build-${{ matrix.arch }}
         cd build-${{ matrix.arch }}
-        ../configure --host=${{ matrix.arch }}-gnu MIG='mig'
+        if [ "${{ matrix.arch }}" = "x86_64" ]; then
+          ../configure --host=${{ matrix.arch }}-gnu --enable-pae MIG='mig'
+        else
+          ../configure --host=${{ matrix.arch }}-gnu MIG='mig'
+        fi
     
     - name: Build
       run: |
