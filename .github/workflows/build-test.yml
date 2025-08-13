@@ -49,7 +49,7 @@ jobs:
     - name: Configure for ${{ matrix.arch }}
       run: |
         autoreconf --install
-        mkdir build-${{ matrix.arch }}
+        mkdir -p build-${{ matrix.arch }}
         cd build-${{ matrix.arch }}
         ../configure --host=${{ matrix.arch }}-gnu MIG='mig'
     
