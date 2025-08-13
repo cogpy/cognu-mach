@@ -55,6 +55,17 @@
  *	and to when physical maps must be made correct.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+/* Ensure PAE is enabled for x86_64 builds */
+#ifdef __x86_64__
+#ifndef PAE
+#define PAE 1
+#endif
+#endif
+
 #include <string.h>
 
 #include <mach/machine/vm_types.h>
