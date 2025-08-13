@@ -155,15 +155,15 @@ extern unsigned long cr3;
 #else	/* MACH_PV_PAGETABLES */
 #define	get_cr3() \
     ({ \
-	register unsigned long _temp__; \
-	asm volatile("mov %%cr3, %0" : "=r" (_temp__)); \
-	_temp__; \
+	register unsigned long _temp_get_cr3__; \
+	asm volatile("mov %%cr3, %0" : "=r" (_temp_get_cr3__)); \
+	_temp_get_cr3__; \
     })
 
 #define	set_cr3(value) \
     ({ \
-	register unsigned long _temp__ = (value); \
-	asm volatile("mov %0, %%cr3" : : "r" (_temp__) : "memory"); \
+	register unsigned long _temp_set_cr3__ = (value); \
+	asm volatile("mov %0, %%cr3" : : "r" (_temp_set_cr3__) : "memory"); \
      })
 #endif	/* MACH_PV_PAGETABLES */
 
