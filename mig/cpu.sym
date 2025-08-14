@@ -102,6 +102,7 @@ expr sizeof(short)			sizeof_short
 expr sizeof(int)			sizeof_int
 expr sizeof(long)			sizeof_long
 expr sizeof(int64_t)			sizeof_int64_t
+expr sizeof(uint64_t)			sizeof_uint64_t
 expr sizeof(float)			sizeof_float
 expr sizeof(double)			sizeof_double
 expr sizeof(uintptr_t)			sizeof_uintptr_t
