@@ -97,10 +97,25 @@ if [[ ! -f "$GNUMACH_BINARY" ]]; then
     exit 1
 fi
 
-# Check if QEMU is available
-if ! command -v qemu-system-i386 &> /dev/null; then
-    echo "Error: qemu-system-i386 not found" >&2
-    echo "Please install QEMU i386 system emulation" >&2
+# Detect kernel architecture and select appropriate QEMU
+KERNEL_ARCH=$(file "$GNUMACH_BINARY" | grep -o "ELF [0-9]*-bit" | awk '{print $2}' | sed 's/-bit//')
+if [[ "$KERNEL_ARCH" == "64" ]]; then
+    QEMU_SYSTEM="qemu-system-x86_64"
+    echo "Detected 64-bit kernel, using qemu-system-x86_64"
+else
+    QEMU_SYSTEM="qemu-system-i386"
+    echo "Detected 32-bit kernel, using qemu-system-i386"
+fi
+
+# Check if appropriate QEMU is available
+if ! command -v "$QEMU_SYSTEM" &> /dev/null; then
+    echo "Error: $QEMU_SYSTEM not found" >&2
+    echo "Please install QEMU system emulation for your kernel architecture" >&2
+    if [[ "$KERNEL_ARCH" == "64" ]]; then
+        echo "  sudo apt-get install qemu-system-x86"
+    else
+        echo "  sudo apt-get install qemu-system-x86"
+    fi
     exit 1
 fi
 
@@ -144,9 +159,10 @@ EOF
 echo "Created GDB script: $GDB_SCRIPT"
 
 # Prepare QEMU command
-QEMU_CMD="qemu-system-i386"
+QEMU_CMD="$QEMU_SYSTEM"
 QEMU_CMD="$QEMU_CMD -m $MEMORY"
 QEMU_CMD="$QEMU_CMD -kernel $GNUMACH_BINARY"
+QEMU_CMD="$QEMU_CMD -nographic"  # Use headless mode by default
 
 if [[ "$WAIT_GDB" == "true" ]]; then
     QEMU_CMD="$QEMU_CMD -s -S"  # -s enables GDB server on port 1234, -S pauses at startup
