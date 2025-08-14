@@ -55,6 +55,12 @@ build-aux/
 analysis-reports/
 build-*-test/
 
+# Test artifacts
+tests/
+tests/include-mach/
+tests/errlist.c
+tests/mig-out/
+
 # MIG build artifacts  
 mig/Makefile
 mig/Makefile.in
