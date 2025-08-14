@@ -124,18 +124,18 @@ type ipc_space_t = mach_port_t
 type rpc_uintptr_t = uint32_t;
 type rpc_vm_size_t = uint32_t;
 #else /* KERNEL and USER32 */
-type rpc_uintptr_t = uintptr_t;
-type rpc_vm_size_t = uintptr_t;
+type rpc_uintptr_t = uint64_t;
+type rpc_vm_size_t = uint64_t;
 #endif /* KERNEL_SERVER and USER32 */
 
-type rpc_vm_offset_t = rpc_vm_size_t;
+ type rpc_vm_offset_t = rpc_vm_size_t;
 
 type vm_address_t = rpc_vm_size_t
 #if defined(KERNEL_SERVER)
     intran: vm_address_t convert_vm_from_user(rpc_vm_address_t)
     outtran: rpc_vm_address_t convert_vm_to_user(vm_address_t)
 #elif defined(KERNEL_USER)
-    ctype: rpc_vm_address_t
+    ctype: uint64_t
 #endif
     ;
 type vm_offset_t = rpc_vm_offset_t
@@ -143,7 +143,7 @@ type vm_offset_t = rpc_vm_offset_t
     intran: vm_offset_t convert_vm_from_user(rpc_vm_offset_t)
     outtran: rpc_vm_offset_t convert_vm_to_user(vm_offset_t)
 #elif defined(KERNEL_USER)
-    ctype: rpc_vm_offset_t
+    ctype: uint64_t
 #endif
     ;
 type vm_size_t = rpc_vm_size_t
@@ -151,7 +151,7 @@ type vm_size_t = rpc_vm_size_t
     intran: vm_size_t convert_vm_from_user(rpc_vm_size_t)
     outtran: rpc_vm_size_t convert_vm_to_user(vm_size_t)
 #elif defined(KERNEL_USER)
-    ctype: rpc_vm_size_t
+    ctype: uint64_t
 #endif
 ;
 type vm_prot_t = int;
