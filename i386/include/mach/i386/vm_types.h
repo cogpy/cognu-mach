@@ -140,6 +140,24 @@ static inline int32_t convert_long_integer_to_user(int64_t i)
 }
 typedef uint32_t rpc_long_natural_t;
 typedef int32_t rpc_long_integer_t;
+#elif defined(MACH_KERNEL) && defined(KERNEL_USER)
+/*
+ * For kernel-compiled user stubs, force 64-bit rpc types so that
+ * MIG-generated Request/Reply sizes match host tool expectations.
+ */
+typedef uint64_t	rpc_uintptr_t;
+typedef uint64_t	rpc_vm_address_t;
+typedef uint64_t	rpc_vm_offset_t;
+typedef uint64_t	rpc_vm_size_t;
+
+#define convert_vm_to_user null_conversion
+#define convert_vm_from_user null_conversion
+
+typedef long_natural_t rpc_long_natural_t;
+typedef long_integer_t rpc_long_integer_t;
+
+#define convert_long_integer_to_user null_conversion
+#define convert_long_integer_from_user null_conversion
 #else /* MACH_KERNEL */
 typedef uintptr_t	rpc_uintptr_t;
 typedef vm_offset_t	rpc_vm_address_t;
