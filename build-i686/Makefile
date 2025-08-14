@@ -3271,7 +3271,7 @@ AM_CPPFLAGS = -nostdinc -imacros config.h -I $(GCC_INSTALL)/include \
 	-I$(systype) -I. -I$(top_srcdir)/$(systype) \
 	-I$(top_srcdir)/$(systype)/include/mach/sa \
 	-I$(top_srcdir)/include $(am__append_141)
-AM_CCASFLAGS = -D__ASSEMBLY__ $(am__append_146) $(am__append_149)
+AM_CCASFLAGS = -D__ASSEMBLY__ -m32 -Wa,--32 $(am__append_146) $(am__append_149)
 
 # Yes, this makes the eyes hurt.  But perhaps someone will finally take care of
 # all that scruffy Mach code...  Also see <http://savannah.gnu.org/task/?5726>.
