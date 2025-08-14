@@ -95,7 +95,7 @@ void gdb_stub_handle_exception(int exception_type,
     
     gdb_stats.exceptions_handled++;
     
-    printf("[GDB] Exception %d handled, EIP=0x%x\n", 
+    printf("[GDB] Exception %d handled, EIP=0x%lx\n",
            exception_type, state->eip);
     
     /* In a full implementation, this would:
@@ -129,7 +129,7 @@ boolean_t gdb_stub_set_hw_breakpoint(vm_offset_t address,
         return FALSE;
     }
     
-    printf("[GDB] Setting hardware breakpoint at 0x%lx, type %d\n", 
+    printf("[GDB] Setting hardware breakpoint at 0x%x, type %d\n", 
            address, type);
     
     /* In a full implementation, would:
@@ -151,7 +151,7 @@ boolean_t gdb_stub_remove_hw_breakpoint(vm_offset_t address)
         return FALSE;
     }
     
-    printf("[GDB] Removing hardware breakpoint at 0x%lx\n", address);
+    printf("[GDB] Removing hardware breakpoint at 0x%x\n", address);
     
     /* In a full implementation, would:
      * 1. Find debug register containing this address
@@ -176,7 +176,7 @@ boolean_t gdb_stub_set_breakpoint(gdb_breakpoint_type_t type,
     switch (type) {
     case GDB_BP_SOFTWARE:
         if (gdb_config.software_breakpoints) {
-            printf("[GDB] Setting software breakpoint at 0x%lx\n", address);
+            printf("[GDB] Setting software breakpoint at 0x%x\n", address);
             /* Replace instruction with INT3 (0xCC) */
             return TRUE;
         }
@@ -189,7 +189,7 @@ boolean_t gdb_stub_set_breakpoint(gdb_breakpoint_type_t type,
     case GDB_BP_READ_WATCH:
     case GDB_BP_ACCESS_WATCH:
         if (gdb_config.watchpoints) {
-            printf("[GDB] Setting watchpoint at 0x%lx, type %d, length %zu\n", 
+            printf("[GDB] Setting watchpoint at 0x%x, type %d, length %zu\n", 
                    address, type, length);
             return gdb_stub_set_hw_breakpoint(address, type);
         }
@@ -210,7 +210,7 @@ boolean_t gdb_stub_remove_breakpoint(gdb_breakpoint_type_t type,
         return FALSE;
     }
     
-    printf("[GDB] Removing breakpoint at 0x%lx, type %d\n", address, type);
+    printf("[GDB] Removing breakpoint at 0x%x, type %d\n", address, type);
     
     switch (type) {
     case GDB_BP_SOFTWARE:
@@ -312,7 +312,7 @@ boolean_t gdb_stub_memory_valid(vm_offset_t address, vm_size_t length)
 void gdb_stub_memory_changed(vm_offset_t address, vm_size_t length)
 {
     if (gdb_config.enabled) {
-        printf("[GDB] Memory changed at 0x%lx, length %zu\n", address, length);
+        printf("[GDB] Memory changed at 0x%x, length %zu\n", address, length);
     }
 }
 

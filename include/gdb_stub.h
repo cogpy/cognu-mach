@@ -17,6 +17,7 @@
 #define _GDB_STUB_H_
 
 #include <mach/boolean.h>
+#include <mach/mach_types.h>
 #include <machine/thread.h>
 
 /* GDB stub protocol constants */
