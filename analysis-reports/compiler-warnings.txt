@@ -1,0 +1,49 @@
+make  all-recursive
+make[1]: Entering directory '/home/runner/work/cognu-mach/cognu-mach/analysis-reports/build-warnings'
+make[2]: Entering directory '/home/runner/work/cognu-mach/cognu-mach/analysis-reports/build-warnings'
+rm -f vm/memory_object_user.user.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/vm/memory_object_user.cli vm/memory_object_user.user.defs.c
+rm -f vm/memory_object_default.user.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/vm/memory_object_default.cli vm/memory_object_default.user.defs.c
+rm -f device/device_reply.user.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/device/device_reply.cli device/device_reply.user.defs.c
+rm -f device/memory_object_reply.user.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/device/memory_object_reply.cli device/memory_object_reply.user.defs.c
+rm -f kern/task_notify.user.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/kern/task_notify.cli kern/task_notify.user.defs.c
+rm -f device/device.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/device/device.srv device/device.server.defs.c
+rm -f device/device_pager.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/device/device_pager.srv device/device_pager.server.defs.c
+rm -f ipc/mach_port.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/ipc/mach_port.srv ipc/mach_port.server.defs.c
+rm -f kern/mach.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/kern/mach.srv kern/mach.server.defs.c
+rm -f kern/mach4.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/kern/mach4.srv kern/mach4.server.defs.c
+rm -f kern/gnumach.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/kern/gnumach.srv kern/gnumach.server.defs.c
+rm -f kern/experimental.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/kern/experimental.srv kern/experimental.server.defs.c
+rm -f kern/mach_debug.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/kern/mach_debug.srv kern/mach_debug.server.defs.c
+rm -f kern/mach_host.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/kern/mach_host.srv kern/mach_host.server.defs.c
+rm -f ipc/notify.none.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/ipc/notify.defs ipc/notify.none.defs.c
+rm -f kern/exc.none.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/kern/exc.defs kern/exc.none.defs.c
+rm -f i386/i386/mach_i386.server.defs.c
+cp -p /home/runner/work/cognu-mach/cognu-mach/i386/i386/mach_i386.srv i386/i386/mach_i386.server.defs.c
+gcc -DHAVE_CONFIG_H -I. -I/home/runner/work/cognu-mach/cognu-mach  -nostdinc -imacros config.h -I /usr/lib/gcc/x86_64-linux-gnu/13//include -Ii386 -I. -I/home/runner/work/cognu-mach/cognu-mach/i386 -I/home/runner/work/cognu-mach/cognu-mach/i386/include/mach/sa -I/home/runner/work/cognu-mach/cognu-mach/include  -E  -fno-builtin-log -m32 -Wall -Wextra -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wextra -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Wredundant-decls -Wnested-externs -Winline -Wno-long-long -Wuninitialized -Wconversion -Wstrict-overflow=2 -fgnu89-inline -fstrict-aliasing -Wstrict-aliasing=2 -ffreestanding -nostdlib -fno-stack-protector -DRDXTREE_KEY_32 -fno-omit-frame-pointer -fno-optimize-sibling-calls -no-pie -fno-PIE -fno-pie -fno-pic -mno-3dnow -mno-mmx -mno-sse -mno-sse2  -g -O2 -Wall -Wextra -Wall -Wextra -Wstrict-aliasing -Wpointer-arith -Wmissing-prototypes -Wmissing-declarations -Wformat=2 -Wformat-security -Wold-style-definition -Wstrict-prototypes -Wno-unused-parameter -Wno-sign-compare -MT vm/lib_dep_tr_for_defs_a-memory_object_user.user.defs.o -MD -MP -MF vm/.deps/lib_dep_tr_for_defs_a-memory_object_user.user.defs.Tpo -c -o vm/lib_dep_tr_for_defs_a-memory_object_user.user.defs.o `test -f 'vm/memory_object_user.user.defs.c' || echo '/home/runner/work/cognu-mach/cognu-mach/'`vm/memory_object_user.user.defs.c
+mv -f vm/.deps/lib_dep_tr_for_defs_a-memory_object_user.user.defs.Tpo vm/.deps/lib_dep_tr_for_defs_a-memory_object_user.user.defs.Po
+mig -n -cc cat - /dev/null  	\
+  -user vm/memory_object_user.user.c -header vm/memory_object_user.user.h			\
+  -list vm/memory_object_user.user.msgids					\
+  < vm/lib_dep_tr_for_defs_a-memory_object_user.user.defs.o
+/bin/bash: line 1: mig: command not found
+make[2]: *** [Makefile:9807: vm/memory_object_user.user.h] Error 127
+make[2]: Leaving directory '/home/runner/work/cognu-mach/cognu-mach/analysis-reports/build-warnings'
+make[1]: *** [Makefile:8142: all-recursive] Error 1
+make[1]: Leaving directory '/home/runner/work/cognu-mach/cognu-mach/analysis-reports/build-warnings'
+make: *** [Makefile:3871: all] Error 2

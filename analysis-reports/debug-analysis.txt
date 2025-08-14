@@ -1,0 +1,57 @@
+=== GNU Mach Debugging Analysis Report ===
+Generated: Thu Aug 14 07:00:40 UTC 2025
+
+=== Console Timestamp Implementation ===
+Files with timestamp functionality:
+./tests/test-console-timestamp.c:  ASSERT(console_timestamp_is_enabled(), "Timestamps should be enabled by default");
+./tests/test-console-timestamp.c:  ASSERT(console_timestamp_get_format() == TIMESTAMP_FORMAT_RELATIVE, 
+./tests/test-console-timestamp.c:  console_timestamp_set_format(TIMESTAMP_FORMAT_SIMPLE);
+./tests/test-console-timestamp.c:  ASSERT(console_timestamp_get_format() == TIMESTAMP_FORMAT_SIMPLE,
+./tests/test-console-timestamp.c:  console_timestamp_set_format(TIMESTAMP_FORMAT_PRECISE);
+./tests/test-console-timestamp.c:  ASSERT(console_timestamp_get_format() == TIMESTAMP_FORMAT_PRECISE,
+./tests/test-console-timestamp.c:  console_timestamp_set_format(TIMESTAMP_FORMAT_UPTIME);
+./tests/test-console-timestamp.c:  ASSERT(console_timestamp_get_format() == TIMESTAMP_FORMAT_UPTIME,
+./tests/test-console-timestamp.c:  console_timestamp_set_format(TIMESTAMP_FORMAT_RELATIVE);
+./tests/test-console-timestamp.c:  console_timestamp_enable(FALSE);
+./tests/test-console-timestamp.c:  ASSERT(!console_timestamp_is_enabled(), "Timestamps should be disabled");
+./tests/test-console-timestamp.c:  console_timestamp_enable(TRUE);
+./tests/test-console-timestamp.c:  ASSERT(console_timestamp_is_enabled(), "Timestamps should be re-enabled");
+./tests/test-console-timestamp.c:  console_timestamp_get_boot_time(&boot_time);
+./tests/include/testlib.h:} console_timestamp_format_t;
+./kern/printf.h:extern boolean_t console_timestamps_enabled;
+./kern/printf.h:extern void console_timestamp_init(void);
+./kern/printf.h:} console_timestamp_format_t;
+./kern/printf.h:extern void console_timestamp_enable(boolean_t enable);
+./kern/printf.h:extern boolean_t console_timestamp_is_enabled(void);
+./kern/printf.h:extern void console_timestamp_set_format(console_timestamp_format_t format);
+./kern/printf.h:extern console_timestamp_format_t console_timestamp_get_format(void);
+./kern/printf.h:extern void console_timestamp_get_boot_time(time_value64_t *boot_time);
+./kern/startup.c:	console_timestamp_init();
+./kern/printf.c:boolean_t console_timestamps_enabled = TRUE;
+./kern/printf.c:static boolean_t console_timestamp_initialized = FALSE;
+./kern/printf.c:static console_timestamp_format_t console_timestamp_format = TIMESTAMP_FORMAT_RELATIVE;
+./kern/printf.c:void console_timestamp_init(void)
+./kern/printf.c:	if (console_timestamp_initialized)
+./kern/printf.c:	console_timestamp_initialized = TRUE;
+./kern/printf.c: * Format depends on console_timestamp_format setting
+./kern/printf.c:	if (!console_timestamps_enabled || !console_timestamp_initialized)
+./kern/printf.c:	switch (console_timestamp_format) {
+./kern/printf.c:void console_timestamp_enable(boolean_t enable)
+./kern/printf.c:	console_timestamps_enabled = enable;
+./kern/printf.c:boolean_t console_timestamp_is_enabled(void)
+./kern/printf.c:	return console_timestamps_enabled;
+./kern/printf.c:void console_timestamp_set_format(console_timestamp_format_t format)
+./kern/printf.c:	console_timestamp_format = format;
+./kern/printf.c:console_timestamp_format_t console_timestamp_get_format(void)
+./kern/printf.c:	return console_timestamp_format;
+./kern/printf.c:void console_timestamp_get_boot_time(time_value64_t *boot_time)
+./kern/printf.c:	if (console_timestamps_enabled && console_timestamp_initialized) {
+
+=== Printf Usage Analysis ===
+Total printf calls:
+2300
+
+=== Error Handling Patterns ===
+Panic calls:
+471
+
