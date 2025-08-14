@@ -125,6 +125,7 @@
 #include <kern/mach_clock.h>
 #include <kern/host.h>
 #include <kern/constants.h>
+#include <kern/lock.h>
 
 /* Console timestamp support */
 boolean_t console_timestamps_enabled = TRUE;
@@ -132,13 +133,64 @@ static time_value64_t console_start_time;
 static boolean_t console_timestamp_initialized = FALSE;
 static console_timestamp_format_t console_timestamp_format = TIMESTAMP_FORMAT_RELATIVE;
 
+/* Thread safety for console timestamps and printf line tracking */
+static simple_lock_data_t console_timestamp_lock;
+static simple_lock_data_t printf_line_tracking_lock;
+static boolean_t at_line_start = TRUE;
+
+/* External kernel command line */
+extern char *kernel_cmdline;
+
+/*
+ * Parse kernel command line for console timestamp parameters
+ */
+static void console_timestamp_parse_boot_params(void)
+{
+	if (!kernel_cmdline)
+		return;
+
+	/* Check for notimestamps parameter - this takes precedence */
+	if (strstr(kernel_cmdline, "notimestamps")) {
+		console_timestamps_enabled = FALSE;
+		return;
+	}
+
+	/* Check for console_timestamps=off parameter - this takes precedence */
+	if (strstr(kernel_cmdline, "console_timestamps=off")) {
+		console_timestamps_enabled = FALSE;
+		return;
+	}
+
+	/* Check for console_timestamps=on parameter (explicit enable) */
+	if (strstr(kernel_cmdline, "console_timestamps=on")) {
+		console_timestamps_enabled = TRUE;
+		/* Don't return here - continue to check format parameters */
+	}
+
+	/* Check for timestamp format parameters */
+	if (strstr(kernel_cmdline, "timestamp_format=simple")) {
+		console_timestamp_format = TIMESTAMP_FORMAT_SIMPLE;
+	} else if (strstr(kernel_cmdline, "timestamp_format=precise")) {
+		console_timestamp_format = TIMESTAMP_FORMAT_PRECISE;
+	} else if (strstr(kernel_cmdline, "timestamp_format=uptime")) {
+		console_timestamp_format = TIMESTAMP_FORMAT_UPTIME;
+	}
+	/* Default is TIMESTAMP_FORMAT_RELATIVE */
+}
+
 /*
  * Initialize console timestamp functionality
  */
 void console_timestamp_init(void)
 {
+	simple_lock_init(&console_timestamp_lock);
+	simple_lock_init(&printf_line_tracking_lock);
+	
 	if (console_timestamp_initialized)
 		return;
+	
+	/* Parse boot parameters to override defaults */
+	console_timestamp_parse_boot_params();
 	
 	/* Record the current uptime as our reference point */
 	console_start_time = uptime;
@@ -162,24 +214,31 @@ void console_print_timestamp(void)
 {
 	time_value64_t current_uptime, relative_time;
 	int seconds, milliseconds, microseconds;
+	console_timestamp_format_t format;
 	
+	/* Fast path: exit early if timestamps disabled */
 	if (!console_timestamps_enabled || !console_timestamp_initialized)
 		return;
+	
+	/* Get format under lock to ensure consistency */
+	simple_lock(&console_timestamp_lock);
+	format = console_timestamp_format;
+	simple_unlock(&console_timestamp_lock);
 	
 	/* Get current uptime and calculate relative time */
 	current_uptime = uptime;
 	relative_time = current_uptime;
 	time_value64_sub(&relative_time, &console_start_time);
 	
-    seconds = (int)relative_time.seconds;
-    /* derive ms/us consistently from nanoseconds */
-    milliseconds = (int)(relative_time.nanoseconds / 1000000);
-    microseconds = (int)((relative_time.nanoseconds % 1000000) / 1000);
+	seconds = (int)relative_time.seconds;
+	/* derive ms/us consistently from nanoseconds */
+	milliseconds = (int)(relative_time.nanoseconds / 1000000);
+	microseconds = (int)((relative_time.nanoseconds % 1000000) / 1000);
 	
 	/* Print timestamp based on format */
 	cnputc('[');
 	
-	switch (console_timestamp_format) {
+	switch (format) {
 	case TIMESTAMP_FORMAT_RELATIVE:
 		/* [seconds.milliseconds] format */
 		printnum(seconds, 10, cnputc_wrapper, 0);
@@ -193,10 +252,12 @@ void console_print_timestamp(void)
 		/* [uptime] absolute format */
 		printnum((int)current_uptime.seconds, 10, cnputc_wrapper, 0);
 		cnputc('.');
-        int abs_ms = (int)(current_uptime.nanoseconds / 1000000);
-		if (abs_ms < 100) cnputc('0');
-		if (abs_ms < 10) cnputc('0');
-		printnum(abs_ms, 10, cnputc_wrapper, 0);
+		{
+			int abs_ms = (int)(current_uptime.nanoseconds / 1000000);
+			if (abs_ms < 100) cnputc('0');
+			if (abs_ms < 10) cnputc('0');
+			printnum(abs_ms, 10, cnputc_wrapper, 0);
+		}
 		break;
 		
 	case TIMESTAMP_FORMAT_SIMPLE:
@@ -235,28 +296,47 @@ void console_print_timestamp(void)
  */
 void console_timestamp_enable(boolean_t enable)
 {
+	simple_lock(&console_timestamp_lock);
 	console_timestamps_enabled = enable;
+	simple_unlock(&console_timestamp_lock);
 }
 
 boolean_t console_timestamp_is_enabled(void)
 {
-	return console_timestamps_enabled;
+	boolean_t enabled;
+	simple_lock(&console_timestamp_lock);
+	enabled = console_timestamps_enabled;
+	simple_unlock(&console_timestamp_lock);
+	return enabled;
 }
 
 void console_timestamp_set_format(console_timestamp_format_t format)
 {
+	/* Validate format parameter */
+	if (format < TIMESTAMP_FORMAT_RELATIVE || format > TIMESTAMP_FORMAT_PRECISE) {
+		return; /* Invalid format, ignore */
+	}
+	
+	simple_lock(&console_timestamp_lock);
 	console_timestamp_format = format;
+	simple_unlock(&console_timestamp_lock);
 }
 
 console_timestamp_format_t console_timestamp_get_format(void)
 {
-	return console_timestamp_format;
+	console_timestamp_format_t format;
+	simple_lock(&console_timestamp_lock);
+	format = console_timestamp_format;
+	simple_unlock(&console_timestamp_lock);
+	return format;
 }
 
 void console_timestamp_get_boot_time(time_value64_t *boot_time)
 {
 	if (boot_time) {
+		simple_lock(&console_timestamp_lock);
 		*boot_time = console_start_time;
+		simple_unlock(&console_timestamp_lock);
 	}
 }
 
@@ -645,23 +725,29 @@ int vprintf(const char *fmt, va_list listp)
 int printf(const char *fmt, ...)
 {
 	va_list	listp;
+	boolean_t need_timestamp = FALSE;
+	size_t len;
 	
-	/* Print timestamp if enabled and this is a new line */
-	if (console_timestamps_enabled && console_timestamp_initialized) {
-		static boolean_t at_line_start = TRUE;
+	/* Fast path: skip timestamp logic if disabled */
+	if (console_timestamps_enabled && console_timestamp_initialized && fmt && *fmt != '\0') {
+		simple_lock(&printf_line_tracking_lock);
 		
 		/* Check if we're at the start of a new line */
-		if (at_line_start && fmt && *fmt != '\0') {
-			console_print_timestamp();
+		if (at_line_start) {
+			need_timestamp = TRUE;
 			at_line_start = FALSE;
 		}
 		
 		/* Check if this printf ends with a newline */
-		if (fmt) {
-			size_t len = strlen(fmt);
-			if (len > 0 && fmt[len-1] == '\n') {
-				at_line_start = TRUE;
-			}
+		len = strlen(fmt);
+		if (len > 0 && fmt[len-1] == '\n') {
+			at_line_start = TRUE;
+		}
+		
+		simple_unlock(&printf_line_tracking_lock);
+		
+		if (need_timestamp) {
+			console_print_timestamp();
 		}
 	}
 	
