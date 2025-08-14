@@ -14,7 +14,7 @@ dnl "AS IS" CONDITION.  THE FREE SOFTWARE FOUNDATION DISCLAIMS ANY
 dnl LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE
 dnl USE OF THIS SOFTWARE.
 
-AC_PREREQ([2.57])
+AC_PREREQ([2.69])
 
 m4_include([version.m4])
 AC_INIT([AC_PACKAGE_NAME], [AC_PACKAGE_VERSION], [AC_PACKAGE_BUGREPORT],
@@ -33,7 +33,7 @@ CFLAGS="$CFLAGS -ffreestanding -nostdlib"
 AC_CONFIG_AUX_DIR([build-aux])
 
 AM_INIT_AUTOMAKE(
-  [1.10.2]
+  [1.14]
   [dist-xz]
 dnl Don't define `PACKAGE' and `VERSION'.
   [no-define]
@@ -41,6 +41,7 @@ dnl Do not clutter the main build directory.
   [subdir-objects]
 dnl We require GNU make.
   [-Wall -Wno-portability]
+  [foreign]
 )
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])],
@@ -92,8 +93,10 @@ AM_CONDITIONAL([HOST_ix86], [test "$systype" = "i386"])
 #
 
 AC_PROG_AWK
+# Modern cross-compilation support
+AC_CANONICAL_BUILD
 # Temporarily force cross compiling mode to make sure the configure script
-# does not try to run compiled binaries.
+# does not try to run compiled binaries during build tool detection.
 save_cross_compiling=$cross_compiling
 cross_compiling=yes
 AM_PROG_AS
@@ -101,6 +104,8 @@ cross_compiling=$save_cross_compiling
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_INSTALL
+# Modern replacement for deprecated AC_PROG_RANLIB
+AM_PROG_AR
 AC_PROG_RANLIB
 AC_CHECK_TOOL([AR], [ar])
 AC_CHECK_TOOL([LD], [ld])
@@ -118,12 +123,29 @@ fi
 dnl Needed for the Automake option `subdir-objects'.
 AM_PROG_CC_C_O
 
-dnl Makerules can make use of these.
-AC_CHECK_PROG([GZIP], [gzip], [gzip], [gzip-not-found])
+# Check for essential build tools and provide helpful error messages
+AC_CHECK_PROG([GZIP], [gzip], [gzip])
+AS_IF([test "x$GZIP" = "x"], [
+  AC_MSG_ERROR([gzip is required for building GNU Mach])
+])
+
 AC_CHECK_TOOL([STRIP], [strip])
+AS_IF([test "x$STRIP" = "x"], [
+  AC_MSG_ERROR([strip tool is required for building GNU Mach])
+])
 
 dnl See below why we need to patch stuff during build...
-AC_CHECK_PROG([PATCH], [patch], [patch], [patch-not-found])
+AC_CHECK_PROG([PATCH], [patch], [patch])
+AS_IF([test "x$PATCH" = "x"], [
+  AC_MSG_ERROR([patch is required for building GNU Mach])
+])
+
+# Check for other essential tools
+AC_PROG_SED
+AC_CHECK_PROG([AWK_PROG], [awk], [awk])
+AS_IF([test "x$AWK_PROG" = "x"], [
+  AC_MSG_ERROR([awk is required for building GNU Mach])
+])
 
 #
 # configure fragments.
@@ -151,13 +173,42 @@ AC_ARG_ENABLE([device-drivers],
 esac]
 
 AC_ARG_ENABLE([user32],
-AS_HELP_STRING([--enable-user32], [enable 32-bit user space on a 64-bit kernel]))
+  AS_HELP_STRING([--enable-user32], [enable 32-bit user space on a 64-bit kernel]))
 [if [ x"$enable_user32" = xyes ]; then]
   AC_DEFINE([USER32], [], [enable 32-bit user on 64-bit kernel])
   AM_CONDITIONAL([enable_user32], [true])
 [else]
   AM_CONDITIONAL([enable_user32], [false])
 [fi]
+
+# Modern build system options
+AC_ARG_ENABLE([optimization],
+  AS_HELP_STRING([--enable-optimization@<:@=LEVEL@:>@], 
+    [set optimization level (0,1,2,3,s,g) @<:@default=2@:>@]),
+  [optimization_level="$enableval"],
+  [optimization_level="2"])
+
+AS_CASE(["$optimization_level"],
+  [0|1|2|3|s|g], [],
+  [AC_MSG_ERROR([invalid optimization level: $optimization_level])])
+
+AC_SUBST([OPTIMIZATION_LEVEL], ["$optimization_level"])
+
+AC_ARG_ENABLE([debug-info],
+  AS_HELP_STRING([--enable-debug-info], [include debugging information @<:@default=yes@:>@]),
+  [debug_info="$enableval"],
+  [debug_info="yes"])
+
+AM_CONDITIONAL([ENABLE_DEBUG_INFO], [test "x$debug_info" = "xyes"])
+
+# Strict compilation mode for development
+AC_ARG_ENABLE([strict-warnings],
+  AS_HELP_STRING([--enable-strict-warnings], 
+    [enable strict compiler warnings for development @<:@default=no@:>@]),
+  [strict_warnings="$enableval"],
+  [strict_warnings="no"])
+
+AM_CONDITIONAL([STRICT_WARNINGS], [test "x$strict_warnings" = "xyes"])
 
 
 # Platform-specific configuration.
@@ -192,29 +243,44 @@ m4_include([linux/configfrag.ac])
 m4_include([tests/configfrag.ac])
 
 #
-# Compiler features.
+# Compiler features and capabilities detection.
 #
 
-# Smashing stack protector.
-[ssp_possible=yes]
-AC_MSG_CHECKING([whether the compiler accepts `-fstack-protector'])
-# Is this a reliable test case?
-AC_LANG_CONFTEST(
-  [AC_LANG_SOURCE([[void foo (void) { volatile char a[8]; a[3]; }]])])
-[# `$CC -c -o ...' might not be portable.  But, oh, well...  Is calling
-# `ac_compile' like this correct, after all?
-if eval "$ac_compile -S -fstack-protector -o conftest.s" 2> /dev/null; then]
-  AC_MSG_RESULT([yes])
-  [# Should we clear up other files as well, having called `AC_LANG_CONFTEST'?
-  rm -f conftest.s
-else
-  ssp_possible=no]
-  AC_MSG_RESULT([no])
-[fi
-# Need that, because some distributions ship compilers that include
-# `-fstack-protector' in the default specs.]
+# Modern compiler feature detection using AC_COMPILE_IFELSE
+AC_DEFUN([GNU_MACH_CHECK_CC_FLAG], [
+  AC_MSG_CHECKING([whether $CC accepts $1])
+  saved_CFLAGS=$CFLAGS
+  CFLAGS="$CFLAGS $1"
+  AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM([], [])],
+    [AC_MSG_RESULT([yes])
+     $2=yes],
+    [AC_MSG_RESULT([no])
+     $2=no])
+  CFLAGS=$saved_CFLAGS
+])
+
+# Check for stack protector support
+GNU_MACH_CHECK_CC_FLAG([-fstack-protector], [ssp_possible])
 AM_CONDITIONAL([disable_smashing_stack_protector],
-  [[[ x"$ssp_possible" = xyes ]]])
+  [test "x$ssp_possible" = "xyes"])
+
+# Check for modern compiler warning capabilities
+GNU_MACH_CHECK_CC_FLAG([-Wall], [have_wall])
+GNU_MACH_CHECK_CC_FLAG([-Wextra], [have_wextra])
+GNU_MACH_CHECK_CC_FLAG([-Wstrict-prototypes], [have_wstrict_prototypes])
+
+# Check freestanding environment support
+GNU_MACH_CHECK_CC_FLAG([-ffreestanding], [have_ffreestanding])
+AS_IF([test "x$have_ffreestanding" != "xyes"], [
+  AC_MSG_ERROR([Compiler must support -ffreestanding for kernel compilation])
+])
+
+# Check for other essential compiler features
+GNU_MACH_CHECK_CC_FLAG([-nostdlib], [have_nostdlib])
+AS_IF([test "x$have_nostdlib" != "xyes"], [
+  AC_MSG_ERROR([Compiler must support -nostdlib for kernel compilation])
+])
 
 #
 # Output.
@@ -277,20 +343,44 @@ AC_CONFIG_COMMANDS_POST([
 
 CFLAGS="$saved_CFLAGS"
 
-# Add compiler warning flags for better code quality
+# Configure compiler flags based on detected capabilities and user options
 if test "$GCC" = yes; then
-  # Basic warning flags
-  CFLAGS="$CFLAGS -Wall -Wextra"
+  # Base CFLAGS with optimization and debug settings
+  if test "x$debug_info" = "xyes"; then
+    CFLAGS="$CFLAGS -g"
+  fi
+  CFLAGS="$CFLAGS -O$optimization_level"
+  
+  # Essential warning flags (always enabled)
+  test "x$have_wall" = "xyes" && CFLAGS="$CFLAGS -Wall"
+  test "x$have_wextra" = "xyes" && CFLAGS="$CFLAGS -Wextra"
+  test "x$have_wstrict_prototypes" = "xyes" && CFLAGS="$CFLAGS -Wstrict-prototypes"
   
   # Additional useful warnings
-  CFLAGS="$CFLAGS -Wstrict-aliasing -Wpointer-arith"
   CFLAGS="$CFLAGS -Wmissing-prototypes -Wmissing-declarations"
   CFLAGS="$CFLAGS -Wformat=2 -Wformat-security"
-  CFLAGS="$CFLAGS -Wold-style-definition -Wstrict-prototypes"
+  CFLAGS="$CFLAGS -Wold-style-definition"
   
   # Disable some warnings that may be too noisy initially
   CFLAGS="$CFLAGS -Wno-unused-parameter -Wno-sign-compare"
+  
+  # Strict warnings for development (if enabled)
+  if test "x$strict_warnings" = "xyes"; then
+    CFLAGS="$CFLAGS -Werror -pedantic"
+  fi
 fi
+
+# Summary of configuration
+AC_MSG_NOTICE([])
+AC_MSG_NOTICE([GNU Mach configuration summary:])
+AC_MSG_NOTICE([  Target architecture: $systype])
+AC_MSG_NOTICE([  Platform: $host_platform])
+AC_MSG_NOTICE([  Optimization level: $optimization_level])
+AC_MSG_NOTICE([  Debug information: $debug_info])
+AC_MSG_NOTICE([  Strict warnings: $strict_warnings])
+AC_MSG_NOTICE([  Stack protector: $ssp_possible])
+AC_MSG_NOTICE([  MIG tool: $MIG])
+AC_MSG_NOTICE([])
 
 #
 # Fire.
