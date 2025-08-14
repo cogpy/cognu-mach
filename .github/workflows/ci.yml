@@ -23,8 +23,7 @@ jobs:
             sudo mkdir -p /usr/include/mach
             sudo cp -r include/mach/* /usr/include/mach/
             sudo ln -sf $(pwd)/i386/include/mach/i386 /usr/include/mach/machine
-            # Build MIG from source
-            git clone https://github.com/Unicorn-Forest/mig.git
+            # Build MIG from source using local directory
             pushd mig
             autoreconf --install
             ./configure
@@ -75,14 +74,14 @@ jobs:
             autoconf automake libtool pkg-config gawk bison flex nasm \
             xorriso grub-pc-bin mtools qemu-system-x86 \
             git python3
+          # MIG from distro if available; otherwise build with mach headers
           if ! sudo apt-get install -y mig; then
             sudo apt-get install -y texinfo
             # Set up mach headers for MIG build
             sudo mkdir -p /usr/include/mach
             sudo cp -r include/mach/* /usr/include/mach/
             sudo ln -sf $(pwd)/i386/include/mach/i386 /usr/include/mach/machine
-            # Build MIG from source
-            git clone https://github.com/Unicorn-Forest/mig.git
+            # Build MIG from source using local directory
             pushd mig
             autoreconf --install
             ./configure
@@ -115,8 +114,7 @@ jobs:
             sudo mkdir -p /usr/include/mach
             sudo cp -r include/mach/* /usr/include/mach/
             sudo ln -sf $(pwd)/i386/include/mach/i386 /usr/include/mach/machine
-            # Build MIG from source
-            git clone https://github.com/Unicorn-Forest/mig.git
+            # Build MIG from source using local directory
             pushd mig
             autoreconf --install
             ./configure
