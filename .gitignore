@@ -50,3 +50,24 @@ build-aux/
 /doc/mach.toc
 /doc/mach.tp
 /doc/mach.vr
+
+# Analysis and build artifacts
+analysis-reports/
+build-*-test/
+
+# MIG build artifacts  
+mig/Makefile
+mig/Makefile.in
+mig/aclocal.m4
+mig/config.log
+mig/config.status
+mig/configure
+mig/cpu.symc
+mig/mig
+mig/parser.c
+mig/parser.h
+mig/INSTALL
+mig/tests/Makefile
+mig/tests/Makefile.in
+mig/tests/*/Makefile
+mig/tests/*/Makefile.in
