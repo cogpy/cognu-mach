@@ -138,6 +138,46 @@ static simple_lock_data_t console_timestamp_lock;
 static simple_lock_data_t printf_line_tracking_lock;
 static boolean_t at_line_start = TRUE;
 
+/* External kernel command line */
+extern char *kernel_cmdline;
+
+/*
+ * Parse kernel command line for console timestamp parameters
+ */
+static void console_timestamp_parse_boot_params(void)
+{
+	if (!kernel_cmdline)
+		return;
+
+	/* Check for notimestamps parameter - this takes precedence */
+	if (strstr(kernel_cmdline, "notimestamps")) {
+		console_timestamps_enabled = FALSE;
+		return;
+	}
+
+	/* Check for console_timestamps=off parameter - this takes precedence */
+	if (strstr(kernel_cmdline, "console_timestamps=off")) {
+		console_timestamps_enabled = FALSE;
+		return;
+	}
+
+	/* Check for console_timestamps=on parameter (explicit enable) */
+	if (strstr(kernel_cmdline, "console_timestamps=on")) {
+		console_timestamps_enabled = TRUE;
+		/* Don't return here - continue to check format parameters */
+	}
+
+	/* Check for timestamp format parameters */
+	if (strstr(kernel_cmdline, "timestamp_format=simple")) {
+		console_timestamp_format = TIMESTAMP_FORMAT_SIMPLE;
+	} else if (strstr(kernel_cmdline, "timestamp_format=precise")) {
+		console_timestamp_format = TIMESTAMP_FORMAT_PRECISE;
+	} else if (strstr(kernel_cmdline, "timestamp_format=uptime")) {
+		console_timestamp_format = TIMESTAMP_FORMAT_UPTIME;
+	}
+	/* Default is TIMESTAMP_FORMAT_RELATIVE */
+}
+
 /*
  * Initialize console timestamp functionality
  */
@@ -148,6 +188,9 @@ void console_timestamp_init(void)
 	
 	if (console_timestamp_initialized)
 		return;
+	
+	/* Parse boot parameters to override defaults */
+	console_timestamp_parse_boot_params();
 	
 	/* Record the current uptime as our reference point */
 	console_start_time = uptime;
@@ -269,6 +312,11 @@ boolean_t console_timestamp_is_enabled(void)
 
 void console_timestamp_set_format(console_timestamp_format_t format)
 {
+	/* Validate format parameter */
+	if (format < TIMESTAMP_FORMAT_RELATIVE || format > TIMESTAMP_FORMAT_PRECISE) {
+		return; /* Invalid format, ignore */
+	}
+	
 	simple_lock(&console_timestamp_lock);
 	console_timestamp_format = format;
 	simple_unlock(&console_timestamp_lock);

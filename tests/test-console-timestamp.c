@@ -84,6 +84,12 @@ int main(int argc, char *argv[], int envc, char *envp[])
   printf("Testing mixed content: ");
   printf("same line continuation\n");
   
+  /* Note about boot parameters (for documentation) */
+  printf("Boot parameters supported:\n");
+  printf("  notimestamps - disable completely\n");  
+  printf("  console_timestamps=off/on - explicit control\n");
+  printf("  timestamp_format=simple/precise/uptime - format selection\n");
+  
   printf("%s: %s\n", TEST_SUCCESS_MARKER, "Enhanced console timestamp test completed successfully");
   
   return 0;
