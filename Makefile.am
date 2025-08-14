@@ -60,6 +60,7 @@ AM_CCASFLAGS += \
 
 if HOST_ix86
 AM_CCASFLAGS += -m32 -Wa,--32
+AM_CFLAGS += -m32
 endif
 
 # Yes, this makes the eyes hurt.  But perhaps someone will finally take care of
