@@ -84,6 +84,8 @@ case $host_cpu in
     systype=$host_cpu;;
 esac]
 AC_SUBST([systype])
+
+AM_CONDITIONAL([HOST_ix86], [test "$systype" = "i386"])
 
 #
 # Programs.

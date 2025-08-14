@@ -58,6 +58,10 @@ AM_CFLAGS += \
 AM_CCASFLAGS += \
 	-D__ASSEMBLY__
 
+if HOST_ix86
+AM_CCASFLAGS += -Wa,--32
+endif
+
 # Yes, this makes the eyes hurt.  But perhaps someone will finally take care of
 # all that scruffy Mach code...  Also see <http://savannah.gnu.org/task/?5726>.
 AM_CFLAGS += \
