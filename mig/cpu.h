@@ -29,6 +29,7 @@
 #define sizeof_int 4
 #define sizeof_long 4
 #define sizeof_int64_t 8
+#define sizeof_uint64_t 8
 #define sizeof_float 4
 #define sizeof_double 8
 #define sizeof_uintptr_t 4
