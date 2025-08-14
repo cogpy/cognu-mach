@@ -4,30 +4,39 @@ This guide provides comprehensive instructions for debugging GNU Mach using QEMU
 
 ## Quick Start
 
-The fastest way to start debugging is using our automated setup script:
+The fastest way to start debugging is using our automated debugging tools:
 
 ```bash
-# Build GNU Mach with debugging symbols
-./configure --enable-kdb
-make
+# Complete setup and testing
+./scripts/debug-master.sh setup
 
-# Start QEMU with GDB support
-./scripts/setup-qemu-gdb.sh
+# Quick debugging session (auto-detects kernel and starts GDB)
+./scripts/debug-master.sh quick
 
-# In another terminal, connect with GDB
-gdb -x debug.gdb
+# Debug specific scenarios
+./scripts/debug-master.sh scenario startup     # Debug kernel boot
+./scripts/debug-master.sh scenario memory      # Debug memory management
+./scripts/debug-master.sh scenario interactive # Custom debugging
+
+# Or use individual scripts directly:
+./scripts/setup-qemu-gdb.sh                    # Start QEMU+GDB
+./scripts/debug-helper.sh                      # Setup helper
+./scripts/debug-scenarios.sh startup           # Specific scenarios
 ```
+
+**For GNU Mach startup debugging specifically, see [docs/startup-debugging-guide.md](startup-debugging-guide.md)**
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
 2. [Building for Debugging](#building-for-debugging)
-3. [QEMU Setup](#qemu-setup)
-4. [GDB Connection](#gdb-connection)
-5. [Common Debugging Scenarios](#common-debugging-scenarios)
-6. [Console Timestamp Features](#console-timestamp-features)
-7. [Debugging Tips and Tricks](#debugging-tips-and-tricks)
-8. [Troubleshooting](#troubleshooting)
+3. [Automated Debugging Scripts](#automated-debugging-scripts)
+4. [QEMU Setup](#qemu-setup)
+5. [GDB Connection](#gdb-connection)
+6. [Common Debugging Scenarios](#common-debugging-scenarios)
+7. [Console Timestamp Features](#console-timestamp-features)
+8. [Debugging Tips and Tricks](#debugging-tips-and-tricks)
+9. [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
@@ -71,9 +80,70 @@ gdb -x debug.gdb
 - **GNU MIG**: Mach Interface Generator (for complete builds)
 - **Multiboot-compliant bootloader** (GRUB2 for real hardware testing)
 
-## Building for Debugging
+## Automated Debugging Scripts
 
-### Configure with Debug Support
+GNU Mach includes comprehensive debugging automation:
+
+### Debug Master Script
+
+The main entry point for all debugging activities:
+
+```bash
+# Complete setup and testing
+./scripts/debug-master.sh setup
+
+# Quick debugging session
+./scripts/debug-master.sh quick
+
+# Specific debugging scenarios
+./scripts/debug-master.sh scenario startup
+./scripts/debug-master.sh scenario memory
+./scripts/debug-master.sh scenario ipc
+./scripts/debug-master.sh scenario console
+./scripts/debug-master.sh scenario panic
+./scripts/debug-master.sh scenario interactive
+
+# Test all debugging infrastructure
+./scripts/debug-master.sh test
+
+# Get detailed help
+./scripts/debug-master.sh help
+```
+
+### Individual Scripts
+
+For specific debugging tasks:
+
+```bash
+# QEMU+GDB setup with auto-detection
+./scripts/setup-qemu-gdb.sh                    # Auto-detect kernel architecture
+./scripts/setup-qemu-gdb.sh -k /path/to/kernel # Specific kernel
+./scripts/setup-qemu-gdb.sh -p 1235           # Custom GDB port
+./scripts/setup-qemu-gdb.sh -m 256M           # Custom memory size
+
+# Debugging environment setup
+./scripts/debug-helper.sh                      # Create test kernel if needed
+
+# Specific debugging scenarios
+./scripts/debug-scenarios.sh startup           # Kernel startup debugging
+./scripts/debug-scenarios.sh memory            # Memory management
+./scripts/debug-scenarios.sh interactive       # Custom session
+./scripts/debug-scenarios.sh test              # Test all scenarios
+```
+
+### Integration with Test Suite
+
+```bash
+# Run debugging-related tests
+make test-gdb-stub                              # Test GDB stub functionality
+
+# Interactive debugging of tests
+make debug-hello                                # Debug hello test
+make debug-vm                                   # Debug VM test  
+make debug-console-timestamps                   # Debug console timestamps
+```
+
+## Building for Debugging
 
 ```bash
 # Generate configure script if needed

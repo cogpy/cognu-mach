@@ -3821,7 +3821,8 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_112)
 @PLATFORM_xen_FALSE@	tests/test-threads \
 @PLATFORM_xen_FALSE@	tests/test-thread-state \
 @PLATFORM_xen_FALSE@	tests/test-thread-state-fp \
-@PLATFORM_xen_FALSE@	tests/test-console-timestamps
+@PLATFORM_xen_FALSE@	tests/test-console-timestamps \
+@PLATFORM_xen_FALSE@	tests/test-gdb-stub
 
 @PLATFORM_xen_FALSE@USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 mach_TEXINFOS = \
@@ -8487,6 +8488,13 @@ tests/test-thread-state-fp.log: tests/test-thread-state-fp
 tests/test-console-timestamps.log: tests/test-console-timestamps
 	@p='tests/test-console-timestamps'; \
 	b='tests/test-console-timestamps'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-gdb-stub.log: tests/test-gdb-stub
+	@p='tests/test-gdb-stub'; \
+	b='tests/test-gdb-stub'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
