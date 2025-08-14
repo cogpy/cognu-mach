@@ -36,8 +36,7 @@ jobs:
           sudo mkdir -p /usr/include/mach
           sudo cp -r include/mach/* /usr/include/mach/
           sudo ln -sf $(pwd)/i386/include/mach/i386 /usr/include/mach/machine
-          # Build MIG from source
-          git clone https://github.com/Unicorn-Forest/mig.git
+          # Build MIG from source using local directory
           pushd mig
           autoreconf --install
           ./configure
@@ -100,8 +99,7 @@ jobs:
           sudo mkdir -p /usr/include/mach
           sudo cp -r include/mach/* /usr/include/mach/
           sudo ln -sf $(pwd)/i386/include/mach/i386 /usr/include/mach/machine
-          # Build MIG from source
-          git clone https://github.com/Unicorn-Forest/mig.git
+          # Build MIG from source using local directory
           pushd mig
           autoreconf --install
           ./configure
