@@ -85,9 +85,9 @@ the libera.chat IRC network in the #hurd channel.
 3. Install MIG (Mach Interface Generator):
 
    - `sudo apt install -y mig` (if available)
-   - If not available, build from source:
-     - `git clone https://git.savannah.gnu.org/git/hurd/mig.git`
+   - If not available, build from source using the included mig directory:
      - `cd mig && ./bootstrap && ./configure && make -j$(nproc) && sudo make install`
+     - Note: The mig source is already included in this repository
 
 4. Configure and build (from the project root mounted in WSL, e.g. `/mnt/d/curso/cognu-mach`):
 

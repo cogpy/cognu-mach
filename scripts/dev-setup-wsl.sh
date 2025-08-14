@@ -13,11 +13,24 @@ fi
 
 if ! command -v mig >/dev/null 2>&1; then
   sudo apt install -y texinfo
-  rm -rf /tmp/mig-src
-  git clone https://git.savannah.gnu.org/git/hurd/mig.git /tmp/mig-src
-  pushd /tmp/mig-src
-  ./bootstrap
-  ./configure
+  # Use the local mig directory instead of downloading
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  MIG_DIR="$SCRIPT_DIR/../mig"
+  
+  if [ ! -d "$MIG_DIR" ]; then
+    echo "Error: Local mig directory not found at $MIG_DIR"
+    exit 1
+  fi
+  
+  pushd "$MIG_DIR"
+  # Check if bootstrap has already been run
+  if [ ! -f "configure" ]; then
+    ./bootstrap
+  fi
+  # Check if already configured
+  if [ ! -f "Makefile" ]; then
+    ./configure
+  fi
   make -j"$(nproc)"
   sudo make install
   popd

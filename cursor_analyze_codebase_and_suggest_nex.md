@@ -34,7 +34,7 @@ Skimmed the top-level docs, build system, and tests. Confirmed: autotools-based 
   sudo apt install -y mig || true   # Debian-based have 'mig'; if missing, build from source:
   # Build GNU MIG from source (fallback)
   sudo apt install -y texinfo
-  git clone https://git.savannah.gnu.org/git/hurd/mig.git
+  # Use the local mig directory (already included in the repository)
   cd mig && ./bootstrap && ./configure && make -j$(nproc) && sudo make install && cd ..
   ```
 - **Configure and build (32-bit target from 64-bit toolchain)**
@@ -105,7 +105,7 @@ Summary
   sudo apt install -y mig || true   # Debian-based have 'mig'; if missing, build from source:
   # Build GNU MIG from source (fallback)
   sudo apt install -y texinfo
-  git clone https://git.savannah.gnu.org/git/hurd/mig.git
+  # Use the local mig directory (already included in the repository)
   cd mig && ./bootstrap && ./configure && make -j$(nproc) && sudo make install && cd ..
 ```
 
@@ -129,4 +129,3 @@ Summary
   cppcheck --std=c11 --platform=unix32 --enable=warning,performance,portability --inline-suppr --error-exitcode=2 .
   scan-build --use-cc=gcc --use-c++=g++ -o scan-out make -j$(nproc) clean all
 ```
-
