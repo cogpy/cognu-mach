@@ -179,15 +179,28 @@ void gdb_stub_handle_exception(int exception_type,
     printf("[GDB] Exception %d handled, EIP=0x%lx\n",
            exception_type, state->eip);
     
-    /* In a full implementation, this would:
-     * 1. Convert saved state to GDB register format
-     * 2. Send stop reply to GDB
-     * 3. Enter command processing loop
-     * 4. Handle continue/step commands
-     * 5. Update saved state from GDB register changes
-     */
-    
+    /* Set state to stopped */
     gdb_state = GDB_STATE_STOPPED;
+    
+    /* Send stop notification to GDB with signal information */
+    switch (exception_type) {
+    case 1:  /* Debug exception (hardware breakpoint) */
+    case 3:  /* Breakpoint (INT3) */
+        gdb_stub_send_packet("S05");  /* SIGTRAP */
+        gdb_stats.breakpoints_hit++;
+        break;
+    case 14: /* Page fault */
+        gdb_stub_send_packet("S0B");  /* SIGSEGV */
+        break;
+    default:
+        gdb_stub_send_packet("S05");  /* SIGTRAP */
+        break;
+    }
+    
+    printf("[GDB] Sent stop notification, waiting for GDB commands\n");
+    
+    /* In a full implementation, this would enter a command processing loop
+     * until GDB sends continue or step command */
 }
 
 /*
@@ -561,30 +574,33 @@ static unsigned char gdb_checksum(const char *data)
     return checksum;
 }
 
-/* Basic serial I/O stubs - to be implemented with actual serial driver */
+/* Basic serial I/O - integrated with console for demonstration */
 void gdb_stub_putchar(int c)
 {
-    /* TODO: Implement actual serial output */
-    /* For now, just use console output for debugging */
-    if (c == '\n') {
-        printf("\n[GDB-OUT] ");
-    } else if (c >= 32 && c < 127) {
-        printf("%c", c);
-    } else {
-        printf("\\x%02x", c);
+    /* For now, output GDB protocol over console with special markers */
+    if (c == GDB_PACKET_START) {
+        printf("[GDB-TX]");
     }
+    printf("%c", c);
+    if (c == GDB_PACKET_END) {
+        printf("\n");
+    }
+    
+    /* TODO: Implement actual serial output to COM1/COM2 */
+    /* This could integrate with existing console/serial drivers */
 }
 
 int gdb_stub_getchar(void)
 {
     /* TODO: Implement actual serial input */
+    /* This would typically read from COM1/COM2 UART */
     /* For now, return -1 to indicate no data available */
     return -1;
 }
 
 boolean_t gdb_stub_char_available(void)
 {
-    /* TODO: Check if serial data is available */
+    /* TODO: Check if serial data is available in UART FIFO */
     return FALSE;
 }
 
