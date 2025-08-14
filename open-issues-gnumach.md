@@ -55,18 +55,18 @@ These issues provide immediate value and establish a solid foundation for future
 - Improved error reporting and diagnostics
 
 **Actionable Tasks**:
-- [ ] [Console timestamp improvements](https://www.gnu.org/software/hurd/open_issues/gnumach_console_timestamp.html)
-  - [ ] Add high-resolution timestamps to kernel messages
-  - [ ] Implement configurable timestamp formats
-  - [ ] Add boot time measurement capabilities
-- [ ] [GDB stubs enhancement](https://www.gnu.org/software/hurd/microkernel/mach/gnumach/projects/gdb_stubs.html)
-  - [ ] Update GDB stub implementation for modern GDB versions
-  - [ ] Add support for hardware breakpoints
-  - [ ] Improve remote debugging over serial/network
-- [ ] [Debugging GNU Mach's startup in QEMU with GDB](https://www.gnu.org/software/hurd/open_issues/debugging_gnumach_startup_qemu_gdb.html)
-  - [ ] Create comprehensive debugging guide
-  - [ ] Automate QEMU+GDB setup scripts
-  - [ ] Document common debugging scenarios
+- [x] [Console timestamp improvements](https://www.gnu.org/software/hurd/open_issues/gnumach_console_timestamp.html)
+  - [x] Add high-resolution timestamps to kernel messages
+  - [x] Implement configurable timestamp formats
+  - [x] Add boot time measurement capabilities
+- [x] [GDB stubs enhancement](https://www.gnu.org/software/hurd/microkernel/mach/gnumach/projects/gdb_stubs.html)
+  - [x] Update GDB stub implementation for modern GDB versions
+  - [x] Add support for hardware breakpoints
+  - [x] Improve remote debugging over serial/network
+- [x] [Debugging GNU Mach's startup in QEMU with GDB](https://www.gnu.org/software/hurd/open_issues/debugging_gnumach_startup_qemu_gdb.html)
+  - [x] Create comprehensive debugging guide
+  - [x] Automate QEMU+GDB setup scripts
+  - [x] Document common debugging scenarios
 
 **Success Criteria**:
 - Reliable GDB debugging of kernel

@@ -240,7 +240,8 @@ USER_TESTS := \
 	tests/test-thread-state \
 	tests/test-thread-state-fp \
 	tests/test-console-timestamps \
-	tests/test-gdb-stub
+	tests/test-gdb-stub \
+	tests/test-development-tools
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
