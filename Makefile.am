@@ -59,7 +59,7 @@ AM_CCASFLAGS += \
 	-D__ASSEMBLY__
 
 if HOST_ix86
-AM_CCASFLAGS += -Wa,--32
+AM_CCASFLAGS += -m32 -Wa,--32
 endif
 
 # Yes, this makes the eyes hurt.  But perhaps someone will finally take care of
