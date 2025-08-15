@@ -82,6 +82,22 @@ void wait_thread_suspended(thread_t th);
 
 extern vm_size_t vm_page_size;
 
+/* Performance benchmarking support */
+typedef struct {
+    uint64_t start_time;
+    uint64_t end_time;
+    uint64_t iterations;
+    const char* test_name;
+} benchmark_t;
+
+/* Timing and benchmarking functions */
+uint64_t get_time_microseconds(void);
+void benchmark_start(benchmark_t *bench, const char *name);
+void benchmark_end(benchmark_t *bench);
+void benchmark_report(const benchmark_t *bench, const char *units);
+void benchmark_iterations(benchmark_t *bench, uint64_t iterations, 
+                         void (*test_func)(void*), void *arg);
+
 extern void mach_msg_destroy(mach_msg_header_t *msg);
 
 extern mach_msg_return_t mach_msg_server(
