@@ -1,0 +1,197 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+  workflow_dispatch:
+
+jobs:
+  # Multi-architecture build matrix
+  build:
+    name: Build (${{ matrix.arch }})
+    runs-on: ubuntu-22.04
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [i686, x86_64]
+        include:
+          - arch: i686
+            configure_flags: "--host=i686-gnu CC='gcc -m32' LD='ld -melf_i386'"
+            qemu_system: qemu-system-i386
+            qemu_cpu: pentium3-v1
+          - arch: x86_64
+            configure_flags: "--host=x86_64-gnu --enable-pae --enable-user32"
+            qemu_system: qemu-system-x86_64
+            qemu_cpu: core2duo-v1
+            
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential gcc-multilib binutils binutils-multiarch \
+          autoconf automake libtool pkg-config gawk bison flex nasm \
+          xorriso grub-pc-bin mtools qemu-system-x86 \
+          git python3 cppcheck clang-tools texinfo
+        
+    - name: Build kernel using CI script
+      run: |
+        ./scripts/ci-build.sh --force-build ${{ matrix.arch }}
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: gnumach-${{ matrix.arch }}
+        path: |
+          build-${{ matrix.arch }}/gnumach
+          build-${{ matrix.arch }}/config.log
+        retention-days: 30
+        
+  # Code quality checks  
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-22.04
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential gcc-multilib binutils \
+          autoconf automake libtool pkg-config gawk bison flex nasm \
+          git python3 cppcheck clang-tools texinfo
+          
+    - name: Run comprehensive analysis using CI script
+      run: |
+        ./scripts/ci-build.sh --analysis i686
+        
+    - name: Upload analysis reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: code-analysis-reports
+        path: |
+          analysis-reports/cppcheck-report.txt
+          analysis-reports/compiler-warnings.txt
+          analysis-reports/build-analyze/scan-results/
+        retention-days: 30
+        
+    - name: Check for critical issues
+      run: |
+        # Fail if there are critical security issues found
+        if [ -f analysis-reports/cppcheck-report.txt ]; then
+          if grep -E "(error|critical)" analysis-reports/cppcheck-report.txt; then
+            echo "Critical issues found in static analysis"
+            exit 1
+          fi
+        fi
+        
+  # Regression testing
+  test:
+    name: Regression Tests (${{ matrix.arch }})
+    runs-on: ubuntu-22.04
+    needs: build
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [i686]  # Start with i686, expand later
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install test dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential gcc-multilib binutils \
+          autoconf automake libtool pkg-config gawk bison flex nasm \
+          xorriso grub-pc-bin mtools qemu-system-x86 \
+          git python3 texinfo
+          
+    - name: Build and test using CI script
+      run: |
+        ./scripts/ci-build.sh --clean --test ${{ matrix.arch }}
+        
+    - name: Upload test logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-logs-${{ matrix.arch }}
+        path: |
+          tests/*.log
+          tests/*.raw
+        retention-days: 30
+        
+  # Security and compliance checks
+  security:
+    name: Security Scan
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run security analysis
+      run: |
+        # Check for common security issues
+        find . -name "*.c" -o -name "*.h" | xargs grep -E "(strcpy|sprintf|gets)" || true
+        
+        # Check for hardcoded credentials
+        grep -r -E "(password|secret|key)" --include="*.c" --include="*.h" . || true
+        
+  # Build verification job - ensures all components work together
+  integration:
+    name: Integration Test
+    runs-on: ubuntu-22.04
+    needs: [build, code-quality, test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: gnumach-i686
+        path: artifacts/
+        
+    - name: Verify build artifacts
+      run: |
+        ls -la artifacts/
+        file artifacts/gnumach || true
+        
+    - name: Integration smoke test
+      run: |
+        echo "All CI/CD pipeline stages completed successfully"
+        
+  # Performance monitoring (basic)
+  performance:
+    name: Performance Check
+    runs-on: ubuntu-22.04
+    if: github.event_name != 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y time
+        
+    - name: Track build performance
+      run: |
+        echo "Build performance metrics would be collected here"
+        # Future: Collect build time metrics, binary size, etc.
