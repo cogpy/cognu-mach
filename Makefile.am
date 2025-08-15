@@ -68,10 +68,9 @@ endif
 AM_CFLAGS += \
 	-Wall -Wextra -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 
-# Phase 1.1: Add comprehensive compiler warnings for better code quality
-# These additional warnings help catch common issues early
+# Additional compiler warnings for better code quality
+# Some warnings are duplicated with basic set, but that's safe
 AM_CFLAGS += \
-	-Wextra \
 	-Wshadow \
 	-Wpointer-arith \
 	-Wcast-align \
@@ -83,6 +82,18 @@ AM_CFLAGS += \
 	-Wuninitialized \
 	-Wconversion \
 	-Wstrict-overflow=2
+
+# Additional strict warnings for development builds
+if STRICT_WARNINGS
+AM_CFLAGS += \
+	-Werror \
+	-Wcast-qual \
+	-Wmissing-format-attribute \
+	-Wformat-nonliteral \
+	-Wformat-y2k \
+	-Winit-self \
+	-Wmissing-include-dirs
+endif
 
 # We need the GNU-style inline
 AM_CFLAGS += \
@@ -108,6 +119,14 @@ endif
 
 # This must be the same size as port names, see e.g. ipc/ipc_entry.c
 AM_CFLAGS += -DRDXTREE_KEY_32
+
+# Optimization and debug configuration
+if ENABLE_DEBUG_INFO
+AM_CFLAGS += -g
+endif
+
+# Optimization level from configure
+AM_CFLAGS += -O@OPTIMIZATION_LEVEL@
 
 #
 # Silent build support.
