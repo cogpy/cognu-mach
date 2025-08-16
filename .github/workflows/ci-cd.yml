@@ -31,7 +31,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Install dependencies
+    - name: Install build dependencies (with libtool check)
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -39,6 +39,7 @@ jobs:
           autoconf automake libtool pkg-config gawk bison flex nasm \
           xorriso grub-pc-bin mtools qemu-system-x86 \
           git python3 cppcheck clang-tools texinfo
+        libtool --version
         
     - name: Build kernel using CI script
       run: |
@@ -63,13 +64,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Install analysis tools
+    - name: Install analysis tools (with libtool check)
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           build-essential gcc-multilib binutils \
           autoconf automake libtool pkg-config gawk bison flex nasm \
           git python3 cppcheck clang-tools texinfo
+        libtool --version
           
     - name: Run comprehensive analysis using CI script
       run: |
@@ -111,7 +113,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Install test dependencies
+    - name: Install test dependencies (with libtool check)
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -119,6 +121,7 @@ jobs:
           autoconf automake libtool pkg-config gawk bison flex nasm \
           xorriso grub-pc-bin mtools qemu-system-x86 \
           git python3 texinfo
+        libtool --version
           
     - name: Build and test using CI script
       run: |
