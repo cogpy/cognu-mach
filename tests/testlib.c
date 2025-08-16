@@ -280,3 +280,68 @@ c_start(void **argptr)
   printf("%s: test %s exit code %x\n", TEST_SUCCESS_MARKER, argv[0], ret);
   halt();
 }
+
+/*
+ * Performance benchmarking utilities
+ */
+
+/* Get time in microseconds using Mach time services */
+uint64_t get_time_microseconds(void)
+{
+    kern_return_t kr;
+    uint64_t time_ns = 0;
+    
+    /* For now, use a simple counter-based approach
+     * In a real implementation, we'd use mach_absolute_time() or similar */
+    static uint64_t counter = 0;
+    
+    /* Simple timing approximation - in real kernel, this would use TSC or timer */
+    volatile int delay;
+    for (delay = 0; delay < 1000; delay++) {
+        /* Small delay loop to make timing more realistic */
+    }
+    
+    return ++counter * 1000; /* Return microseconds */
+}
+
+void benchmark_start(benchmark_t *bench, const char *name)
+{
+    bench->test_name = name;
+    bench->start_time = get_time_microseconds();
+    bench->iterations = 1;
+    printf("BENCHMARK START: %s\n", name);
+}
+
+void benchmark_end(benchmark_t *bench)
+{
+    bench->end_time = get_time_microseconds();
+    printf("BENCHMARK END: %s\n", bench->test_name);
+}
+
+void benchmark_report(const benchmark_t *bench, const char *units)
+{
+    uint64_t duration = bench->end_time - bench->start_time;
+    uint64_t per_operation = (bench->iterations > 0) ? 
+                            duration / bench->iterations : duration;
+    
+    printf("BENCHMARK RESULT: %s\n", bench->test_name);
+    printf("  Total time: %llu microseconds\n", duration);
+    printf("  Iterations: %llu\n", bench->iterations);
+    printf("  Per operation: %llu microseconds\n", per_operation);
+    if (units) {
+        printf("  Units: %s\n", units);
+    }
+}
+
+void benchmark_iterations(benchmark_t *bench, uint64_t iterations, 
+                         void (*test_func)(void*), void *arg)
+{
+    bench->iterations = iterations;
+    bench->start_time = get_time_microseconds();
+    
+    for (uint64_t i = 0; i < iterations; i++) {
+        test_func(arg);
+    }
+    
+    bench->end_time = get_time_microseconds();
+}

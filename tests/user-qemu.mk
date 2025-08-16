@@ -241,9 +241,66 @@ USER_TESTS := \
 	tests/test-thread-state-fp \
 	tests/test-console-timestamps \
 	tests/test-gdb-stub \
-	tests/test-development-tools
+	tests/test-development-tools \
+	tests/test-benchmark-ipc \
+	tests/test-benchmark-memory \
+	tests/test-stress \
+	tests/test-suite-runner
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
+
+# Enhanced test framework targets
+BENCHMARK_TESTS := tests/test-benchmark-ipc tests/test-benchmark-memory
+STRESS_TESTS := tests/test-stress
+SUITE_TESTS := tests/test-suite-runner
+
+#
+# Enhanced test framework integration
+#
+
+# Run all benchmarks
+run-benchmarks: $(BENCHMARK_TESTS)
+	@echo "=== Running Performance Benchmarks ==="
+	@for test in $(BENCHMARK_TESTS); do \
+		echo "Running benchmark: $$test"; \
+		$$test || echo "Benchmark $$test failed"; \
+	done
+
+# Run stress tests
+run-stress-tests: $(STRESS_TESTS)
+	@echo "=== Running Stress Tests ==="
+	@for test in $(STRESS_TESTS); do \
+		echo "Running stress test: $$test"; \
+		$$test || echo "Stress test $$test failed"; \
+	done
+
+# Run comprehensive test suite
+run-test-suite: $(SUITE_TESTS)
+	@echo "=== Running Comprehensive Test Suite ==="
+	@for test in $(SUITE_TESTS); do \
+		echo "Running test suite: $$test"; \
+		$$test || echo "Test suite $$test failed"; \
+	done
+
+# Run enhanced test framework
+run-enhanced-tests:
+	@echo "=== Running Enhanced Test Framework ==="
+	$(srcdir)/scripts/run-enhanced-tests.sh --all
+
+# Quick test subset for CI
+run-quick-tests:
+	@echo "=== Running Quick Test Subset ==="
+	$(srcdir)/scripts/run-enhanced-tests.sh --quick
+
+# Performance benchmarks only
+run-performance:
+	@echo "=== Running Performance Benchmarks ==="
+	$(srcdir)/scripts/run-enhanced-tests.sh --performance
+
+# Generate test coverage report
+test-coverage:
+	@echo "=== Generating Test Coverage Report ==="
+	$(srcdir)/scripts/run-enhanced-tests.sh --report-only
 
 #
 # helpers for interactive test run and debug
