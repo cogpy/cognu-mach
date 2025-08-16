@@ -31,6 +31,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Verify libtool available
+      run: |
+        which libtool || { echo "libtool missing"; exit 1; }
+        libtool --version
+
     - name: Install build dependencies (with libtool check)
       run: |
         sudo apt-get update
