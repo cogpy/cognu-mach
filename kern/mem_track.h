@@ -26,6 +26,9 @@
 #include <sys/types.h>
 #include <kern/lock.h>
 
+/* Forward declarations */
+typedef int kern_return_t;
+
 /*
  * Memory allocation type identifiers for tracking.
  */

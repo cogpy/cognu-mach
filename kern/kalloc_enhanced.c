@@ -24,6 +24,7 @@
 #include <kern/slab.h>
 #include <kern/printf.h>
 #include <mach/vm_param.h>
+#include <mach/kern_return.h>
 
 /*
  * Helper function to perform typed allocation.
@@ -247,11 +248,11 @@ void kalloc_report_fragmentation(void)
                large_pct, stats.large_allocs, stats.alloc_count);
         
         if (stats.peak_bytes > 0) {
-            uint32_t usage_pct = (stats.current_bytes * 100) / stats.peak_bytes;
-            printf("  Current vs peak usage: %u%% (%uk / %uk)\n",
+            uint32_t usage_pct = (uint32_t)((stats.current_bytes * 100) / stats.peak_bytes);
+            printf("  Current vs peak usage: %u%% (%luk / %luk)\n",
                    usage_pct, 
-                   (uint32_t)(stats.current_bytes >> 10),
-                   (uint32_t)(stats.peak_bytes >> 10));
+                   (unsigned long)(stats.current_bytes >> 10),
+                   (unsigned long)(stats.peak_bytes >> 10));
         }
     }
 }

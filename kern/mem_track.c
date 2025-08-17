@@ -24,6 +24,7 @@
 #include <kern/lock.h>
 #include <kern/atomic.h>
 #include <mach/vm_param.h>
+#include <mach/kern_return.h>
 #include <string.h>
 
 /*
@@ -180,8 +181,10 @@ void mem_track_update_cache_stats(int hits, int misses)
     struct mem_tracker *tracker = &global_mem_tracker;
     
     simple_lock(&tracker->lock);
-    tracker->slab_cache_hits += hits;
-    tracker->slab_cache_misses += misses;
+    if (hits > 0)
+        tracker->slab_cache_hits += (uint32_t)hits;
+    if (misses > 0)
+        tracker->slab_cache_misses += (uint32_t)misses;
     simple_unlock(&tracker->lock);
 }
 
@@ -215,13 +218,13 @@ void mem_track_page_alloc_failed(void)
 boolean_t mem_track_check_pressure(void)
 {
     struct mem_tracker *tracker = &global_mem_tracker;
-    vm_size_t current_usage;
+    uint64_t current_usage;
     
     simple_lock(&tracker->lock);
     current_usage = tracker->total_stats.current_bytes;
     simple_unlock(&tracker->lock);
     
-    return (current_usage > tracker->memory_threshold_low);
+    return (current_usage > (uint64_t)tracker->memory_threshold_low);
 }
 
 /*
@@ -237,8 +240,8 @@ void mem_track_memory_warning(void)
     
     /* Only print warning occasionally to avoid log spam */
     if ((tracker->low_memory_warnings % 100) == 1) {
-        printf("Memory warning: low available memory (%uk bytes in use)\n",
-               tracker->total_stats.current_bytes >> 10);
+        printf("Memory warning: low available memory (%luk bytes in use)\n",
+               (unsigned long)(tracker->total_stats.current_bytes >> 10));
     }
 }
 
@@ -253,8 +256,8 @@ void mem_track_out_of_memory(void)
     tracker->out_of_memory_events++;
     simple_unlock(&tracker->lock);
     
-    printf("Critical: Out of memory condition detected (%uk bytes in use, %u failed allocs)\n",
-           tracker->total_stats.current_bytes >> 10,
+    printf("Critical: Out of memory condition detected (%luk bytes in use, %llu failed allocs)\n",
+           (unsigned long)(tracker->total_stats.current_bytes >> 10),
            tracker->total_stats.failed_allocs);
 }
 
@@ -264,7 +267,7 @@ void mem_track_out_of_memory(void)
 void mem_track_report_usage(void)
 {
     struct mem_tracker *tracker = &global_mem_tracker;
-    vm_size_t total_kb, peak_kb;
+    uint64_t total_kb, peak_kb;
     
     simple_lock(&tracker->lock);
     total_kb = tracker->total_stats.current_bytes >> 10;
@@ -272,8 +275,8 @@ void mem_track_report_usage(void)
     simple_unlock(&tracker->lock);
     
     printf("Memory Usage Summary:\n");
-    printf("  Current usage: %uk bytes\n", total_kb);
-    printf("  Peak usage:    %uk bytes\n", peak_kb);
+    printf("  Current usage: %luk bytes\n", (unsigned long)total_kb);
+    printf("  Peak usage:    %luk bytes\n", (unsigned long)peak_kb);
     printf("  Total allocs:  %llu\n", tracker->total_stats.alloc_count);
     printf("  Total frees:   %llu\n", tracker->total_stats.free_count);
     printf("  Failed allocs: %llu\n", tracker->total_stats.failed_allocs);
@@ -300,23 +303,23 @@ void mem_track_report_detailed(void)
         struct mem_stats *stats = &tracker->stats[i];
         
         if (stats->alloc_count > 0) {
-            printf("%-12s %9llu %9llu %10uk %7uk %7llu %6u\n",
+            printf("%-12s %9llu %9llu %10luk %7luk %7llu %6u\n",
                    mem_type_names[i],
                    stats->alloc_count,
                    stats->free_count,
-                   stats->current_bytes >> 10,
-                   stats->peak_bytes >> 10,
+                   (unsigned long)(stats->current_bytes >> 10),
+                   (unsigned long)(stats->peak_bytes >> 10),
                    stats->failed_allocs,
                    stats->large_allocs);
         }
     }
     
     printf("----------------------------------------------------------------------\n");
-    printf("TOTAL        %9llu %9llu %10uk %7uk %7llu %6u\n",
+    printf("TOTAL        %9llu %9llu %10luk %7luk %7llu %6u\n",
            tracker->total_stats.alloc_count,
            tracker->total_stats.free_count,
-           tracker->total_stats.current_bytes >> 10,
-           tracker->total_stats.peak_bytes >> 10,
+           (unsigned long)(tracker->total_stats.current_bytes >> 10),
+           (unsigned long)(tracker->total_stats.peak_bytes >> 10),
            tracker->total_stats.failed_allocs,
            tracker->total_stats.large_allocs);
     
@@ -358,8 +361,8 @@ void mem_track_set_thresholds(vm_size_t low_threshold, vm_size_t critical_thresh
     tracker->memory_threshold_critical = critical_threshold;
     simple_unlock(&tracker->lock);
     
-    printf("Memory thresholds set: low=%uk, critical=%uk\n",
-           low_threshold >> 10, critical_threshold >> 10);
+    printf("Memory thresholds set: low=%luk, critical=%luk\n",
+           (unsigned long)(low_threshold >> 10), (unsigned long)(critical_threshold >> 10));
 }
 
 #ifdef MACH_DEBUG
