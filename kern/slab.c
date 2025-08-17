@@ -80,6 +80,7 @@
 #include <kern/kalloc.h>
 #include <kern/cpu_number.h>
 #include <kern/mach_debug.server.h>
+#include <kern/mem_track.h>
 #include <mach/vm_param.h>
 #include <mach/machine/vm_types.h>
 #include <vm/vm_kern.h>
@@ -1109,8 +1110,13 @@ fast_alloc:
         if (cpu_pool->flags & KMEM_CF_VERIFY)
             kmem_cache_alloc_verify(cache, buf, KMEM_AV_CONSTRUCT);
 
+        /* Track cache hit */
+        mem_track_update_cache_stats(1, 0);
         return (vm_offset_t)buf;
     }
+
+    /* Track cache miss since we need to go to slow path */
+    mem_track_update_cache_stats(0, 1);
 
     if (cpu_pool->array != NULL) {
         filled = kmem_cpu_pool_fill(cpu_pool, cache);
@@ -1350,6 +1356,9 @@ void kalloc_init(void)
     char name[KMEM_CACHE_NAME_SIZE];
     size_t i, size;
 
+    /* Initialize memory tracking system */
+    mem_track_init();
+
     size = 1 << KALLOC_FIRST_SHIFT;
 
     for (i = 0; i < ARRAY_SIZE(kalloc_caches); i++) {
@@ -1403,12 +1412,30 @@ vm_offset_t kalloc(vm_size_t size)
         cache = &kalloc_caches[index];
         buf = (void *)kmem_cache_alloc(cache);
 
-        if ((buf != 0) && (cache->flags & KMEM_CF_VERIFY))
-            kalloc_verify(cache, buf, size);
+        if (buf != 0) {
+            if (cache->flags & KMEM_CF_VERIFY)
+                kalloc_verify(cache, buf, size);
+            
+            /* Track successful allocation */
+            mem_track_alloc(MEM_TYPE_GENERAL, size);
+        } else {
+            /* Track failed allocation */
+            mem_track_alloc_failed(MEM_TYPE_GENERAL, size);
+        }
     } else if (size <= PAGE_SIZE) {
         buf = (void *)kmem_pagealloc_physmem(PAGE_SIZE);
+        if (buf != 0) {
+            mem_track_alloc(MEM_TYPE_GENERAL, PAGE_SIZE);
+        } else {
+            mem_track_alloc_failed(MEM_TYPE_GENERAL, PAGE_SIZE);
+        }
     } else {
         buf = (void *)kmem_pagealloc_virtual(size, 0);
+        if (buf != 0) {
+            mem_track_alloc(MEM_TYPE_GENERAL, size);
+        } else {
+            mem_track_alloc_failed(MEM_TYPE_GENERAL, size);
+        }
     }
 
     return (vm_offset_t)buf;
@@ -1449,10 +1476,15 @@ void kfree(vm_offset_t data, vm_size_t size)
             kfree_verify(cache, (void *)data, size);
 
         kmem_cache_free(cache, data);
+        
+        /* Track successful free */
+        mem_track_free(MEM_TYPE_GENERAL, size);
     } else if (size <= PAGE_SIZE) {
         kmem_pagefree_physmem(data, PAGE_SIZE);
+        mem_track_free(MEM_TYPE_GENERAL, PAGE_SIZE);
     } else {
         kmem_pagefree_virtual(data, size);
+        mem_track_free(MEM_TYPE_GENERAL, size);
     }
 }
 
