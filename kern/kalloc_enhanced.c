@@ -21,25 +21,45 @@
 #include <kern/kalloc_enhanced.h>
 #include <kern/kalloc.h>
 #include <kern/mem_track.h>
+#include <kern/mem_optimize.h>
 #include <kern/slab.h>
 #include <kern/printf.h>
 #include <mach/vm_param.h>
 #include <mach/kern_return.h>
 
 /*
- * Helper function to perform typed allocation.
+ * Helper function to perform typed allocation with optimization.
  */
 static vm_offset_t kalloc_typed(vm_size_t size, mem_type_t type)
 {
-    vm_offset_t addr = kalloc(size);
+    vm_offset_t addr;
+    
+    /* Check if allocation is likely to fail and preemptively optimize */
+    if (mem_opt_predict_allocation_failure(size)) {
+        printf("Predicted allocation failure for size %u, optimizing...\n", (unsigned)size);
+        mem_opt_handle_memory_pressure();
+    }
+    
+    addr = kalloc(size);
     
     if (addr != 0) {
         /* kalloc already tracked as GENERAL, update to specific type */
         mem_track_free(MEM_TYPE_GENERAL, size);
         mem_track_alloc(type, size);
     } else {
-        /* Track failed allocation for specific type */
+        /* Track failed allocation and try optimization */
         mem_track_alloc_failed(type, size);
+        
+        /* Try emergency optimization and retry once */
+        printf("Allocation failed for size %u, attempting emergency optimization\n", (unsigned)size);
+        mem_opt_handle_memory_pressure();
+        
+        addr = kalloc(size);
+        if (addr != 0) {
+            mem_track_free(MEM_TYPE_GENERAL, size);
+            mem_track_alloc(type, size);
+            printf("Allocation succeeded after optimization\n");
+        }
     }
     
     return addr;
@@ -141,36 +161,43 @@ void kfree_network(vm_offset_t data, vm_size_t size)
 }
 
 /*
- * Optimize memory pools by triggering garbage collection.
+ * Optimize memory pools by triggering garbage collection and compaction.
  */
 void kalloc_optimize_pools(void)
 {
     printf("Optimizing memory pools...\n");
     
-    /* Force slab garbage collection */
-    slab_collect();
+    /* Use memory optimizer for intelligent optimization */
+    if (mem_opt_should_compact()) {
+        mem_opt_compact_memory();
+    } else {
+        /* Light optimization */
+        slab_collect();
+        mem_opt_defragment_slabs();
+    }
     
     /* Check for memory pressure and report if needed */
     if (mem_track_check_pressure()) {
         printf("Memory pressure detected during pool optimization\n");
         mem_track_report_usage();
+        mem_opt_report_optimization();
     }
     
     printf("Memory pool optimization complete\n");
 }
 
 /*
- * Reclaim unused memory from pools.
+ * Reclaim unused memory from pools with advanced optimization.
  */
 void kalloc_reclaim_memory(void)
 {
     printf("Reclaiming unused memory...\n");
     
-    /* Multiple garbage collection passes for thorough cleanup */
-    slab_collect();
-    slab_collect();
+    /* Use emergency reclamation for thorough cleanup */
+    mem_opt_emergency_reclaim();
     
     mem_track_report_usage();
+    mem_opt_report_optimization();
     printf("Memory reclamation complete\n");
 }
 
@@ -179,30 +206,8 @@ void kalloc_reclaim_memory(void)
  */
 boolean_t kalloc_check_fragmentation(void)
 {
-    struct mem_stats total_stats;
-    boolean_t fragmented = FALSE;
-    
-    if (mem_track_get_stats(MEM_TYPE_GENERAL, &total_stats) == KERN_SUCCESS) {
-        /* Check if we have many small allocations vs large ones */
-        uint32_t allocation_ratio = 0;
-        
-        if (total_stats.alloc_count > 0) {
-            allocation_ratio = total_stats.large_allocs * 100 / total_stats.alloc_count;
-        }
-        
-        /* If less than 10% are large allocations, might indicate fragmentation */
-        if (allocation_ratio < 10 && total_stats.alloc_count > 1000) {
-            fragmented = TRUE;
-        }
-        
-        /* Also check if current usage is much less than peak (indicates fragmentation) */
-        if (total_stats.peak_bytes > 0 && 
-            total_stats.current_bytes < (total_stats.peak_bytes / 2)) {
-            fragmented = TRUE;
-        }
-    }
-    
-    return fragmented;
+    /* Use the advanced fragmentation analysis from memory optimizer */
+    return mem_opt_is_heavily_fragmented();
 }
 
 /*

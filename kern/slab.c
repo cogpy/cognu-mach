@@ -81,6 +81,7 @@
 #include <kern/cpu_number.h>
 #include <kern/mach_debug.server.h>
 #include <kern/mem_track.h>
+#include <kern/mem_optimize.h>
 #include <mach/vm_param.h>
 #include <mach/machine/vm_types.h>
 #include <vm/vm_kern.h>
@@ -1358,6 +1359,9 @@ void kalloc_init(void)
 
     /* Initialize memory tracking system */
     mem_track_init();
+
+    /* Initialize memory optimizer */
+    mem_opt_init();
 
     size = 1 << KALLOC_FIRST_SHIFT;
 
