@@ -3846,9 +3846,18 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-thread-state-fp \
 @PLATFORM_xen_FALSE@	tests/test-console-timestamps \
 @PLATFORM_xen_FALSE@	tests/test-gdb-stub \
-@PLATFORM_xen_FALSE@	tests/test-development-tools
+@PLATFORM_xen_FALSE@	tests/test-development-tools \
+@PLATFORM_xen_FALSE@	tests/test-benchmark-ipc \
+@PLATFORM_xen_FALSE@	tests/test-benchmark-memory \
+@PLATFORM_xen_FALSE@	tests/test-stress \
+@PLATFORM_xen_FALSE@	tests/test-suite-runner
 
 @PLATFORM_xen_FALSE@USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
+
+# Enhanced test framework targets
+@PLATFORM_xen_FALSE@BENCHMARK_TESTS := tests/test-benchmark-ipc tests/test-benchmark-memory
+@PLATFORM_xen_FALSE@STRESS_TESTS := tests/test-stress
+@PLATFORM_xen_FALSE@SUITE_TESTS := tests/test-suite-runner
 mach_TEXINFOS = \
 	doc/fdl.texi doc/gpl.texi
 
@@ -5517,7 +5526,15 @@ distclean-compile:
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
+	# Ugly bootstrap hack to get to-be-generated files created
+	# Try to guess what file this dependency file is from...
+	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
+	for f in "$$f"*; do \
+		case $$f in \
+			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
+			*) echo '# dummy';; \
+		esac ; \
+	done >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
@@ -8522,6 +8539,34 @@ tests/test-development-tools.log: tests/test-development-tools
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-benchmark-ipc.log: tests/test-benchmark-ipc
+	@p='tests/test-benchmark-ipc'; \
+	b='tests/test-benchmark-ipc'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-benchmark-memory.log: tests/test-benchmark-memory
+	@p='tests/test-benchmark-memory'; \
+	b='tests/test-benchmark-memory'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-stress.log: tests/test-stress
+	@p='tests/test-stress'; \
+	b='tests/test-stress'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-suite-runner.log: tests/test-suite-runner
+	@p='tests/test-suite-runner'; \
+	b='tests/test-suite-runner'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 .test.log:
 	@p='$<'; \
 	$(am__set_b); \
@@ -10077,6 +10122,54 @@ dist-hook-linux:
 
 @PLATFORM_xen_FALSE@clean-test-%:
 @PLATFORM_xen_FALSE@	rm -f tests/test-$* tests/test-$*.iso tests/test-$*.log tests/test-$*.raw tests/test-$*.trs tests/module-$*
+
+#
+# Enhanced test framework integration
+#
+
+# Run all benchmarks
+@PLATFORM_xen_FALSE@run-benchmarks: $(BENCHMARK_TESTS)
+@PLATFORM_xen_FALSE@	@echo "=== Running Performance Benchmarks ==="
+@PLATFORM_xen_FALSE@	@for test in $(BENCHMARK_TESTS); do \
+@PLATFORM_xen_FALSE@		echo "Running benchmark: $$test"; \
+@PLATFORM_xen_FALSE@		$$test || echo "Benchmark $$test failed"; \
+@PLATFORM_xen_FALSE@	done
+
+# Run stress tests
+@PLATFORM_xen_FALSE@run-stress-tests: $(STRESS_TESTS)
+@PLATFORM_xen_FALSE@	@echo "=== Running Stress Tests ==="
+@PLATFORM_xen_FALSE@	@for test in $(STRESS_TESTS); do \
+@PLATFORM_xen_FALSE@		echo "Running stress test: $$test"; \
+@PLATFORM_xen_FALSE@		$$test || echo "Stress test $$test failed"; \
+@PLATFORM_xen_FALSE@	done
+
+# Run comprehensive test suite
+@PLATFORM_xen_FALSE@run-test-suite: $(SUITE_TESTS)
+@PLATFORM_xen_FALSE@	@echo "=== Running Comprehensive Test Suite ==="
+@PLATFORM_xen_FALSE@	@for test in $(SUITE_TESTS); do \
+@PLATFORM_xen_FALSE@		echo "Running test suite: $$test"; \
+@PLATFORM_xen_FALSE@		$$test || echo "Test suite $$test failed"; \
+@PLATFORM_xen_FALSE@	done
+
+# Run enhanced test framework
+@PLATFORM_xen_FALSE@run-enhanced-tests:
+@PLATFORM_xen_FALSE@	@echo "=== Running Enhanced Test Framework ==="
+@PLATFORM_xen_FALSE@	$(srcdir)/scripts/run-enhanced-tests.sh --all
+
+# Quick test subset for CI
+@PLATFORM_xen_FALSE@run-quick-tests:
+@PLATFORM_xen_FALSE@	@echo "=== Running Quick Test Subset ==="
+@PLATFORM_xen_FALSE@	$(srcdir)/scripts/run-enhanced-tests.sh --quick
+
+# Performance benchmarks only
+@PLATFORM_xen_FALSE@run-performance:
+@PLATFORM_xen_FALSE@	@echo "=== Running Performance Benchmarks ==="
+@PLATFORM_xen_FALSE@	$(srcdir)/scripts/run-enhanced-tests.sh --performance
+
+# Generate test coverage report
+@PLATFORM_xen_FALSE@test-coverage:
+@PLATFORM_xen_FALSE@	@echo "=== Generating Test Coverage Report ==="
+@PLATFORM_xen_FALSE@	$(srcdir)/scripts/run-enhanced-tests.sh --report-only
 
 #
 # helpers for interactive test run and debug
