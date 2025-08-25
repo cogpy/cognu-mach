@@ -302,11 +302,6 @@ extern kern_return_t	thread_abort(
 extern void		thread_start(
 	thread_t	thread,
 	continuation_t	start);
-extern thread_t		kernel_thread(
-	task_t		task,
-	const char *	name,
-	continuation_t	start,
-	void		*arg);
 extern kern_return_t	thread_priority(
 	thread_t	thread,
 	int		priority,

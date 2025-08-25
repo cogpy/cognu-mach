@@ -466,13 +466,6 @@ kern_return_t vm_map_copyout_page_list(
     vm_offset_t 	*dst_addr,  /* OUT */
     vm_map_copy_t   	copy);
 
-void vm_map_copy_page_discard (vm_map_copy_t copy);
-
-boolean_t vm_map_lookup_entry(
-	vm_map_t	map,
-	vm_offset_t	address,
-	vm_map_entry_t	*entry); /* OUT */
-
 static inline void vm_map_set_name(vm_map_t map, const char *name)
 {
 	map->name = name;
