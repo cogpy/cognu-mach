@@ -163,6 +163,8 @@ libkernel_a_SOURCES += \
 	kern/ipc_tt.c \
 	kern/ipc_tt.h \
 	kern/kalloc.h \
+	kern/kalloc_enhanced.c \
+	kern/kalloc_enhanced.h \
 	kern/kern_types.h \
 	kern/kmutex.c \
 	kern/kmutex.h \
@@ -178,6 +180,10 @@ libkernel_a_SOURCES += \
 	kern/machine.c \
 	kern/machine.h \
 	kern/macros.h \
+	kern/mem_optimize.c \
+	kern/mem_optimize.h \
+	kern/mem_track.c \
+	kern/mem_track.h \
 	kern/pc_sample.c \
 	kern/pc_sample.h \
 	kern/printf.c \
