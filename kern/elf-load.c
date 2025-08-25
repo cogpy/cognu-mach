@@ -32,7 +32,7 @@ int exec_load(exec_read_func_t *read, exec_read_exec_func_t *read_exec,
 {
 	vm_size_t actual;
 	Elf_Ehdr x;
-	Elf_Phdr *phdr, *ph;
+	Elf_Phdr *phdr;
 	vm_size_t phsize;
 	int i;
 	int result;
@@ -77,7 +77,7 @@ int exec_load(exec_read_func_t *read, exec_read_exec_func_t *read_exec,
 
 	for (i = 0; i < x.e_phnum; i++)
 	{
-		ph = (Elf_Phdr *)((vm_offset_t)phdr + i * x.e_phentsize);
+		Elf_Phdr *ph = (Elf_Phdr *)((vm_offset_t)phdr + i * x.e_phentsize);
 		if (ph->p_type == PT_LOAD)
 		{
 			exec_sectype_t type = EXEC_SECTYPE_ALLOC |
