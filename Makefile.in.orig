@@ -1598,22 +1598,22 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
 	kern/mach_clock.c kern/mach_clock.h kern/mach_factor.c \
 	kern/mach_factor.h kern/machine.c kern/machine.h kern/macros.h \
-	kern/mem_track.c kern/mem_track.h kern/pc_sample.c \
-	kern/pc_sample.h kern/printf.c kern/printf.h kern/priority.c \
-	kern/priority.h kern/processor.c kern/processor.h \
-	kern/profile.c kern/queue.c kern/queue.h kern/rbtree.c \
-	kern/rbtree.h kern/rbtree_i.h kern/rdxtree.c kern/rdxtree.h \
-	kern/rdxtree_i.h kern/refcount.h kern/slab.c kern/slab.h \
-	kern/smp.h kern/smp.c kern/sched.h kern/sched_prim.c \
-	kern/sched_prim.h kern/shuttle.h kern/startup.c kern/startup.h \
-	kern/strings.c kern/syscall_emulation.c \
-	kern/syscall_emulation.h kern/syscall_subr.c \
-	kern/syscall_subr.h kern/syscall_sw.c kern/syscall_sw.h \
-	kern/task.c kern/task.h kern/thread.c kern/thread.h \
-	kern/thread_swap.c kern/thread_swap.h kern/timer.c \
-	kern/timer.h kern/xpr.c kern/xpr.h kern/elf-load.c \
-	kern/boot_script.c util/atoi.c util/atoi.h util/byteorder.h \
-	util/byteorder.c vm/memory_object_proxy.c \
+	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
+	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
+	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
+	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
+	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
+	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
+	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/sched.h \
+	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
+	kern/startup.c kern/startup.h kern/strings.c \
+	kern/syscall_emulation.c kern/syscall_emulation.h \
+	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
+	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
+	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
+	kern/timer.c kern/timer.h kern/xpr.c kern/xpr.h \
+	kern/elf-load.c kern/boot_script.c util/atoi.c util/atoi.h \
+	util/byteorder.h util/byteorder.c vm/memory_object_proxy.c \
 	vm/memory_object_proxy.h vm/memory_object.c vm/memory_object.h \
 	vm/pmap.h vm/vm_debug.c vm/vm_external.c vm/vm_external.h \
 	vm/vm_fault.c vm/vm_fault.h vm/vm_init.c vm/vm_init.h \
@@ -1887,12 +1887,12 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/kalloc_enhanced.$(OBJEXT) kern/kmutex.$(OBJEXT) \
 	kern/lock.$(OBJEXT) kern/lock_mon.$(OBJEXT) \
 	kern/mach_clock.$(OBJEXT) kern/mach_factor.$(OBJEXT) \
-	kern/machine.$(OBJEXT) kern/mem_track.$(OBJEXT) \
-	kern/pc_sample.$(OBJEXT) kern/printf.$(OBJEXT) \
-	kern/priority.$(OBJEXT) kern/processor.$(OBJEXT) \
-	kern/profile.$(OBJEXT) kern/queue.$(OBJEXT) \
-	kern/rbtree.$(OBJEXT) kern/rdxtree.$(OBJEXT) \
-	kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) \
+	kern/machine.$(OBJEXT) kern/mem_optimize.$(OBJEXT) \
+	kern/mem_track.$(OBJEXT) kern/pc_sample.$(OBJEXT) \
+	kern/printf.$(OBJEXT) kern/priority.$(OBJEXT) \
+	kern/processor.$(OBJEXT) kern/profile.$(OBJEXT) \
+	kern/queue.$(OBJEXT) kern/rbtree.$(OBJEXT) \
+	kern/rdxtree.$(OBJEXT) kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) \
 	kern/sched_prim.$(OBJEXT) kern/startup.$(OBJEXT) \
 	kern/strings.$(OBJEXT) kern/syscall_emulation.$(OBJEXT) \
 	kern/syscall_subr.$(OBJEXT) kern/syscall_sw.$(OBJEXT) \
@@ -2454,14 +2454,14 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/mach_debug.server.Po \
 	kern/$(DEPDIR)/mach_factor.Po \
 	kern/$(DEPDIR)/mach_host.server.Po kern/$(DEPDIR)/machine.Po \
-	kern/$(DEPDIR)/mem_track.Po kern/$(DEPDIR)/pc_sample.Po \
-	kern/$(DEPDIR)/printf.Po kern/$(DEPDIR)/priority.Po \
-	kern/$(DEPDIR)/processor.Po kern/$(DEPDIR)/profile.Po \
-	kern/$(DEPDIR)/queue.Po kern/$(DEPDIR)/rbtree.Po \
-	kern/$(DEPDIR)/rdxtree.Po kern/$(DEPDIR)/sched_prim.Po \
-	kern/$(DEPDIR)/slab.Po kern/$(DEPDIR)/smp.Po \
-	kern/$(DEPDIR)/startup.Po kern/$(DEPDIR)/strings.Po \
-	kern/$(DEPDIR)/syscall_emulation.Po \
+	kern/$(DEPDIR)/mem_optimize.Po kern/$(DEPDIR)/mem_track.Po \
+	kern/$(DEPDIR)/pc_sample.Po kern/$(DEPDIR)/printf.Po \
+	kern/$(DEPDIR)/priority.Po kern/$(DEPDIR)/processor.Po \
+	kern/$(DEPDIR)/profile.Po kern/$(DEPDIR)/queue.Po \
+	kern/$(DEPDIR)/rbtree.Po kern/$(DEPDIR)/rdxtree.Po \
+	kern/$(DEPDIR)/sched_prim.Po kern/$(DEPDIR)/slab.Po \
+	kern/$(DEPDIR)/smp.Po kern/$(DEPDIR)/startup.Po \
+	kern/$(DEPDIR)/strings.Po kern/$(DEPDIR)/syscall_emulation.Po \
 	kern/$(DEPDIR)/syscall_subr.Po kern/$(DEPDIR)/syscall_sw.Po \
 	kern/$(DEPDIR)/task.Po kern/$(DEPDIR)/task_notify.user.Po \
 	kern/$(DEPDIR)/thread.Po kern/$(DEPDIR)/thread_swap.Po \
@@ -3389,22 +3389,22 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
 	kern/mach_clock.c kern/mach_clock.h kern/mach_factor.c \
 	kern/mach_factor.h kern/machine.c kern/machine.h kern/macros.h \
-	kern/mem_track.c kern/mem_track.h kern/pc_sample.c \
-	kern/pc_sample.h kern/printf.c kern/printf.h kern/priority.c \
-	kern/priority.h kern/processor.c kern/processor.h \
-	kern/profile.c kern/queue.c kern/queue.h kern/rbtree.c \
-	kern/rbtree.h kern/rbtree_i.h kern/rdxtree.c kern/rdxtree.h \
-	kern/rdxtree_i.h kern/refcount.h kern/slab.c kern/slab.h \
-	kern/smp.h kern/smp.c kern/sched.h kern/sched_prim.c \
-	kern/sched_prim.h kern/shuttle.h kern/startup.c kern/startup.h \
-	kern/strings.c kern/syscall_emulation.c \
-	kern/syscall_emulation.h kern/syscall_subr.c \
-	kern/syscall_subr.h kern/syscall_sw.c kern/syscall_sw.h \
-	kern/task.c kern/task.h kern/thread.c kern/thread.h \
-	kern/thread_swap.c kern/thread_swap.h kern/timer.c \
-	kern/timer.h kern/xpr.c kern/xpr.h kern/elf-load.c \
-	kern/boot_script.c util/atoi.c util/atoi.h util/byteorder.h \
-	util/byteorder.c vm/memory_object_proxy.c \
+	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
+	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
+	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
+	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
+	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
+	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
+	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/sched.h \
+	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
+	kern/startup.c kern/startup.h kern/strings.c \
+	kern/syscall_emulation.c kern/syscall_emulation.h \
+	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
+	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
+	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
+	kern/timer.c kern/timer.h kern/xpr.c kern/xpr.h \
+	kern/elf-load.c kern/boot_script.c util/atoi.c util/atoi.h \
+	util/byteorder.h util/byteorder.c vm/memory_object_proxy.c \
 	vm/memory_object_proxy.h vm/memory_object.c vm/memory_object.h \
 	vm/pmap.h vm/vm_debug.c vm/vm_external.c vm/vm_external.h \
 	vm/vm_fault.c vm/vm_fault.h vm/vm_init.c vm/vm_init.h \
@@ -4210,6 +4210,8 @@ kern/mach_clock.$(OBJEXT): kern/$(am__dirstamp) \
 kern/mach_factor.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/machine.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/mem_optimize.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/mem_track.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
@@ -5330,6 +5332,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mach_factor.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mach_host.server.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/machine.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mem_optimize.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mem_track.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/pc_sample.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/printf.Po@am__quote@ # am--include-marker
@@ -5540,7 +5543,15 @@ distclean-compile:
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
+	# Ugly bootstrap hack to get to-be-generated files created
+	# Try to guess what file this dependency file is from...
+	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
+	for f in "$$f"*; do \
+		case $$f in \
+			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
+			*) echo '# dummy';; \
+		esac ; \
+	done >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
@@ -9080,6 +9091,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/mach_factor.Po
 	-rm -f kern/$(DEPDIR)/mach_host.server.Po
 	-rm -f kern/$(DEPDIR)/machine.Po
+	-rm -f kern/$(DEPDIR)/mem_optimize.Po
 	-rm -f kern/$(DEPDIR)/mem_track.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
 	-rm -f kern/$(DEPDIR)/printf.Po
@@ -9598,6 +9610,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/mach_factor.Po
 	-rm -f kern/$(DEPDIR)/mach_host.server.Po
 	-rm -f kern/$(DEPDIR)/machine.Po
+	-rm -f kern/$(DEPDIR)/mem_optimize.Po
 	-rm -f kern/$(DEPDIR)/mem_track.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
 	-rm -f kern/$(DEPDIR)/printf.Po

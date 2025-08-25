@@ -182,8 +182,6 @@ MACRO_END
 
 extern void init_timers(void);
 
-void timer_init(timer_t this_timer);
-
 #if	MACH_DEBUG
 void	db_thread_read_times(
 	thread_t 	thread,

@@ -1016,12 +1016,10 @@ act_get_state_immediate(
 	void			*old_state,	/* pointer to OUT array */
 	unsigned int		*old_state_count)	/*IN/OUT*/
 {
-	kern_return_t		ret;
-
 	act_lock(act);
 	/* not the top activation, return current state */
 	if (act->thread && act->thread->top_act != act) {
-		ret = act_machine_get_state(act, flavor,
+		kern_return_t ret = act_machine_get_state(act, flavor,
 					    old_state, old_state_count);
 		act_unlock(act);
 		return ret;
@@ -1042,12 +1040,10 @@ act_set_state_immediate(
 	void			*new_state,
 	unsigned int		new_state_count)
 {
-	kern_return_t		ret;
-
 	act_lock(act);
 	/* not the top activation, set it now */
 	if (act->thread && act->thread->top_act != act) {
-		ret = act_machine_set_state(act, flavor,
+		kern_return_t ret = act_machine_set_state(act, flavor,
 					    new_state, new_state_count);
 		act_unlock(act);
 		return ret;

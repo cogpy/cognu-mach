@@ -258,7 +258,7 @@ boolean_t gdb_stub_set_hw_breakpoint(vm_offset_t address,
     
     /* Check if breakpoint already exists */
     if (gdb_stub_find_hw_breakpoint_by_addr(address) >= 0) {
-        printf("[GDB] Hardware breakpoint already exists at 0x%x\n", address);
+        printf("[GDB] Hardware breakpoint already exists at 0x%lx\n", (unsigned long)address);
         return TRUE;
     }
     
@@ -269,8 +269,8 @@ boolean_t gdb_stub_set_hw_breakpoint(vm_offset_t address,
         return FALSE;
     }
     
-    printf("[GDB] Setting hardware breakpoint at 0x%x, type %d, slot %d\n", 
-           address, type, slot);
+    printf("[GDB] Setting hardware breakpoint at 0x%lx, type %d, slot %d\n", 
+           (unsigned long)address, type, slot);
     
     /* Set the address in the appropriate debug register */
     set_debug_register(slot, address);
@@ -343,11 +343,11 @@ boolean_t gdb_stub_remove_hw_breakpoint(vm_offset_t address)
     /* Find the breakpoint */
     slot = gdb_stub_find_hw_breakpoint_by_addr(address);
     if (slot < 0) {
-        printf("[GDB] Hardware breakpoint not found at 0x%x\n", address);
+        printf("[GDB] Hardware breakpoint not found at 0x%lx\n", (unsigned long)address);
         return FALSE;
     }
     
-    printf("[GDB] Removing hardware breakpoint at 0x%x, slot %d\n", address, slot);
+    printf("[GDB] Removing hardware breakpoint at 0x%lx, slot %d\n", (unsigned long)address, slot);
     
     /* Clear the debug register */
     set_debug_register(slot, 0);
@@ -384,7 +384,7 @@ boolean_t gdb_stub_set_breakpoint(gdb_breakpoint_type_t type,
     switch (type) {
     case GDB_BP_SOFTWARE:
         if (gdb_config.software_breakpoints) {
-            printf("[GDB] Setting software breakpoint at 0x%x\n", address);
+            printf("[GDB] Setting software breakpoint at 0x%lx\n", (unsigned long)address);
             /* Replace instruction with INT3 (0xCC) */
             return TRUE;
         }
@@ -397,8 +397,8 @@ boolean_t gdb_stub_set_breakpoint(gdb_breakpoint_type_t type,
     case GDB_BP_READ_WATCH:
     case GDB_BP_ACCESS_WATCH:
         if (gdb_config.watchpoints) {
-            printf("[GDB] Setting watchpoint at 0x%x, type %d, length %zu\n", 
-                   address, type, length);
+            printf("[GDB] Setting watchpoint at 0x%lx, type %d, length %lu\n", 
+                   (unsigned long)address, type, (unsigned long)length);
             return gdb_stub_set_hw_breakpoint(address, type);
         }
         break;
@@ -418,7 +418,7 @@ boolean_t gdb_stub_remove_breakpoint(gdb_breakpoint_type_t type,
         return FALSE;
     }
     
-    printf("[GDB] Removing breakpoint at 0x%x, type %d\n", address, type);
+    printf("[GDB] Removing breakpoint at 0x%lx, type %d\n", (unsigned long)address, type);
     
     switch (type) {
     case GDB_BP_SOFTWARE:
@@ -441,7 +441,7 @@ boolean_t gdb_stub_remove_breakpoint(gdb_breakpoint_type_t type,
 void gdb_stub_thread_create(thread_t thread)
 {
     if (gdb_config.thread_aware && gdb_config.enabled) {
-        printf("[GDB] Thread created: %p\n", thread);
+        printf("[GDB] Thread created: %p\n", (void *)thread);
     }
 }
 
