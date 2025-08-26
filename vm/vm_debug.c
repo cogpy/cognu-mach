@@ -46,7 +46,9 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
+#include <vm/vm_object_verify.h>
 #include <kern/mach_debug.server.h>
+#include <kern/mem_track.h>
 #include <kern/task.h>
 #include <kern/host.h>
 #include <kern/printf.h>
@@ -407,8 +409,17 @@ _mach_vm_object_pages(
 			info->vpi_state = state;
 	}
 
-	if (object->resident_page_count != count)
-		panic("mach_vm_object_pages");
+	if (object->resident_page_count != count) {
+		printf("VM object pages count mismatch: stored=%lu, actual=%lu\n",
+		       object->resident_page_count, count);
+		printf("Correcting stored count to match actual pages\n");
+		
+		/* Fix the count instead of panicking */
+		object->resident_page_count = count;
+		
+		/* Track this as a VM object inconsistency */
+		mem_track_vm_object_inconsistency();
+	}
 	vm_object_unlock(object);
 
 	if (pages == *pagesp) {

@@ -94,6 +94,7 @@ extern void mem_track_page_alloc_failed(void);
  */
 extern boolean_t mem_track_check_pressure(void);
 extern void mem_track_memory_warning(void);
+extern void mem_track_vm_object_inconsistency(void);
 extern void mem_track_out_of_memory(void);
 
 /*
