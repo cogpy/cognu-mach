@@ -48,6 +48,7 @@
 #include <vm/vm_fault.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+#include <mach/mach_safety.h>
 
 #include <kern/ast.h>
 #include <kern/debug.h>
@@ -299,6 +300,15 @@ dump_ss(regs);
 	    case T_GENERAL_PROTECTION:
 
 		/*
+		 * Enhanced general protection trap handling
+		 * Add bounds checking to prevent invalid access
+		 */
+		if (!MACH_VALIDATE_PTR(regs, 0x1000, 0xFFFFFFFF)) {
+		    printf("Invalid register state pointer in GPF handler\n");
+		    goto badtrap;
+		}
+
+		/*
 		 * If there is a failure recovery address
 		 * for this fault, go there.
 		 */
@@ -306,12 +316,24 @@ dump_ss(regs);
 		    struct recovery *rp;
 
                     /* Linear searching; but the list is small enough.  */
-		    for (rp = recover_table;
-			 rp < recover_table_end;
-			 rp++) {
-			if (regs->eip == rp->fault_addr) {
-			    regs->eip = rp->recover_addr;
-			    return;
+		    /* Add bounds checking for recovery table */
+		    if (recover_table && recover_table_end &&
+			&recover_table[0] <= &recover_table_end[0]) {
+			for (rp = recover_table;
+			     rp < recover_table_end;
+			     rp++) {
+			    if (regs->eip == rp->fault_addr) {
+				/* Validate recovery address before jumping */
+				if (MACH_VALIDATE_PTR((void *)rp->recover_addr, 
+						       0x1000, 0xFFFFFFFF)) {
+				    regs->eip = rp->recover_addr;
+				    return;
+				} else {
+				    printf("Invalid recovery address 0x%x in GPF\n", 
+					   (unsigned int)rp->recover_addr);
+				    goto badtrap;
+				}
+			    }
 			}
 		    }
 		}
@@ -319,11 +341,19 @@ dump_ss(regs);
 		/*
 		 * Check thread recovery address also -
 		 * v86 assist uses it.
+		 * Add validation to prevent invalid recovery addresses
 		 */
-		if (thread->recover) {
-		    regs->eip = thread->recover;
-		    thread->recover = 0;
-		    return;
+		if (thread && thread->recover) {
+		    /* Validate thread recovery address before using it */
+		    if (MACH_VALIDATE_PTR((void *)thread->recover, 0x1000, 0xFFFFFFFF)) {
+			regs->eip = thread->recover;
+			thread->recover = 0;
+			return;
+		    } else {
+			printf("Invalid thread recovery address 0x%x\n", (unsigned int)thread->recover);
+			thread->recover = 0; /* Clear invalid address */
+			goto badtrap;
+		    }
 		}
 
 		/*

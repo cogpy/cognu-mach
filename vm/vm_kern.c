@@ -52,6 +52,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <mach/mach_safety.h>
 
 
 
@@ -372,6 +373,24 @@ kmem_alloc(
 	unsigned int attempts;
 	kern_return_t kr;
 
+	/* Enhanced safety checks for kernel memory allocation */
+	if (!addrp) {
+		return KERN_INVALID_ARGUMENT;
+	}
+
+	/* Check for integer overflow in size calculation */
+	if (size > VM_MAX_KERNEL_ADDRESS || size == 0) {
+		return KERN_INVALID_ARGUMENT;
+	}
+
+	/* Check if rounding to page size would overflow */
+	vm_size_t rounded_size = (size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	
+	if (rounded_size < size) {
+		printf("kmem_alloc: size overflow after rounding\n");
+		return KERN_INVALID_ARGUMENT;
+	}
+
 	/*
 	 *	Allocate a new object.  We must do this before locking
 	 *	the map, lest we risk deadlock with the default pager:
@@ -385,7 +404,7 @@ kmem_alloc(
 	 *		and deadlocks on the map lock.
 	 */
 
-	size = round_page(size);
+	size = rounded_size;
 	object = vm_object_allocate(size);
 
 	attempts = 0;
