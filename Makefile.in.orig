@@ -3843,6 +3843,7 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-mach_port \
 @PLATFORM_xen_FALSE@	tests/test-vm \
 @PLATFORM_xen_FALSE@	tests/test-vm-boundary \
+@PLATFORM_xen_FALSE@	tests/test-vm-merge \
 @PLATFORM_xen_FALSE@	tests/test-ipc-large \
 @PLATFORM_xen_FALSE@	tests/test-vm-fault \
 @PLATFORM_xen_FALSE@	tests/test-syscalls \
@@ -8475,6 +8476,13 @@ tests/test-vm.log: tests/test-vm
 tests/test-vm-boundary.log: tests/test-vm-boundary
 	@p='tests/test-vm-boundary'; \
 	b='tests/test-vm-boundary'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-vm-merge.log: tests/test-vm-merge
+	@p='tests/test-vm-merge'; \
+	b='tests/test-vm-merge'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
