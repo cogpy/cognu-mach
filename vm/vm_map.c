@@ -1086,10 +1086,10 @@ MACRO_END
 			vm_map_gap_update(&map->hdr, entry);
 			/*
 			 *	Now that we did, perhaps we could simplify
-			 *	things even further by coalescing the next
-			 *	entry into the one we just extended.
+			 *	things even further by coalescing with adjacent
+			 *	entries in both directions.
 			 */
-			vm_map_coalesce_entry(map, next_entry);
+			vm_map_coalesce_entries(map, next_entry);
 			RETURN(KERN_SUCCESS);
 		}
 	}
@@ -1122,10 +1122,10 @@ MACRO_END
 			vm_map_gap_update(&map->hdr, entry);
 			/*
 			 *	Now that we did, perhaps we could simplify
-			 *	things even further by coalescing the
-			 *	entry into the previous one.
+			 *	things even further by coalescing with adjacent
+			 *	entries in both directions.
 			 */
-			vm_map_coalesce_entry(map, next_entry);
+			vm_map_coalesce_entries(map, next_entry);
 			RETURN(KERN_SUCCESS);
 		}
 	}
@@ -1713,12 +1713,12 @@ kern_return_t vm_map_protect(
 		}
 
 		next = current->vme_next;
-		vm_map_coalesce_entry(map, current);
+		vm_map_coalesce_entries(map, current);
 		current = next;
 	}
 
 	next = current->vme_next;
-	if (vm_map_coalesce_entry(map, current))
+	if (vm_map_coalesce_entries(map, current))
 		current = next;
 
 	/* Returns with the map read-locked if successful */
@@ -1763,11 +1763,11 @@ kern_return_t vm_map_inherit(
 		entry->inheritance = new_inheritance;
 
 		next = entry->vme_next;
-		vm_map_coalesce_entry(map, entry);
+		vm_map_coalesce_entries(map, entry);
 		entry = next;
 	}
 
-	vm_map_coalesce_entry(map, entry);
+	vm_map_coalesce_entries(map, entry);
 
 	vm_map_unlock(map);
 	return(KERN_SUCCESS);
@@ -5074,6 +5074,117 @@ vm_map_coalesce_entry(
 	vm_map_entry_dispose(map, entry);
 
 	return TRUE;
+}
+
+/*
+ *	Routine:	vm_map_coalesce_entry_forward
+ *	Purpose:
+ *		Try to coalesce an entry with the following entry in the map.
+ *	Conditions:
+ *		The map is locked.  If coalesced, the next entry is destroyed
+ *		by the call.
+ *	Returns:
+ *		Whether the entry was coalesced.
+ */
+boolean_t
+vm_map_coalesce_entry_forward(
+	vm_map_t	map,
+	vm_map_entry_t	entry)
+{
+	vm_map_entry_t	next = entry->vme_next;
+	vm_size_t	entry_size;
+	vm_size_t	next_size;
+
+	/*
+	 *	Check the basic conditions for coalescing the two entries.
+	 */
+	if ((entry == vm_map_to_entry(map)) ||
+	    (next == vm_map_to_entry(map)) ||
+	    (entry->vme_end != next->vme_start) ||
+	    (entry->is_shared || next->is_shared) ||
+	    (entry->is_sub_map || next->is_sub_map) ||
+	    (entry->inheritance != next->inheritance) ||
+	    (entry->protection != next->protection) ||
+	    (entry->max_protection != next->max_protection) ||
+	    (entry->needs_copy != next->needs_copy) ||
+	    (entry->in_transition || next->in_transition) ||
+	    (entry->wired_count != next->wired_count) ||
+	    (entry->projected_on != 0) ||
+	    (next->projected_on != 0))
+		return FALSE;
+
+	entry_size = entry->vme_end - entry->vme_start;
+	next_size = next->vme_end - next->vme_start;
+	assert(entry->gap_size == 0);
+
+	/*
+	 *	See if we can coalesce the two objects.
+	 */
+	if (!vm_object_coalesce(entry->object.vm_object,
+		next->object.vm_object,
+		entry->offset,
+		next->offset,
+		entry_size,
+		next_size,
+		&entry->object.vm_object,
+		&entry->offset))
+		return FALSE;
+
+	/*
+	 *	Update the hints.
+	 */
+	if (map->hint == next)
+		SAVE_HINT(map, entry);
+	if (map->first_free == next)
+		map->first_free = entry;
+
+	/*
+	 *	Get rid of the next entry without changing any wirings or the pmap,
+	 *	and without altering map->size.
+	 */
+	entry->vme_end = next->vme_end;
+	vm_map_entry_unlink(map, next);
+	vm_map_entry_dispose(map, next);
+
+	return TRUE;
+}
+
+/*
+ *	Routine:	vm_map_coalesce_entries
+ *	Purpose:
+ *		Try to coalesce an entry with both the preceding and following
+ *		entries in the map to maximize consolidation.
+ *	Conditions:
+ *		The map is locked.  If coalesced, the merged entries are destroyed
+ *		by the call.
+ *	Returns:
+ *		Whether any coalescing occurred.
+ */
+boolean_t
+vm_map_coalesce_entries(
+	vm_map_t	map,
+	vm_map_entry_t	entry)
+{
+	boolean_t	coalesced = FALSE;
+
+	/*
+	 *	Try forward merging first, then backward merging.
+	 *	This order can potentially merge three entries into one
+	 *	in cases where we have adjacent compatible entries.
+	 */
+	if (vm_map_coalesce_entry_forward(map, entry)) {
+		coalesced = TRUE;
+	}
+
+	/*
+	 *	Now try backward merging. Note that if forward merging succeeded,
+	 *	we might still be able to merge with the previous entry.
+	 */
+	if (vm_map_coalesce_entry(map, entry)) {
+		coalesced = TRUE;
+	}
+
+	return coalesced;
 }
 
 
