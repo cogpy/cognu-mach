@@ -46,7 +46,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
-#include <vm/vm_object_verify.h>
 #include <kern/mach_debug.server.h>
 #include <kern/mem_track.h>
 #include <kern/task.h>

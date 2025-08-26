@@ -264,6 +264,15 @@ vm_object_t vm_object_copy_delayed(
 	vm_object_t	src_object);
 
 /*
+ * VM Object Verification Functions
+ */
+boolean_t vm_object_verify_resident_count(vm_object_t object);
+void vm_object_increment_resident_count(vm_object_t object);
+void vm_object_decrement_resident_count(vm_object_t object);
+kern_return_t vm_object_get_memory_stats(vm_object_t object, 
+                                        vm_object_memory_stats_t *stats);
+
+/*
  *	Event waiting handling
  */
 
@@ -411,5 +420,18 @@ vm_object_unreference_locked (vm_object_t obj)
 {
   return (--obj->ref_count);
 }
+
+/*
+ * VM Object Memory Statistics Structure
+ */
+typedef struct {
+    unsigned long resident_pages;    /* Total resident pages */
+    unsigned long wired_pages;       /* Wired (non-pageable) pages */
+    unsigned long active_pages;      /* Pages in active queue */
+    unsigned long inactive_pages;    /* Pages in inactive queue */
+    unsigned long dirty_pages;       /* Modified pages */
+    unsigned long referenced_pages;  /* Recently accessed pages */
+    vm_size_t memory_size;          /* Total memory in bytes */
+} vm_object_memory_stats_t;
 
 #endif	/* _VM_VM_OBJECT_H_ */

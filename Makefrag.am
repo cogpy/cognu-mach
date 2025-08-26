@@ -276,7 +276,6 @@ libkernel_a_SOURCES += \
 	vm/vm_object.c \
 	vm/vm_object.h \
 	vm/vm_object_verify.c \
-	vm/vm_object_verify.h \
 	vm/vm_page.c \
 	vm/vm_page.h \
 	vm/vm_pageout.c \
