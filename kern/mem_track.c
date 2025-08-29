@@ -246,6 +246,21 @@ void mem_track_memory_warning(void)
 }
 
 /*
+ * Handle VM object inconsistency warning - indicates potential memory corruption.
+ */
+void mem_track_vm_object_inconsistency(void)
+{
+    struct mem_tracker *tracker = &global_mem_tracker;
+    
+    simple_lock(&tracker->lock);
+    tracker->low_memory_warnings++;
+    simple_unlock(&tracker->lock);
+    
+    printf("VM object memory inconsistency detected - potential memory corruption\n");
+    printf("Consider running comprehensive memory verification\n");
+}
+
+/*
  * Handle out of memory condition.
  */
 void mem_track_out_of_memory(void)

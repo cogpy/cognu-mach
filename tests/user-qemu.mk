@@ -232,6 +232,7 @@ USER_TESTS := \
 	tests/test-vm \
 	tests/test-vm-boundary \
 	tests/test-vm-merge \
+	tests/test-vm-object-memory \
 	tests/test-ipc-large \
 	tests/test-vm-fault \
 	tests/test-syscalls \

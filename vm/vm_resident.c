@@ -369,8 +369,7 @@ void vm_page_insert(
 	 *	Show that the object has one more resident page.
 	 */
 
-	object->resident_page_count++;
-	assert(object->resident_page_count != 0);
+	vm_object_increment_resident_count(object);
 
 	/*
 	 *	Detect sequential access and inactivate previous page.
@@ -449,7 +448,7 @@ void vm_page_replace(
 				queue_remove(&object->memq, m, vm_page_t,
 					     listq);
 				m->tabled = FALSE;
-				object->resident_page_count--;
+				vm_object_decrement_resident_count(object);
 				VM_PAGE_QUEUES_REMOVE(m);
 
 				if (m->external) {
@@ -487,8 +486,7 @@ void vm_page_replace(
 	 *	page.
 	 */
 
-	object->resident_page_count++;
-	assert(object->resident_page_count != 0);
+	vm_object_increment_resident_count(object);
 }
 
 /*
@@ -546,7 +544,7 @@ void vm_page_remove(
 	 *	page.
 	 */
 
-	mem->object->resident_page_count--;
+	vm_object_decrement_resident_count(mem->object);
 
 	mem->tabled = FALSE;
 
