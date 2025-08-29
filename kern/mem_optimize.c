@@ -23,6 +23,7 @@
 #include <kern/slab.h>
 #include <kern/printf.h>
 #include <kern/lock.h>
+#include <kern/kalloc.h>
 #include <mach/vm_param.h>
 #include <mach/kern_return.h>
 #include <string.h>
@@ -495,4 +496,63 @@ void mem_opt_reset_stats(void)
     simple_unlock(&global_mem_optimizer.lock);
     
     printf("Memory optimization statistics reset\n");
+}
+
+/*
+ * Best-fit memory allocator - finds the smallest free block that fits the request.
+ * This reduces fragmentation compared to first-fit allocation.
+ */
+vm_offset_t mem_opt_allocate_best_fit(vm_size_t size)
+{
+    /*
+     * This is a placeholder implementation. In a full kernel implementation,
+     * this would integrate with the actual memory allocator (kalloc/vm_allocate)
+     * to use a best-fit strategy instead of first-fit.
+     * 
+     * The algorithm would:
+     * 1. Search all free blocks for those >= size
+     * 2. Among suitable blocks, choose the smallest one
+     * 3. Split the block if it's significantly larger than needed
+     * 4. Return the allocated memory
+     */
+    
+    /* For now, fall back to standard allocation */
+    return kalloc(size);
+}
+
+/*
+ * Optimize allocation order to reduce fragmentation.
+ */
+void mem_opt_optimize_allocation_order(void)
+{
+    /*
+     * This function would implement allocation order optimization:
+     * - Group similar-sized allocations together
+     * - Separate short-lived from long-lived allocations
+     * - Use segregated free lists for different size classes
+     */
+    printf("Optimizing allocation order for reduced fragmentation\n");
+    
+    /* Trigger background optimization */
+    mem_opt_background_optimize();
+}
+
+/*
+ * Merge adjacent free blocks to reduce fragmentation.
+ */
+void mem_opt_merge_adjacent_free_blocks(void)
+{
+    /*
+     * This function would implement free block merging:
+     * - Scan free block lists
+     * - Identify adjacent blocks
+     * - Merge them into larger blocks
+     * - Update allocation structures
+     */
+    printf("Merging adjacent free blocks\n");
+    
+    /* Use existing slab collection and defragmentation */
+    slab_collect();
+    mem_opt_defragment_slabs();
+}
 }
