@@ -399,6 +399,93 @@ void mem_opt_report_optimization(void)
 }
 
 /*
+ * Proactive memory management - integrates tracking, optimization, and VM systems
+ * Called periodically or when memory pressure is detected.
+ */
+void mem_opt_proactive_management(void)
+{
+    struct mem_optimizer *opt = &global_mem_optimizer;
+    uint32_t fragmentation_ratio;
+    boolean_t memory_pressure;
+    
+    /* Check current memory state */
+    memory_pressure = mem_track_check_pressure();
+    fragmentation_ratio = mem_opt_calculate_fragmentation_ratio();
+    
+    simple_lock(&opt->lock);
+    
+    /* Decide on optimization strategy based on current conditions */
+    if (memory_pressure) {
+        /* Critical situation - use aggressive optimization */
+        if (opt->policy != MEM_OPT_AGGRESSIVE) {
+            printf("Memory pressure detected - switching to aggressive optimization\n");
+            opt->policy = MEM_OPT_AGGRESSIVE;
+            opt->optimization_threshold = 30; /* Lower threshold for faster response */
+        }
+        
+        simple_unlock(&opt->lock);
+        
+        /* Perform emergency optimization */
+        mem_opt_handle_memory_pressure();
+        
+    } else if (fragmentation_ratio > 70) {
+        /* High fragmentation - use balanced approach */
+        if (opt->policy != MEM_OPT_BALANCED) {
+            printf("High fragmentation detected - switching to balanced optimization\n");
+            opt->policy = MEM_OPT_BALANCED;
+            opt->optimization_threshold = 50;
+        }
+        
+        simple_unlock(&opt->lock);
+        
+        /* Perform targeted defragmentation */
+        mem_opt_defragment_slabs();
+        
+    } else if (fragmentation_ratio > 40) {
+        /* Moderate fragmentation - preventive cleanup */
+        simple_unlock(&opt->lock);
+        mem_opt_preemptive_cleanup();
+        
+    } else {
+        /* Good state - maintain conservative approach */
+        if (opt->policy != MEM_OPT_CONSERVATIVE) {
+            printf("Memory state optimal - returning to conservative optimization\n");
+            opt->policy = MEM_OPT_CONSERVATIVE;
+            opt->optimization_threshold = 60;
+        }
+        simple_unlock(&opt->lock);
+    }
+}
+
+/*
+ * Enhanced allocation failure prediction with trend analysis.
+ */
+boolean_t mem_opt_predict_allocation_failure_enhanced(vm_size_t size)
+{
+    uint32_t fragmentation = mem_opt_calculate_fragmentation_ratio();
+    boolean_t memory_pressure = mem_track_check_pressure();
+    
+    /* Large allocations in fragmented memory are likely to fail */
+    if (size > PAGE_SIZE) {
+        if (fragmentation > 60 || (fragmentation > 40 && memory_pressure)) {
+            return TRUE;
+        }
+    }
+    
+    /* Medium allocations under pressure */
+    if (size > PAGE_SIZE / 2 && memory_pressure && fragmentation > 50) {
+        return TRUE;
+    }
+    
+    /* Any allocation under critical memory pressure */
+    if (memory_pressure && fragmentation > 70) {
+        return TRUE;
+    }
+    
+    return FALSE;
+}
+
+/*
  * Reset optimization statistics.
  */
 void mem_opt_reset_stats(void)

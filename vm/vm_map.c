@@ -2137,6 +2137,18 @@ kern_return_t vm_map_delete(
 		entry = next;
 	}
 
+	/*
+	 *	After deletion, try to coalesce adjacent entries
+	 *	to reduce fragmentation. Start from the entry before
+	 *	the deletion range if it exists.
+	 */
+	if (first_entry && first_entry->vme_prev != vm_map_to_entry(map)) {
+		vm_map_coalesce_entries(map, first_entry->vme_prev);
+	}
+	if (entry && entry != vm_map_to_entry(map)) {
+		vm_map_coalesce_entries(map, entry);
+	}
+
 	if (map->wait_for_space)
 		thread_wakeup((event_t) map);
 
