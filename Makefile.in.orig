@@ -1619,15 +1619,14 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	vm/vm_fault.c vm/vm_fault.h vm/vm_init.c vm/vm_init.h \
 	vm/vm_kern.c vm/vm_kern.h vm/vm_map.c vm/vm_map.h \
 	vm/vm_object.c vm/vm_object.h vm/vm_object_verify.c \
-	vm/vm_object_verify.h vm/vm_page.c vm/vm_page.h \
-	vm/vm_pageout.c vm/vm_pageout.h vm/vm_print.h vm/vm_resident.c \
-	vm/vm_resident.h vm/vm_types.h vm/vm_user.c vm/vm_user.h \
-	device/blkio.c device/blkio.h device/buf.h device/chario.c \
-	device/chario.h device/cirbuf.h device/conf.h device/cons.c \
-	device/cons.h device/device_emul.h device/dev_hdr.h \
-	device/dev_lookup.c device/dev_master.h device/dev_name.c \
-	device/dev_pager.c device/dev_pager.h device/device_init.c \
-	device/device_init.h device/device_port.h \
+	vm/vm_page.c vm/vm_page.h vm/vm_pageout.c vm/vm_pageout.h \
+	vm/vm_print.h vm/vm_resident.c vm/vm_resident.h vm/vm_types.h \
+	vm/vm_user.c vm/vm_user.h device/blkio.c device/blkio.h \
+	device/buf.h device/chario.c device/chario.h device/cirbuf.h \
+	device/conf.h device/cons.c device/cons.h device/device_emul.h \
+	device/dev_hdr.h device/dev_lookup.c device/dev_master.h \
+	device/dev_name.c device/dev_pager.c device/dev_pager.h \
+	device/device_init.c device/device_init.h device/device_port.h \
 	device/device_types_kernel.h device/ds_routines.c \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
@@ -3412,15 +3411,14 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	vm/vm_fault.c vm/vm_fault.h vm/vm_init.c vm/vm_init.h \
 	vm/vm_kern.c vm/vm_kern.h vm/vm_map.c vm/vm_map.h \
 	vm/vm_object.c vm/vm_object.h vm/vm_object_verify.c \
-	vm/vm_object_verify.h vm/vm_page.c vm/vm_page.h \
-	vm/vm_pageout.c vm/vm_pageout.h vm/vm_print.h vm/vm_resident.c \
-	vm/vm_resident.h vm/vm_types.h vm/vm_user.c vm/vm_user.h \
-	device/blkio.c device/blkio.h device/buf.h device/chario.c \
-	device/chario.h device/cirbuf.h device/conf.h device/cons.c \
-	device/cons.h device/device_emul.h device/dev_hdr.h \
-	device/dev_lookup.c device/dev_master.h device/dev_name.c \
-	device/dev_pager.c device/dev_pager.h device/device_init.c \
-	device/device_init.h device/device_port.h \
+	vm/vm_page.c vm/vm_page.h vm/vm_pageout.c vm/vm_pageout.h \
+	vm/vm_print.h vm/vm_resident.c vm/vm_resident.h vm/vm_types.h \
+	vm/vm_user.c vm/vm_user.h device/blkio.c device/blkio.h \
+	device/buf.h device/chario.c device/chario.h device/cirbuf.h \
+	device/conf.h device/cons.c device/cons.h device/device_emul.h \
+	device/dev_hdr.h device/dev_lookup.c device/dev_master.h \
+	device/dev_name.c device/dev_pager.c device/dev_pager.h \
+	device/device_init.c device/device_init.h device/device_port.h \
 	device/device_types_kernel.h device/ds_routines.c \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
@@ -5551,7 +5549,15 @@ distclean-compile:
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
+	# Ugly bootstrap hack to get to-be-generated files created
+	# Try to guess what file this dependency file is from...
+	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
+	for f in "$$f"*; do \
+		case $$f in \
+			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
+			*) echo '# dummy';; \
+		esac ; \
+	done >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
