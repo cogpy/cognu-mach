@@ -57,6 +57,7 @@
 #include <vm/vm_kern.h>
 #include <vm/memory_object_proxy.h>
 #include <ipc/ipc_port.h>
+#include <ipc/ipc_kmsg.h>
 #include <string.h>
 
 #if	MACH_KDB
@@ -3530,6 +3531,12 @@ kern_return_t vm_map_copyin(
 		was_wired = (src_entry->wired_count != 0);
 
 		/*
+		 *	Virtual copy optimization: For large regions with vm_objects,
+		 *	prefer copy-on-write semantics to reduce memory copying overhead.
+		 *	This optimization is particularly beneficial for IPC out-of-line data.
+		 */
+
+		/*
 		 *	Create a new address map entry to
 		 *	hold the result.  Fill in the fields from
 		 *	the appropriate source entries.
@@ -3540,6 +3547,8 @@ kern_return_t vm_map_copyin(
 
 		/*
 		 *	Attempt non-blocking copy-on-write optimizations.
+		 *	Enhanced for virtual copy optimization: prefer zero-copy
+		 *	mechanisms for large regions to improve IPC performance.
 		 */
 
 		if (src_destroy &&
@@ -3563,6 +3572,43 @@ kern_return_t vm_map_copyin(
 		     */
 
 		    goto CopySuccessful;
+		}
+
+		/*
+		 * Virtual copy optimization: For large regions, even if not destroying
+		 * the source, attempt copy-on-write optimization to reduce copying overhead.
+		 * This is especially beneficial for IPC operations with large out-of-line data.
+		 */
+		if (!was_wired && src_size >= IPC_VIRTUAL_COPY_THRESHOLD &&
+		    src_object != VM_OBJECT_NULL && 
+		    src_object->temporary &&
+		    vm_object_copy_temporary(
+				&new_entry->object.vm_object,
+				&new_entry->offset,
+				&src_needs_copy,
+				&new_entry_needs_copy)) {
+
+			new_entry->needs_copy = new_entry_needs_copy;
+
+			/*
+			 *	Handle copy-on-write obligations for large data optimization
+			 */
+
+			if (src_needs_copy && !tmp_entry->needs_copy) {
+				vm_object_pmap_protect(
+					src_object,
+					src_offset,
+					src_size,
+			      		(src_entry->is_shared ? PMAP_NULL
+						: src_map->pmap),
+					src_entry->vme_start,
+					src_entry->protection &
+						~VM_PROT_WRITE);
+
+				tmp_entry->needs_copy = TRUE;
+			}
+
+			goto CopySuccessful;
 		}
 
 		if (!was_wired &&
