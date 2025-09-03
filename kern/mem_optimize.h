@@ -112,4 +112,10 @@ extern void mem_opt_background_optimize(void);
 extern void mem_opt_adaptive_threshold_adjustment(void);
 extern boolean_t mem_opt_predict_allocation_failure(vm_size_t size);
 
+/*
+ * Proactive memory management integration.
+ */
+extern void mem_opt_proactive_management(void);
+extern boolean_t mem_opt_predict_allocation_failure_enhanced(vm_size_t size);
+
 #endif /* _KERN_MEM_OPTIMIZE_H_ */

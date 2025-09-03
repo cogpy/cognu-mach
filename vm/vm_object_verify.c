@@ -12,6 +12,7 @@
 #include <kern/assert.h>
 #include <kern/mem_track.h>
 #include <vm/vm_object.h>
+#include <vm/vm_object_verify.h>
 #include <vm/vm_page.h>
 
 /*

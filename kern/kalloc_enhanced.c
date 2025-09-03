@@ -34,10 +34,10 @@ static vm_offset_t kalloc_typed(vm_size_t size, mem_type_t type)
 {
     vm_offset_t addr;
     
-    /* Check if allocation is likely to fail and preemptively optimize */
-    if (mem_opt_predict_allocation_failure(size)) {
-        printf("Predicted allocation failure for size %u, optimizing...\n", (unsigned)size);
-        mem_opt_handle_memory_pressure();
+    /* Use enhanced allocation failure prediction */
+    if (mem_opt_predict_allocation_failure_enhanced(size)) {
+        printf("Predicted allocation failure for size %u, running proactive management...\n", (unsigned)size);
+        mem_opt_proactive_management();
     }
     
     addr = kalloc(size);
@@ -47,7 +47,7 @@ static vm_offset_t kalloc_typed(vm_size_t size, mem_type_t type)
         mem_track_free(MEM_TYPE_GENERAL, size);
         mem_track_alloc(type, size);
     } else {
-        /* Track failed allocation and try optimization */
+        /* Track failed allocation and try emergency optimization */
         mem_track_alloc_failed(type, size);
         
         /* Try emergency optimization and retry once */

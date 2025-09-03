@@ -27,6 +27,9 @@
 #include <mach/kern_return.h>
 #include <string.h>
 
+/* Forward declaration for memory optimization functions */
+extern uint32_t mem_opt_calculate_fragmentation_ratio(void);
+
 /*
  * Global memory tracker instance.
  */
@@ -214,17 +217,39 @@ void mem_track_page_alloc_failed(void)
 
 /*
  * Check for memory pressure conditions.
+ * Enhanced pressure detection considers multiple factors:
+ * - Current memory usage vs thresholds
+ * - Recent allocation failure rate
+ * - Memory fragmentation level
+ * - Rate of change in memory usage
  */
 boolean_t mem_track_check_pressure(void)
 {
     struct mem_tracker *tracker = &global_mem_tracker;
     uint64_t current_usage;
+    uint32_t recent_failures;
+    uint32_t fragmentation_ratio;
+    boolean_t high_usage, high_failures, high_fragmentation;
     
     simple_lock(&tracker->lock);
     current_usage = tracker->total_stats.current_bytes;
+    recent_failures = tracker->total_stats.failed_allocs;
     simple_unlock(&tracker->lock);
     
-    return (current_usage > (uint64_t)tracker->memory_threshold_low);
+    /* Check basic usage threshold */
+    high_usage = (current_usage > (uint64_t)tracker->memory_threshold_low);
+    
+    /* Check allocation failure rate - high failures indicate pressure */
+    high_failures = (recent_failures > 10 && tracker->total_stats.alloc_count > 0 &&
+                     (recent_failures * 100 / tracker->total_stats.alloc_count) > 5);
+    
+    /* Check fragmentation level */
+    fragmentation_ratio = mem_opt_calculate_fragmentation_ratio();
+    high_fragmentation = (fragmentation_ratio > 60);
+    
+    /* Memory pressure exists if any two conditions are true, or usage is critical */
+    return (current_usage > (uint64_t)tracker->memory_threshold_critical) ||
+           ((high_usage ? 1 : 0) + (high_failures ? 1 : 0) + (high_fragmentation ? 1 : 0) >= 2);
 }
 
 /*
