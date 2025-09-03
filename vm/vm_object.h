@@ -160,6 +160,10 @@ struct vm_object {
 						 * of their can_persist value
 						 */
 	vm_offset_t		last_alloc;	/* last allocation offset */
+	/* Read-ahead state */
+	vm_offset_t		readahead_next;	/* next expected sequential offset */
+	unsigned int		readahead_count;/* consecutive sequential accesses */
+	unsigned int		readahead_window;/* current read-ahead window size */
 #if	MACH_PAGEMAP
 	vm_external_t		existence_info;
 #endif	/* MACH_PAGEMAP */

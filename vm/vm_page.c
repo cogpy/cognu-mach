@@ -51,6 +51,10 @@
 
 #define DEBUG 0
 
+#ifndef INT_MAX
+#define INT_MAX 2147483647
+#endif
+
 #define __init
 #define __initdata
 #define __read_mostly
@@ -172,6 +176,14 @@ struct vm_page_free_list {
 #define VM_PAGE_HIGH_ACTIVE_PAGE_DENOM  3
 
 /*
+ * Adaptive cache sizing parameters
+ */
+#define VM_PAGE_CACHE_ADAPT_INTERVAL    100    /* Adaptation interval in page operations */
+#define VM_PAGE_CACHE_MIN_SCALE         50     /* Minimum cache scale percentage */
+#define VM_PAGE_CACHE_MAX_SCALE         200    /* Maximum cache scale percentage */
+#define VM_PAGE_CACHE_PRESSURE_THRESHOLD 90    /* Memory pressure threshold percentage */
+
+/*
  * Page cache queue.
  *
  * XXX The current implementation hardcodes a preference to evict external
@@ -220,6 +232,13 @@ struct vm_page_seg {
     unsigned long high_active_pages;
     struct vm_page_queue inactive_pages;
     unsigned long nr_inactive_pages;
+    
+    /* Adaptive cache sizing data */
+    unsigned long cache_scale_percent;     /* Current cache scaling factor (50-200%) */
+    unsigned long adapt_counter;           /* Operations counter for adaptation interval */
+    unsigned long cache_hits;              /* Cache hit counter for adaptation */
+    unsigned long cache_misses;            /* Cache miss counter for adaptation */
+    unsigned long base_high_active_pages;  /* Base threshold before scaling */
 };
 
 /*
@@ -656,6 +675,13 @@ vm_page_seg_init(struct vm_page_seg *seg, phys_addr_t start, phys_addr_t end,
     seg->nr_active_pages = 0;
     vm_page_queue_init(&seg->inactive_pages);
     seg->nr_inactive_pages = 0;
+    
+    /* Initialize adaptive cache sizing */
+    seg->cache_scale_percent = 100;    /* Start with 100% base scaling */
+    seg->adapt_counter = 0;
+    seg->cache_hits = 0;
+    seg->cache_misses = 0;
+    seg->base_high_active_pages = 0;
 
     i = vm_page_seg_index(seg);
 
@@ -922,6 +948,71 @@ vm_page_seg_pull_inactive_page(struct vm_page_seg *seg, boolean_t external_only)
 }
 
 /*
+ * Enhanced cache replacement policy - select best candidate for eviction
+ * This is a simplified version that works with existing infrastructure
+ */
+static struct vm_page *
+vm_page_seg_select_best_inactive_page(struct vm_page_seg *seg, boolean_t external_only)
+{
+    struct vm_page *page, *best_candidate = NULL;
+    struct list* page_list;
+    struct list* node;
+    int best_score = INT_MAX;
+    int score, count = 0;
+    const int max_search = 16;  /* Limit search to avoid performance impact */
+    
+    /* Search inactive pages first - they are primary candidates */
+    page_list = external_only ? &seg->inactive_pages.external_pages 
+                              : &seg->inactive_pages.internal_pages;
+    
+    /* Simple linear search of first few pages to find best candidate */
+    if (!list_empty(page_list)) {
+        for (node = list_first(page_list); 
+             node != page_list && count < max_search; 
+             node = list_next(node), count++) {
+            
+            page = list_entry(node, struct vm_page, node);
+            
+            if (!page->busy && !page->absent) {
+                /* Calculate eviction score (lower is better) */
+                score = (page->access_frequency * 4) + page->aging_time;
+                
+                if (score < best_score || best_candidate == NULL) {
+                    best_score = score;
+                    best_candidate = page;
+                }
+            }
+        }
+    }
+    
+    return best_candidate;
+}
+
+/*
+ * Update page access frequency and aging for replacement policy
+ */
+static void
+vm_page_update_replacement_data(struct vm_page *page, boolean_t accessed)
+{
+    if (accessed) {
+        /* Increment access frequency (saturating at 15) */
+        if (page->access_frequency < 15) {
+            page->access_frequency++;
+        }
+        /* Reset aging time on access */
+        page->aging_time = 0;
+    } else {
+        /* Age the page (increment aging time, saturating at 15) */
+        if (page->aging_time < 15) {
+            page->aging_time++;
+        }
+        /* Decay access frequency slowly */
+        if (page->access_frequency > 0 && page->aging_time > 8) {
+            page->access_frequency--;
+        }
+    }
+}
+/*
  * Attempt to pull a page cache page.
  *
  * If successful, the object containing the page is locked.
@@ -933,20 +1024,37 @@ vm_page_seg_pull_cache_page(struct vm_page_seg *seg,
 {
     struct vm_page *page;
 
+    /* Try enhanced selection for inactive pages first */
+    page = vm_page_seg_select_best_inactive_page(seg, external_only);
+    
+    if (page != NULL) {
+        vm_page_seg_remove_inactive_page(seg, page);
+        /* Update replacement data to reflect access */
+        vm_page_update_replacement_data(page, FALSE);  /* Mark as being evicted */
+        *was_active = FALSE;
+        seg->cache_hits++;  /* Track cache hit */
+        return page;
+    }
+
+    /* Fall back to original inactive page selection */
     page = vm_page_seg_pull_inactive_page(seg, external_only);
 
     if (page != NULL) {
         *was_active = FALSE;
+        seg->cache_hits++;  /* Track cache hit */
         return page;
     }
 
+    /* Try active pages as last resort */
     page = vm_page_seg_pull_active_page(seg, external_only);
 
     if (page != NULL) {
         *was_active = TRUE;
+        seg->cache_hits++;  /* Track cache hit */
         return page;
     }
 
+    seg->cache_misses++;  /* Track cache miss */
     return NULL;
 }
 
@@ -1262,8 +1370,76 @@ vm_page_seg_compute_high_active_page(struct vm_page_seg *seg)
     unsigned long nr_pages;
 
     nr_pages = seg->nr_active_pages + seg->nr_inactive_pages;
-    seg->high_active_pages = nr_pages * VM_PAGE_HIGH_ACTIVE_PAGE_NUM
-                             / VM_PAGE_HIGH_ACTIVE_PAGE_DENOM;
+    seg->base_high_active_pages = nr_pages * VM_PAGE_HIGH_ACTIVE_PAGE_NUM
+                                  / VM_PAGE_HIGH_ACTIVE_PAGE_DENOM;
+    
+    /* Apply adaptive scaling */
+    seg->high_active_pages = (seg->base_high_active_pages * seg->cache_scale_percent) / 100;
+}
+
+/*
+ * Adaptive cache sizing - adjust cache size based on memory pressure and hit rate
+ */
+static void
+vm_page_seg_adapt_cache_size(struct vm_page_seg *seg)
+{
+    unsigned long memory_pressure, hit_rate;
+    unsigned long new_scale;
+    
+    seg->adapt_counter++;
+    
+    /* Only adapt every VM_PAGE_CACHE_ADAPT_INTERVAL operations */
+    if (seg->adapt_counter < VM_PAGE_CACHE_ADAPT_INTERVAL) {
+        return;
+    }
+    
+    /* Reset counter and calculate metrics */
+    seg->adapt_counter = 0;
+    
+    /* Calculate memory pressure as percentage of free pages vs thresholds */
+    if (seg->nr_free_pages <= seg->min_free_pages) {
+        memory_pressure = 100;  /* Critical pressure */
+    } else if (seg->nr_free_pages <= seg->low_free_pages) {
+        memory_pressure = 80 + (20 * (seg->low_free_pages - seg->nr_free_pages)) 
+                          / (seg->low_free_pages - seg->min_free_pages);
+    } else {
+        memory_pressure = (80 * (seg->high_free_pages - seg->nr_free_pages)) 
+                         / (seg->high_free_pages - seg->low_free_pages);
+    }
+    
+    /* Calculate cache hit rate */
+    if (seg->cache_hits + seg->cache_misses > 0) {
+        hit_rate = (seg->cache_hits * 100) / (seg->cache_hits + seg->cache_misses);
+    } else {
+        hit_rate = 50;  /* Default neutral hit rate */
+    }
+    
+    /* Adjust cache size based on pressure and hit rate */
+    new_scale = seg->cache_scale_percent;
+    
+    if (memory_pressure > VM_PAGE_CACHE_PRESSURE_THRESHOLD) {
+        /* High memory pressure - reduce cache size */
+        new_scale = (new_scale * 90) / 100;
+    } else if (memory_pressure < 50 && hit_rate > 80) {
+        /* Low pressure and good hit rate - increase cache size */
+        new_scale = (new_scale * 110) / 100;
+    } else if (hit_rate < 30) {
+        /* Poor hit rate - reduce cache size */
+        new_scale = (new_scale * 95) / 100;
+    }
+    
+    /* Clamp to valid range */
+    if (new_scale < VM_PAGE_CACHE_MIN_SCALE) {
+        new_scale = VM_PAGE_CACHE_MIN_SCALE;
+    } else if (new_scale > VM_PAGE_CACHE_MAX_SCALE) {
+        new_scale = VM_PAGE_CACHE_MAX_SCALE;
+    }
+    
+    seg->cache_scale_percent = new_scale;
+    
+    /* Reset counters for next interval */
+    seg->cache_hits = 0;
+    seg->cache_misses = 0;
 }
 
 static void
@@ -1273,6 +1449,8 @@ vm_page_seg_refill_inactive(struct vm_page_seg *seg)
 
     simple_lock(&seg->lock);
 
+    /* Apply adaptive cache sizing */
+    vm_page_seg_adapt_cache_size(seg);
     vm_page_seg_compute_high_active_page(seg);
 
     while (seg->nr_active_pages > seg->high_active_pages) {
@@ -1871,6 +2049,9 @@ vm_page_activate(struct vm_page *page)
 
         if (page->active)
             panic("vm_page_activate: already active");
+
+        /* Update replacement policy data - page is being accessed */
+        vm_page_update_replacement_data(page, TRUE);
 
         simple_lock(&seg->lock);
         vm_page_seg_add_active_page(seg, page);
