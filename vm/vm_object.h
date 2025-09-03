@@ -49,6 +49,9 @@
 #include <vm/pmap.h>
 #include <ipc/ipc_types.h>
 
+/* Forward declarations */
+typedef struct vm_object_memory_stats vm_object_memory_stats_t;
+
 #if	MACH_PAGEMAP
 #include <vm/vm_external.h>
 #endif	/* MACH_PAGEMAP */
@@ -424,18 +427,5 @@ vm_object_unreference_locked (vm_object_t obj)
 {
   return (--obj->ref_count);
 }
-
-/*
- * VM Object Memory Statistics Structure
- */
-typedef struct {
-    unsigned long resident_pages;    /* Total resident pages */
-    unsigned long wired_pages;       /* Wired (non-pageable) pages */
-    unsigned long active_pages;      /* Pages in active queue */
-    unsigned long inactive_pages;    /* Pages in inactive queue */
-    unsigned long dirty_pages;       /* Modified pages */
-    unsigned long referenced_pages;  /* Recently accessed pages */
-    vm_size_t memory_size;          /* Total memory in bytes */
-} vm_object_memory_stats_t;
 
 #endif	/* _VM_VM_OBJECT_H_ */

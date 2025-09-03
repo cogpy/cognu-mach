@@ -42,4 +42,11 @@ extern void vm_page_replace (
     vm_object_t object,
     vm_offset_t offset);
 
+/*
+ * Read-ahead configuration variables
+ */
+extern boolean_t vm_page_readahead_enabled;
+extern int vm_page_readahead_max;
+extern int vm_page_readahead_min;
+
 #endif /* _VM_RESIDENT_H_ */

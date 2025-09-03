@@ -56,6 +56,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_resident.h>
 
 #if	MACH_KDB
 #include <ddb/db_output.h>
