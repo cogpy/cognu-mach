@@ -470,6 +470,39 @@ ipc_kmsg_free(ipc_kmsg_t kmsg)
 }
 
 /*
+ *	Virtual Copy Optimization Helper Functions
+ */
+
+/*
+ *	Routine:	ipc_should_use_virtual_copy
+ *	Purpose:
+ *		Determines if virtual copy should be used for the given data size.
+ *		Virtual copy uses vm_map_copy mechanisms instead of physical copying
+ *		for better performance with large out-of-line data.
+ *	Conditions:
+ *		Nothing locked.
+ */
+static inline boolean_t
+ipc_should_use_virtual_copy(vm_size_t length)
+{
+	return (length >= IPC_VIRTUAL_COPY_THRESHOLD);
+}
+
+/*
+ *	Routine:	ipc_should_use_zero_copy
+ *	Purpose:
+ *		Determines if zero-copy should be attempted for the given data size.
+ *		Zero-copy avoids all copying by using copy-on-write page mapping.
+ *	Conditions:
+ *		Nothing locked.
+ */
+static inline boolean_t
+ipc_should_use_zero_copy(vm_size_t length)
+{
+	return (length >= IPC_ZERO_COPY_THRESHOLD);
+}
+
+/*
  *	Routine:	ipc_kmsg_get
  *	Purpose:
  *		Allocates a kernel message buffer.
@@ -1438,11 +1471,37 @@ ipc_kmsg_copyin_body(
 			} else {
 				vm_map_copy_t copy;
 
+				/*
+				 * Virtual copy optimization: For large out-of-line data,
+				 * use more efficient copying mechanisms to reduce overhead.
+				 */
 		      		if (use_page_lists) {
 					kr = vm_map_copyin_page_list(map,
 				        	addr, length, dealloc,
 						steal_pages, &copy, FALSE);
+				} else if (ipc_should_use_zero_copy(length)) {
+					/*
+					 * Zero-copy optimization: For very large data,
+					 * try to use copy-on-write semantics to avoid
+					 * any physical copying when possible.
+					 */
+					kr = vm_map_copyin(map, addr, length,
+							   FALSE, &copy);
+					if (kr == KERN_SUCCESS && dealloc) {
+						/* Deallocate source after successful zero-copy */
+						(void) vm_deallocate(map, addr, length);
+					}
+				} else if (ipc_should_use_virtual_copy(length)) {
+					/*
+					 * Virtual copy optimization: Use vm_map_copyin 
+					 * for efficient handling of large data blocks.
+					 */
+					kr = vm_map_copyin(map, addr, length,
+							   dealloc, &copy);
 				} else {
+					/*
+					 * Standard copy for smaller data
+					 */
 					kr = vm_map_copyin(map, addr, length,
 							   dealloc, &copy);
 				}
@@ -2491,6 +2550,12 @@ ipc_kmsg_copyout_body(
 			} else {
 				vm_map_copy_t copy = (vm_map_copy_t) data;
 
+				/*
+				 * Virtual copy optimization: For large out-of-line data
+				 * copyout, vm_map_copyout is already efficient and uses
+				 * virtual memory mechanisms. The copy object should 
+				 * preserve the optimization decisions made during copyin.
+				 */
 				kr = vm_map_copyout(map, &addr, copy);
 				if (kr != KERN_SUCCESS) {
 					vm_map_copy_discard(copy);

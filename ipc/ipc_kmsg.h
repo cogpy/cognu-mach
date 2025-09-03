@@ -153,6 +153,14 @@ MACRO_END
 #define	IKM_SAVED_KMSG_SIZE	PAGE_SIZE
 #define	IKM_SAVED_MSG_SIZE	ikm_less_overhead(IKM_SAVED_KMSG_SIZE)
 
+/*
+ *	Virtual copy optimization thresholds.
+ *	For out-of-line data larger than this threshold, prefer virtual copy
+ *	mechanisms (vm_map_copy with copy-on-write) over physical copying.
+ */
+#define	IPC_VIRTUAL_COPY_THRESHOLD	(2 * PAGE_SIZE)
+#define	IPC_ZERO_COPY_THRESHOLD		(4 * PAGE_SIZE)
+
 #define	ikm_alloc(size)							\
 		((ipc_kmsg_t) kalloc(ikm_plus_overhead(size)))
 
