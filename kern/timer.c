@@ -75,6 +75,23 @@ void timer_init(timer_t this_timer)
 	this_timer->high_bits_check = 0;
 }
 
+#ifdef TICKLESS_TIMER
+/*
+ * Optimized timer update function for tickless operation.
+ * Reduces overhead by avoiding unnecessary normalization checks.
+ */
+static inline void
+timer_update_optimized(timer_t timer, int elapsed)
+{
+	timer->low_bits += elapsed;
+	
+	/* Only normalize if we're close to overflow */
+	if (__builtin_expect(timer->low_bits & TIMER_LOW_FULL, 0)) {
+		timer_normalize(timer);
+	}
+}
+#endif /* TICKLESS_TIMER */
+
 #if	STAT_TIME
 #else	/* STAT_TIME */
 
@@ -123,12 +140,16 @@ time_trap_uentry(unsigned ts)
 	/*
 	 *	Update current timer.
 	 */
+#ifdef TICKLESS_TIMER
+	timer_update_optimized(mytimer, elapsed);
+#else
 	mytimer->low_bits += elapsed;
-	mytimer->tstamp = 0;
-
+	
 	if (mytimer->low_bits & TIMER_LOW_FULL) {
 		timer_normalize(mytimer);
 	}
+#endif /* TICKLESS_TIMER */
+	mytimer->tstamp = 0;
 
 	/*
 	 *	Record new timer.

@@ -157,6 +157,67 @@ def_simple_lock_irq_data(static,	timer_lock)	/* lock for ... */
 timer_elt_data_t	timer_head;	/* ordered list of timeouts */
 					/* (doubles as end-of-list) */
 
+#ifdef TICKLESS_TIMER
+/*
+ * Tickless timer support: Check if we have pending timers that require
+ * immediate processing.
+ */
+static boolean_t
+tickless_have_pending_timers(void)
+{
+	timer_elt_t telt;
+	boolean_t have_pending;
+	spl_t s;
+	
+	s = simple_lock_irq(&timer_lock);
+	telt = (timer_elt_t)queue_first(&timer_head.chain);
+	have_pending = (telt->ticks <= elapsed_ticks);
+	simple_unlock_irq(s, &timer_lock);
+	
+	return have_pending;
+}
+
+/*
+ * Calculate ticks until next timer event for tickless operation.
+ * Returns 0 if immediate processing needed, or number of ticks to skip.
+ */
+static unsigned long
+tickless_next_timer_deadline(void)
+{
+	timer_elt_t telt;
+	unsigned long next_deadline = 0;
+	spl_t s;
+	
+	s = simple_lock_irq(&timer_lock);
+	telt = (timer_elt_t)queue_first(&timer_head.chain);
+	if (telt->ticks > elapsed_ticks) {
+		next_deadline = telt->ticks - elapsed_ticks;
+		/* Limit skip to reasonable amount to avoid long delays */
+		if (next_deadline > 100) {
+			next_deadline = 100;
+		}
+	}
+	simple_unlock_irq(s, &timer_lock);
+	
+	return next_deadline;
+}
+
+/*
+ * Check if system can enter tickless mode (no pending work)
+ */
+static boolean_t
+tickless_can_skip_tick(void)
+{
+	/* Don't skip if we have immediate timer work */
+	if (tickless_have_pending_timers()) {
+		return FALSE;
+	}
+	
+	/* Check if next timer is far enough in future */
+	return (tickless_next_timer_deadline() > 1);
+}
+#endif /* TICKLESS_TIMER */
+
 /*
  *	Handle clock interrupts.
  *
@@ -243,7 +304,9 @@ void clock_interrupt(
 	    spl_t s;
 	    timer_elt_t	telt;
 	    boolean_t	needsoft = FALSE;
-
+#ifdef TICKLESS_TIMER
+	    boolean_t	should_skip_tick = FALSE;
+#endif
 
 	    /*
 	     *	Update the tick count since bootup, and handle
@@ -252,11 +315,28 @@ void clock_interrupt(
 
 	    s = simple_lock_irq(&timer_lock);
 
+#ifdef TICKLESS_TIMER
+	    /* 
+	     * Tickless optimization: Only process ticks if we have
+	     * pending timers or can't skip this tick
+	     */
+	    should_skip_tick = tickless_can_skip_tick();
+	    if (!should_skip_tick) {
+		elapsed_ticks++;
+		
+		telt = (timer_elt_t)queue_first(&timer_head.chain);
+		if (telt->ticks <= elapsed_ticks)
+		    needsoft = TRUE;
+	    }
+#else
+	    /* Traditional tick processing */
 	    elapsed_ticks++;
 
 	    telt = (timer_elt_t)queue_first(&timer_head.chain);
 	    if (telt->ticks <= elapsed_ticks)
 		needsoft = TRUE;
+#endif /* TICKLESS_TIMER */
+	    
 	    simple_unlock_irq(s, &timer_lock);
 
 	    /*
@@ -338,6 +418,10 @@ void softclock(void)
 	timer_elt_t	telt;
 	void	(*fcn)( void * param );
 	void	*param;
+#ifdef TICKLESS_TIMER
+	int processed = 0;
+	const int max_batch = 16; /* Process up to 16 timers per batch */
+#endif
 
 	while (TRUE) {
 	    s = simple_lock_irq(&timer_lock);
@@ -355,6 +439,26 @@ void softclock(void)
 
 	    assert(fcn != 0);
 	    (*fcn)(param);
+	    
+#ifdef TICKLESS_TIMER
+	    /* 
+	     * Tickless optimization: Limit batch processing to reduce
+	     * interrupt latency
+	     */
+	    if (++processed >= max_batch) {
+		/* If there are more timers, schedule another softclock */
+		s = simple_lock_irq(&timer_lock);
+		telt = (timer_elt_t) queue_first(&timer_head.chain);
+		if (telt->ticks <= elapsed_ticks) {
+		    simple_unlock_irq(s, &timer_lock);
+		    setsoftclock(); /* Schedule another round */
+		}
+		else {
+		    simple_unlock_irq(s, &timer_lock);
+		}
+		break;
+	    }
+#endif /* TICKLESS_TIMER */
 	}
 }
 

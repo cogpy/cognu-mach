@@ -210,6 +210,18 @@ AC_ARG_ENABLE([strict-warnings],
 
 AM_CONDITIONAL([STRICT_WARNINGS], [test "x$strict_warnings" = "xyes"])
 
+# Timer optimization options
+AC_ARG_ENABLE([tickless],
+  AS_HELP_STRING([--enable-tickless], 
+    [enable tickless timer operation for reduced overhead @<:@default=no@:>@]),
+  [tickless_timer="$enableval"],
+  [tickless_timer="no"])
+
+AM_CONDITIONAL([TICKLESS_TIMER], [test "x$tickless_timer" = "xyes"])
+
+if test "x$tickless_timer" = "xyes"; then
+  AC_DEFINE([TICKLESS_TIMER], [1], [Define to enable tickless timer operation])
+fi
 
 # Platform-specific configuration.
 
@@ -378,6 +390,7 @@ AC_MSG_NOTICE([  Platform: $host_platform])
 AC_MSG_NOTICE([  Optimization level: $optimization_level])
 AC_MSG_NOTICE([  Debug information: $debug_info])
 AC_MSG_NOTICE([  Strict warnings: $strict_warnings])
+AC_MSG_NOTICE([  Tickless timer: $tickless_timer])
 AC_MSG_NOTICE([  Stack protector: $ssp_possible])
 AC_MSG_NOTICE([  MIG tool: $MIG])
 AC_MSG_NOTICE([])

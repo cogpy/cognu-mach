@@ -23,6 +23,13 @@
 
 /*
  * Mach time-out and time-of-day facility.
+ *
+ * Tickless Timer Optimization:
+ * When TICKLESS_TIMER is enabled, the kernel optimizes timer handling
+ * by avoiding unnecessary timer interrupts when no timers are pending
+ * or when the next timer event is far in the future. This reduces
+ * overall system overhead and improves performance, especially during
+ * idle periods.
  */
 
 #include <mach/machine/kern_return.h>
