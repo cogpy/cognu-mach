@@ -124,6 +124,10 @@ struct vm_page {
 
 	vm_prot_t	page_lock:3;	/* Uses prohibited by data manager (O) */
 	vm_prot_t	unlock_request:3;	/* Outstanding unlock request (O) */
+	
+	/* Cache replacement policy enhancements */
+	unsigned char	access_frequency:4;	/* Access frequency counter (0-15) */
+	unsigned char	aging_time:4;		/* Aging counter for replacement policy */
 
 	struct {} vm_page_footer;
 

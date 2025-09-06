@@ -56,6 +56,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_resident.h>
 
 #if	MACH_KDB
 #include <ddb/db_output.h>
@@ -305,6 +306,11 @@ void vm_object_bootstrap(void)
 	vm_object_template.lock_in_progress = FALSE;
 	vm_object_template.lock_restart = FALSE;
 	vm_object_template.last_alloc = (vm_offset_t) 0;
+	
+	/* Initialize read-ahead fields */
+	vm_object_template.readahead_next = (vm_offset_t) 0;
+	vm_object_template.readahead_count = 0;
+	vm_object_template.readahead_window = vm_page_readahead_min;
 
 #if	MACH_PAGEMAP
 	vm_object_template.existence_info = VM_EXTERNAL_NULL;

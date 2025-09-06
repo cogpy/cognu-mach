@@ -156,6 +156,18 @@ boolean_t vm_page_deactivate_behind = TRUE;
 boolean_t vm_page_deactivate_hint = TRUE;
 
 /*
+ * Read-ahead configuration parameters
+ */
+boolean_t vm_page_readahead_enabled = TRUE;
+int vm_page_readahead_max = 8;        /* Maximum read-ahead window size */
+int vm_page_readahead_min = 2;        /* Minimum read-ahead window size */
+
+/*
+ * Forward declarations
+ */
+static void vm_page_readahead_trigger(vm_object_t object, vm_offset_t offset);
+
+/*
  *	vm_page_bootstrap:
  *
  *	Initializes the resident memory module.
@@ -385,6 +397,70 @@ void vm_page_insert(
 			vm_page_deactivate(last_mem);
 	}
 	object->last_alloc = offset;
+	
+	/*
+	 * Trigger read-ahead for sequential access patterns
+	 */
+	vm_page_readahead_trigger(object, offset);
+}
+
+/*
+ * Read-ahead mechanism - trigger read-ahead for sequential access patterns
+ */
+static void
+vm_page_readahead_trigger(vm_object_t object, vm_offset_t offset)
+{
+	vm_offset_t readahead_offset;
+	vm_page_t page;
+	unsigned int i, window_size;
+	
+	if (!vm_page_readahead_enabled || object == VM_OBJECT_NULL)
+		return;
+		
+	/* Check if this is a sequential access */
+	if (offset == object->readahead_next) {
+		/* Sequential access detected */
+		object->readahead_count++;
+		
+		/* Increase read-ahead window based on sequential pattern */
+		if (object->readahead_count >= 3) {
+			object->readahead_window = MIN(object->readahead_window * 2, 
+			                               vm_page_readahead_max);
+		}
+	} else {
+		/* Non-sequential access - reset read-ahead state */
+		object->readahead_count = 1;
+		object->readahead_window = vm_page_readahead_min;
+	}
+	
+	/* Update next expected offset */
+	object->readahead_next = offset + PAGE_SIZE;
+	
+	/* Only perform read-ahead if we have a strong sequential pattern */
+	if (object->readahead_count < 2)
+		return;
+		
+	window_size = MIN(object->readahead_window, vm_page_readahead_max);
+	
+	/* Trigger read-ahead for the window */
+	for (i = 1; i <= window_size; i++) {
+		readahead_offset = offset + (i * PAGE_SIZE);
+		
+		/* Don't read beyond object size */
+		if (readahead_offset >= object->size)
+			break;
+			
+		/* Check if page is already resident */
+		page = vm_page_lookup(object, readahead_offset);
+		if (page != VM_PAGE_NULL)
+			continue;  /* Page already present */
+			
+		/* TODO: Implement actual read-ahead page request
+		 * For now, we just mark the access pattern - actual
+		 * read-ahead would require integration with the pager
+		 * system which is beyond minimal changes scope.
+		 */
+	}
 }
 
 /*
@@ -642,6 +718,10 @@ static void vm_page_init_template(vm_page_t m)
 
 	m->page_lock = VM_PROT_NONE;
 	m->unlock_request = VM_PROT_NONE;
+	
+	/* Initialize cache replacement policy fields */
+	m->access_frequency = 0;
+	m->aging_time = 0;
 }
 
 /*

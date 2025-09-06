@@ -3847,6 +3847,7 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-vm-merge \
 @PLATFORM_xen_FALSE@	tests/test-vm-object-memory \
 @PLATFORM_xen_FALSE@	tests/test-ipc-large \
+@PLATFORM_xen_FALSE@	tests/test-ipc-virtual-copy \
 @PLATFORM_xen_FALSE@	tests/test-vm-fault \
 @PLATFORM_xen_FALSE@	tests/test-syscalls \
 @PLATFORM_xen_FALSE@	tests/test-machmsg \
@@ -8503,6 +8504,13 @@ tests/test-vm-object-memory.log: tests/test-vm-object-memory
 tests/test-ipc-large.log: tests/test-ipc-large
 	@p='tests/test-ipc-large'; \
 	b='tests/test-ipc-large'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-ipc-virtual-copy.log: tests/test-ipc-virtual-copy
+	@p='tests/test-ipc-virtual-copy'; \
+	b='tests/test-ipc-virtual-copy'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
