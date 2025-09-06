@@ -521,6 +521,10 @@ void init_timeout(void)
 	timer_head.ticks = ~0;	/* MAXUINT - sentinel */
 
 	elapsed_ticks = 0;
+	
+#ifdef TICKLESS_TIMER
+	printf("Tickless timer optimization enabled\n");
+#endif
 }
 
 /*
