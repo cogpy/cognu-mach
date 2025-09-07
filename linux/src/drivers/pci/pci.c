@@ -19,6 +19,17 @@
 
 #include <asm/page.h>
 
+/* Error codes for PCI operations */
+#ifndef EINVAL
+#define EINVAL 22
+#endif
+#ifndef ENODEV  
+#define ENODEV 19
+#endif
+#ifndef EBUSY
+#define EBUSY 16
+#endif
+
 struct pci_bus pci_root;
 struct pci_dev *pci_devices = 0;
 
@@ -1164,6 +1175,33 @@ static unsigned int scan_bus(struct pci_bus *bus, unsigned long *mem_startp)
 		pcibios_read_config_byte(bus->number, devfn,
 					 PCI_INTERRUPT_LINE, &dev->irq);
 
+		/* Initialize resource array */
+		{
+			int i;
+			for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+				dev->resource[i].start = 0;
+				dev->resource[i].end = 0;
+				dev->resource[i].flags = 0;
+				dev->resource[i].name = NULL;
+			}
+		}
+
+		/* Check for PCIe capabilities */
+		dev->pcie_cap = pci_find_capability(dev, PCI_CAP_ID_EXP);
+		if (dev->pcie_cap) {
+			u16 pcie_flags;
+			dev->is_pcie = 1;
+			if (pcie_capability_read_word(dev, PCI_EXP_FLAGS, &pcie_flags) == 0) {
+				dev->pcie_type = (pcie_flags & PCI_EXP_FLAGS_TYPE) >> 4;
+			}
+		} else {
+			dev->is_pcie = 0;
+			dev->pcie_type = 0;
+		}
+
+		/* Setup device resources (BARs) */
+		pci_setup_device_resources(dev);
+
 		/* check to see if this device is a PCI-PCI bridge: */
 		pcibios_read_config_dword(bus->number, devfn,
 					  PCI_CLASS_REVISION, &l);
@@ -1319,4 +1357,225 @@ unsigned long pci_init (unsigned long mem_start, unsigned long mem_end)
 	}
 #endif
 	return mem_start;
+}
+
+/*
+ * PCIe capability functions
+ */
+int pci_find_capability(struct pci_dev *dev, int cap)
+{
+	u16 status;
+	u8 pos, id;
+	int ttl = 48;
+
+	if (pcibios_read_config_word(dev->bus->number, dev->devfn, 
+				     PCI_STATUS, &status) != PCIBIOS_SUCCESSFUL)
+		return 0;
+
+	if (!(status & PCI_STATUS_CAP_LIST))
+		return 0;
+
+	if (pcibios_read_config_byte(dev->bus->number, dev->devfn, 
+				     PCI_CAPABILITY_LIST, &pos) != PCIBIOS_SUCCESSFUL)
+		return 0;
+
+	while (ttl-- && pos >= 0x40) {
+		pos &= ~3;
+		if (pcibios_read_config_byte(dev->bus->number, dev->devfn, 
+					     pos + PCI_CAP_LIST_ID, &id) != PCIBIOS_SUCCESSFUL)
+			return 0;
+		if (id == cap)
+			return pos;
+		if (pcibios_read_config_byte(dev->bus->number, dev->devfn, 
+					     pos + PCI_CAP_LIST_NEXT, &pos) != PCIBIOS_SUCCESSFUL)
+			return 0;
+	}
+	return 0;
+}
+
+int pci_find_ext_capability(struct pci_dev *dev, int cap)
+{
+	u32 header;
+	int ttl = 480; /* 3840 bytes, minimum 8 bytes per capability */
+	int pos = PCI_EXT_CAP_START;
+
+	/* PCIe Extended Config Space access requires memory mapped config */
+	if (!dev->is_pcie)
+		return 0;
+
+	if (pci_read_config_dword_ext(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
+		return 0;
+
+	/*
+	 * If we have no capabilities, this is indicated by cap ID,
+	 * cap version and next pointer all being 0.
+	 */
+	if (header == 0)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < PCI_EXT_CAP_START)
+			break;
+
+		if (pci_read_config_dword_ext(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
+			break;
+	}
+
+	return 0;
+}
+
+int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
+{
+	int ret;
+
+	*val = 0;
+	if (pos & 1)
+		return -EINVAL;
+
+	if (!dev->pcie_cap)
+		return -EINVAL;
+
+	ret = pcibios_read_config_word(dev->bus->number, dev->devfn,
+				       dev->pcie_cap + pos, val);
+	return ret == PCIBIOS_SUCCESSFUL ? 0 : -ENODEV;
+}
+
+int pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
+{
+	int ret;
+
+	if (pos & 1)
+		return -EINVAL;
+
+	if (!dev->pcie_cap)
+		return -EINVAL;
+
+	ret = pcibios_write_config_word(dev->bus->number, dev->devfn,
+				        dev->pcie_cap + pos, val);
+	return ret == PCIBIOS_SUCCESSFUL ? 0 : -ENODEV;
+}
+
+/*
+ * PCI resource management functions
+ */
+int pci_request_regions(struct pci_dev *pdev, const char *res_name)
+{
+	int i;
+	
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		if (pdev->resource[i].flags & PCI_IORESOURCE_IO ||
+		    pdev->resource[i].flags & PCI_IORESOURCE_MEM) {
+			if (pdev->resource[i].flags & PCI_IORESOURCE_BUSY)
+				return -EBUSY;
+			pdev->resource[i].flags |= PCI_IORESOURCE_BUSY;
+			pdev->resource[i].name = (char *)res_name;
+		}
+	}
+	return 0;
+}
+
+void pci_release_regions(struct pci_dev *pdev)
+{
+	int i;
+	
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		if (pdev->resource[i].flags & PCI_IORESOURCE_BUSY) {
+			pdev->resource[i].flags &= ~PCI_IORESOURCE_BUSY;
+			pdev->resource[i].name = NULL;
+		}
+	}
+}
+
+int pci_assign_resource(struct pci_dev *dev, int i)
+{
+	struct pci_resource *res = &dev->resource[i];
+	unsigned long size, min, align;
+	
+	if (res->flags & PCI_IORESOURCE_UNSET) {
+		size = res->end - res->start + 1;
+		min = (res->flags & PCI_IORESOURCE_IO) ? 0x1000 : 0x100000;
+		align = size;
+		
+		/* Simple allocation - in a real implementation this would
+		 * search for available address space */
+		res->start = min;
+		res->end = res->start + size - 1;
+		res->flags &= ~PCI_IORESOURCE_UNSET;
+		
+		return 0;
+	}
+	return -EINVAL;
+}
+
+void pci_setup_device_resources(struct pci_dev *dev)
+{
+	int pos;
+	u32 l, sz;
+	int i;
+	
+	/* Setup standard BARs */
+	for (i = 0; i < 6; i++) {
+		pos = PCI_BASE_ADDRESS_0 + (i << 2);
+		
+		if (pcibios_read_config_dword(dev->bus->number, dev->devfn, pos, &l) != PCIBIOS_SUCCESSFUL)
+			continue;
+			
+		/* Probe for size */
+		pcibios_write_config_dword(dev->bus->number, dev->devfn, pos, ~0);
+		pcibios_read_config_dword(dev->bus->number, dev->devfn, pos, &sz);
+		pcibios_write_config_dword(dev->bus->number, dev->devfn, pos, l);
+		
+		if (!sz || sz == 0xffffffff)
+			continue;
+			
+		if (l & PCI_BASE_ADDRESS_SPACE_IO) {
+			dev->resource[i].flags = PCI_IORESOURCE_IO;
+			sz &= PCI_BASE_ADDRESS_IO_MASK;
+		} else {
+			dev->resource[i].flags = PCI_IORESOURCE_MEM;
+			sz &= PCI_BASE_ADDRESS_MEM_MASK;
+		}
+		
+		if (sz) {
+			sz = ~sz + 1;  /* Size calculation */
+			dev->resource[i].start = l & (dev->resource[i].flags & PCI_IORESOURCE_IO ? 
+						      PCI_BASE_ADDRESS_IO_MASK : PCI_BASE_ADDRESS_MEM_MASK);
+			dev->resource[i].end = dev->resource[i].start + sz - 1;
+			
+			if (!dev->resource[i].start)
+				dev->resource[i].flags |= PCI_IORESOURCE_UNSET;
+		}
+	}
+}
+
+/*
+ * PCIe Extended Configuration Space access
+ * Note: This is a simplified implementation. Real PCIe ECAM requires 
+ * memory-mapped configuration space access.
+ */
+int pci_read_config_dword_ext(struct pci_dev *dev, int pos, u32 *val)
+{
+	/* For now, fall back to standard config space for registers < 256 */
+	if (pos < 256) {
+		return pcibios_read_config_dword(dev->bus->number, dev->devfn, pos, val);
+	}
+	
+	/* Extended space access would go here - requires ECAM or similar */
+	*val = 0;
+	return PCIBIOS_DEVICE_NOT_FOUND;
+}
+
+int pci_write_config_dword_ext(struct pci_dev *dev, int pos, u32 val)
+{
+	/* For now, fall back to standard config space for registers < 256 */
+	if (pos < 256) {
+		return pcibios_write_config_dword(dev->bus->number, dev->devfn, pos, val);
+	}
+	
+	/* Extended space access would go here - requires ECAM or similar */
+	return PCIBIOS_DEVICE_NOT_FOUND;
 }
