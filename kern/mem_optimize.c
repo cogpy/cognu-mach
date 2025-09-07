@@ -555,4 +555,3 @@ void mem_opt_merge_adjacent_free_blocks(void)
     slab_collect();
     mem_opt_defragment_slabs();
 }
-}
