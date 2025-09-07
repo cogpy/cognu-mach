@@ -926,6 +926,21 @@ static void ahci_probe_port(const volatile struct ahci_host *ahci_host, const vo
 
 	writel(readl(&ahci_port->cmd) | PORT_CMD_FIS_RX | PORT_CMD_START, &ahci_port->cmd);
 
+	/* Enable SATA power management features if supported */
+	u32 cap = readl(&ahci_host->cap);
+	u32 cap2 = readl(&ahci_host->cap2);
+	
+	if (cap & HOST_CAP_ALPM) {
+		/* Enable Aggressive Link Power Management */
+		writel(readl(&ahci_port->cmd) | PORT_CMD_ALPE | PORT_CMD_ASP, &ahci_port->cmd);
+		printk("sd%u: ALPM enabled\n", (unsigned) (port-ports));
+	}
+	
+	if (cap2 & HOST_CAP2_SDS) {
+		/* Enable SATA Device Sleep support */
+		printk("sd%u: Device Sleep support available\n", (unsigned) (port-ports));
+	}
+
        /* if PxCMD.ATAPI is set, try ATAPI identify; otherwise try AHCI, then ATAPI */
        if (readl(&ahci_port->cmd) & PORT_CMD_ATAPI ||
               ahci_identify(ahci_host, ahci_port, port, WIN_IDENTIFY) >= 2)
@@ -979,6 +994,32 @@ static void ahci_probe_dev(unsigned char bus, unsigned char device)
 
 	/* Map mmio */
 	ahci_host = vremap(bar, 0x2000);
+
+	/* Report controller capabilities */
+	u32 cap = readl(&ahci_host->cap);
+	u32 cap2 = readl(&ahci_host->cap2);
+	u32 version = readl(&ahci_host->vs);
+	
+	printk("ahci: %02x:%02x.%x: AHCI %u.%u controller\n", bus, dev, fun, 
+		   version >> 16, (version >> 8) & 0xff);
+	
+	printk("ahci: %02x:%02x.%x: Features:%s%s%s%s%s%s%s%s\n", bus, dev, fun,
+		   (cap & HOST_CAP_64) ? " 64bit" : "",
+		   (cap & HOST_CAP_NCQ) ? " NCQ" : "",
+		   (cap & HOST_CAP_ALPM) ? " ALPM" : "",
+		   (cap & HOST_CAP_LED) ? " LED" : "",
+		   (cap & HOST_CAP_CLO) ? " CLO" : "",
+		   (cap & HOST_CAP_PMP) ? " PMP" : "",
+		   (cap & HOST_CAP_FBS) ? " FBS" : "",
+		   (cap & HOST_CAP_SSS) ? " SSS" : "");
+		   
+	if (cap2) {
+		printk("ahci: %02x:%02x.%x: Extended:%s%s%s%s\n", bus, dev, fun,
+			   (cap2 & HOST_CAP2_BOH) ? " BIOS/OS-Handoff" : "",
+			   (cap2 & HOST_CAP2_NVMHCI) ? " NVMHCI" : "",
+			   (cap2 & HOST_CAP2_APST) ? " APST" : "",
+			   (cap2 & HOST_CAP2_SDS) ? " DevSlp" : "");
+	}
 
 	/* Request IRQ */
 	if (request_irq(irq, &ahci_interrupt, SA_SHIRQ, "ahci", (void*) ahci_host)) {
@@ -1047,6 +1088,16 @@ static void ahci_probe_dev(unsigned char bus, unsigned char device)
 		}
 
 		ipm = (ssts >> 8) & 0xf;
+		u8 spd = (ssts >> 4) & 0xf;  /* Current interface speed */
+		
+		/* Report SATA link speed */
+		const char* speed_names[] = {"No speed", "Gen1 (1.5 Gbps)", "Gen2 (3.0 Gbps)", "Gen3 (6.0 Gbps)"};
+		if (spd <= 3) {
+			printk("ahci: %02x:%02x.%x: Port %u SATA %s\n", bus, dev, fun, i, speed_names[spd]);
+		} else {
+			printk("ahci: %02x:%02x.%x: Port %u SATA speed %u (unknown)\n", bus, dev, fun, i, spd);
+		}
+		
 		switch (ipm)
 		{
 			case 0x0:
@@ -1060,6 +1111,9 @@ static void ahci_probe_dev(unsigned char bus, unsigned char device)
 				continue;
 			case 0x6:
 				printk("ahci: %02x:%02x.%x: Port %u in Slumber power management. TODO: power on device\n", bus, dev, fun, i);
+				continue;
+			case 0x8:
+				printk("ahci: %02x:%02x.%x: Port %u in DevSlp power management\n", bus, dev, fun, i);
 				continue;
 			default:
 				printk("ahci: %02x:%02x.%x: Unknown port %u IPM %x\n", bus, dev, fun, i, ipm);
