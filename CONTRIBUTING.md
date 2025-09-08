@@ -2,6 +2,13 @@
 
 This project is organized into four phases, with execution posture and review depth changing by phase. See `.cursorrules` for the full posture.
 
+## New to GNU Mach Development?
+
+👋 **Welcome!** If you're new to kernel development or this project:
+- Read the [New Developer Guide](docs/new-developer-guide.md) for step-by-step onboarding
+- Consider joining our [Mentorship Program](docs/mentorship-program.md) for guided support
+- Start with issues labeled `good first issue` and `phase:1`
+
 ## Quick start
 - Build (WSL/Linux recommended):
   - `./scripts/dev-setup-wsl.sh`

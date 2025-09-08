@@ -1,5 +1,11 @@
 blank_issues_enabled: true
 contact_links:
+  - name: New Developer Guide
+    url: https://github.com/Kaw-Ai/cognu-mach/blob/main/docs/new-developer-guide.md
+    about: Comprehensive guide for new developers getting started with GNU Mach
+  - name: Mentorship Program
+    url: https://github.com/Kaw-Ai/cognu-mach/blob/main/docs/mentorship-program.md
+    about: Information about our developer mentorship program
   - name: Build/CI is failing
     url: https://github.com/OWNER/REPO/actions
     about: Check recent CI runs for error logs and artifacts
