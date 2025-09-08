@@ -28,7 +28,7 @@
  *	Author:	Avadis Tevanian, Jr.
  *	Date: 1985
  *
- *	Header file for VM data types.  I386 version.
+ *	Header file for VM data types.  x86_64 version.
  */
 
 #ifndef	_MACHINE_VM_TYPES_H_

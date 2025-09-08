@@ -29,7 +29,7 @@
  *	Date:	7/92
  *
  *	Header file for the basic, machine-dependent data types.
- *	Version for 32 bit architectures.
+ *	Version for 64 bit x86_64 architecture.
  *
  */
 
@@ -40,8 +40,8 @@
  * A natural_t is the type for the native
  * unsigned integer type, usually 32 bits. It is suitable for
  * most counters with a small chance of overflow.
- * While historically natural_t was meant to be the same
- * as a pointer, that is not the case here.
+ * On 64-bit architectures, natural_t should remain 32-bit
+ * for protocol compatibility.
  */
 type natural_t = uint32_t;
 
