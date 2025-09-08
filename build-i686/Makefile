@@ -1593,11 +1593,13 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/ipc_host.c kern/ipc_host.h kern/ipc_kobject.c \
 	kern/ipc_kobject.h kern/ipc_mig.c kern/ipc_mig.h \
 	kern/ipc_sched.c kern/ipc_sched.h kern/ipc_tt.c kern/ipc_tt.h \
-	kern/kalloc.h kern/kern_types.h kern/kmutex.c kern/kmutex.h \
-	kern/list.h kern/lock.c kern/lock.h kern/lock_mon.c \
-	kern/log2.h kern/mach_clock.c kern/mach_clock.h \
-	kern/mach_factor.c kern/mach_factor.h kern/machine.c \
-	kern/machine.h kern/macros.h kern/pc_sample.c kern/pc_sample.h \
+	kern/kalloc.h kern/kalloc_enhanced.c kern/kalloc_enhanced.h \
+	kern/kern_types.h kern/kmutex.c kern/kmutex.h kern/list.h \
+	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
+	kern/mach_clock.c kern/mach_clock.h kern/mach_factor.c \
+	kern/mach_factor.h kern/machine.c kern/machine.h kern/macros.h \
+	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
+	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
 	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
 	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
 	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
@@ -1616,15 +1618,15 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	vm/pmap.h vm/vm_debug.c vm/vm_external.c vm/vm_external.h \
 	vm/vm_fault.c vm/vm_fault.h vm/vm_init.c vm/vm_init.h \
 	vm/vm_kern.c vm/vm_kern.h vm/vm_map.c vm/vm_map.h \
-	vm/vm_object.c vm/vm_object.h vm/vm_page.c vm/vm_page.h \
-	vm/vm_pageout.c vm/vm_pageout.h vm/vm_print.h vm/vm_resident.c \
-	vm/vm_resident.h vm/vm_types.h vm/vm_user.c vm/vm_user.h \
-	device/blkio.c device/blkio.h device/buf.h device/chario.c \
-	device/chario.h device/cirbuf.h device/conf.h device/cons.c \
-	device/cons.h device/device_emul.h device/dev_hdr.h \
-	device/dev_lookup.c device/dev_master.h device/dev_name.c \
-	device/dev_pager.c device/dev_pager.h device/device_init.c \
-	device/device_init.h device/device_port.h \
+	vm/vm_object.c vm/vm_object.h vm/vm_object_verify.c \
+	vm/vm_page.c vm/vm_page.h vm/vm_pageout.c vm/vm_pageout.h \
+	vm/vm_print.h vm/vm_resident.c vm/vm_resident.h vm/vm_types.h \
+	vm/vm_user.c vm/vm_user.h device/blkio.c device/blkio.h \
+	device/buf.h device/chario.c device/chario.h device/cirbuf.h \
+	device/conf.h device/cons.c device/cons.h device/device_emul.h \
+	device/dev_hdr.h device/dev_lookup.c device/dev_master.h \
+	device/dev_name.c device/dev_pager.c device/dev_pager.h \
+	device/device_init.c device/device_init.h device/device_port.h \
 	device/device_types_kernel.h device/ds_routines.c \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
@@ -1882,14 +1884,15 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/host.$(OBJEXT) kern/ipc_host.$(OBJEXT) \
 	kern/ipc_kobject.$(OBJEXT) kern/ipc_mig.$(OBJEXT) \
 	kern/ipc_sched.$(OBJEXT) kern/ipc_tt.$(OBJEXT) \
-	kern/kmutex.$(OBJEXT) kern/lock.$(OBJEXT) \
-	kern/lock_mon.$(OBJEXT) kern/mach_clock.$(OBJEXT) \
-	kern/mach_factor.$(OBJEXT) kern/machine.$(OBJEXT) \
-	kern/pc_sample.$(OBJEXT) kern/printf.$(OBJEXT) \
-	kern/priority.$(OBJEXT) kern/processor.$(OBJEXT) \
-	kern/profile.$(OBJEXT) kern/queue.$(OBJEXT) \
-	kern/rbtree.$(OBJEXT) kern/rdxtree.$(OBJEXT) \
-	kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) \
+	kern/kalloc_enhanced.$(OBJEXT) kern/kmutex.$(OBJEXT) \
+	kern/lock.$(OBJEXT) kern/lock_mon.$(OBJEXT) \
+	kern/mach_clock.$(OBJEXT) kern/mach_factor.$(OBJEXT) \
+	kern/machine.$(OBJEXT) kern/mem_optimize.$(OBJEXT) \
+	kern/mem_track.$(OBJEXT) kern/pc_sample.$(OBJEXT) \
+	kern/printf.$(OBJEXT) kern/priority.$(OBJEXT) \
+	kern/processor.$(OBJEXT) kern/profile.$(OBJEXT) \
+	kern/queue.$(OBJEXT) kern/rbtree.$(OBJEXT) \
+	kern/rdxtree.$(OBJEXT) kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) \
 	kern/sched_prim.$(OBJEXT) kern/startup.$(OBJEXT) \
 	kern/strings.$(OBJEXT) kern/syscall_emulation.$(OBJEXT) \
 	kern/syscall_subr.$(OBJEXT) kern/syscall_sw.$(OBJEXT) \
@@ -1901,22 +1904,23 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	vm/memory_object.$(OBJEXT) vm/vm_debug.$(OBJEXT) \
 	vm/vm_external.$(OBJEXT) vm/vm_fault.$(OBJEXT) \
 	vm/vm_init.$(OBJEXT) vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
-	vm/vm_object.$(OBJEXT) vm/vm_page.$(OBJEXT) \
-	vm/vm_pageout.$(OBJEXT) vm/vm_resident.$(OBJEXT) \
-	vm/vm_user.$(OBJEXT) device/blkio.$(OBJEXT) \
-	device/chario.$(OBJEXT) device/cons.$(OBJEXT) \
-	device/dev_lookup.$(OBJEXT) device/dev_name.$(OBJEXT) \
-	device/dev_pager.$(OBJEXT) device/device_init.$(OBJEXT) \
-	device/ds_routines.$(OBJEXT) device/intr.$(OBJEXT) \
-	device/net_io.$(OBJEXT) device/subrs.$(OBJEXT) \
-	$(am__objects_4) $(am__objects_5) $(am__objects_6) \
-	$(am__objects_7) $(am__objects_8) $(am__objects_9) \
-	$(am__objects_10) $(am__objects_11) $(am__objects_12) \
-	$(am__objects_13) $(am__objects_14) $(am__objects_15) \
-	$(am__objects_16) $(am__objects_17) $(am__objects_18) \
-	$(am__objects_19) $(am__objects_20) $(am__objects_21) \
-	$(am__objects_22) $(am__objects_23) $(am__objects_24) \
-	$(am__objects_25) $(am__objects_26) $(am__objects_27)
+	vm/vm_object.$(OBJEXT) vm/vm_object_verify.$(OBJEXT) \
+	vm/vm_page.$(OBJEXT) vm/vm_pageout.$(OBJEXT) \
+	vm/vm_resident.$(OBJEXT) vm/vm_user.$(OBJEXT) \
+	device/blkio.$(OBJEXT) device/chario.$(OBJEXT) \
+	device/cons.$(OBJEXT) device/dev_lookup.$(OBJEXT) \
+	device/dev_name.$(OBJEXT) device/dev_pager.$(OBJEXT) \
+	device/device_init.$(OBJEXT) device/ds_routines.$(OBJEXT) \
+	device/intr.$(OBJEXT) device/net_io.$(OBJEXT) \
+	device/subrs.$(OBJEXT) $(am__objects_4) $(am__objects_5) \
+	$(am__objects_6) $(am__objects_7) $(am__objects_8) \
+	$(am__objects_9) $(am__objects_10) $(am__objects_11) \
+	$(am__objects_12) $(am__objects_13) $(am__objects_14) \
+	$(am__objects_15) $(am__objects_16) $(am__objects_17) \
+	$(am__objects_18) $(am__objects_19) $(am__objects_20) \
+	$(am__objects_21) $(am__objects_22) $(am__objects_23) \
+	$(am__objects_24) $(am__objects_25) $(am__objects_26) \
+	$(am__objects_27)
 am__objects_28 = i386/i386/mach_i386.server.$(OBJEXT)
 #am__objects_29 =  \
 #	i386/i386/mach_i386.server.$(OBJEXT)
@@ -2435,7 +2439,8 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/gsync.Po kern/$(DEPDIR)/host.Po \
 	kern/$(DEPDIR)/ipc_host.Po kern/$(DEPDIR)/ipc_kobject.Po \
 	kern/$(DEPDIR)/ipc_mig.Po kern/$(DEPDIR)/ipc_sched.Po \
-	kern/$(DEPDIR)/ipc_tt.Po kern/$(DEPDIR)/kmutex.Po \
+	kern/$(DEPDIR)/ipc_tt.Po kern/$(DEPDIR)/kalloc_enhanced.Po \
+	kern/$(DEPDIR)/kmutex.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-exc.none.defs.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-experimental.server.defs.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-gnumach.server.defs.Po \
@@ -2450,6 +2455,7 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/mach_debug.server.Po \
 	kern/$(DEPDIR)/mach_factor.Po \
 	kern/$(DEPDIR)/mach_host.server.Po kern/$(DEPDIR)/machine.Po \
+	kern/$(DEPDIR)/mem_optimize.Po kern/$(DEPDIR)/mem_track.Po \
 	kern/$(DEPDIR)/pc_sample.Po kern/$(DEPDIR)/printf.Po \
 	kern/$(DEPDIR)/priority.Po kern/$(DEPDIR)/processor.Po \
 	kern/$(DEPDIR)/profile.Po kern/$(DEPDIR)/queue.Po \
@@ -2616,11 +2622,11 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	vm/$(DEPDIR)/vm_debug.Po vm/$(DEPDIR)/vm_external.Po \
 	vm/$(DEPDIR)/vm_fault.Po vm/$(DEPDIR)/vm_init.Po \
 	vm/$(DEPDIR)/vm_kern.Po vm/$(DEPDIR)/vm_map.Po \
-	vm/$(DEPDIR)/vm_object.Po vm/$(DEPDIR)/vm_page.Po \
-	vm/$(DEPDIR)/vm_pageout.Po vm/$(DEPDIR)/vm_resident.Po \
-	vm/$(DEPDIR)/vm_user.Po x86_64/$(DEPDIR)/_setjmp.Po \
-	x86_64/$(DEPDIR)/boothdr.Po x86_64/$(DEPDIR)/cswitch.Po \
-	x86_64/$(DEPDIR)/debug_trace.Po \
+	vm/$(DEPDIR)/vm_object.Po vm/$(DEPDIR)/vm_object_verify.Po \
+	vm/$(DEPDIR)/vm_page.Po vm/$(DEPDIR)/vm_pageout.Po \
+	vm/$(DEPDIR)/vm_resident.Po vm/$(DEPDIR)/vm_user.Po \
+	x86_64/$(DEPDIR)/_setjmp.Po x86_64/$(DEPDIR)/boothdr.Po \
+	x86_64/$(DEPDIR)/cswitch.Po x86_64/$(DEPDIR)/debug_trace.Po \
 	x86_64/$(DEPDIR)/idt_inittab.Po x86_64/$(DEPDIR)/interrupt.Po \
 	x86_64/$(DEPDIR)/kdasm.Po x86_64/$(DEPDIR)/locore.Po \
 	x86_64/$(DEPDIR)/spl.Po x86_64/$(DEPDIR)/xen_boothdr.Po \
@@ -3084,7 +3090,7 @@ CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2 -ffreestanding -nostdlib -g -O2 -Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wformat=2 -Wformat-security -Wold-style-definition -Wno-unused-parameter -Wno-sign-compare
 
 # We need this because we use $(CPP) to preprocess MIG .defs files.
-CPP = gcc -m32 -E -x c
+CPP = cpp -x c
 CPPFLAGS = 
 CSCOPE = cscope
 CTAGS = ctags
@@ -3129,7 +3135,7 @@ SHELL = /bin/bash
 STRIP = strip
 USER_CC = gcc -m32
 USER_CFLAGS = 
-USER_CPP = gcc -m32 -E
+USER_CPP = cpp
 USER_CPPFLAGS = 
 USER_MIG = 
 VERSION = 1.8
@@ -3379,11 +3385,13 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/ipc_host.c kern/ipc_host.h kern/ipc_kobject.c \
 	kern/ipc_kobject.h kern/ipc_mig.c kern/ipc_mig.h \
 	kern/ipc_sched.c kern/ipc_sched.h kern/ipc_tt.c kern/ipc_tt.h \
-	kern/kalloc.h kern/kern_types.h kern/kmutex.c kern/kmutex.h \
-	kern/list.h kern/lock.c kern/lock.h kern/lock_mon.c \
-	kern/log2.h kern/mach_clock.c kern/mach_clock.h \
-	kern/mach_factor.c kern/mach_factor.h kern/machine.c \
-	kern/machine.h kern/macros.h kern/pc_sample.c kern/pc_sample.h \
+	kern/kalloc.h kern/kalloc_enhanced.c kern/kalloc_enhanced.h \
+	kern/kern_types.h kern/kmutex.c kern/kmutex.h kern/list.h \
+	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
+	kern/mach_clock.c kern/mach_clock.h kern/mach_factor.c \
+	kern/mach_factor.h kern/machine.c kern/machine.h kern/macros.h \
+	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
+	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
 	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
 	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
 	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
@@ -3402,15 +3410,15 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	vm/pmap.h vm/vm_debug.c vm/vm_external.c vm/vm_external.h \
 	vm/vm_fault.c vm/vm_fault.h vm/vm_init.c vm/vm_init.h \
 	vm/vm_kern.c vm/vm_kern.h vm/vm_map.c vm/vm_map.h \
-	vm/vm_object.c vm/vm_object.h vm/vm_page.c vm/vm_page.h \
-	vm/vm_pageout.c vm/vm_pageout.h vm/vm_print.h vm/vm_resident.c \
-	vm/vm_resident.h vm/vm_types.h vm/vm_user.c vm/vm_user.h \
-	device/blkio.c device/blkio.h device/buf.h device/chario.c \
-	device/chario.h device/cirbuf.h device/conf.h device/cons.c \
-	device/cons.h device/device_emul.h device/dev_hdr.h \
-	device/dev_lookup.c device/dev_master.h device/dev_name.c \
-	device/dev_pager.c device/dev_pager.h device/device_init.c \
-	device/device_init.h device/device_port.h \
+	vm/vm_object.c vm/vm_object.h vm/vm_object_verify.c \
+	vm/vm_page.c vm/vm_page.h vm/vm_pageout.c vm/vm_pageout.h \
+	vm/vm_print.h vm/vm_resident.c vm/vm_resident.h vm/vm_types.h \
+	vm/vm_user.c vm/vm_user.h device/blkio.c device/blkio.h \
+	device/buf.h device/chario.c device/chario.h device/cirbuf.h \
+	device/conf.h device/cons.c device/cons.h device/device_emul.h \
+	device/dev_hdr.h device/dev_lookup.c device/dev_master.h \
+	device/dev_name.c device/dev_pager.c device/dev_pager.h \
+	device/device_init.c device/device_init.h device/device_port.h \
 	device/device_types_kernel.h device/ds_routines.c \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
@@ -3836,7 +3844,10 @@ USER_TESTS := \
 	tests/test-mach_port \
 	tests/test-vm \
 	tests/test-vm-boundary \
+	tests/test-vm-merge \
+	tests/test-vm-object-memory \
 	tests/test-ipc-large \
+	tests/test-ipc-virtual-copy \
 	tests/test-vm-fault \
 	tests/test-syscalls \
 	tests/test-machmsg \
@@ -3845,12 +3856,16 @@ USER_TESTS := \
 	tests/test-thread-state \
 	tests/test-thread-state-fp \
 	tests/test-console-timestamps \
+	tests/test-tickless-timer \
 	tests/test-gdb-stub \
 	tests/test-development-tools \
 	tests/test-benchmark-ipc \
 	tests/test-benchmark-memory \
 	tests/test-stress \
-	tests/test-suite-runner
+	tests/test-memory-tracking \
+	tests/test-memory-management-enhanced \
+	tests/test-suite-runner \
+	tests/test-device-framework
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
@@ -4189,6 +4204,8 @@ kern/ipc_sched.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/ipc_tt.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/kalloc_enhanced.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/kmutex.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/lock.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4200,6 +4217,10 @@ kern/mach_clock.$(OBJEXT): kern/$(am__dirstamp) \
 kern/mach_factor.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/machine.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/mem_optimize.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/mem_track.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/pc_sample.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
@@ -4269,6 +4290,8 @@ vm/vm_init.$(OBJEXT): vm/$(am__dirstamp) vm/$(DEPDIR)/$(am__dirstamp)
 vm/vm_kern.$(OBJEXT): vm/$(am__dirstamp) vm/$(DEPDIR)/$(am__dirstamp)
 vm/vm_map.$(OBJEXT): vm/$(am__dirstamp) vm/$(DEPDIR)/$(am__dirstamp)
 vm/vm_object.$(OBJEXT): vm/$(am__dirstamp) \
+	vm/$(DEPDIR)/$(am__dirstamp)
+vm/vm_object_verify.$(OBJEXT): vm/$(am__dirstamp) \
 	vm/$(DEPDIR)/$(am__dirstamp)
 vm/vm_page.$(OBJEXT): vm/$(am__dirstamp) vm/$(DEPDIR)/$(am__dirstamp)
 vm/vm_pageout.$(OBJEXT): vm/$(am__dirstamp) \
@@ -5299,6 +5322,7 @@ include kern/$(DEPDIR)/ipc_kobject.Po # am--include-marker
 include kern/$(DEPDIR)/ipc_mig.Po # am--include-marker
 include kern/$(DEPDIR)/ipc_sched.Po # am--include-marker
 include kern/$(DEPDIR)/ipc_tt.Po # am--include-marker
+include kern/$(DEPDIR)/kalloc_enhanced.Po # am--include-marker
 include kern/$(DEPDIR)/kmutex.Po # am--include-marker
 include kern/$(DEPDIR)/lib_dep_tr_for_defs_a-exc.none.defs.Po # am--include-marker
 include kern/$(DEPDIR)/lib_dep_tr_for_defs_a-experimental.server.defs.Po # am--include-marker
@@ -5317,6 +5341,8 @@ include kern/$(DEPDIR)/mach_debug.server.Po # am--include-marker
 include kern/$(DEPDIR)/mach_factor.Po # am--include-marker
 include kern/$(DEPDIR)/mach_host.server.Po # am--include-marker
 include kern/$(DEPDIR)/machine.Po # am--include-marker
+include kern/$(DEPDIR)/mem_optimize.Po # am--include-marker
+include kern/$(DEPDIR)/mem_track.Po # am--include-marker
 include kern/$(DEPDIR)/pc_sample.Po # am--include-marker
 include kern/$(DEPDIR)/printf.Po # am--include-marker
 include kern/$(DEPDIR)/priority.Po # am--include-marker
@@ -5499,6 +5525,7 @@ include vm/$(DEPDIR)/vm_init.Po # am--include-marker
 include vm/$(DEPDIR)/vm_kern.Po # am--include-marker
 include vm/$(DEPDIR)/vm_map.Po # am--include-marker
 include vm/$(DEPDIR)/vm_object.Po # am--include-marker
+include vm/$(DEPDIR)/vm_object_verify.Po # am--include-marker
 include vm/$(DEPDIR)/vm_page.Po # am--include-marker
 include vm/$(DEPDIR)/vm_pageout.Po # am--include-marker
 include vm/$(DEPDIR)/vm_resident.Po # am--include-marker
@@ -8462,9 +8489,30 @@ tests/test-vm-boundary.log: tests/test-vm-boundary
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-vm-merge.log: tests/test-vm-merge
+	@p='tests/test-vm-merge'; \
+	b='tests/test-vm-merge'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-vm-object-memory.log: tests/test-vm-object-memory
+	@p='tests/test-vm-object-memory'; \
+	b='tests/test-vm-object-memory'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-ipc-large.log: tests/test-ipc-large
 	@p='tests/test-ipc-large'; \
 	b='tests/test-ipc-large'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-ipc-virtual-copy.log: tests/test-ipc-virtual-copy
+	@p='tests/test-ipc-virtual-copy'; \
+	b='tests/test-ipc-virtual-copy'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -8525,6 +8573,13 @@ tests/test-console-timestamps.log: tests/test-console-timestamps
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-tickless-timer.log: tests/test-tickless-timer
+	@p='tests/test-tickless-timer'; \
+	b='tests/test-tickless-timer'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-gdb-stub.log: tests/test-gdb-stub
 	@p='tests/test-gdb-stub'; \
 	b='tests/test-gdb-stub'; \
@@ -8560,9 +8615,30 @@ tests/test-stress.log: tests/test-stress
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-memory-tracking.log: tests/test-memory-tracking
+	@p='tests/test-memory-tracking'; \
+	b='tests/test-memory-tracking'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-memory-management-enhanced.log: tests/test-memory-management-enhanced
+	@p='tests/test-memory-management-enhanced'; \
+	b='tests/test-memory-management-enhanced'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-suite-runner.log: tests/test-suite-runner
 	@p='tests/test-suite-runner'; \
 	b='tests/test-suite-runner'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-device-framework.log: tests/test-device-framework
+	@p='tests/test-device-framework'; \
+	b='tests/test-device-framework'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -9048,6 +9124,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/ipc_mig.Po
 	-rm -f kern/$(DEPDIR)/ipc_sched.Po
 	-rm -f kern/$(DEPDIR)/ipc_tt.Po
+	-rm -f kern/$(DEPDIR)/kalloc_enhanced.Po
 	-rm -f kern/$(DEPDIR)/kmutex.Po
 	-rm -f kern/$(DEPDIR)/lib_dep_tr_for_defs_a-exc.none.defs.Po
 	-rm -f kern/$(DEPDIR)/lib_dep_tr_for_defs_a-experimental.server.defs.Po
@@ -9066,6 +9143,8 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/mach_factor.Po
 	-rm -f kern/$(DEPDIR)/mach_host.server.Po
 	-rm -f kern/$(DEPDIR)/machine.Po
+	-rm -f kern/$(DEPDIR)/mem_optimize.Po
+	-rm -f kern/$(DEPDIR)/mem_track.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
 	-rm -f kern/$(DEPDIR)/printf.Po
 	-rm -f kern/$(DEPDIR)/priority.Po
@@ -9248,6 +9327,7 @@ distclean: distclean-recursive
 	-rm -f vm/$(DEPDIR)/vm_kern.Po
 	-rm -f vm/$(DEPDIR)/vm_map.Po
 	-rm -f vm/$(DEPDIR)/vm_object.Po
+	-rm -f vm/$(DEPDIR)/vm_object_verify.Po
 	-rm -f vm/$(DEPDIR)/vm_page.Po
 	-rm -f vm/$(DEPDIR)/vm_pageout.Po
 	-rm -f vm/$(DEPDIR)/vm_resident.Po
@@ -9564,6 +9644,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/ipc_mig.Po
 	-rm -f kern/$(DEPDIR)/ipc_sched.Po
 	-rm -f kern/$(DEPDIR)/ipc_tt.Po
+	-rm -f kern/$(DEPDIR)/kalloc_enhanced.Po
 	-rm -f kern/$(DEPDIR)/kmutex.Po
 	-rm -f kern/$(DEPDIR)/lib_dep_tr_for_defs_a-exc.none.defs.Po
 	-rm -f kern/$(DEPDIR)/lib_dep_tr_for_defs_a-experimental.server.defs.Po
@@ -9582,6 +9663,8 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/mach_factor.Po
 	-rm -f kern/$(DEPDIR)/mach_host.server.Po
 	-rm -f kern/$(DEPDIR)/machine.Po
+	-rm -f kern/$(DEPDIR)/mem_optimize.Po
+	-rm -f kern/$(DEPDIR)/mem_track.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
 	-rm -f kern/$(DEPDIR)/printf.Po
 	-rm -f kern/$(DEPDIR)/priority.Po
@@ -9764,6 +9847,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f vm/$(DEPDIR)/vm_kern.Po
 	-rm -f vm/$(DEPDIR)/vm_map.Po
 	-rm -f vm/$(DEPDIR)/vm_object.Po
+	-rm -f vm/$(DEPDIR)/vm_object_verify.Po
 	-rm -f vm/$(DEPDIR)/vm_page.Po
 	-rm -f vm/$(DEPDIR)/vm_pageout.Po
 	-rm -f vm/$(DEPDIR)/vm_resident.Po
