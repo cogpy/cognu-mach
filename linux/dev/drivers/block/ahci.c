@@ -243,8 +243,10 @@ static struct port {
 	unsigned is_cd;
 	unsigned long long capacity;	/* Nr of sectors */
 	u32 status;			/* interrupt status */
-	unsigned cls;			/* Command list maximum size.
-					   We currently only use 1. */
+	unsigned cls;			/* Command list maximum size */
+	unsigned ncq_depth;		/* NCQ queue depth (0 if NCQ not supported) */
+	u32 active_slots;		/* Bitmask of active command slots */
+	struct request *slot_rq[AHCI_MAX_CMDS]; /* Requests for each slot */
 	struct wait_queue *q;		/* IRQ wait queue */
 	struct hd_struct *part;		/* drive partition table */
 	unsigned lba48;			/* Whether LBA48 is supported */
@@ -257,6 +259,39 @@ static struct port {
 /* do_request() gets called by the block layer to push a request to the disk.
    We just push one, and when an interrupt tells it's over, we call do_request()
    ourself again to push the next request, etc. */
+
+/* Find an available command slot for NCQ, or return -1 if none available */
+static int ahci_find_free_slot(struct port *port)
+{
+	int slot;
+	
+	if (!port->ncq_depth) {
+		/* Non-NCQ device: use slot 0 if available */
+		return (port->active_slots & 1) ? -1 : 0;
+	}
+	
+	/* NCQ device: find first available slot */
+	for (slot = 0; slot < port->ncq_depth; slot++) {
+		if (!(port->active_slots & (1U << slot)))
+			return slot;
+	}
+	
+	return -1; /* No free slots */
+}
+
+/* Mark a slot as active and associate it with a request */
+static void ahci_activate_slot(struct port *port, int slot, struct request *rq)
+{
+	port->active_slots |= (1U << slot);
+	port->slot_rq[slot] = rq;
+}
+
+/* Mark a slot as inactive and clear the request association */
+static void ahci_deactivate_slot(struct port *port, int slot)
+{
+	port->active_slots &= ~(1U << slot);
+	port->slot_rq[slot] = NULL;
+}
 
 /* Request completed, either successfully or with an error */
 static void ahci_end_request(int uptodate)
@@ -293,11 +328,21 @@ static int ahci_do_port_request(struct port *port, unsigned long long sector, st
 	struct ahci_command *command = port->command;
 	struct ahci_cmd_tbl *prdtl = port->prdtl;
 	struct ahci_fis_h2d *fis_h2d;
-	unsigned slot = 0;
+	int slot;
 	struct buffer_head *bh;
 	unsigned i;
 
+	/* Find an available command slot */
+	slot = ahci_find_free_slot(port);
+	if (slot < 0) {
+		/* No free slots available, request will be retried later */
+		return 1;
+	}
+
 	rq->rq_status = RQ_SCSI_BUSY;
+	
+	/* Associate request with slot */
+	ahci_activate_slot(port, slot, rq);
 
 	/* Shouldn't ever happen: the block glue is limited at 8 blocks */
 	assert(rq->nr_sectors < 0x10000);
@@ -305,9 +350,22 @@ static int ahci_do_port_request(struct port *port, unsigned long long sector, st
 	fis_h2d = (void*) &prdtl[slot].cfis;
 	fis_h2d->fis_type = FIS_TYPE_REG_H2D;
 	fis_h2d->flags = 128;
-	if (port->lba48) {
+	
+	/* Use NCQ commands if supported and we have multiple slots available */
+	if (port->ncq_depth > 1) {
+		/* Use FPDMA READ/WRITE commands for NCQ */
+		if (rq->cmd == READ)
+			fis_h2d->command = 0x60; /* READ FPDMA QUEUED */
+		else
+			fis_h2d->command = 0x61; /* WRITE FPDMA QUEUED */
+		
+		/* For NCQ, tag goes in features field */
+		fis_h2d->featurel = slot;
+		fis_h2d->featureh = 0;
+	} else if (port->lba48) {
 		if (sector >= 1ULL << 48) {
 			printk("sector %llu beyond LBA48\n", sector);
+			ahci_deactivate_slot(port, slot);
 			return -EOVERFLOW;
 		}
 		if (rq->cmd == READ)
@@ -317,6 +375,7 @@ static int ahci_do_port_request(struct port *port, unsigned long long sector, st
 	} else {
 		if (sector >= 1ULL << 28) {
 			printk("sector %llu beyond LBA28\n", sector);
+			ahci_deactivate_slot(port, slot);
 			return -EOVERFLOW;
 		}
 		if (rq->cmd == READ)
@@ -335,6 +394,7 @@ static int ahci_do_port_request(struct port *port, unsigned long long sector, st
 	fis_h2d->lba4 = sector >> 32;
 	fis_h2d->lba5 = sector >> 40;
 
+	/* For NCQ commands, sector count stays in count field */
 	fis_h2d->countl = rq->nr_sectors;
 	fis_h2d->counth = rq->nr_sectors >> 8;
 
@@ -419,42 +479,65 @@ static void ahci_do_request()	/* invoked with cli() */
 	}
 
 	/* Push this to the port */
-	if (ahci_do_port_request(port, block, rq))
-		goto kill_rq;
+	if (ahci_do_port_request(port, block, rq)) {
+		/* No slot available, request will be retried later */
+		return;
+	}
 	return;
 
 kill_rq:
 	ahci_end_request(0);
 }
 
-/* The given port got an interrupt, terminate the current request if any */
+/* The given port got an interrupt, terminate completed requests */
 static void ahci_port_interrupt(struct port *port, u32 status)
 {
-	unsigned slot = 0;
+	u32 completed_slots;
+	int slot;
+	struct request *rq;
 
-	if (readl(&port->ahci_port->ci) & (1 << slot)) {
-		/* Command still pending */
-		return;
-	}
-
+	/* Special handling for identify commands during probe */
 	if (port->identify) {
 		port->status = status;
 		wake_up(&port->q);
 		return;
 	}
 
-	if (!CURRENT || CURRENT->rq_status != RQ_SCSI_BUSY) {
-		/* No request currently running */
-		return;
-	}
-
+	/* Check for errors first */
 	if (status & (PORT_IRQ_TF_ERR | PORT_IRQ_HBUS_ERR | PORT_IRQ_HBUS_DATA_ERR | PORT_IRQ_IF_ERR | PORT_IRQ_IF_NONFATAL)) {
 		printk("ahci error %x %x\n", status, readl(&port->ahci_port->tfd));
-		ahci_end_request(0);
+		/* For NCQ, complete all active commands with error */
+		for (slot = 0; slot < AHCI_MAX_CMDS; slot++) {
+			if (port->active_slots & (1U << slot)) {
+				ahci_deactivate_slot(port, slot);
+			}
+		}
+		/* Complete current request with error */
+		if (CURRENT && CURRENT->rq_status == RQ_SCSI_BUSY) {
+			ahci_end_request(0);
+		}
 		return;
 	}
 
-	ahci_end_request(1);
+	/* Find completed command slots */
+	completed_slots = port->active_slots & ~readl(&port->ahci_port->ci);
+	
+	/* Process each completed slot */
+	for (slot = 0; slot < AHCI_MAX_CMDS; slot++) {
+		if (completed_slots & (1U << slot)) {
+			rq = port->slot_rq[slot];
+			ahci_deactivate_slot(port, slot);
+			
+			/* Complete the request */
+			if (rq && rq->rq_status == RQ_SCSI_BUSY) {
+				/* Set current request for completion */
+				struct request *saved_current = CURRENT;
+				CURRENT = rq;
+				ahci_end_request(1);
+				CURRENT = saved_current;
+			}
+		}
+	}
 }
 
 /* Start of IRQ handler. Iterate over all ports for this host */
@@ -479,9 +562,22 @@ static void ahci_interrupt (int irq, void *host, struct pt_regs *regs)
 		}
 	}
 
-	if (CURRENT)
-		/* Still some requests, queue another one */
+	/* After completing requests, try to start more if NCQ slots are available */
+	while (CURRENT) {
+		int found_slot = 0;
+		/* Check if any port has available slots */
+		for (port = &ports[0]; port < &ports[MAX_PORTS]; port++) {
+			if (port->ahci_host == ahci_host && ahci_find_free_slot(port) >= 0) {
+				found_slot = 1;
+				break;
+			}
+		}
+		if (!found_slot)
+			break;
+			
+		/* Try to queue another request */
 		ahci_do_request();
+	}
 
 	/* Clear host after clearing ports */
 	writel(irq_mask, &ahci_host->is);
@@ -716,6 +812,21 @@ static int ahci_identify(const volatile struct ahci_host *ahci_host, const volat
 			printk("sd%u: %s, %uGB w/%dkB Cache\n", (unsigned) (port - ports), id.model, (unsigned) (port->capacity/(2048*1024)), id.buf_size/2);
 		else
 			printk("sd%u: %s, %uMB w/%dkB Cache\n", (unsigned) (port - ports), id.model, (unsigned) (port->capacity/2048), id.buf_size/2);
+			
+		/* Detect NCQ support */
+		if ((readl(&ahci_host->cap) & HOST_CAP_NCQ) && (id.sata_capability & 0x0100)) {
+			/* Both controller and device support NCQ */
+			port->ncq_depth = (id.queue_depth & 0x1f) + 1;
+			if (port->ncq_depth > AHCI_MAX_CMDS)
+				port->ncq_depth = AHCI_MAX_CMDS;
+			printk("sd%u: NCQ enabled, queue depth %u\n", (unsigned) (port - ports), port->ncq_depth);
+		} else {
+			port->ncq_depth = 0;
+		}
+		
+		/* Initialize slot tracking */
+		port->active_slots = 0;
+		memset(port->slot_rq, 0, sizeof(port->slot_rq));
 	}
 	port->identify = 0;
 
@@ -815,6 +926,21 @@ static void ahci_probe_port(const volatile struct ahci_host *ahci_host, const vo
 
 	writel(readl(&ahci_port->cmd) | PORT_CMD_FIS_RX | PORT_CMD_START, &ahci_port->cmd);
 
+	/* Enable SATA power management features if supported */
+	u32 cap = readl(&ahci_host->cap);
+	u32 cap2 = readl(&ahci_host->cap2);
+	
+	if (cap & HOST_CAP_ALPM) {
+		/* Enable Aggressive Link Power Management */
+		writel(readl(&ahci_port->cmd) | PORT_CMD_ALPE | PORT_CMD_ASP, &ahci_port->cmd);
+		printk("sd%u: ALPM enabled\n", (unsigned) (port-ports));
+	}
+	
+	if (cap2 & HOST_CAP2_SDS) {
+		/* Enable SATA Device Sleep support */
+		printk("sd%u: Device Sleep support available\n", (unsigned) (port-ports));
+	}
+
        /* if PxCMD.ATAPI is set, try ATAPI identify; otherwise try AHCI, then ATAPI */
        if (readl(&ahci_port->cmd) & PORT_CMD_ATAPI ||
               ahci_identify(ahci_host, ahci_port, port, WIN_IDENTIFY) >= 2)
@@ -868,6 +994,32 @@ static void ahci_probe_dev(unsigned char bus, unsigned char device)
 
 	/* Map mmio */
 	ahci_host = vremap(bar, 0x2000);
+
+	/* Report controller capabilities */
+	u32 cap = readl(&ahci_host->cap);
+	u32 cap2 = readl(&ahci_host->cap2);
+	u32 version = readl(&ahci_host->vs);
+	
+	printk("ahci: %02x:%02x.%x: AHCI %u.%u controller\n", bus, dev, fun, 
+		   version >> 16, (version >> 8) & 0xff);
+	
+	printk("ahci: %02x:%02x.%x: Features:%s%s%s%s%s%s%s%s\n", bus, dev, fun,
+		   (cap & HOST_CAP_64) ? " 64bit" : "",
+		   (cap & HOST_CAP_NCQ) ? " NCQ" : "",
+		   (cap & HOST_CAP_ALPM) ? " ALPM" : "",
+		   (cap & HOST_CAP_LED) ? " LED" : "",
+		   (cap & HOST_CAP_CLO) ? " CLO" : "",
+		   (cap & HOST_CAP_PMP) ? " PMP" : "",
+		   (cap & HOST_CAP_FBS) ? " FBS" : "",
+		   (cap & HOST_CAP_SSS) ? " SSS" : "");
+		   
+	if (cap2) {
+		printk("ahci: %02x:%02x.%x: Extended:%s%s%s%s\n", bus, dev, fun,
+			   (cap2 & HOST_CAP2_BOH) ? " BIOS/OS-Handoff" : "",
+			   (cap2 & HOST_CAP2_NVMHCI) ? " NVMHCI" : "",
+			   (cap2 & HOST_CAP2_APST) ? " APST" : "",
+			   (cap2 & HOST_CAP2_SDS) ? " DevSlp" : "");
+	}
 
 	/* Request IRQ */
 	if (request_irq(irq, &ahci_interrupt, SA_SHIRQ, "ahci", (void*) ahci_host)) {
@@ -936,6 +1088,16 @@ static void ahci_probe_dev(unsigned char bus, unsigned char device)
 		}
 
 		ipm = (ssts >> 8) & 0xf;
+		u8 spd = (ssts >> 4) & 0xf;  /* Current interface speed */
+		
+		/* Report SATA link speed */
+		const char* speed_names[] = {"No speed", "Gen1 (1.5 Gbps)", "Gen2 (3.0 Gbps)", "Gen3 (6.0 Gbps)"};
+		if (spd <= 3) {
+			printk("ahci: %02x:%02x.%x: Port %u SATA %s\n", bus, dev, fun, i, speed_names[spd]);
+		} else {
+			printk("ahci: %02x:%02x.%x: Port %u SATA speed %u (unknown)\n", bus, dev, fun, i, spd);
+		}
+		
 		switch (ipm)
 		{
 			case 0x0:
@@ -949,6 +1111,9 @@ static void ahci_probe_dev(unsigned char bus, unsigned char device)
 				continue;
 			case 0x6:
 				printk("ahci: %02x:%02x.%x: Port %u in Slumber power management. TODO: power on device\n", bus, dev, fun, i);
+				continue;
+			case 0x8:
+				printk("ahci: %02x:%02x.%x: Port %u in DevSlp power management\n", bus, dev, fun, i);
 				continue;
 			default:
 				printk("ahci: %02x:%02x.%x: Unknown port %u IPM %x\n", bus, dev, fun, i, ipm);
