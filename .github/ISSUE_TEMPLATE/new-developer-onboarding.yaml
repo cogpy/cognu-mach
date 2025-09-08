@@ -1,0 +1,136 @@
+name: New Developer Onboarding Issue
+description: Template for new developers to track their onboarding progress
+title: "[Onboarding] New Developer: <Your Name>"
+labels: ["onboarding", "good first issue", "mentorship"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Welcome to GNU Mach development! This template helps track your onboarding progress and ensures you have everything needed to start contributing.
+
+  - type: input
+    id: developer_name
+    attributes:
+      label: Developer Name
+      description: Your name or GitHub username
+      placeholder: e.g., John Doe (@johndoe)
+    validations:
+      required: true
+
+  - type: input
+    id: experience_level
+    attributes:
+      label: Experience Level
+      description: Your experience with C programming and operating systems
+      placeholder: e.g., Beginner, Intermediate, Advanced
+
+  - type: textarea
+    id: background
+    attributes:
+      label: Background
+      description: Brief description of your programming background and interests
+      placeholder: |
+        e.g., I'm a computer science student with experience in C and Linux development.
+        I'm interested in learning about microkernel architecture and contributing to GNU Hurd.
+
+  - type: dropdown
+    id: mentorship_interest
+    attributes:
+      label: Mentorship Interest
+      description: Are you interested in joining our mentorship program?
+      options:
+        - "Yes, I'd like a mentor"
+        - "No, I prefer to learn independently"
+        - "I'm interested in becoming a mentor (for experienced developers)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: onboarding_checklist
+    attributes:
+      label: Onboarding Checklist
+      description: Track your progress through these essential onboarding steps
+      value: |
+        ## Environment Setup
+        - [ ] Read the [New Developer Guide](../docs/new-developer-guide.md)
+        - [ ] Set up development environment (WSL/Linux)
+        - [ ] Install build dependencies
+        - [ ] Clone and build GNU Mach successfully
+        - [ ] Run basic tests (`make run-hello`)
+
+        ## Documentation Review
+        - [ ] Read CONTRIBUTING.md
+        - [ ] Review project structure and code organization
+        - [ ] Understand the four development phases
+        - [ ] Review coding standards and best practices
+
+        ## First Contribution
+        - [ ] Choose a `good first issue` from Phase 1
+        - [ ] Comment on the issue to claim it
+        - [ ] Create a development branch
+        - [ ] Make your first changes
+        - [ ] Test your changes thoroughly
+        - [ ] Submit your first pull request
+        - [ ] Address review feedback
+        - [ ] Get your first PR merged! 🎉
+
+        ## Community Integration
+        - [ ] Join mailing lists or communication channels
+        - [ ] Introduce yourself to the community
+        - [ ] Participate in code reviews (comment on others' PRs)
+        - [ ] Ask questions and help other newcomers
+
+        ## Advanced Onboarding (Optional)
+        - [ ] Set up debugging environment (QEMU + GDB)
+        - [ ] Run full test suite (`make check`)
+        - [ ] Explore specific subsystems of interest
+        - [ ] Consider taking on Phase 2 issues
+        - [ ] Contribute to documentation improvements
+
+  - type: textarea
+    id: goals
+    attributes:
+      label: Learning Goals
+      description: What would you like to learn or accomplish?
+      placeholder: |
+        e.g., 
+        - Understand microkernel architecture
+        - Learn kernel debugging techniques
+        - Contribute to memory management improvements
+        - Help improve documentation for other newcomers
+
+  - type: textarea
+    id: availability
+    attributes:
+      label: Availability
+      description: How much time can you dedicate to GNU Mach development?
+      placeholder: e.g., 5-10 hours per week, weekends only, etc.
+
+  - type: textarea
+    id: questions
+    attributes:
+      label: Questions or Concerns
+      description: Any questions about the project, development process, or onboarding?
+      placeholder: e.g., What's the best way to debug kernel issues? Which subsystem is best for beginners?
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Next Steps
+
+        After submitting this issue:
+        1. **Review the checklist above** and start working through the items
+        2. **Update this issue** regularly with your progress (check off completed items)
+        3. **Ask questions** in the comments if you get stuck
+        4. **Request mentorship** if you indicated interest above
+        5. **Join the community** by participating in discussions and code reviews
+
+        ## Mentorship Assignment
+
+        If you requested mentorship, a mentor will be assigned within 1-2 weeks and will:
+        - Help you choose appropriate first issues
+        - Provide technical guidance and code review
+        - Answer questions about project architecture and best practices
+        - Support your integration into the development community
+
+        Welcome to GNU Mach development! 🚀
