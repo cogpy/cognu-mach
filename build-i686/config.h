@@ -571,6 +571,9 @@
 /* STAT_TIME */
 #define STAT_TIME 1
 
+/* Define to enable tickless timer operation */
+/* #undef TICKLESS_TIMER */
+
 /* enable 32-bit user on 64-bit kernel */
 /* #undef USER32 */
 
