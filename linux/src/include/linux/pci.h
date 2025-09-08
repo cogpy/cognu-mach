@@ -125,7 +125,88 @@
 #define  PCI_ROM_ADDRESS_ENABLE	0x01	/* Write 1 to enable ROM,
 					   bits 31..11 are address,
 					   10..2 are reserved */
-/* 0x34-0x3b are reserved */
+/* PCI Capability support */
+#define PCI_CAPABILITY_LIST	0x34	/* Offset of first capability list entry */
+#define  PCI_CAP_LIST_ID	0	/* Capability ID */
+#define  PCI_CAP_ID_PM		0x01	/* Power Management */
+#define  PCI_CAP_ID_AGP		0x02	/* Accelerated Graphics Port */
+#define  PCI_CAP_ID_VPD		0x03	/* Vital Product Data */
+#define  PCI_CAP_ID_SLOTID	0x04	/* Slot Identification */
+#define  PCI_CAP_ID_MSI		0x05	/* Message Signalled Interrupts */
+#define  PCI_CAP_ID_CHSWP	0x06	/* CompactPCI HotSwap */
+#define  PCI_CAP_ID_PCIX	0x07	/* PCI-X */
+#define  PCI_CAP_ID_HT		0x08	/* HyperTransport */
+#define  PCI_CAP_ID_VNDR	0x09	/* Vendor specific capability */
+#define  PCI_CAP_ID_DBG		0x0A	/* Debug port */
+#define  PCI_CAP_ID_CCRC	0x0B	/* CompactPCI Central Resource Control */
+#define  PCI_CAP_ID_SHPC	0x0C	/* PCI Standard Hot-Plug Controller */
+#define  PCI_CAP_ID_SSVID	0x0D	/* Bridge subsystem vendor/device ID */
+#define  PCI_CAP_ID_AGP3	0x0E	/* AGP Target PCI-PCI bridge */
+#define  PCI_CAP_ID_SECDEV	0x0F	/* Secure Device */
+#define  PCI_CAP_ID_EXP		0x10	/* PCI Express */
+#define  PCI_CAP_ID_MSIX	0x11	/* MSI-X */
+#define  PCI_CAP_ID_SATA	0x12	/* SATA Data/Index Conf. */
+#define  PCI_CAP_ID_AF		0x13	/* PCI Advanced Features */
+#define  PCI_CAP_ID_EA		0x14	/* PCI Enhanced Allocation */
+#define  PCI_CAP_LIST_NEXT	1	/* Next capability in the list */
+#define  PCI_CAP_FLAGS		2	/* Capability defined flags (16 bits) */
+#define  PCI_CAP_SIZEOF		4
+
+/* PCI Express capability registers */
+#define PCI_EXP_FLAGS		2	/* Capabilities register */
+#define  PCI_EXP_FLAGS_VERS	0x000f	/* Capability version */
+#define  PCI_EXP_FLAGS_TYPE	0x00f0	/* Device/Port type */
+#define   PCI_EXP_TYPE_ENDPOINT	0x0	/* Express Endpoint */
+#define   PCI_EXP_TYPE_LEG_END	0x1	/* Legacy Endpoint */
+#define   PCI_EXP_TYPE_ROOT_PORT 0x4	/* Root Port */
+#define   PCI_EXP_TYPE_UPSTREAM	0x5	/* Upstream Port */
+#define   PCI_EXP_TYPE_DOWNSTREAM 0x6	/* Downstream Port */
+#define   PCI_EXP_TYPE_PCI_BRIDGE 0x7	/* PCI/PCI-X Bridge */
+#define   PCI_EXP_TYPE_PCIE_BRIDGE 0x8	/* PCI/PCI-X to PCIE Bridge */
+#define   PCI_EXP_TYPE_RC_END	0x9	/* Root Complex Integrated Endpoint */
+#define   PCI_EXP_TYPE_RC_EC	0xa	/* Root Complex Event Collector */
+#define  PCI_EXP_FLAGS_SLOT	0x0100	/* Slot implemented */
+#define  PCI_EXP_FLAGS_IRQ	0x3e00	/* Interrupt message number */
+#define PCI_EXP_DEVCAP		4	/* Device capabilities */
+#define  PCI_EXP_DEVCAP_PAYLOAD	0x07	/* Max_Payload_Size */
+#define  PCI_EXP_DEVCAP_PHANTOM	0x18	/* Phantom functions */
+#define  PCI_EXP_DEVCAP_EXT_TAG	0x20	/* Extended tags */
+#define  PCI_EXP_DEVCAP_L0S	0x1c0	/* L0s Acceptable Latency */
+#define  PCI_EXP_DEVCAP_L1	0xe00	/* L1 Acceptable Latency */
+#define  PCI_EXP_DEVCAP_ATN_BUT	0x1000	/* Attention Button Present */
+#define  PCI_EXP_DEVCAP_ATN_IND	0x2000	/* Attention Indicator Present */
+#define  PCI_EXP_DEVCAP_PWR_IND	0x4000	/* Power Indicator Present */
+#define  PCI_EXP_DEVCAP_RBER	0x8000	/* Role-Based Error Reporting */
+#define  PCI_EXP_DEVCAP_PWR_VAL	0x3fc0000 /* Slot Power Limit Value */
+#define  PCI_EXP_DEVCAP_PWR_SCL	0xc000000 /* Slot Power Limit Scale */
+#define  PCI_EXP_DEVCAP_FLR	0x10000000 /* Function Level Reset */
+#define PCI_EXP_DEVCTL		8	/* Device Control */
+#define  PCI_EXP_DEVCTL_CERE	0x0001	/* Correctable Error Reporting En. */
+#define  PCI_EXP_DEVCTL_NFERE	0x0002	/* Non-Fatal Error Reporting Enable */
+#define  PCI_EXP_DEVCTL_FERE	0x0004	/* Fatal Error Reporting Enable */
+#define  PCI_EXP_DEVCTL_URRE	0x0008	/* Unsupported Request Reporting En. */
+#define  PCI_EXP_DEVCTL_RELAX_EN 0x0010 /* Enable relaxed ordering */
+#define  PCI_EXP_DEVCTL_PAYLOAD	0x00e0	/* Max_Payload_Size */
+#define  PCI_EXP_DEVCTL_EXT_TAG	0x0100	/* Extended Tag Field Enable */
+#define  PCI_EXP_DEVCTL_PHANTOM	0x0200	/* Phantom Functions Enable */
+#define  PCI_EXP_DEVCTL_AUX_PME	0x0400	/* Auxiliary Power PM Enable */
+#define  PCI_EXP_DEVCTL_NOSNOOP_EN 0x0800  /* Enable No Snoop */
+#define  PCI_EXP_DEVCTL_READRQ	0x7000	/* Max_Read_Request_Size */
+#define  PCI_EXP_DEVCTL_BCR_FLR 0x8000  /* Bridge Configuration Retry / FLR */
+#define PCI_EXP_DEVSTA		10	/* Device Status */
+#define  PCI_EXP_DEVSTA_CED	0x01	/* Correctable Error Detected */
+#define  PCI_EXP_DEVSTA_NFED	0x02	/* Non-Fatal Error Detected */
+#define  PCI_EXP_DEVSTA_FED	0x04	/* Fatal Error Detected */
+#define  PCI_EXP_DEVSTA_URD	0x08	/* Unsupported Request Detected */
+#define  PCI_EXP_DEVSTA_AUXPD	0x10	/* AUX Power Detected */
+#define  PCI_EXP_DEVSTA_TRPND	0x20	/* Transactions Pending */
+
+/* PCI Express Extended Configuration Space */
+#define PCI_EXT_CAP_START		0x100
+#define PCI_EXT_CAP_ID(header)		(header & 0x0000ffff)
+#define PCI_EXT_CAP_VER(header)		((header >> 16) & 0xf)
+#define PCI_EXT_CAP_NEXT(header)	((header >> 20) & 0xffc)
+
 #define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */
 #define PCI_INTERRUPT_PIN	0x3d	/* 8 bits */
 #define PCI_MIN_GNT		0x3e	/* 8 bits */
@@ -1056,6 +1137,9 @@ struct pci_dev {
 	unsigned short	device;
 	unsigned int	class;		/* 3 bytes: (base,sub,prog-if) */
 	unsigned int	master : 1;	/* set if device is master capable */
+	unsigned int	is_pcie : 1;	/* PCIe device flag */
+	unsigned int	pcie_type : 4;	/* PCIe device type */
+	unsigned int	reserved_flags : 26;  /* Reserved for future use */
 	/*
 	 * In theory, the irq level can be read from configuration
 	 * space and all would be fine.  However, old PCI chips don't
@@ -1068,6 +1152,9 @@ struct pci_dev {
 	 * cannot generate interrupts at all.
 	 */
 	unsigned char	irq;		/* irq generated by this device */
+	unsigned int	pcie_cap;	/* PCIe capability offset */
+	
+	struct pci_resource resource[PCI_NUM_RESOURCES]; /* I/O and memory regions */
 };
 
 struct pci_bus {
@@ -1085,6 +1172,43 @@ struct pci_bus {
 	unsigned char	secondary;	/* number of secondary bridge */
 	unsigned char	subordinate;	/* max number of subordinate buses */
 };
+
+/*
+ * PCI Resource Management
+ */
+struct pci_resource {
+	unsigned long start;		/* resource start address */
+	unsigned long end;		/* resource end address */
+	unsigned long flags;		/* resource flags */
+	char *name;			/* resource name */
+	struct pci_resource *parent;	/* parent resource */
+	struct pci_resource *sibling;	/* sibling resource */
+	struct pci_resource *child;	/* child resource */
+};
+
+/* Resource flags */
+#define PCI_IORESOURCE_IO		0x00000100	/* Resource type */
+#define PCI_IORESOURCE_MEM		0x00000200
+#define PCI_IORESOURCE_IRQ		0x00000400
+#define PCI_IORESOURCE_DMA		0x00000800
+#define PCI_IORESOURCE_BUS		0x00001000
+
+#define PCI_IORESOURCE_PREFETCH		0x00002000	/* No side effects */
+#define PCI_IORESOURCE_READONLY		0x00004000
+#define PCI_IORESOURCE_CACHEABLE	0x00008000
+#define PCI_IORESOURCE_RANGELENGTH	0x00010000
+#define PCI_IORESOURCE_SHADOWABLE	0x00020000
+
+#define PCI_IORESOURCE_SIZEALIGN	0x00040000	/* size indicates alignment */
+#define PCI_IORESOURCE_STARTALIGN	0x00080000	/* start field is alignment */
+
+#define PCI_IORESOURCE_DISABLED		0x10000000
+#define PCI_IORESOURCE_UNSET		0x20000000
+#define PCI_IORESOURCE_AUTO		0x40000000
+#define PCI_IORESOURCE_BUSY		0x80000000	/* Driver has marked this resource busy */
+
+/* PCI device BAR resource tracking */
+#define PCI_NUM_RESOURCES	6
 
 /*
  * This is used to map a vendor-id/device-id pair into device-specific
@@ -1111,6 +1235,22 @@ extern const char *pci_strvendor (unsigned int vendor);
 extern const char *pci_strdev (unsigned int vendor, unsigned int device);
 
 extern int get_pci_list (char *buf);
+
+/* PCIe capability functions */
+extern int pci_find_capability (struct pci_dev *dev, int cap);
+extern int pci_find_ext_capability (struct pci_dev *dev, int cap);
+extern int pcie_capability_read_word (struct pci_dev *dev, int pos, u16 *val);
+extern int pcie_capability_write_word (struct pci_dev *dev, int pos, u16 val);
+
+/* PCI resource management functions */
+extern int pci_request_regions(struct pci_dev *pdev, const char *res_name);
+extern void pci_release_regions(struct pci_dev *pdev);
+extern int pci_assign_resource(struct pci_dev *dev, int i);
+extern void pci_setup_device_resources(struct pci_dev *dev);
+
+/* PCI configuration space access for extended (PCIe) registers */
+extern int pci_read_config_dword_ext(struct pci_dev *dev, int pos, u32 *val);
+extern int pci_write_config_dword_ext(struct pci_dev *dev, int pos, u32 val);
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */
