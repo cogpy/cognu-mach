@@ -66,7 +66,10 @@ MACRO_END
 #endif
 
 #include <kern/processor.h>
+#include <kern/lock.h>
+#include <kern/ast.h>
 #include <mach/mach_types.h>
+#include <mach/machine.h>
 
 struct percpu {
     struct percpu	*self;
@@ -75,24 +78,38 @@ struct percpu {
     struct processor	processor;
     thread_t		active_thread;
     vm_offset_t		active_stack;
-/*
+    /* SMP-essential per-CPU data */
     struct machine_slot	machine_slot;
-    struct mp_desc_table mp_desc_table;
     vm_offset_t		int_stack_top;
     vm_offset_t		int_stack_base;
-    ast_t		need_ast;
-    ipc_kmsg_t		ipc_kmsg_cache;
-    pmap_update_list	cpu_update_list;
-    spl_t		saved_ipl;
-    spl_t		curr_ipl;
-    timer_data_t	kernel_timer;
-    timer_t		current_timer;
-    unsigned long	in_interrupt;
-*/
+    ast_t			need_ast;
+    unsigned long		in_interrupt;
+    /* Scheduling-related per-CPU data */
+    thread_t		idle_thread;
+    int			sched_balance_policy;
+    unsigned long		runq_lock_count;
+    /* Memory management per-CPU data */
+    vm_offset_t		kernel_stack;
+    /* Cache for frequently accessed items */
+    vm_offset_t		cached_stack;
+    thread_t		cached_thread;
+    /* SMP synchronization support */
+    simple_lock_data_t	cpu_lock;
+    unsigned long		ipi_count;
+    /* CPU state tracking */
+    boolean_t		is_running;
+    boolean_t		is_idle;
+    unsigned long		context_switches;
 };
 
 extern struct percpu percpu_array[NCPUS];
 
 void init_percpu(int cpu);
+void smp_percpu_init(int cpu);
+void smp_percpu_setup_stack(int cpu, vm_offset_t stack_base, vm_offset_t stack_top);
+boolean_t smp_cpu_is_idle(int cpu);
+void smp_cpu_set_idle(int cpu, boolean_t idle);
+thread_t smp_get_idle_thread(int cpu);
+void smp_set_idle_thread(int cpu, thread_t thread);
 
 #endif /* _PERCPU_H_ */
