@@ -254,7 +254,8 @@ USER_TESTS := \
 	tests/test-memory-management-enhanced \
 	tests/test-suite-runner \
 	tests/test-device-framework \
-	tests/test-cross-phase-infrastructure
+	tests/test-cross-phase-infrastructure \
+	tests/test-smp-threads
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
