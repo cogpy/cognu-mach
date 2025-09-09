@@ -3114,7 +3114,7 @@ LIBOBJS =
 LIBS = 
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} '/home/runner/work/cognu-mach/cognu-mach/build-aux/missing' makeinfo
-MIG = /usr/local/bin/simple-direct-mig
+MIG = /usr/local/bin/mig
 MKDIR_P = /usr/bin/mkdir -p
 NM = nm
 OBJEXT = o
@@ -3339,7 +3339,7 @@ MIGCOM_V_0 = @echo "  MIG    $@";
 #
 
 # MIGCOM.
-MIGCOM = $(MIG) -n 
+MIGCOM = $(MIG) -n -cc cat - /dev/null
 
 #
 # IPC implementation.
@@ -3781,7 +3781,7 @@ KERNEL_MAP_BASE = 0xffffffff80000000
 
 MACH_TESTINSTALL = $(builddir)/tests/include-mach
 MACH_TESTINCLUDE = $(MACH_TESTINSTALL)/$(includedir)
-MIGCOMUSER = $(USER_MIG) -n 
+MIGCOMUSER = $(USER_MIG) -n -cc cat - /dev/null
 MIG_OUTDIR = $(builddir)/tests/mig-out
 MIG_CPPFLAGS = -x c -nostdinc -I$(MACH_TESTINCLUDE)
 
@@ -3866,7 +3866,8 @@ USER_TESTS := \
 	tests/test-memory-management-enhanced \
 	tests/test-suite-runner \
 	tests/test-device-framework \
-	tests/test-cross-phase-infrastructure
+	tests/test-cross-phase-infrastructure \
+	tests/test-smp-threads
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
@@ -8647,6 +8648,13 @@ tests/test-device-framework.log: tests/test-device-framework
 tests/test-cross-phase-infrastructure.log: tests/test-cross-phase-infrastructure
 	@p='tests/test-cross-phase-infrastructure'; \
 	b='tests/test-cross-phase-infrastructure'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-smp-threads.log: tests/test-smp-threads
+	@p='tests/test-smp-threads'; \
+	b='tests/test-smp-threads'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \

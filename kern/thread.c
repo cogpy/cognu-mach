@@ -375,6 +375,7 @@ void thread_init(void)
 
 #if	NCPUS > 1
 	/* thread_template.last_processor  (later) */
+	thread_template.cpu_affinity = CPU_AFFINITY_ANY; /* can run on any CPU by default */
 #endif	/* NCPUS > 1 */
 
 	/*
@@ -399,6 +400,13 @@ void thread_init(void)
 	 */
 
 	pcb_module_init();
+	
+#if	NCPUS > 1
+	/*
+	 *	Initialize SMP work queues for kernel thread pools.
+	 */
+	smp_work_queue_init();
+#endif	/* NCPUS > 1 */
 }
 
 kern_return_t thread_create(
@@ -2693,3 +2701,82 @@ thread_get_name(
 
 	return KERN_SUCCESS;
 }
+
+#if	NCPUS > 1
+/*
+ *	thread_set_cpu_affinity
+ *
+ *	Set the CPU affinity mask for THREAD.
+ */
+kern_return_t
+thread_set_cpu_affinity(
+	thread_t	thread,
+	cpu_mask_t	affinity_mask)
+{
+	int max_cpus;
+	
+	if (thread == THREAD_NULL)
+		return KERN_INVALID_ARGUMENT;
+	
+	max_cpus = smp_get_numcpus();
+	
+	/* Validate affinity mask doesn't exceed available CPUs */
+	if (affinity_mask != CPU_AFFINITY_ANY && 
+	    affinity_mask >= (1U << max_cpus))
+		return KERN_INVALID_ARGUMENT;
+	
+	thread_lock(thread);
+	thread->cpu_affinity = affinity_mask;
+	thread_unlock(thread);
+	
+	return KERN_SUCCESS;
+}
+
+/*
+ *	thread_get_cpu_affinity
+ *
+ *	Get the CPU affinity mask for THREAD.
+ */
+cpu_mask_t
+thread_get_cpu_affinity(
+	thread_t	thread)
+{
+	cpu_mask_t affinity;
+	
+	if (thread == THREAD_NULL)
+		return CPU_AFFINITY_NONE;
+	
+	thread_lock(thread);
+	affinity = thread->cpu_affinity;
+	thread_unlock(thread);
+	
+	return affinity;
+}
+
+/*
+ *	thread_can_run_on_cpu
+ *
+ *	Check if THREAD can run on the specified CPU based on its affinity.
+ */
+boolean_t
+thread_can_run_on_cpu(
+	thread_t	thread,
+	int		cpu)
+{
+	cpu_mask_t affinity;
+	
+	if (thread == THREAD_NULL || cpu < 0 || cpu >= smp_get_numcpus())
+		return FALSE;
+	
+	thread_lock(thread);
+	affinity = thread->cpu_affinity;
+	thread_unlock(thread);
+	
+	/* If affinity is ANY, thread can run on any CPU */
+	if (affinity == CPU_AFFINITY_ANY)
+		return TRUE;
+	
+	/* Check if CPU is set in affinity mask */
+	return cpu_affinity_test(affinity, cpu);
+}
+#endif	/* NCPUS > 1 */

@@ -54,6 +54,10 @@
 #include <machine/thread.h>
 #include <ipc/ipc_kmsg_queue.h>
 
+#if NCPUS > 1
+#include <kern/smp.h>		/* for CPU affinity support */
+#endif
+
 /*
  * Thread name buffer size. Use the same size as the task so
  * the thread can inherit the task's name.
@@ -224,6 +228,10 @@ struct thread {
 	processor_set_t	processor_set;	/* assigned processor set */
 	processor_t	bound_processor;	/* bound to processor ?*/
 
+#if	NCPUS > 1
+	cpu_mask_t	cpu_affinity;	/* CPU affinity mask for SMP */
+#endif	/* NCPUS > 1 */
+
 	sample_control_t pc_sample;
 
 #if	MACH_HOST
@@ -381,6 +389,18 @@ extern thread_t		kernel_thread(
 	void *		arg);
 
 extern void		reaper_thread(void) __attribute__((noreturn));
+
+#if	NCPUS > 1
+/* CPU affinity management */
+extern kern_return_t	thread_set_cpu_affinity(
+	thread_t	thread,
+	cpu_mask_t	affinity_mask);
+extern cpu_mask_t	thread_get_cpu_affinity(
+	thread_t	thread);
+extern boolean_t	thread_can_run_on_cpu(
+	thread_t	thread,
+	int		cpu);
+#endif	/* NCPUS > 1 */
 
 #if	MACH_HOST
 extern void		thread_freeze(
