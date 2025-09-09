@@ -2,11 +2,11 @@
 # MIG wrapper that fixes 64-bit issues automatically
 # This script calls the real MIG, then fixes the generated files
 
-# Find the real MIG executable  
-REAL_MIG=$(which -a mig | grep -v $(readlink -f $0) | head -n 1)
+# Use the migcom executable directly
+REAL_MIG="/usr/local/bin/mig"
 
-if [ -z "$REAL_MIG" ]; then
-    echo "Error: Could not find real MIG executable" >&2
+if [ ! -f "$REAL_MIG" ]; then
+    echo "Error: Could not find MIG executable at $REAL_MIG" >&2
     exit 1
 fi
 

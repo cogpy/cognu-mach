@@ -158,6 +158,7 @@ mach_host 2600 thread_get_assignment 15 2615 2715
 mach_host 2600 task_assign 16 2616 2716
 mach_host 2600 task_assign_default 17 2617 2717
 mach_host 2600 task_get_assignment 18 2618 2718
+mach_host 2600 host_kernel_version 19 2619 2719
 mach_host 2600 thread_priority 20 2620 2720
 mach_host 2600 thread_max_priority 21 2621 2721
 mach_host 2600 task_priority 22 2622 2722
