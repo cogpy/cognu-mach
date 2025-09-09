@@ -47,6 +47,14 @@
 #include <mach/boolean.h>
 #include <kern/lock.h>
 
+/* Forward declarations */
+struct thread;
+struct processor;
+struct processor_set;
+typedef struct thread *thread_t;
+typedef struct processor *processor_t;
+typedef struct processor_set *processor_set_t;
+
 /* SMP synchronization and data structures */
 struct smp_cpu_info {
     uint8_t cpu_id;
