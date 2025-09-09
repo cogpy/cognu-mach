@@ -233,6 +233,8 @@ struct thread {
 
 #if	NCPUS > 1
 	processor_t	last_processor; /* processor this last ran on */
+	unsigned int	migration_count; /* number of times migrated */
+	unsigned int	cache_warmth;	/* cache locality indicator */
 #endif	/* NCPUS > 1 */
 
 #if	MACH_LOCK_MON

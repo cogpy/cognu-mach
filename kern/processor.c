@@ -208,6 +208,13 @@ void processor_init(
 	simple_lock_init(&pr->lock);
 	pr->processor_self = IP_NULL;
 	pr->slot_num = slot_num;
+#if NCPUS > 1
+	/* Initialize load balancing statistics */
+	pr->load_average = 0;
+	pr->migration_in = 0;
+	pr->migration_out = 0;
+	pr->last_balance_tick = 0;
+#endif /* NCPUS > 1 */
 }
 
 /*

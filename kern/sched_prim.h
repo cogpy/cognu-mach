@@ -119,6 +119,17 @@ extern void compute_priority(
 extern void thread_timeout_setup(
     thread_t   thread);
 
+#if NCPUS > 1
+extern kern_return_t thread_migrate(
+	thread_t	thread,
+	processor_t	target_processor);
+extern void thread_balance_load(void);
+extern processor_t thread_select_best_processor(
+	thread_t	thread);
+extern void thread_update_cache_warmth(
+	thread_t	thread);
+#endif /* NCPUS > 1 */
+
 /*
  *	Routines defined as macros
  */

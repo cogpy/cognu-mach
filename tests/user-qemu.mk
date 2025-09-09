@@ -242,6 +242,7 @@ USER_TESTS := \
 	tests/test-threads \
 	tests/test-thread-state \
 	tests/test-thread-state-fp \
+	tests/test-thread-migration \
 	tests/test-console-timestamps \
 	tests/test-tickless-timer \
 	tests/test-gdb-stub \

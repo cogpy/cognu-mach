@@ -1103,6 +1103,12 @@ void recompute_priorities(void *param)
 {
 	sched_tick++;		/* age usage one more time */
 	set_timeout(&recompute_priorities_timer, hz);
+#if NCPUS > 1
+	/* Perform load balancing every few ticks */
+	if ((sched_tick % 4) == 0) {
+		thread_balance_load();
+	}
+#endif /* NCPUS > 1 */
 	/*
 	 *	Wakeup scheduler thread.
 	 */
@@ -1261,15 +1267,16 @@ void thread_setrun(
 	 */
 	if ((processor = th->bound_processor) == PROCESSOR_NULL) {
 	    /*
-	     *	Not bound, any processor in the processor set is ok.
+	     *	Not bound, use load balancing to select best processor.
 	     */
 	    pset = th->processor_set;
+	    processor = thread_select_best_processor(th);
+	    
 #if	HW_FOOTPRINT
 	    /*
-	     *	But first check the last processor it ran on.
+	     *	Check if selected processor is idle and can take the thread immediately.
 	     */
-	    processor = th->last_processor;
-	    if (processor->state == PROCESSOR_IDLE) {
+	    if (processor != PROCESSOR_NULL && processor->state == PROCESSOR_IDLE) {
 		    processor_lock(processor);
 		    pset_idle_lock();
 		    if ((processor->state == PROCESSOR_IDLE)
@@ -1282,6 +1289,13 @@ void thread_setrun(
 			    pset->idle_count--;
 			    processor->next_thread = th;
 			    processor->state = PROCESSOR_DISPATCHING;
+			    /* Update cache warmth if same processor */
+			    if (processor == th->last_processor) {
+				    thread_update_cache_warmth(th);
+			    } else {
+				    th->cache_warmth = 0;
+				    th->last_processor = processor;
+			    }
 			    pset_idle_unlock();
 			    processor_unlock(processor);
 			    if (processor != current_processor())
@@ -2059,3 +2073,224 @@ void thread_check(
 			panic("thread_check");
 }
 #endif	/* DEBUG */
+
+#if NCPUS > 1
+
+/*
+ * Thread Migration Support
+ *
+ * This section implements thread migration between CPUs for load balancing
+ * and cache locality optimization.
+ */
+
+/*
+ *	thread_migrate:
+ *
+ *	Move a thread to a different processor. The thread must be runnable
+ *	but not currently running. Used for load balancing.
+ */
+kern_return_t thread_migrate(
+	thread_t	thread,
+	processor_t	target_processor)
+{
+	processor_t current_processor;
+	run_queue_t old_rq, new_rq;
+	spl_t s;
+
+	if (thread == THREAD_NULL || target_processor == PROCESSOR_NULL)
+		return KERN_INVALID_ARGUMENT;
+
+	s = splsched();
+	thread_lock(thread);
+
+	/* Only migrate runnable threads that are not currently running */
+	if ((thread->state & TH_RUN) == 0 || thread->state & TH_IDLE) {
+		thread_unlock(thread);
+		splx(s);
+		return KERN_FAILURE;
+	}
+
+	/* Don't migrate if already on target processor */
+	current_processor = thread->last_processor;
+	if (current_processor == target_processor) {
+		thread_unlock(thread);
+		splx(s);
+		return KERN_SUCCESS;
+	}
+
+	/* Remove from current run queue */
+	old_rq = rem_runq(thread);
+	if (old_rq == RUN_QUEUE_NULL) {
+		thread_unlock(thread);
+		splx(s);
+		return KERN_FAILURE;
+	}
+
+	/* Update migration statistics */
+	thread->migration_count++;
+	thread->cache_warmth = 0; /* Cache will be cold on new processor */
+	
+	if (current_processor != PROCESSOR_NULL) {
+		current_processor->migration_out++;
+	}
+	target_processor->migration_in++;
+
+	/* Set new processor affinity */
+	thread->last_processor = target_processor;
+
+	/* Add to target processor's run queue */
+	new_rq = &target_processor->runq;
+	run_queue_enqueue(new_rq, thread);
+
+	thread_unlock(thread);
+
+	/* Signal target processor if needed */
+	if (target_processor->state == PROCESSOR_IDLE) {
+		cause_ast_check(target_processor);
+	}
+
+	splx(s);
+	return KERN_SUCCESS;
+}
+
+/*
+ *	thread_select_best_processor:
+ *
+ *	Select the best processor for a thread based on load balancing
+ *	and cache locality considerations.
+ */
+processor_t thread_select_best_processor(
+	thread_t	thread)
+{
+	processor_set_t pset;
+	processor_t best_processor, processor;
+	unsigned int min_load, current_load;
+	unsigned int cache_bonus;
+
+	if (thread->bound_processor != PROCESSOR_NULL)
+		return thread->bound_processor;
+
+	pset = thread->processor_set;
+	best_processor = PROCESSOR_NULL;
+	min_load = ~0U;
+
+	/* Check last processor first for cache locality */
+	if (thread->last_processor != PROCESSOR_NULL &&
+	    thread->last_processor->processor_set == pset) {
+		processor = thread->last_processor;
+		current_load = processor->runq.count;
+		
+		/* Give cache locality bonus */
+		cache_bonus = thread->cache_warmth > 10 ? 2 : 1;
+		if (current_load <= min_load + cache_bonus) {
+			best_processor = processor;
+			min_load = current_load;
+		}
+	}
+
+	/* Check all other processors in the set */
+	queue_iterate(&pset->processors, processor, processor_t, processors) {
+		if (processor == thread->last_processor)
+			continue;
+
+		current_load = processor->runq.count;
+		if (current_load < min_load) {
+			best_processor = processor;
+			min_load = current_load;
+		}
+	}
+
+	return best_processor ? best_processor : 
+		(processor_t)queue_first(&pset->processors);
+}
+
+/*
+ *	thread_update_cache_warmth:
+ *
+ *	Update cache warmth indicator for a thread.
+ *	Called when a thread runs on the same processor.
+ */
+void thread_update_cache_warmth(
+	thread_t	thread)
+{
+	if (thread->cache_warmth < 255)
+		thread->cache_warmth++;
+}
+
+/*
+ *	thread_balance_load:
+ *
+ *	Periodic load balancing across processors.
+ *	Migrates threads from heavily loaded processors to idle ones.
+ */
+void thread_balance_load(void)
+{
+	processor_set_t pset;
+	processor_t src_processor, dst_processor;
+	processor_t busiest, idlest;
+	thread_t thread;
+	unsigned int max_load, min_load;
+	unsigned int load_diff;
+	spl_t s;
+
+	s = splsched();
+
+	/* Balance within each processor set */
+	queue_iterate(&all_psets, pset, processor_set_t, all_psets) {
+		if (pset->processor_count < 2)
+			continue;
+
+		busiest = idlest = PROCESSOR_NULL;
+		max_load = 0;
+		min_load = ~0U;
+
+		/* Find busiest and idlest processors */
+		queue_iterate(&pset->processors, src_processor, processor_t, processors) {
+			unsigned int load = src_processor->runq.count;
+			
+			if (load > max_load) {
+				max_load = load;
+				busiest = src_processor;
+			}
+			if (load < min_load) {
+				min_load = load;
+				idlest = src_processor;
+			}
+		}
+
+		/* Only balance if load difference is significant */
+		if (busiest == PROCESSOR_NULL || idlest == PROCESSOR_NULL)
+			continue;
+
+		load_diff = max_load - min_load;
+		if (load_diff < 2)
+			continue;
+
+		/* Try to migrate one thread from busiest to idlest */
+		runq_lock(&busiest->runq);
+		if (busiest->runq.count > 0) {
+			/* Find a suitable thread to migrate */
+			int i;
+			for (i = busiest->runq.low; i < NRQS; i++) {
+				queue_t q = &busiest->runq.runq[i];
+				if (!queue_empty(q)) {
+					thread = (thread_t)queue_first(q);
+					/* Don't migrate bound threads */
+					if (thread->bound_processor == PROCESSOR_NULL) {
+						runq_unlock(&busiest->runq);
+						thread_migrate(thread, idlest);
+						goto next_pset;
+					}
+				}
+			}
+		}
+		runq_unlock(&busiest->runq);
+
+	next_pset:
+		continue;
+	}
+
+	splx(s);
+}
+
+#endif /* NCPUS > 1 */
