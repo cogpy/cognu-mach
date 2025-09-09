@@ -3865,7 +3865,8 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-memory-tracking \
 @PLATFORM_xen_FALSE@	tests/test-memory-management-enhanced \
 @PLATFORM_xen_FALSE@	tests/test-suite-runner \
-@PLATFORM_xen_FALSE@	tests/test-device-framework
+@PLATFORM_xen_FALSE@	tests/test-device-framework \
+@PLATFORM_xen_FALSE@	tests/test-cross-phase-infrastructure
 
 @PLATFORM_xen_FALSE@USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
@@ -8639,6 +8640,13 @@ tests/test-suite-runner.log: tests/test-suite-runner
 tests/test-device-framework.log: tests/test-device-framework
 	@p='tests/test-device-framework'; \
 	b='tests/test-device-framework'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-cross-phase-infrastructure.log: tests/test-cross-phase-infrastructure
+	@p='tests/test-cross-phase-infrastructure'; \
+	b='tests/test-cross-phase-infrastructure'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
