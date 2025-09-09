@@ -206,6 +206,9 @@ libkernel_a_SOURCES += \
 	kern/slab.h \
 	kern/smp.h \
 	kern/smp.c \
+	kern/smp_lock.h \
+	kern/smp_lock.c \
+	kern/smp_sched.c \
 	kern/sched.h \
 	kern/sched_prim.c \
 	kern/sched_prim.h \
