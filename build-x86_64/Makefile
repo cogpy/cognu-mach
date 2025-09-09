@@ -3114,7 +3114,7 @@ LIBOBJS =
 LIBS = 
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} '/home/runner/work/cognu-mach/cognu-mach/build-aux/missing' makeinfo
-MIG = /usr/local/bin/final-mig
+MIG = /usr/local/bin/simple-direct-mig
 MKDIR_P = /usr/bin/mkdir -p
 NM = nm
 OBJEXT = o
@@ -3339,7 +3339,7 @@ MIGCOM_V_0 = @echo "  MIG    $@";
 #
 
 # MIGCOM.
-MIGCOM = $(MIG) -n -cc cat - /dev/null
+MIGCOM = $(MIG) -n 
 
 #
 # IPC implementation.
@@ -3781,7 +3781,7 @@ KERNEL_MAP_BASE = 0xffffffff80000000
 
 MACH_TESTINSTALL = $(builddir)/tests/include-mach
 MACH_TESTINCLUDE = $(MACH_TESTINSTALL)/$(includedir)
-MIGCOMUSER = $(USER_MIG) -n -cc cat - /dev/null
+MIGCOMUSER = $(USER_MIG) -n 
 MIG_OUTDIR = $(builddir)/tests/mig-out
 MIG_CPPFLAGS = -x c -nostdinc -I$(MACH_TESTINCLUDE)
 
