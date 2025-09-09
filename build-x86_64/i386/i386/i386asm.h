@@ -45,7 +45,7 @@
 
 
 
-#define PCB_ISS 200
+#define PCB_ISS 264
 
 
 
@@ -150,122 +150,132 @@
 
 
 
-#define R_CS 152
+#define R_GS 0
 
 
 
 
-#define R_UESP 168
+#define R_FS 8
 
 
 
 
-#define R_EAX 120
+#define R_CS 184
 
 
 
 
-#define R_EBX 96
+#define R_UESP 200
 
 
 
 
-#define R_ECX 112
+#define R_EAX 152
 
 
 
 
-#define R_EDX 104
+#define R_EBX 128
 
 
 
 
-#define R_EBP 80
+#define R_ECX 144
 
 
 
 
-#define R_TRAPNO 128
+#define R_EDX 136
 
 
 
 
-#define R_ERR 136
+#define R_EBP 112
 
 
 
 
-#define R_EFLAGS 160
+#define R_TRAPNO 160
 
 
 
 
-#define R_EIP 144
+#define R_ERR 168
 
 
 
 
-#define R_CR2 88
+#define R_EFLAGS 192
 
 
 
 
-#define R_EDI 64
+#define R_EIP 176
 
 
 
 
-#define R_ESI 72
+#define R_CR2 120
 
 
 
 
-#define R_R8 56
+#define R_EDI 96
 
 
 
 
-#define R_R9 48
+#define R_ESI 104
 
 
 
 
-#define R_R10 40
+#define R_R8 88
 
 
 
 
-#define R_R12 24
+#define R_R9 80
 
 
 
 
-#define R_R13 16
+#define R_R10 72
 
 
 
 
-#define R_R14 8
+#define R_R12 56
 
 
 
 
-#define R_R15 0
+#define R_R13 48
 
 
 
 
-#define I_EIP 72
+#define R_R14 40
 
 
 
 
-#define I_CS 80
+#define R_R15 32
 
 
 
 
-#define I_EFL 88
+#define I_EIP 104
+
+
+
+
+#define I_CS 112
+
+
+
+
+#define I_EFL 120
 
 
 
@@ -290,7 +300,7 @@
 
 
 
-#define VM_MAX_ADDRESS 140737488355328
+#define VM_MAX_ADDRESS 4294963200
 
 
 
@@ -391,6 +401,96 @@
 
 
 #define MSGH_MSGH_SIZE 4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
