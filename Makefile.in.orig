@@ -1220,6 +1220,7 @@ noinst_PROGRAMS = gnumach.o$(EXEEXT)
 @HOST_ix86_TRUE@	i386/i386/locore.S \
 @HOST_ix86_TRUE@	i386/i386/percpu.c \
 @HOST_ix86_TRUE@	i386/i386/percpu.h \
+@HOST_ix86_TRUE@	i386/i386/percpu_smp.c \
 @HOST_ix86_TRUE@	i386/i386/spl.S \
 @HOST_ix86_TRUE@	i386/i386/cpuboot.S
 
@@ -1604,7 +1605,8 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
 	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
 	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
-	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/sched.h \
+	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/smp_lock.h \
+	kern/smp_lock.c kern/smp_sched.c kern/sched.h \
 	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
 	kern/startup.c kern/startup.h kern/strings.c \
 	kern/syscall_emulation.c kern/syscall_emulation.h \
@@ -1698,13 +1700,13 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	i386/i386at/rtc.h i386/i386at/lpr.c i386/i386at/lpr.h \
 	i386/i386/cswitch.S i386/i386/debug_trace.S \
 	i386/i386/idt_inittab.S i386/i386/locore.S i386/i386/percpu.c \
-	i386/i386/percpu.h i386/i386/spl.S i386/i386/cpuboot.S \
-	i386/i386/apic.h i386/i386/apic.c i386/i386/hardclock.c \
-	i386/i386/hardclock.h i386/i386/irq.c i386/i386/irq.h \
-	i386/i386/msr.h i386/i386/pit.c i386/i386/pit.h \
-	i386/i386at/ioapic.c i386/i386/pic.c i386/i386/pic.h \
-	i386/i386at/pic_isa.c i386/i386/_setjmp.S chips/busses.c \
-	chips/busses.h device/cirbuf.c i386/xen/xen.c \
+	i386/i386/percpu.h i386/i386/percpu_smp.c i386/i386/spl.S \
+	i386/i386/cpuboot.S i386/i386/apic.h i386/i386/apic.c \
+	i386/i386/hardclock.c i386/i386/hardclock.h i386/i386/irq.c \
+	i386/i386/irq.h i386/i386/msr.h i386/i386/pit.c \
+	i386/i386/pit.h i386/i386at/ioapic.c i386/i386/pic.c \
+	i386/i386/pic.h i386/i386at/pic_isa.c i386/i386/_setjmp.S \
+	chips/busses.c chips/busses.h device/cirbuf.c i386/xen/xen.c \
 	i386/xen/xen_locore.S i386/xen/xen_boothdr.S i386/i386/xen.h \
 	x86_64/boothdr.S x86_64/interrupt.S x86_64/kdasm.S \
 	x86_64/cswitch.S x86_64/debug_trace.S x86_64/idt_inittab.S \
@@ -1807,6 +1809,7 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 @HOST_ix86_TRUE@	i386/i386/idt_inittab.$(OBJEXT) \
 @HOST_ix86_TRUE@	i386/i386/locore.$(OBJEXT) \
 @HOST_ix86_TRUE@	i386/i386/percpu.$(OBJEXT) \
+@HOST_ix86_TRUE@	i386/i386/percpu_smp.$(OBJEXT) \
 @HOST_ix86_TRUE@	i386/i386/spl.$(OBJEXT) \
 @HOST_ix86_TRUE@	i386/i386/cpuboot.$(OBJEXT)
 @HOST_ix86_TRUE@@PLATFORM_at_TRUE@am__objects_12 =  \
@@ -1893,6 +1896,7 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/processor.$(OBJEXT) kern/profile.$(OBJEXT) \
 	kern/queue.$(OBJEXT) kern/rbtree.$(OBJEXT) \
 	kern/rdxtree.$(OBJEXT) kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) \
+	kern/smp_lock.$(OBJEXT) kern/smp_sched.$(OBJEXT) \
 	kern/sched_prim.$(OBJEXT) kern/startup.$(OBJEXT) \
 	kern/strings.$(OBJEXT) kern/syscall_emulation.$(OBJEXT) \
 	kern/syscall_subr.$(OBJEXT) kern/syscall_sw.$(OBJEXT) \
@@ -2392,7 +2396,8 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	i386/i386/$(DEPDIR)/mach_i386.server.Po \
 	i386/i386/$(DEPDIR)/machine_task.Po \
 	i386/i386/$(DEPDIR)/mp_desc.Po i386/i386/$(DEPDIR)/pcb.Po \
-	i386/i386/$(DEPDIR)/percpu.Po i386/i386/$(DEPDIR)/phys.Po \
+	i386/i386/$(DEPDIR)/percpu.Po \
+	i386/i386/$(DEPDIR)/percpu_smp.Po i386/i386/$(DEPDIR)/phys.Po \
 	i386/i386/$(DEPDIR)/pic.Po i386/i386/$(DEPDIR)/pit.Po \
 	i386/i386/$(DEPDIR)/smp.Po i386/i386/$(DEPDIR)/spl.Po \
 	i386/i386/$(DEPDIR)/strings.Po i386/i386/$(DEPDIR)/trap.Po \
@@ -2461,7 +2466,8 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/profile.Po kern/$(DEPDIR)/queue.Po \
 	kern/$(DEPDIR)/rbtree.Po kern/$(DEPDIR)/rdxtree.Po \
 	kern/$(DEPDIR)/sched_prim.Po kern/$(DEPDIR)/slab.Po \
-	kern/$(DEPDIR)/smp.Po kern/$(DEPDIR)/startup.Po \
+	kern/$(DEPDIR)/smp.Po kern/$(DEPDIR)/smp_lock.Po \
+	kern/$(DEPDIR)/smp_sched.Po kern/$(DEPDIR)/startup.Po \
 	kern/$(DEPDIR)/strings.Po kern/$(DEPDIR)/syscall_emulation.Po \
 	kern/$(DEPDIR)/syscall_subr.Po kern/$(DEPDIR)/syscall_sw.Po \
 	kern/$(DEPDIR)/task.Po kern/$(DEPDIR)/task_notify.user.Po \
@@ -3396,7 +3402,8 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
 	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
 	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
-	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/sched.h \
+	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/smp_lock.h \
+	kern/smp_lock.c kern/smp_sched.c kern/sched.h \
 	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
 	kern/startup.c kern/startup.h kern/strings.c \
 	kern/syscall_emulation.c kern/syscall_emulation.h \
@@ -3855,6 +3862,7 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-threads \
 @PLATFORM_xen_FALSE@	tests/test-thread-state \
 @PLATFORM_xen_FALSE@	tests/test-thread-state-fp \
+@PLATFORM_xen_FALSE@	tests/test-thread-migration \
 @PLATFORM_xen_FALSE@	tests/test-console-timestamps \
 @PLATFORM_xen_FALSE@	tests/test-tickless-timer \
 @PLATFORM_xen_FALSE@	tests/test-gdb-stub \
@@ -4244,6 +4252,10 @@ kern/slab.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/smp.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/smp_lock.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/smp_sched.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/sched_prim.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/startup.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4448,6 +4460,8 @@ i386/i386/idt_inittab.$(OBJEXT): i386/i386/$(am__dirstamp) \
 i386/i386/locore.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
 i386/i386/percpu.$(OBJEXT): i386/i386/$(am__dirstamp) \
+	i386/i386/$(DEPDIR)/$(am__dirstamp)
+i386/i386/percpu_smp.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
 i386/i386/spl.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
@@ -5249,6 +5263,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/mp_desc.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/pcb.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/percpu.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/percpu_smp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/phys.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/pic.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/pit.Po@am__quote@ # am--include-marker
@@ -5356,6 +5371,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/sched_prim.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/slab.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/smp.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/smp_lock.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/smp_sched.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/startup.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/strings.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/syscall_emulation.Po@am__quote@ # am--include-marker
@@ -5555,15 +5572,7 @@ distclean-compile:
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	# Ugly bootstrap hack to get to-be-generated files created
-	# Try to guess what file this dependency file is from...
-	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
-	for f in "$$f"*; do \
-		case $$f in \
-			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
-			*) echo '# dummy';; \
-		esac ; \
-	done >$@-t && $(am__mv) $@-t $@
+	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
@@ -8568,6 +8577,13 @@ tests/test-thread-state-fp.log: tests/test-thread-state-fp
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-thread-migration.log: tests/test-thread-migration
+	@p='tests/test-thread-migration'; \
+	b='tests/test-thread-migration'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-console-timestamps.log: tests/test-console-timestamps
 	@p='tests/test-console-timestamps'; \
 	b='tests/test-console-timestamps'; \
@@ -9065,6 +9081,7 @@ distclean: distclean-recursive
 	-rm -f i386/i386/$(DEPDIR)/mp_desc.Po
 	-rm -f i386/i386/$(DEPDIR)/pcb.Po
 	-rm -f i386/i386/$(DEPDIR)/percpu.Po
+	-rm -f i386/i386/$(DEPDIR)/percpu_smp.Po
 	-rm -f i386/i386/$(DEPDIR)/phys.Po
 	-rm -f i386/i386/$(DEPDIR)/pic.Po
 	-rm -f i386/i386/$(DEPDIR)/pit.Po
@@ -9172,6 +9189,8 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/sched_prim.Po
 	-rm -f kern/$(DEPDIR)/slab.Po
 	-rm -f kern/$(DEPDIR)/smp.Po
+	-rm -f kern/$(DEPDIR)/smp_lock.Po
+	-rm -f kern/$(DEPDIR)/smp_sched.Po
 	-rm -f kern/$(DEPDIR)/startup.Po
 	-rm -f kern/$(DEPDIR)/strings.Po
 	-rm -f kern/$(DEPDIR)/syscall_emulation.Po
@@ -9585,6 +9604,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f i386/i386/$(DEPDIR)/mp_desc.Po
 	-rm -f i386/i386/$(DEPDIR)/pcb.Po
 	-rm -f i386/i386/$(DEPDIR)/percpu.Po
+	-rm -f i386/i386/$(DEPDIR)/percpu_smp.Po
 	-rm -f i386/i386/$(DEPDIR)/phys.Po
 	-rm -f i386/i386/$(DEPDIR)/pic.Po
 	-rm -f i386/i386/$(DEPDIR)/pit.Po
@@ -9692,6 +9712,8 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/sched_prim.Po
 	-rm -f kern/$(DEPDIR)/slab.Po
 	-rm -f kern/$(DEPDIR)/smp.Po
+	-rm -f kern/$(DEPDIR)/smp_lock.Po
+	-rm -f kern/$(DEPDIR)/smp_sched.Po
 	-rm -f kern/$(DEPDIR)/startup.Po
 	-rm -f kern/$(DEPDIR)/strings.Po
 	-rm -f kern/$(DEPDIR)/syscall_emulation.Po
