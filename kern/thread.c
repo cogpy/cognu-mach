@@ -375,6 +375,8 @@ void thread_init(void)
 
 #if	NCPUS > 1
 	/* thread_template.last_processor  (later) */
+	thread_template.migration_count = 0;
+	thread_template.cache_warmth = 0;
 	thread_template.cpu_affinity = CPU_AFFINITY_ANY; /* can run on any CPU by default */
 #endif	/* NCPUS > 1 */
 
@@ -571,11 +573,21 @@ kern_return_t thread_create(
 		 */
 		new_thread->last_processor = master_processor;
 	}
+#if NCPUS > 1
+	/* Initialize thread migration statistics */
+	new_thread->migration_count = 0;
+	new_thread->cache_warmth = 0;
+#endif /* NCPUS > 1 */
 #else	/* HW_FOOTPRINT */
 	/*
 	 *	Don't need to initialize because the context switch
 	 *	code will set it before it can be used.
 	 */
+#if NCPUS > 1
+	/* Initialize thread migration statistics */
+	new_thread->migration_count = 0;
+	new_thread->cache_warmth = 0;
+#endif /* NCPUS > 1 */
 #endif	/* HW_FOOTPRINT */
 
 #if	MACH_PCSAMPLE

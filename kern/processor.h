@@ -124,6 +124,10 @@ struct processor {
 	int		slot_num;	/* machine-indep slot number */
 #if	NCPUS > 1
 	ast_check_t	ast_check_data;	/* for remote ast_check invocation */
+	unsigned int	load_average;	/* current load average */
+	unsigned int	migration_in;	/* threads migrated in */
+	unsigned int	migration_out;	/* threads migrated out */
+	unsigned int	last_balance_tick; /* last load balance time */
 #endif	/* NCPUS > 1 */
 	/* punt id data temporarily */
 };
