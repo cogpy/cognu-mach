@@ -311,6 +311,10 @@ void vm_object_bootstrap(void)
 	vm_object_template.readahead_next = (vm_offset_t) 0;
 	vm_object_template.readahead_count = 0;
 	vm_object_template.readahead_window = vm_page_readahead_min;
+	
+	/* Initialize block cache fields */
+	vm_object_template.block_cache = NULL;
+	vm_object_template.block_cache_enabled = FALSE;
 
 #if	MACH_PAGEMAP
 	vm_object_template.existence_info = VM_EXTERNAL_NULL;
@@ -3060,3 +3064,93 @@ void vm_object_print(
 }
 
 #endif	/* MACH_KDB */
+
+/*
+ * Block cache integration with VM objects
+ */
+#include <vm/vm_block_cache.h>
+
+/*
+ * Enable block-level caching for a memory object
+ */
+kern_return_t
+vm_object_enable_block_cache(vm_object_t object, vm_size_t block_size)
+{
+	block_cache_t cache;
+	
+	if (object == VM_OBJECT_NULL)
+		return KERN_INVALID_ARGUMENT;
+		
+	if (block_size < BLOCK_CACHE_MIN_BLOCK_SIZE ||
+	    block_size > BLOCK_CACHE_MAX_BLOCK_SIZE ||
+	    (block_size & (block_size - 1)) != 0)
+		return KERN_INVALID_ARGUMENT;
+	
+	vm_object_lock(object);
+	
+	/* Check if block cache is already enabled */
+	if (object->block_cache_enabled) {
+		vm_object_unlock(object);
+		return KERN_SUCCESS;
+	}
+	
+	/* Create block cache */
+	cache = block_cache_create(object, block_size);
+	if (cache == NULL) {
+		vm_object_unlock(object);
+		return KERN_RESOURCE_SHORTAGE;
+	}
+	
+	object->block_cache = cache;
+	object->block_cache_enabled = TRUE;
+	
+	vm_object_unlock(object);
+	return KERN_SUCCESS;
+}
+
+/*
+ * Disable block-level caching for a memory object
+ */
+void
+vm_object_disable_block_cache(vm_object_t object)
+{
+	block_cache_t cache;
+	
+	if (object == VM_OBJECT_NULL)
+		return;
+		
+	vm_object_lock(object);
+	
+	if (!object->block_cache_enabled) {
+		vm_object_unlock(object);
+		return;
+	}
+	
+	cache = object->block_cache;
+	object->block_cache = NULL;
+	object->block_cache_enabled = FALSE;
+	
+	vm_object_unlock(object);
+	
+	/* Destroy the block cache */
+	if (cache != NULL)
+		block_cache_destroy(cache);
+}
+
+/*
+ * Check if an object has block-level caching enabled
+ */
+boolean_t
+vm_object_has_block_cache(vm_object_t object)
+{
+	boolean_t enabled;
+	
+	if (object == VM_OBJECT_NULL)
+		return FALSE;
+		
+	vm_object_lock(object);
+	enabled = object->block_cache_enabled;
+	vm_object_unlock(object);
+	
+	return enabled;
+}

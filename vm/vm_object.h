@@ -56,6 +56,10 @@ typedef struct vm_object_memory_stats vm_object_memory_stats_t;
 #include <vm/vm_external.h>
 #endif	/* MACH_PAGEMAP */
 
+/* Forward declaration for block cache */
+struct block_cache;
+typedef struct block_cache *block_cache_t;
+
 typedef struct ipc_port *	pager_request_t;
 #define	PAGER_REQUEST_NULL	((pager_request_t) 0)
 
@@ -167,6 +171,9 @@ struct vm_object {
 	vm_offset_t		readahead_next;	/* next expected sequential offset */
 	unsigned int		readahead_count;/* consecutive sequential accesses */
 	unsigned int		readahead_window;/* current read-ahead window size */
+	/* Block-level cache integration */
+	block_cache_t		block_cache;	/* Associated block cache (if any) */
+	boolean_t		block_cache_enabled;/* Block caching enabled flag */
 #if	MACH_PAGEMAP
 	vm_external_t		existence_info;
 #endif	/* MACH_PAGEMAP */
