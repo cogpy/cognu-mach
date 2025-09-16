@@ -187,6 +187,14 @@ vm_map_get_aslr_entropy(vm_map_t map, vm_size_t size)
 		entropy_bits = VM_MAP_ASLR_DEFAULT_ENTROPY_BITS;
 	}
 	
+	/* Reduce entropy under memory pressure to improve allocation success */
+	if (vm_map_memory_pressure(map)) {
+		entropy_bits = entropy_bits / 2;  /* Halve entropy bits under pressure */
+		if (entropy_bits < VM_MAP_ASLR_MIN_ENTROPY_BITS) {
+			entropy_bits = VM_MAP_ASLR_MIN_ENTROPY_BITS;
+		}
+	}
+	
 	/* Calculate maximum offset based on entropy bits */
 	max_entropy_offset = (1UL << entropy_bits) * PAGE_SIZE;
 	
@@ -228,6 +236,74 @@ vm_map_set_aslr(vm_map_t map, boolean_t enabled, unsigned int entropy_bits)
 	map->aslr_enabled = enabled;
 	map->aslr_entropy_bits = entropy_bits;
 	vm_map_unlock(map);
+}
+
+/*
+ * Optimize placement for performance and large page alignment
+ */
+vm_offset_t
+vm_map_optimize_placement(vm_map_t map, vm_size_t size, vm_offset_t suggested_addr)
+{
+	vm_offset_t optimized_addr = suggested_addr;
+	
+	if (!map || size == 0) {
+		return suggested_addr;
+	}
+	
+	/* For large allocations, try to align to large page boundaries */
+	if (size >= VM_MAP_LARGE_PAGE_SIZE) {
+		/* Align to 2MB boundary for large allocations */
+		vm_offset_t large_page_mask = VM_MAP_LARGE_PAGE_SIZE - 1;
+		optimized_addr = (suggested_addr + large_page_mask) & ~large_page_mask;
+		
+		/* Verify alignment is still within reasonable bounds */
+		if (optimized_addr < map->min_offset || 
+		    (optimized_addr + size) > map->max_offset) {
+			optimized_addr = suggested_addr;  /* Fall back to original */
+		}
+	}
+	
+	/* For very large allocations, prefer high addresses for better performance */
+	if (map->prefer_high_addr && size >= VM_MAP_PREFER_HIGH_THRESHOLD) {
+		vm_offset_t high_region_start = map->max_offset - (map->max_offset - map->min_offset) / 4;
+		
+		if (optimized_addr < high_region_start) {
+			/* Try to place in high region if possible */
+			vm_offset_t high_addr = high_region_start;
+			
+			/* Align to large page if beneficial */
+			if (size >= VM_MAP_LARGE_PAGE_SIZE) {
+				vm_offset_t large_page_mask = VM_MAP_LARGE_PAGE_SIZE - 1;
+				high_addr = (high_addr + large_page_mask) & ~large_page_mask;
+			}
+			
+			if ((high_addr + size) <= map->max_offset) {
+				optimized_addr = high_addr;
+			}
+		}
+	}
+	
+	return optimized_addr;
+}
+
+/*
+ * Detect memory pressure for adaptive placement decisions
+ */
+boolean_t
+vm_map_memory_pressure(vm_map_t map)
+{
+	vm_size_t used_space;
+	vm_size_t total_space;
+	
+	if (!map) {
+		return FALSE;
+	}
+	
+	used_space = map->size;
+	total_space = map->max_offset - map->min_offset;
+	
+	/* Consider memory pressure high if more than 75% of address space is used */
+	return (used_space > (total_space * 3) / 4);
 }
 
 /*
@@ -800,6 +876,9 @@ restart:
 				start = randomized_start;
 			}
 		}
+		
+		/* Apply performance optimizations (large page alignment, high address preference) */
+		start = vm_map_optimize_placement(map, size, start);
 		
 		end = start + size;
 

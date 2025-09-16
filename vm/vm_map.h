@@ -68,6 +68,13 @@
 #define VM_MAP_ASLR_MIN_ENTROPY_BITS		4	/* Minimum useful entropy */
 
 /*
+ * Large page optimization constants
+ */
+#define VM_MAP_LARGE_PAGE_SIZE			(2 * 1024 * 1024)  /* 2MB large pages */
+#define VM_MAP_HUGE_PAGE_SIZE			(1024 * 1024 * 1024) /* 1GB huge pages */
+#define VM_MAP_PREFER_HIGH_THRESHOLD		(128 * 1024 * 1024) /* 128MB - prefer high addresses for large allocations */
+
+/*
  *	Types defined:
  *
  *	vm_map_entry_t		an entry in an address map.
@@ -596,5 +603,11 @@ extern void		vm_map_set_aslr(vm_map_t, boolean_t, unsigned int);
 
 /* Get simple entropy for address randomization */
 extern vm_offset_t	vm_map_get_aslr_entropy(vm_map_t, vm_size_t);
+
+/* Optimize placement for performance and large pages */
+extern vm_offset_t	vm_map_optimize_placement(vm_map_t, vm_size_t, vm_offset_t);
+
+/* Detect memory pressure for adaptive placement */
+extern boolean_t	vm_map_memory_pressure(vm_map_t);
 
 #endif	/* _VM_VM_MAP_H_ */
