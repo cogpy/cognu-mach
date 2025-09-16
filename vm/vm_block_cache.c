@@ -14,8 +14,9 @@
 #include <string.h>
 #include <kern/assert.h>
 #include <kern/debug.h>
-#include <kern/kalloc_enhanced.h>
+#include <kern/kalloc.h>
 #include <kern/slab.h>
+#include <kern/queue.h>
 #include <mach/vm_param.h>
 #include <vm/vm_block_cache.h>
 #include <vm/vm_page.h>
@@ -96,15 +97,17 @@ block_cache_create(vm_object_t object, vm_size_t block_size)
 void
 block_cache_destroy(block_cache_t cache)
 {
-	block_cache_entry_t entry, next;
+	block_cache_entry_t entry;
 	
 	assert(cache != NULL);
 	
 	simple_lock(&cache->lock);
 	
 	/* Free all cached blocks */
-	queue_iterate_safely(&cache->block_list, entry, next, 
-			    block_cache_entry_t, object_link) {
+	entry = (block_cache_entry_t)queue_first(&cache->block_list);
+	while (!queue_end(&cache->block_list, (queue_entry_t)entry)) {
+		block_cache_entry_t next_entry = (block_cache_entry_t)queue_next(&entry->object_link);
+		
 		queue_remove(&cache->block_list, entry, 
 			    block_cache_entry_t, object_link);
 		queue_remove(&cache->lru_queue, entry,
@@ -114,14 +117,15 @@ block_cache_destroy(block_cache_t cache)
 		
 		/* Free associated pages if any */
 		if (entry->pages != NULL) {
-			kfree(entry->pages, entry->page_count * sizeof(vm_page_t));
+			kfree((vm_offset_t)entry->pages, entry->page_count * sizeof(vm_page_t));
 		}
 		
-		kmem_cache_free(&block_cache_entry_cache, entry);
+		kmem_cache_free(&block_cache_entry_cache, (vm_offset_t)entry);
+		entry = next_entry;
 	}
 	
 	simple_unlock(&cache->lock);
-	kmem_cache_free(&block_cache_cache, cache);
+	kmem_cache_free(&block_cache_cache, (vm_offset_t)cache);
 }
 
 /*
@@ -138,8 +142,8 @@ block_cache_lookup(block_cache_t cache, vm_offset_t block_offset)
 	queue_iterate(&cache->hash_buckets[hash], entry, 
 		     block_cache_entry_t, hash_link) {
 		if (entry->block_offset == block_offset) {
-			/* Update access time for LRU */
-			entry->access_time = ticks;
+			/* Update access time for LRU - use simple counter */
+			entry->access_time++;
 			entry->access_frequency++;
 			
 			/* Move to front of LRU queue */
@@ -173,28 +177,33 @@ block_cache_entry_alloc(block_cache_t cache, vm_offset_t block_offset)
 		block_cache_entry_t lru_entry;
 		
 		/* Find a clean block to evict from the end of LRU queue */
-		queue_iterate_backwards(&cache->lru_queue, lru_entry,
-				       block_cache_entry_t, lru_link) {
-			if (lru_entry->state == BLOCK_CACHE_CLEAN && 
-			    lru_entry->ref_count == 0) {
-				/* Remove from all queues and hash table */
-				queue_remove(&cache->lru_queue, lru_entry,
-					    block_cache_entry_t, lru_link);
-				queue_remove(&cache->block_list, lru_entry,
-					    block_cache_entry_t, object_link);
-				hash = block_cache_hash(lru_entry->block_offset);
-				queue_remove(&cache->hash_buckets[hash], lru_entry,
-					    block_cache_entry_t, hash_link);
-				
-				/* Free associated pages */
-				if (lru_entry->pages != NULL) {
-					kfree(lru_entry->pages, 
-					     lru_entry->page_count * sizeof(vm_page_t));
+		/* Simple iteration from end using queue_last and queue_prev */
+		if (!queue_empty(&cache->lru_queue)) {
+			lru_entry = (block_cache_entry_t)queue_last(&cache->lru_queue);
+			
+			while (!queue_end(&cache->lru_queue, (queue_entry_t)lru_entry)) {
+				if (lru_entry->state == BLOCK_CACHE_CLEAN && 
+				    lru_entry->ref_count == 0) {
+					/* Remove from all queues and hash table */
+					queue_remove(&cache->lru_queue, lru_entry,
+						    block_cache_entry_t, lru_link);
+					queue_remove(&cache->block_list, lru_entry,
+						    block_cache_entry_t, object_link);
+					hash = block_cache_hash(lru_entry->block_offset);
+					queue_remove(&cache->hash_buckets[hash], lru_entry,
+						    block_cache_entry_t, hash_link);
+					
+					/* Free associated pages */
+					if (lru_entry->pages != NULL) {
+						kfree((vm_offset_t)lru_entry->pages, 
+						     lru_entry->page_count * sizeof(vm_page_t));
+					}
+					
+					kmem_cache_free(&block_cache_entry_cache, (vm_offset_t)lru_entry);
+					cache->total_blocks--;
+					break;
 				}
-				
-				kmem_cache_free(&block_cache_entry_cache, lru_entry);
-				cache->total_blocks--;
-				break;
+				lru_entry = (block_cache_entry_t)queue_prev(&lru_entry->lru_link);
 			}
 		}
 		
@@ -216,20 +225,20 @@ block_cache_entry_alloc(block_cache_t cache, vm_offset_t block_offset)
 	entry->block_size = cache->block_size;
 	entry->state = BLOCK_CACHE_CLEAN;
 	entry->ref_count = 0;
-	entry->access_time = ticks;
+	entry->access_time = 1;  /* Simple counter instead of ticks */
 	entry->access_frequency = 1;
 	
 	/* Calculate number of pages needed for this block */
 	pages_needed = (cache->block_size + PAGE_SIZE - 1) / PAGE_SIZE;
 	entry->page_count = pages_needed;
 	
-	/* Allocate page array */
-	if (pages_needed > 0) {
-		entry->pages = (vm_page_t *)kalloc(pages_needed * sizeof(vm_page_t));
-		if (entry->pages == NULL) {
-			kmem_cache_free(&block_cache_entry_cache, entry);
-			return NULL;
-		}
+		/* Allocate page array */
+		if (pages_needed > 0) {
+			entry->pages = (vm_page_t *)kalloc(pages_needed * sizeof(vm_page_t));
+			if (entry->pages == NULL) {
+				kmem_cache_free(&block_cache_entry_cache, (vm_offset_t)entry);
+				return NULL;
+			}
 		memset(entry->pages, 0, pages_needed * sizeof(vm_page_t));
 	}
 	

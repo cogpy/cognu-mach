@@ -1,0 +1,171 @@
+This is mach.info, produced by makeinfo version 7.1 from mach.texi.
+
+This file documents the GNU Mach microkernel.
+
+   This is edition 0.4, last updated on 16 September 2025, of 'The GNU
+Mach Reference Manual', for version 1.8.
+
+   Copyright © 2001, 2002, 2006, 2007, 2008 Free Software Foundation,
+Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.2 or any later version published by the Free Software
+     Foundation; with no Invariant Section, with no Front-Cover Texts,
+     and with no Back-Cover Texts.  A copy of the license is included in
+     the section entitled "GNU Free Documentation License".
+
+     This work is based on manual pages under the following copyright
+     and license:
+
+     Mach Operating System
+     Copyright © 1991,1990 Carnegie Mellon University
+     All Rights Reserved.
+
+     Permission to use, copy, modify and distribute this software and
+     its documentation is hereby granted, provided that both the
+     copyright notice and this permission notice appear in all copies of
+     the software, derivative works or modified versions, and any
+     portions thereof, and that both notices appear in supporting
+     documentation.
+
+     CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+     CONDITION. CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
+     ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+INFO-DIR-SECTION Kernel
+START-INFO-DIR-ENTRY
+* GNUMach: (mach).              Using and programming the GNU Mach microkernel.
+END-INFO-DIR-ENTRY
+
+
+Indirect:
+mach.info-1: 1627
+mach.info-2: 302551
+
+Tag Table:
+(Indirect)
+Node: Top1627
+Node: Introduction11328
+Node: Audience12159
+Node: Features13194
+Node: Overview15029
+Node: History16222
+Node: Installing16367
+Node: Binary Distributions17592
+Node: Compilation18400
+Node: Configuration19633
+Node: Cross-Compilation36044
+Node: Bootstrap36825
+Ref: Bootstrap-Footnote-137268
+Node: Bootloader37505
+Ref: Bootloader-Footnote-138785
+Node: Modules38871
+Node: Inter Process Communication39698
+Node: Major Concepts40321
+Node: Messaging Interface44126
+Node: Mach Message Call44856
+Node: Message Format48171
+Node: Exchanging Port Rights59363
+Ref: Exchanging Port Rights-Footnote-164925
+Node: Memory65097
+Ref: Memory-Footnote-168191
+Node: Message Send68533
+Ref: Message Send-Footnote-175555
+Node: Message Receive75838
+Ref: Message Receive-Footnote-185490
+Node: Atomicity85771
+Node: Port Manipulation Interface88545
+Node: Port Creation90100
+Node: Port Destruction94889
+Node: Port Names98032
+Node: Port Rights102279
+Node: Ports and other Tasks106068
+Node: Receive Rights110161
+Node: Port Sets117092
+Node: Request Notifications119495
+Node: Inherited Ports124299
+Node: Virtual Memory Interface127983
+Node: Memory Allocation129311
+Node: Memory Deallocation133313
+Node: Data Transfer134777
+Node: Memory Attributes138303
+Node: Mapping Memory Objects149403
+Node: Memory Statistics152717
+Node: Memory physical addresses154325
+Node: External Memory Management155233
+Node: Memory Object Server155938
+Node: Memory Object Creation158619
+Node: Memory Object Termination162607
+Node: Memory Objects and Data165546
+Node: Memory Object Locking179452
+Node: Memory Object Attributes185316
+Node: Default Memory Manager189091
+Node: Threads and Tasks194773
+Node: Thread Interface195110
+Node: Thread Creation196106
+Node: Thread Termination197223
+Node: Thread Information197694
+Node: Thread Settings204256
+Node: Thread Execution205490
+Node: Scheduling212783
+Node: Thread Priority213138
+Node: Hand-Off Scheduling215772
+Node: Scheduling Policy220897
+Node: Thread Special Ports222229
+Node: Exceptions224675
+Node: Task Interface225551
+Node: Task Creation226563
+Node: Task Termination227898
+Node: Task Information228500
+Node: Task Execution235989
+Node: Task Special Ports240402
+Node: Syscall Emulation244256
+Node: Profiling245487
+Node: Host Interface249250
+Node: Host Ports250235
+Node: Host Information252308
+Node: Host Time257058
+Node: Host Reboot260430
+Node: Processors and Processor Sets260982
+Node: Processor Set Interface261960
+Node: Processor Set Ports262727
+Node: Processor Set Access263557
+Node: Processor Set Creation265817
+Node: Processor Set Destruction266844
+Node: Tasks and Threads on Sets267765
+Node: Processor Set Priority272932
+Node: Processor Set Policy274222
+Node: Processor Set Info275836
+Node: Processor Interface279649
+Node: Hosted Processors280374
+Node: Processor Control281365
+Node: Processors and Sets282831
+Node: Processor Info284709
+Node: Device Interface287451
+Node: Device Reply Server289142
+Node: Device Open290434
+Node: Device Close292557
+Node: Device Read293136
+Node: Device Write296055
+Node: Device Map298860
+Node: Device Status299751
+Node: Device Filter302551
+Node: Device Interrupt308323
+Node: Kernel Debugger309384
+Node: Operation310111
+Node: Commands313088
+Node: Variables327756
+Node: Expressions329293
+Node: Copying330642
+Node: Documentation License349870
+Node: GNU Free Documentation License350459
+Node: CMU License372856
+Node: Concept Index374089
+Node: Function and Data Index377935
+
+End Tag Table
+
+
+Local Variables:
+coding: iso-8859-1
+End:
