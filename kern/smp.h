@@ -143,6 +143,6 @@ extern struct smp_cpu_info smp_cpu_info[NCPUS];
 #else
 extern struct smp_cpu_info smp_cpu_info[1];
 #endif
-extern simple_lock_data_t smp_cpu_info_lock;
+decl_simple_lock_data(extern, smp_cpu_info_lock);
 
 #endif /* _KERN_SMP_H_ */
