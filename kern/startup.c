@@ -48,6 +48,7 @@
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
 #include <kern/xpr.h>
+#include <kern/perf_analysis.h>
 #include <kern/printf.h>
 #if MACH_KDB
 #include <gdb_stub.h>
@@ -143,6 +144,9 @@ void setup_main(void)
 
 	/* Initialize console timestamps after time system is ready */
 	console_timestamp_init();
+
+	/* Initialize performance analysis framework */
+	perf_analysis_init();
 
 	/* Initialize modern GDB stub for enhanced debugging */
 #if MACH_KDB

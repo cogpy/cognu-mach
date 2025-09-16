@@ -62,6 +62,7 @@
 #include <ipc/mach_msg.h>
 #include <machine/locore.h>
 #include <machine/pcb.h>
+#include <kern/perf_analysis.h>
 
 /*
  *	Routine:	mach_msg_send
@@ -390,6 +391,19 @@ mach_msg_trap(
 	mach_port_name_t 	notify)
 {
 	mach_msg_return_t mr;
+	uint64_t perf_start_time;
+	uint32_t task_id = 0, thread_id = 0;
+
+	/* Record performance start time */
+	perf_start_time = PERF_EVENT_TIME_START(PERF_EVENT_IPC_SEND);
+	
+	/* Get task and thread IDs for performance tracking */
+	if (current_thread() != THREAD_NULL) {
+		thread_id = (uint32_t)(uintptr_t)current_thread();
+		if (current_thread()->task != TASK_NULL) {
+			task_id = (uint32_t)(uintptr_t)current_thread()->task;
+		}
+	}
 
 	/* first check for common cases */
 
@@ -1599,10 +1613,15 @@ mach_msg_trap(
 	if (option & MACH_RCV_MSG) {
 		mr = mach_msg_receive(msg, option, rcv_size, rcv_name,
 				      time_out, notify);
-		if (mr != MACH_MSG_SUCCESS)
+		if (mr != MACH_MSG_SUCCESS) {
+			PERF_EVENT_TIME_END(PERF_EVENT_IPC_SEND, perf_start_time, 
+			                   task_id, thread_id, mr, 0);
 			return mr;
+		}
 	}
 
+	PERF_EVENT_TIME_END(PERF_EVENT_IPC_SEND, perf_start_time, 
+	                   task_id, thread_id, MACH_MSG_SUCCESS, send_size);
 	return MACH_MSG_SUCCESS;
 }
 

@@ -255,6 +255,7 @@ USER_TESTS := \
 	tests/test-stress \
 	tests/test-memory-tracking \
 	tests/test-memory-management-enhanced \
+	tests/test-performance-analysis \
 	tests/test-suite-runner \
 	tests/test-device-framework \
 	tests/test-cross-phase-infrastructure \
