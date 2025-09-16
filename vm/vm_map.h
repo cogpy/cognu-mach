@@ -61,6 +61,20 @@
 #define KENTRY_DATA_SIZE (256*PAGE_SIZE)
 
 /*
+ * ASLR (Address Space Layout Randomization) constants
+ */
+#define VM_MAP_ASLR_DEFAULT_ENTROPY_BITS	8	/* Default 8 bits = 256 possible positions */
+#define VM_MAP_ASLR_MAX_ENTROPY_BITS		16	/* Maximum entropy for reasonable performance */
+#define VM_MAP_ASLR_MIN_ENTROPY_BITS		4	/* Minimum useful entropy */
+
+/*
+ * Large page optimization constants
+ */
+#define VM_MAP_LARGE_PAGE_SIZE			(2 * 1024 * 1024)  /* 2MB large pages */
+#define VM_MAP_HUGE_PAGE_SIZE			(1024 * 1024 * 1024) /* 1GB huge pages */
+#define VM_MAP_PREFER_HIGH_THRESHOLD		(128 * 1024 * 1024) /* 128MB - prefer high addresses for large allocations */
+
+/*
  *	Types defined:
  *
  *	vm_map_entry_t		an entry in an address map.
@@ -193,9 +207,12 @@ struct vm_map {
 	/* Flags */
 	unsigned int	wait_for_space:1,	/* Should callers wait
 						   for space? */
-	/* boolean_t */ wiring_required:1;	/* New mappings are wired? */
+	/* boolean_t */ wiring_required:1,	/* New mappings are wired? */
+	/* boolean_t */ aslr_enabled:1,	/* Address space layout randomization enabled */
+	/* boolean_t */ prefer_high_addr:1;	/* Prefer high addresses for performance */
 
 	unsigned int		timestamp;	/* Version number */
+	unsigned int		aslr_entropy_bits;	/* Number of bits for ASLR entropy (default 8) */
 
 	const char		*name;		/* Associated name */
 };
@@ -576,5 +593,21 @@ void _vm_map_clip_end(
 	vm_map_entry_t		entry,
 	vm_offset_t		end,
 	boolean_t		link_gap);
+
+/*
+ * ASLR (Address Space Layout Randomization) support
+ */
+
+/* Configure ASLR for a VM map */
+extern void		vm_map_set_aslr(vm_map_t, boolean_t, unsigned int);
+
+/* Get simple entropy for address randomization */
+extern vm_offset_t	vm_map_get_aslr_entropy(vm_map_t, vm_size_t);
+
+/* Optimize placement for performance and large pages */
+extern vm_offset_t	vm_map_optimize_placement(vm_map_t, vm_size_t, vm_offset_t);
+
+/* Detect memory pressure for adaptive placement */
+extern boolean_t	vm_map_memory_pressure(vm_map_t);
 
 #endif	/* _VM_VM_MAP_H_ */

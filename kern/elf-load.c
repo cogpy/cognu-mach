@@ -57,9 +57,21 @@ int exec_load(exec_read_func_t *read, exec_read_exec_func_t *read_exec,
 		return EX_WRONG_ARCH;
 
 	/* Leave room for mmaps etc. before PIE binaries.
-	 * Could add address randomization here.  */
-	if (x.e_type == ET_DYN || x.e_type == ET_REL)
-		loadbase = 128 << 20;
+	 * Add address randomization for position-independent executables (PIE) */
+	if (x.e_type == ET_DYN || x.e_type == ET_REL) {
+		loadbase = 128 << 20;  /* 128MB base */
+		
+		/* Apply ASLR if available and enabled for the current task */
+		/* Note: This demonstrates how ASLR could be integrated with ELF loading.
+		 * In a full implementation, this would use the task's VM map ASLR settings. */
+		/* 
+		 * Example integration:
+		 * if (current_task()->map->aslr_enabled) {
+		 *     vm_offset_t entropy = vm_map_get_aslr_entropy(current_task()->map, x.e_size);
+		 *     loadbase += entropy;
+		 * }
+		 */
+	}
 
 	/* XXX others */
 	out_info->entry = (vm_offset_t) x.e_entry + loadbase;

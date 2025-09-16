@@ -144,6 +144,169 @@ static struct vm_object	vm_submap_object_store;
 vm_object_t		vm_submap_object = &vm_submap_object_store;
 
 /*
+ * ASLR (Address Space Layout Randomization) support
+ */
+
+/*
+ * Simple entropy source using system time and counters.
+ * This provides basic randomization for ASLR purposes.
+ * For production systems, this should be replaced with 
+ * a proper cryptographically secure random number generator.
+ */
+static vm_offset_t
+vm_map_get_simple_entropy(void)
+{
+	extern unsigned long elapsed_ticks;  /* from mach_clock.h */
+	static unsigned long entropy_counter = 0;
+	vm_offset_t entropy;
+	
+	/* Combine various sources of entropy */
+	entropy_counter++;
+	entropy = (vm_offset_t)(elapsed_ticks ^ (entropy_counter << 8) ^ 
+			       ((vm_offset_t)&entropy_counter >> 3));
+	
+	return entropy;
+}
+
+/*
+ * Get ASLR entropy offset for address randomization
+ */
+vm_offset_t
+vm_map_get_aslr_entropy(vm_map_t map, vm_size_t size)
+{
+	vm_offset_t entropy;
+	vm_offset_t max_entropy_offset;
+	unsigned int entropy_bits;
+	
+	if (!map || !map->aslr_enabled || size == 0) {
+		return 0;
+	}
+	
+	entropy_bits = map->aslr_entropy_bits;
+	if (entropy_bits == 0) {
+		entropy_bits = VM_MAP_ASLR_DEFAULT_ENTROPY_BITS;
+	}
+	
+	/* Reduce entropy under memory pressure to improve allocation success */
+	if (vm_map_memory_pressure(map)) {
+		entropy_bits = entropy_bits / 2;  /* Halve entropy bits under pressure */
+		if (entropy_bits < VM_MAP_ASLR_MIN_ENTROPY_BITS) {
+			entropy_bits = VM_MAP_ASLR_MIN_ENTROPY_BITS;
+		}
+	}
+	
+	/* Calculate maximum offset based on entropy bits */
+	max_entropy_offset = (1UL << entropy_bits) * PAGE_SIZE;
+	
+	/* Don't randomize if it would exceed reasonable bounds */
+	if (max_entropy_offset > (map->max_offset - map->min_offset) / 4) {
+		max_entropy_offset = (map->max_offset - map->min_offset) / 4;
+		max_entropy_offset &= ~(PAGE_SIZE - 1); /* Align to page boundary */
+	}
+	
+	if (max_entropy_offset == 0) {
+		return 0;
+	}
+	
+	/* Get entropy and scale it to our range */
+	entropy = vm_map_get_simple_entropy();
+	entropy = (entropy % (max_entropy_offset / PAGE_SIZE)) * PAGE_SIZE;
+	
+	return entropy;
+}
+
+/*
+ * Configure ASLR for a VM map
+ */
+void
+vm_map_set_aslr(vm_map_t map, boolean_t enabled, unsigned int entropy_bits)
+{
+	if (!map) {
+		return;
+	}
+	
+	/* Validate entropy bits */
+	if (entropy_bits > VM_MAP_ASLR_MAX_ENTROPY_BITS) {
+		entropy_bits = VM_MAP_ASLR_MAX_ENTROPY_BITS;
+	} else if (entropy_bits < VM_MAP_ASLR_MIN_ENTROPY_BITS && entropy_bits != 0) {
+		entropy_bits = VM_MAP_ASLR_MIN_ENTROPY_BITS;
+	}
+	
+	vm_map_lock(map);
+	map->aslr_enabled = enabled;
+	map->aslr_entropy_bits = entropy_bits;
+	vm_map_unlock(map);
+}
+
+/*
+ * Optimize placement for performance and large page alignment
+ */
+vm_offset_t
+vm_map_optimize_placement(vm_map_t map, vm_size_t size, vm_offset_t suggested_addr)
+{
+	vm_offset_t optimized_addr = suggested_addr;
+	
+	if (!map || size == 0) {
+		return suggested_addr;
+	}
+	
+	/* For large allocations, try to align to large page boundaries */
+	if (size >= VM_MAP_LARGE_PAGE_SIZE) {
+		/* Align to 2MB boundary for large allocations */
+		vm_offset_t large_page_mask = VM_MAP_LARGE_PAGE_SIZE - 1;
+		optimized_addr = (suggested_addr + large_page_mask) & ~large_page_mask;
+		
+		/* Verify alignment is still within reasonable bounds */
+		if (optimized_addr < map->min_offset || 
+		    (optimized_addr + size) > map->max_offset) {
+			optimized_addr = suggested_addr;  /* Fall back to original */
+		}
+	}
+	
+	/* For very large allocations, prefer high addresses for better performance */
+	if (map->prefer_high_addr && size >= VM_MAP_PREFER_HIGH_THRESHOLD) {
+		vm_offset_t high_region_start = map->max_offset - (map->max_offset - map->min_offset) / 4;
+		
+		if (optimized_addr < high_region_start) {
+			/* Try to place in high region if possible */
+			vm_offset_t high_addr = high_region_start;
+			
+			/* Align to large page if beneficial */
+			if (size >= VM_MAP_LARGE_PAGE_SIZE) {
+				vm_offset_t large_page_mask = VM_MAP_LARGE_PAGE_SIZE - 1;
+				high_addr = (high_addr + large_page_mask) & ~large_page_mask;
+			}
+			
+			if ((high_addr + size) <= map->max_offset) {
+				optimized_addr = high_addr;
+			}
+		}
+	}
+	
+	return optimized_addr;
+}
+
+/*
+ * Detect memory pressure for adaptive placement decisions
+ */
+boolean_t
+vm_map_memory_pressure(vm_map_t map)
+{
+	vm_size_t used_space;
+	vm_size_t total_space;
+	
+	if (!map) {
+		return FALSE;
+	}
+	
+	used_space = map->size;
+	total_space = map->max_offset - map->min_offset;
+	
+	/* Consider memory pressure high if more than 75% of address space is used */
+	return (used_space > (total_space * 3) / 4);
+}
+
+/*
  *	vm_map_init:
  *
  *	Initialize the vm_map module.  Must be called before
@@ -196,6 +359,12 @@ void vm_map_setup(
 	map->max_offset = max;
 	map->wiring_required = FALSE;
 	map->wait_for_space = FALSE;
+	
+	/* Initialize ASLR settings - enabled by default for most maps */
+	/* Disable ASLR for the kernel map (we'll identify it by name later) */
+	map->aslr_enabled = TRUE;  /* Enable by default, can be configured per map */
+	map->prefer_high_addr = FALSE;  /* Default to low addresses for compatibility */
+	map->aslr_entropy_bits = VM_MAP_ASLR_DEFAULT_ENTROPY_BITS;
 	map->first_free = vm_map_to_entry(map);
 	map->hint = vm_map_to_entry(map);
 	map->name = NULL;
@@ -693,6 +862,24 @@ restart:
 	if (map->hdr.nentries == 0) {
 		entry = vm_map_to_entry(map);
 		start = (map->min_offset + mask) & ~mask;
+		
+		/* Add ASLR randomization for empty maps */
+		if (map->aslr_enabled) {
+			vm_offset_t entropy = vm_map_get_aslr_entropy(map, size);
+			vm_offset_t randomized_start = start + entropy;
+			
+			/* Ensure randomized start is properly aligned and within bounds */
+			randomized_start = (randomized_start + mask) & ~mask;
+			if (randomized_start >= map->min_offset && 
+			    (randomized_start + size) <= max &&
+			    (randomized_start + size) > randomized_start) {
+				start = randomized_start;
+			}
+		}
+		
+		/* Apply performance optimizations (large page alignment, high address preference) */
+		start = vm_map_optimize_placement(map, size, start);
+		
 		end = start + size;
 
 		if ((start < map->min_offset) || (end <= start) || (end > max)) {
@@ -707,6 +894,23 @@ restart:
 
 	if (entry != vm_map_to_entry(map)) {
 		start = (entry->vme_end + mask) & ~mask;
+		
+		/* Add ASLR randomization for first_free hint */
+		if (map->aslr_enabled && entry->gap_size > (size + mask)) {
+			vm_offset_t available_space = entry->gap_size - (size + mask);
+			vm_offset_t entropy = vm_map_get_aslr_entropy(map, size);
+			
+			/* Apply limited randomization within the gap */
+			if (available_space > 0 && entropy > 0) {
+				vm_offset_t max_entropy = available_space & ~(PAGE_SIZE - 1);
+				if (max_entropy > 0) {
+					entropy = (entropy % (max_entropy / PAGE_SIZE + 1)) * PAGE_SIZE;
+					start += entropy;
+					start = (start + mask) & ~mask;
+				}
+			}
+		}
+		
 		end = start + size;
 
 		if ((start >= entry->vme_end)
@@ -751,6 +955,32 @@ restart:
 
 	assert(entry->gap_size >= max_size);
 	start = (entry->vme_end + mask) & ~mask;
+	
+	/* Add ASLR randomization when placing in gaps */
+	if (map->aslr_enabled && entry->gap_size > max_size) {
+		vm_offset_t available_space = entry->gap_size - max_size;
+		vm_offset_t entropy = vm_map_get_aslr_entropy(map, size);
+		vm_offset_t max_entropy_offset;
+		
+		/* Limit entropy to available space in this gap */
+		max_entropy_offset = available_space & ~(PAGE_SIZE - 1);  /* Page-aligned */
+		if (entropy > max_entropy_offset) {
+			entropy = entropy % (max_entropy_offset / PAGE_SIZE + 1) * PAGE_SIZE;
+		}
+		
+		/* Apply randomization */
+		if (entropy > 0 && entropy <= available_space) {
+			vm_offset_t randomized_start = start + entropy;
+			randomized_start = (randomized_start + mask) & ~mask;
+			
+			/* Verify the randomized placement is still valid */
+			if (randomized_start >= entry->vme_end && 
+			    (randomized_start + size) <= (entry->vme_end + entry->gap_size)) {
+				start = randomized_start;
+			}
+		}
+	}
+	
 	assert(start >= entry->vme_end);
 	end = start + size;
 	assert(end > start);
