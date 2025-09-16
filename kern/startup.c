@@ -55,6 +55,9 @@
 #include <kern/bootstrap.h>
 #include <kern/startup.h>
 #include <kern/printf.h>
+#ifdef CONFIG_MACH_TRACING
+#include <mach/lttng.h>
+#endif
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -117,6 +120,11 @@ void setup_main(void)
 
 	panic_init();
 
+#ifdef CONFIG_MACH_TRACING
+	/* Initialize LTTng-style tracing early */
+	mach_trace_early_init();
+#endif
+
 	sched_init();
 	vm_mem_bootstrap();
 	rdxtree_cache_init();
@@ -143,6 +151,12 @@ void setup_main(void)
 
 	/* Initialize console timestamps after time system is ready */
 	console_timestamp_init();
+
+#ifdef CONFIG_MACH_TRACING
+	/* Initialize full tracing system now that console is ready */
+	mach_trace_init();
+	printf("LTTng-style kernel tracing initialized\n");
+#endif
 
 	/* Initialize modern GDB stub for enhanced debugging */
 #if MACH_KDB
