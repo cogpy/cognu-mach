@@ -234,6 +234,7 @@ USER_TESTS := \
 	tests/test-vm-merge \
 	tests/test-vm-aslr \
 	tests/test-vm-object-memory \
+	tests/test-block-cache \
 	tests/test-ipc-large \
 	tests/test-ipc-virtual-copy \
 	tests/test-vm-fault \

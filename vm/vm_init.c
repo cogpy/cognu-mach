@@ -45,6 +45,7 @@
 #include <vm/vm_kern.h>
 #include <vm/memory_object.h>
 #include <vm/memory_object_proxy.h>
+#include <vm/vm_block_cache.h>
 
 
 /*
@@ -70,6 +71,7 @@ void vm_mem_bootstrap(void)
 
 	slab_bootstrap();
 	vm_object_bootstrap();
+	vm_block_cache_init();
 	vm_map_init();
 	kmem_init(start, end);
 	pmap_init();
