@@ -26,8 +26,18 @@
 #include <stdarg.h>
 #include <string.h>
 
-/* Global trace buffer */
-struct mach_trace_buffer mach_trace_buf;
+/* Internal trace buffer implementation */
+struct mach_trace_buffer_impl {
+	struct mach_trace_event events[MACH_TRACE_BUF_SIZE];
+	volatile uint32_t write_pos;
+	volatile uint32_t read_pos;
+	simple_lock_irq_data_t lock;
+	boolean_t enabled;
+	uint32_t dropped_events;
+} __attribute__((aligned(64)));
+
+static struct mach_trace_buffer_impl mach_trace_buf_impl;
+struct mach_trace_buffer_impl *mach_trace_buf_ptr = &mach_trace_buf_impl;
 
 /* Global tracing enabled flag */
 boolean_t mach_tracing_enabled = FALSE;
@@ -42,10 +52,10 @@ static uint32_t total_events_dropped = 0;
 void
 mach_trace_init(void)
 {
-	/* Initialize the trace buffer */
-	memset(&mach_trace_buf, 0, sizeof(mach_trace_buf));
-	simple_lock_init_irq(&mach_trace_buf.lock);
-	mach_trace_buf.enabled = FALSE;
+	/* Initialize the trace buffer implementation */
+	memset(&mach_trace_buf_impl, 0, sizeof(mach_trace_buf_impl));
+	simple_lock_init_irq(&mach_trace_buf_impl.lock);
+	mach_trace_buf_impl.enabled = FALSE;
 	
 	/* Reset statistics */
 	total_events_generated = 0;
@@ -63,23 +73,23 @@ mach_trace_enable(boolean_t enable)
 {
 	spl_t spl;
 	
-	spl = simple_lock_irq(&mach_trace_buf.lock);
+	spl = simple_lock_irq(&mach_trace_buf_impl.lock);
 	
 	if (enable && !mach_tracing_enabled) {
 		/* Clear buffer when enabling */
-		mach_trace_buf.write_pos = 0;
-		mach_trace_buf.read_pos = 0;
-		mach_trace_buf.dropped_events = 0;
-		mach_trace_buf.enabled = TRUE;
+		mach_trace_buf_impl.write_pos = 0;
+		mach_trace_buf_impl.read_pos = 0;
+		mach_trace_buf_impl.dropped_events = 0;
+		mach_trace_buf_impl.enabled = TRUE;
 		mach_tracing_enabled = TRUE;
 		printf("Mach tracing enabled\n");
 	} else if (!enable && mach_tracing_enabled) {
 		mach_tracing_enabled = FALSE;
-		mach_trace_buf.enabled = FALSE;
+		mach_trace_buf_impl.enabled = FALSE;
 		printf("Mach tracing disabled\n");
 	}
 	
-	simple_unlock_irq(spl, &mach_trace_buf.lock);
+	simple_unlock_irq(spl, &mach_trace_buf_impl.lock);
 }
 
 /*

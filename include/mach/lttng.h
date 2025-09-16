@@ -21,8 +21,12 @@
 #define _MACH_LTTNG_H_
 
 #include <mach/boolean.h>
-#include <mach/time_value.h>
-#include <kern/lock.h>
+
+/* Use kernel-compatible types instead of stdint.h */  
+typedef unsigned char   uint8_t;
+typedef unsigned short  uint16_t;  
+typedef unsigned int    uint32_t;
+typedef unsigned long long uint64_t;
 
 /*
  * GNU Mach LTTng-style tracing infrastructure
@@ -75,18 +79,8 @@ struct mach_trace_event {
 	char data[64];            /* Event-specific data */
 } __attribute__((packed));
 
-/* Trace buffer management */
-struct mach_trace_buffer {
-	struct mach_trace_event events[MACH_TRACE_BUF_SIZE];
-	volatile uint32_t write_pos;
-	volatile uint32_t read_pos;
-	simple_lock_irq_data_t lock;
-	boolean_t enabled;
-	uint32_t dropped_events;
-} __attribute__((aligned(64)));
-
-/* Global tracing state */
-extern struct mach_trace_buffer mach_trace_buf;
+/* Trace buffer management - opaque in header, implemented in .c */
+extern struct mach_trace_buffer_impl *mach_trace_buf_ptr;
 extern boolean_t mach_tracing_enabled;
 
 /* Core tracing functions */
@@ -144,7 +138,7 @@ void mach_trace_event(mach_trace_category_t category,
 
 #endif /* CONFIG_MACH_TRACING */
 
-/* User-space interface for reading trace data */
+/* User-space interface for reading trace data - simplified for kernel */
 struct mach_trace_read_request {
 	uint32_t max_events;
 	uint32_t timeout_ms;
