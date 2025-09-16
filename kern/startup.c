@@ -48,6 +48,7 @@
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
 #include <kern/xpr.h>
+#include <kern/dtrace.h>
 #include <kern/printf.h>
 #if MACH_KDB
 #include <gdb_stub.h>
@@ -136,6 +137,10 @@ void setup_main(void)
 #if	XPR_DEBUG
 	xprbootstrap();
 #endif	/* XPR_DEBUG */
+
+#if	MACH_DTRACE
+	dtrace_init();
+#endif	/* MACH_DTRACE */
 
 	machine_init();
 

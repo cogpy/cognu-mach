@@ -41,6 +41,7 @@
 #include <kern/debug.h>
 #include <kern/thread.h>
 #include <kern/sched_prim.h>
+#include <kern/dtrace.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -1157,6 +1158,8 @@ kern_return_t vm_fault(
 	boolean_t		wired;		/* Should mapping be wired down? */
 	vm_object_t		object;		/* Top-level object */
 	vm_offset_t		offset;		/* Top-level offset */
+
+	DTRACE_VM_FAULT(vaddr, fault_type);
 	vm_prot_t		prot;		/* Protection for mapping */
 	vm_object_t		old_copy_object; /* Saved copy object */
 	vm_page_t		result_page;	/* Result of vm_fault_page */
