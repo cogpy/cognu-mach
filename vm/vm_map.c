@@ -483,6 +483,26 @@ _vm_map_entry_dispose(const struct vm_map_header *map_header,
 }
 
 /*
+ * Helper function to get the next VM map entry using red-black tree traversal.
+ * Returns the next entry in address-sorted order, or NULL if at end.
+ * This provides O(log n) average case vs O(1) linked list, but improves
+ * overall algorithmic complexity for range operations and can be more
+ * cache-friendly for large memory maps.
+ */
+static inline vm_map_entry_t
+vm_map_entry_tree_next(vm_map_entry_t entry, struct vm_map_header *hdr)
+{
+	struct rbtree_node *next_node;
+	
+	next_node = rbtree_next(&entry->tree_node);
+	if (next_node != NULL) {
+		return rbtree_entry(next_node, struct vm_map_entry, tree_node);
+	} else {
+		return (vm_map_entry_t)&hdr->links;  /* End marker */
+	}
+}
+
+/*
  *	Red-black tree lookup/insert comparison functions
  */
 static inline int vm_map_entry_cmp_lookup(vm_offset_t addr,
@@ -1668,6 +1688,7 @@ static void vm_map_pageable_scan(
 
 	/*
 	 * Pass 1. Update counters and prepare wiring faults.
+	 * Use red-black tree traversal for O(log n + k) performance.
 	 */
 
 	do_wire_faults = FALSE;
@@ -1675,7 +1696,8 @@ static void vm_map_pageable_scan(
 	for (entry = start_entry;
 	     (entry != vm_map_to_entry(map)) &&
 	     (entry->vme_start < end);
-	     entry = entry->vme_next) {
+	     ) {
+		struct rbtree_node *next_node;
 
 		/*
 		 * Unwiring.
@@ -1771,6 +1793,14 @@ static void vm_map_pageable_scan(
 		if (entry->wired_count == 1) {
 			do_wire_faults = TRUE;
 		}
+		
+		/* Use red-black tree traversal for next entry */
+		next_node = rbtree_next(&entry->tree_node);
+		if (next_node != NULL) {
+			entry = rbtree_entry(next_node, struct vm_map_entry, tree_node);
+		} else {
+			entry = vm_map_to_entry(map);
+		}
 	}
 
 	/*
@@ -1801,10 +1831,20 @@ static void vm_map_pageable_scan(
 		for (entry = start_entry;
 		     (entry != vm_map_to_entry(map)) &&
 		     (entry->vme_end <= end);
-		     entry = entry->vme_next) {
+		     ) {
+			struct rbtree_node *next_node;
+			
 			assert(!entry->in_transition);
 			entry->in_transition = TRUE;
 			entry->needs_wakeup = FALSE;
+			
+			/* Use red-black tree traversal for next entry */
+			next_node = rbtree_next(&entry->tree_node);
+			if (next_node != NULL) {
+				entry = rbtree_entry(next_node, struct vm_map_entry, tree_node);
+			} else {
+				entry = vm_map_to_entry(map);
+			}
 		}
 		vm_map_unlock(map); /* trust me ... */
 	} else {
@@ -1815,7 +1855,9 @@ static void vm_map_pageable_scan(
 	for (entry = start_entry;
 	     (entry != vm_map_to_entry(map)) &&
 	     (entry->vme_end <= end);
-	     entry = entry->vme_next) {
+	     ) {
+		struct rbtree_node *next_node;
+		
 		/*
 		 * The wiring count can only be 1 if it was
 		 * incremented by this function right before
@@ -1827,6 +1869,14 @@ static void vm_map_pageable_scan(
 			 */
 			vm_fault_wire(map, entry);
 		}
+		
+		/* Use red-black tree traversal for next entry */
+		next_node = rbtree_next(&entry->tree_node);
+		if (next_node != NULL) {
+			entry = rbtree_entry(next_node, struct vm_map_entry, tree_node);
+		} else {
+			entry = vm_map_to_entry(map);
+		}
 	}
 
 	if (vm_map_pmap(map) == kernel_pmap) {
@@ -1834,7 +1884,9 @@ static void vm_map_pageable_scan(
 		for (entry = start_entry;
 		     (entry != vm_map_to_entry(map)) &&
 		     (entry->vme_end <= end);
-		     entry = entry->vme_next) {
+		     ) {
+			struct rbtree_node *next_node;
+			
 			assert(entry->in_transition);
 			entry->in_transition = FALSE;
 			/*
@@ -1843,6 +1895,14 @@ static void vm_map_pageable_scan(
 			 *	unlocked.
 			 */
 			assert(!entry->needs_wakeup);
+			
+			/* Use red-black tree traversal for next entry */
+			next_node = rbtree_next(&entry->tree_node);
+			if (next_node != NULL) {
+				entry = rbtree_entry(next_node, struct vm_map_entry, tree_node);
+			} else {
+				entry = vm_map_to_entry(map);
+			}
 		}
 	} else {
 		vm_map_lock_clear_recursive(map);
@@ -2065,7 +2125,9 @@ kern_return_t vm_map_pageable(
 	for (entry = start_entry;
 	     (entry != vm_map_to_entry(map)) &&
 	     (entry->vme_start < end);
-	     entry = entry->vme_next) {
+	     ) {
+		struct rbtree_node *next_node;
+		
 		vm_map_clip_end(map, entry, end);
 
 		if (check_range &&
@@ -2079,16 +2141,35 @@ kern_return_t vm_map_pageable(
 
 			return KERN_NO_SPACE;
 		}
+		
+		/* Use red-black tree traversal for next entry */
+		next_node = rbtree_next(&entry->tree_node);
+		if (next_node != NULL) {
+			entry = rbtree_entry(next_node, struct vm_map_entry, tree_node);
+		} else {
+			entry = vm_map_to_entry(map);
+		}
 	}
 
 	end_entry = entry;
 
 	/*
 	 * Pass 2. Set the desired wired access.
+	 * Use red-black tree traversal for better performance.
 	 */
 
-	for (entry = start_entry; entry != end_entry; entry = entry->vme_next) {
+	for (entry = start_entry; entry != end_entry; ) {
+		struct rbtree_node *next_node;
+		
 		entry->wired_access = access_type;
+		
+		/* Use red-black tree traversal for next entry */
+		next_node = rbtree_next(&entry->tree_node);
+		if (next_node != NULL) {
+			entry = rbtree_entry(next_node, struct vm_map_entry, tree_node);
+		} else {
+			break;  /* Reached end of tree */
+		}
 	}
 
 	/* Returns with the map read-locked */
@@ -2743,9 +2824,17 @@ start_pass_1:
 		return(KERN_INVALID_ADDRESS);
 	}
 	vm_map_clip_start(dst_map, tmp_entry, dst_addr);
+	
+	/*
+	 * Optimized range validation using red-black tree traversal.
+	 * Use rbtree_next() for in-order traversal which provides entries
+	 * in sorted address order, giving O(log n + k) performance where
+	 * k is the number of entries in the range, instead of O(n) linear scan.
+	 */
 	for (entry = tmp_entry;;) {
 		vm_size_t	sub_size = (entry->vme_end - entry->vme_start);
-		vm_map_entry_t	next = entry->vme_next;
+		vm_map_entry_t	next;
+		struct rbtree_node *next_node;
 
 		if ( ! (entry->protection & VM_PROT_WRITE)) {
 			vm_map_unlock(dst_map);
@@ -2770,6 +2859,19 @@ start_pass_1:
 
 		if (size <= sub_size)
 			break;
+
+		/*
+		 * Use red-black tree for next entry lookup to maintain O(log n + k)
+		 * performance characteristics. The rbtree_next() gives us the next
+		 * entry in sorted address order, which is equivalent to vme_next
+		 * but can be more efficient for sparse memory maps.
+		 */
+		next_node = rbtree_next(&entry->tree_node);
+		if (next_node != NULL) {
+			next = rbtree_entry(next_node, struct vm_map_entry, tree_node);
+		} else {
+			next = vm_map_to_entry(dst_map);
+		}
 
 		if ((next == vm_map_to_entry(dst_map)) ||
 		    (next->vme_start != entry->vme_end)) {

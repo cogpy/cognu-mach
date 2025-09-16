@@ -56,10 +56,9 @@ analysis-reports/
 build-*-test/
 
 # Test artifacts
-tests/
-tests/include-mach/
-tests/errlist.c
-tests/mig-out/
+test_vm_map_optimization
+vm_map_optimization_test
+*.tmp
 
 # MIG build artifacts  
 mig/Makefile
