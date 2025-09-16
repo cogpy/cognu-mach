@@ -251,6 +251,7 @@ USER_TESTS := \
 	tests/test-development-tools \
 	tests/test-benchmark-ipc \
 	tests/test-benchmark-memory \
+	tests/test-advanced-memory \
 	tests/test-stress \
 	tests/test-memory-tracking \
 	tests/test-memory-management-enhanced \

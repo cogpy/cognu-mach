@@ -60,6 +60,13 @@ test_vm_map_optimization
 vm_map_optimization_test
 *.tmp
 
+# Test infrastructure and generated files
+tests/include-mach/
+tests/mig-out/  
+tests/errlist.c
+tests/*.iso
+tests/*.img
+
 # MIG build artifacts  
 mig/Makefile
 mig/Makefile.in

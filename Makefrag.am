@@ -267,6 +267,8 @@ libkernel_a_SOURCES += \
 	vm/pmap.h \
 	vm/vm_block_cache.c \
 	vm/vm_block_cache.h \
+	vm/vm_compress.c \
+	vm/vm_compress.h \
 	vm/vm_debug.c \
 	vm/vm_external.c \
 	vm/vm_external.h \
