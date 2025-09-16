@@ -144,6 +144,93 @@ static struct vm_object	vm_submap_object_store;
 vm_object_t		vm_submap_object = &vm_submap_object_store;
 
 /*
+ * ASLR (Address Space Layout Randomization) support
+ */
+
+/*
+ * Simple entropy source using system time and counters.
+ * This provides basic randomization for ASLR purposes.
+ * For production systems, this should be replaced with 
+ * a proper cryptographically secure random number generator.
+ */
+static vm_offset_t
+vm_map_get_simple_entropy(void)
+{
+	extern unsigned long elapsed_ticks;  /* from mach_clock.h */
+	static unsigned long entropy_counter = 0;
+	vm_offset_t entropy;
+	
+	/* Combine various sources of entropy */
+	entropy_counter++;
+	entropy = (vm_offset_t)(elapsed_ticks ^ (entropy_counter << 8) ^ 
+			       ((vm_offset_t)&entropy_counter >> 3));
+	
+	return entropy;
+}
+
+/*
+ * Get ASLR entropy offset for address randomization
+ */
+vm_offset_t
+vm_map_get_aslr_entropy(vm_map_t map, vm_size_t size)
+{
+	vm_offset_t entropy;
+	vm_offset_t max_entropy_offset;
+	unsigned int entropy_bits;
+	
+	if (!map || !map->aslr_enabled || size == 0) {
+		return 0;
+	}
+	
+	entropy_bits = map->aslr_entropy_bits;
+	if (entropy_bits == 0) {
+		entropy_bits = VM_MAP_ASLR_DEFAULT_ENTROPY_BITS;
+	}
+	
+	/* Calculate maximum offset based on entropy bits */
+	max_entropy_offset = (1UL << entropy_bits) * PAGE_SIZE;
+	
+	/* Don't randomize if it would exceed reasonable bounds */
+	if (max_entropy_offset > (map->max_offset - map->min_offset) / 4) {
+		max_entropy_offset = (map->max_offset - map->min_offset) / 4;
+		max_entropy_offset &= ~(PAGE_SIZE - 1); /* Align to page boundary */
+	}
+	
+	if (max_entropy_offset == 0) {
+		return 0;
+	}
+	
+	/* Get entropy and scale it to our range */
+	entropy = vm_map_get_simple_entropy();
+	entropy = (entropy % (max_entropy_offset / PAGE_SIZE)) * PAGE_SIZE;
+	
+	return entropy;
+}
+
+/*
+ * Configure ASLR for a VM map
+ */
+void
+vm_map_set_aslr(vm_map_t map, boolean_t enabled, unsigned int entropy_bits)
+{
+	if (!map) {
+		return;
+	}
+	
+	/* Validate entropy bits */
+	if (entropy_bits > VM_MAP_ASLR_MAX_ENTROPY_BITS) {
+		entropy_bits = VM_MAP_ASLR_MAX_ENTROPY_BITS;
+	} else if (entropy_bits < VM_MAP_ASLR_MIN_ENTROPY_BITS && entropy_bits != 0) {
+		entropy_bits = VM_MAP_ASLR_MIN_ENTROPY_BITS;
+	}
+	
+	vm_map_lock(map);
+	map->aslr_enabled = enabled;
+	map->aslr_entropy_bits = entropy_bits;
+	vm_map_unlock(map);
+}
+
+/*
  *	vm_map_init:
  *
  *	Initialize the vm_map module.  Must be called before
@@ -196,6 +283,12 @@ void vm_map_setup(
 	map->max_offset = max;
 	map->wiring_required = FALSE;
 	map->wait_for_space = FALSE;
+	
+	/* Initialize ASLR settings - enabled by default for most maps */
+	/* Disable ASLR for the kernel map (we'll identify it by name later) */
+	map->aslr_enabled = TRUE;  /* Enable by default, can be configured per map */
+	map->prefer_high_addr = FALSE;  /* Default to low addresses for compatibility */
+	map->aslr_entropy_bits = VM_MAP_ASLR_DEFAULT_ENTROPY_BITS;
 	map->first_free = vm_map_to_entry(map);
 	map->hint = vm_map_to_entry(map);
 	map->name = NULL;
@@ -693,6 +786,21 @@ restart:
 	if (map->hdr.nentries == 0) {
 		entry = vm_map_to_entry(map);
 		start = (map->min_offset + mask) & ~mask;
+		
+		/* Add ASLR randomization for empty maps */
+		if (map->aslr_enabled) {
+			vm_offset_t entropy = vm_map_get_aslr_entropy(map, size);
+			vm_offset_t randomized_start = start + entropy;
+			
+			/* Ensure randomized start is properly aligned and within bounds */
+			randomized_start = (randomized_start + mask) & ~mask;
+			if (randomized_start >= map->min_offset && 
+			    (randomized_start + size) <= max &&
+			    (randomized_start + size) > randomized_start) {
+				start = randomized_start;
+			}
+		}
+		
 		end = start + size;
 
 		if ((start < map->min_offset) || (end <= start) || (end > max)) {
@@ -707,6 +815,23 @@ restart:
 
 	if (entry != vm_map_to_entry(map)) {
 		start = (entry->vme_end + mask) & ~mask;
+		
+		/* Add ASLR randomization for first_free hint */
+		if (map->aslr_enabled && entry->gap_size > (size + mask)) {
+			vm_offset_t available_space = entry->gap_size - (size + mask);
+			vm_offset_t entropy = vm_map_get_aslr_entropy(map, size);
+			
+			/* Apply limited randomization within the gap */
+			if (available_space > 0 && entropy > 0) {
+				vm_offset_t max_entropy = available_space & ~(PAGE_SIZE - 1);
+				if (max_entropy > 0) {
+					entropy = (entropy % (max_entropy / PAGE_SIZE + 1)) * PAGE_SIZE;
+					start += entropy;
+					start = (start + mask) & ~mask;
+				}
+			}
+		}
+		
 		end = start + size;
 
 		if ((start >= entry->vme_end)
@@ -751,6 +876,32 @@ restart:
 
 	assert(entry->gap_size >= max_size);
 	start = (entry->vme_end + mask) & ~mask;
+	
+	/* Add ASLR randomization when placing in gaps */
+	if (map->aslr_enabled && entry->gap_size > max_size) {
+		vm_offset_t available_space = entry->gap_size - max_size;
+		vm_offset_t entropy = vm_map_get_aslr_entropy(map, size);
+		vm_offset_t max_entropy_offset;
+		
+		/* Limit entropy to available space in this gap */
+		max_entropy_offset = available_space & ~(PAGE_SIZE - 1);  /* Page-aligned */
+		if (entropy > max_entropy_offset) {
+			entropy = entropy % (max_entropy_offset / PAGE_SIZE + 1) * PAGE_SIZE;
+		}
+		
+		/* Apply randomization */
+		if (entropy > 0 && entropy <= available_space) {
+			vm_offset_t randomized_start = start + entropy;
+			randomized_start = (randomized_start + mask) & ~mask;
+			
+			/* Verify the randomized placement is still valid */
+			if (randomized_start >= entry->vme_end && 
+			    (randomized_start + size) <= (entry->vme_end + entry->gap_size)) {
+				start = randomized_start;
+			}
+		}
+	}
+	
 	assert(start >= entry->vme_end);
 	end = start + size;
 	assert(end > start);
