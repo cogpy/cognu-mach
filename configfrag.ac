@@ -53,6 +53,9 @@ AC_DEFINE([HW_FOOTPRINT], [0], [HW_FOOTPRINT])
 # Counters.
 AC_DEFINE([MACH_COUNTERS], [0], [MACH_COUNTERS])
 
+# DTrace-like instrumentation.
+AC_DEFINE([MACH_DTRACE], [1], [MACH_DTRACE])
+
 # IPC debugging interface.
 AC_DEFINE([MACH_DEBUG], [1], [MACH_DEBUG])
 

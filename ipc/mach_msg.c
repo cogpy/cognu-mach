@@ -46,6 +46,7 @@
 #include <kern/printf.h>
 #include <kern/sched_prim.h>
 #include <kern/ipc_sched.h>
+#include <kern/dtrace.h>
 #include <kern/exception.h>
 #include <vm/vm_map.h>
 #include <ipc/copy_user.h>
@@ -401,6 +402,8 @@ mach_msg_trap(
 	mach_port_name_t 	notify)
 {
 	mach_msg_return_t mr;
+
+	DTRACE_IPC_SEND((uint64_t)rcv_name, send_size);
 
 	/* first check for common cases */
 

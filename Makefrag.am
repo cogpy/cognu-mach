@@ -144,6 +144,8 @@ libkernel_a_SOURCES += \
 	kern/cpu_number.h \
 	kern/debug.c \
 	kern/debug.h \
+	kern/dtrace.c \
+	kern/dtrace.h \
 	kern/eventcount.c \
 	kern/eventcount.h \
 	kern/exception.c \
