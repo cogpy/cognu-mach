@@ -259,7 +259,12 @@ USER_TESTS := \
 	tests/test-suite-runner \
 	tests/test-device-framework \
 	tests/test-cross-phase-infrastructure \
-	tests/test-smp-threads
+	tests/test-smp-threads \
+# <<<<<<< copilot/fix-115
+	tests/test-lttng
+# =======
+	tests/test-dtrace-instrumentation
+# >>>>>>> master
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 

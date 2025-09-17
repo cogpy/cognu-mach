@@ -144,6 +144,8 @@ libkernel_a_SOURCES += \
 	kern/cpu_number.h \
 	kern/debug.c \
 	kern/debug.h \
+	kern/dtrace.c \
+	kern/dtrace.h \
 	kern/eventcount.c \
 	kern/eventcount.h \
 	kern/exception.c \
@@ -174,6 +176,7 @@ libkernel_a_SOURCES += \
 	kern/lock.h \
 	kern/lock_mon.c \
 	kern/log2.h \
+	kern/lttng.c \
 	kern/mach_clock.c \
 	kern/mach_clock.h \
 	kern/mach_factor.c \

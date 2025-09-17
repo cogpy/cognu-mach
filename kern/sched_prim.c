@@ -53,6 +53,7 @@
 #include <kern/syscall_subr.h>
 #include <kern/thread.h>
 #include <kern/thread_swap.h>
+#include <kern/dtrace.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
@@ -627,6 +628,8 @@ boolean_t thread_invoke(
 	continuation_t	continuation,
 	thread_t 	new_thread)
 {
+	DTRACE_THREAD_SWITCH(old_thread, new_thread);
+	
 	/*
 	 *	Check for invoking the same thread.
 	 */

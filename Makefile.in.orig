@@ -1588,6 +1588,7 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/act.c kern/act.h kern/assert.h kern/ast.c kern/ast.h \
 	kern/atomic.h kern/boot_script.h kern/bootstrap.c \
 	kern/bootstrap.h kern/counters.c kern/counters.h \
+# <<<<<<< copilot/fix-115
 	kern/cpu_number.h kern/debug.c kern/debug.h kern/eventcount.c \
 	kern/eventcount.h kern/exception.c kern/exception.h \
 	kern/gsync.c kern/gsync.h kern/host.c kern/host.h \
@@ -1597,8 +1598,29 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/kalloc.h kern/kalloc_enhanced.c kern/kalloc_enhanced.h \
 	kern/kern_types.h kern/kmutex.c kern/kmutex.h kern/list.h \
 	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
-	kern/mach_clock.c kern/mach_clock.h kern/mach_factor.c \
-	kern/mach_factor.h kern/machine.c kern/machine.h kern/macros.h \
+	kern/lttng.c kern/mach_clock.c kern/mach_clock.h \
+	kern/mach_factor.c kern/mach_factor.h kern/machine.c \
+	kern/machine.h kern/macros.h kern/mem_optimize.c \
+	kern/mem_optimize.h kern/mem_track.c kern/mem_track.h \
+	kern/pc_sample.c kern/pc_sample.h kern/printf.c kern/printf.h \
+	kern/priority.c kern/priority.h kern/processor.c \
+	kern/processor.h kern/profile.c kern/queue.c kern/queue.h \
+	kern/rbtree.c kern/rbtree.h kern/rbtree_i.h kern/rdxtree.c \
+	kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h kern/slab.c \
+	kern/slab.h kern/smp.h kern/smp.c kern/smp_lock.h \
+# =======
+	kern/cpu_number.h kern/debug.c kern/debug.h kern/dtrace.c \
+	kern/dtrace.h kern/eventcount.c kern/eventcount.h \
+	kern/exception.c kern/exception.h kern/gsync.c kern/gsync.h \
+	kern/host.c kern/host.h kern/ipc_host.c kern/ipc_host.h \
+	kern/ipc_kobject.c kern/ipc_kobject.h kern/ipc_mig.c \
+	kern/ipc_mig.h kern/ipc_sched.c kern/ipc_sched.h kern/ipc_tt.c \
+	kern/ipc_tt.h kern/kalloc.h kern/kalloc_enhanced.c \
+	kern/kalloc_enhanced.h kern/kern_types.h kern/kmutex.c \
+	kern/kmutex.h kern/list.h kern/lock.c kern/lock.h \
+	kern/lock_mon.c kern/log2.h kern/mach_clock.c \
+	kern/mach_clock.h kern/mach_factor.c kern/mach_factor.h \
+	kern/machine.c kern/machine.h kern/macros.h \
 	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
 	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
 	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
@@ -1606,6 +1628,7 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
 	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
 	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/smp_lock.h \
+# >>>>>>> master
 	kern/smp_lock.c kern/smp_sched.c kern/sched.h \
 	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
 	kern/startup.c kern/startup.h kern/strings.c \
@@ -1884,6 +1907,7 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	ipc/mach_msg.$(OBJEXT) ipc/mach_port.$(OBJEXT) \
 	ipc/mach_debug.$(OBJEXT) kern/act.$(OBJEXT) kern/ast.$(OBJEXT) \
 	kern/bootstrap.$(OBJEXT) kern/counters.$(OBJEXT) \
+# <<<<<<< copilot/fix-115
 	kern/debug.$(OBJEXT) kern/eventcount.$(OBJEXT) \
 	kern/exception.$(OBJEXT) kern/gsync.$(OBJEXT) \
 	kern/host.$(OBJEXT) kern/ipc_host.$(OBJEXT) \
@@ -1891,26 +1915,37 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/ipc_sched.$(OBJEXT) kern/ipc_tt.$(OBJEXT) \
 	kern/kalloc_enhanced.$(OBJEXT) kern/kmutex.$(OBJEXT) \
 	kern/lock.$(OBJEXT) kern/lock_mon.$(OBJEXT) \
-	kern/mach_clock.$(OBJEXT) kern/mach_factor.$(OBJEXT) \
-	kern/machine.$(OBJEXT) kern/mem_optimize.$(OBJEXT) \
-	kern/mem_track.$(OBJEXT) kern/pc_sample.$(OBJEXT) \
-	kern/printf.$(OBJEXT) kern/priority.$(OBJEXT) \
-	kern/processor.$(OBJEXT) kern/profile.$(OBJEXT) \
-	kern/queue.$(OBJEXT) kern/rbtree.$(OBJEXT) \
-	kern/rdxtree.$(OBJEXT) kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) \
-	kern/smp_lock.$(OBJEXT) kern/smp_sched.$(OBJEXT) \
-	kern/sched_prim.$(OBJEXT) kern/startup.$(OBJEXT) \
-	kern/strings.$(OBJEXT) kern/syscall_emulation.$(OBJEXT) \
-	kern/syscall_subr.$(OBJEXT) kern/syscall_sw.$(OBJEXT) \
-	kern/task.$(OBJEXT) kern/thread.$(OBJEXT) \
-	kern/thread_swap.$(OBJEXT) kern/timer.$(OBJEXT) \
-	kern/xpr.$(OBJEXT) kern/elf-load.$(OBJEXT) \
-	kern/boot_script.$(OBJEXT) util/atoi.$(OBJEXT) \
-	util/byteorder.$(OBJEXT) vm/memory_object_proxy.$(OBJEXT) \
-	vm/memory_object.$(OBJEXT) vm/vm_block_cache.$(OBJEXT) \
-	vm/vm_compress.$(OBJEXT) vm/vm_debug.$(OBJEXT) \
-	vm/vm_external.$(OBJEXT) vm/vm_fault.$(OBJEXT) \
-	vm/vm_init.$(OBJEXT) vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
+	kern/lttng.$(OBJEXT) kern/mach_clock.$(OBJEXT) \
+# =======
+	kern/debug.$(OBJEXT) kern/dtrace.$(OBJEXT) \
+	kern/eventcount.$(OBJEXT) kern/exception.$(OBJEXT) \
+	kern/gsync.$(OBJEXT) kern/host.$(OBJEXT) \
+	kern/ipc_host.$(OBJEXT) kern/ipc_kobject.$(OBJEXT) \
+	kern/ipc_mig.$(OBJEXT) kern/ipc_sched.$(OBJEXT) \
+	kern/ipc_tt.$(OBJEXT) kern/kalloc_enhanced.$(OBJEXT) \
+	kern/kmutex.$(OBJEXT) kern/lock.$(OBJEXT) \
+	kern/lock_mon.$(OBJEXT) kern/mach_clock.$(OBJEXT) \
+# >>>>>>> master
+	kern/mach_factor.$(OBJEXT) kern/machine.$(OBJEXT) \
+	kern/mem_optimize.$(OBJEXT) kern/mem_track.$(OBJEXT) \
+	kern/pc_sample.$(OBJEXT) kern/printf.$(OBJEXT) \
+	kern/priority.$(OBJEXT) kern/processor.$(OBJEXT) \
+	kern/profile.$(OBJEXT) kern/queue.$(OBJEXT) \
+	kern/rbtree.$(OBJEXT) kern/rdxtree.$(OBJEXT) \
+	kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) kern/smp_lock.$(OBJEXT) \
+	kern/smp_sched.$(OBJEXT) kern/sched_prim.$(OBJEXT) \
+	kern/startup.$(OBJEXT) kern/strings.$(OBJEXT) \
+	kern/syscall_emulation.$(OBJEXT) kern/syscall_subr.$(OBJEXT) \
+	kern/syscall_sw.$(OBJEXT) kern/task.$(OBJEXT) \
+	kern/thread.$(OBJEXT) kern/thread_swap.$(OBJEXT) \
+	kern/timer.$(OBJEXT) kern/xpr.$(OBJEXT) \
+	kern/elf-load.$(OBJEXT) kern/boot_script.$(OBJEXT) \
+	util/atoi.$(OBJEXT) util/byteorder.$(OBJEXT) \
+	vm/memory_object_proxy.$(OBJEXT) vm/memory_object.$(OBJEXT) \
+	vm/vm_block_cache.$(OBJEXT) vm/vm_compress.$(OBJEXT) \
+	vm/vm_debug.$(OBJEXT) vm/vm_external.$(OBJEXT) \
+	vm/vm_fault.$(OBJEXT) vm/vm_init.$(OBJEXT) \
+	vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
 	vm/vm_object.$(OBJEXT) vm/vm_object_verify.$(OBJEXT) \
 	vm/vm_page.$(OBJEXT) vm/vm_pageout.$(OBJEXT) \
 	vm/vm_resident.$(OBJEXT) vm/vm_user.$(OBJEXT) \
@@ -2440,8 +2475,8 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/act.Po kern/$(DEPDIR)/ast.Po \
 	kern/$(DEPDIR)/boot_script.Po kern/$(DEPDIR)/bootstrap.Po \
 	kern/$(DEPDIR)/counters.Po kern/$(DEPDIR)/debug.Po \
-	kern/$(DEPDIR)/elf-load.Po kern/$(DEPDIR)/eventcount.Po \
-	kern/$(DEPDIR)/exception.Po \
+	kern/$(DEPDIR)/dtrace.Po kern/$(DEPDIR)/elf-load.Po \
+	kern/$(DEPDIR)/eventcount.Po kern/$(DEPDIR)/exception.Po \
 	kern/$(DEPDIR)/experimental.server.Po \
 	kern/$(DEPDIR)/gdb_stub.Po kern/$(DEPDIR)/gnumach.server.Po \
 	kern/$(DEPDIR)/gsync.Po kern/$(DEPDIR)/host.Po \
@@ -2458,8 +2493,8 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-mach_host.server.defs.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-task_notify.user.defs.Po \
 	kern/$(DEPDIR)/lock.Po kern/$(DEPDIR)/lock_mon.Po \
-	kern/$(DEPDIR)/mach.server.Po kern/$(DEPDIR)/mach4.server.Po \
-	kern/$(DEPDIR)/mach_clock.Po \
+	kern/$(DEPDIR)/lttng.Po kern/$(DEPDIR)/mach.server.Po \
+	kern/$(DEPDIR)/mach4.server.Po kern/$(DEPDIR)/mach_clock.Po \
 	kern/$(DEPDIR)/mach_debug.server.Po \
 	kern/$(DEPDIR)/mach_factor.Po \
 	kern/$(DEPDIR)/mach_host.server.Po kern/$(DEPDIR)/machine.Po \
@@ -3389,6 +3424,7 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/act.c kern/act.h kern/assert.h kern/ast.c kern/ast.h \
 	kern/atomic.h kern/boot_script.h kern/bootstrap.c \
 	kern/bootstrap.h kern/counters.c kern/counters.h \
+# <<<<<<< copilot/fix-115
 	kern/cpu_number.h kern/debug.c kern/debug.h kern/eventcount.c \
 	kern/eventcount.h kern/exception.c kern/exception.h \
 	kern/gsync.c kern/gsync.h kern/host.c kern/host.h \
@@ -3398,8 +3434,29 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/kalloc.h kern/kalloc_enhanced.c kern/kalloc_enhanced.h \
 	kern/kern_types.h kern/kmutex.c kern/kmutex.h kern/list.h \
 	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
-	kern/mach_clock.c kern/mach_clock.h kern/mach_factor.c \
-	kern/mach_factor.h kern/machine.c kern/machine.h kern/macros.h \
+	kern/lttng.c kern/mach_clock.c kern/mach_clock.h \
+	kern/mach_factor.c kern/mach_factor.h kern/machine.c \
+	kern/machine.h kern/macros.h kern/mem_optimize.c \
+	kern/mem_optimize.h kern/mem_track.c kern/mem_track.h \
+	kern/pc_sample.c kern/pc_sample.h kern/printf.c kern/printf.h \
+	kern/priority.c kern/priority.h kern/processor.c \
+	kern/processor.h kern/profile.c kern/queue.c kern/queue.h \
+	kern/rbtree.c kern/rbtree.h kern/rbtree_i.h kern/rdxtree.c \
+	kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h kern/slab.c \
+	kern/slab.h kern/smp.h kern/smp.c kern/smp_lock.h \
+# =======
+	kern/cpu_number.h kern/debug.c kern/debug.h kern/dtrace.c \
+	kern/dtrace.h kern/eventcount.c kern/eventcount.h \
+	kern/exception.c kern/exception.h kern/gsync.c kern/gsync.h \
+	kern/host.c kern/host.h kern/ipc_host.c kern/ipc_host.h \
+	kern/ipc_kobject.c kern/ipc_kobject.h kern/ipc_mig.c \
+	kern/ipc_mig.h kern/ipc_sched.c kern/ipc_sched.h kern/ipc_tt.c \
+	kern/ipc_tt.h kern/kalloc.h kern/kalloc_enhanced.c \
+	kern/kalloc_enhanced.h kern/kern_types.h kern/kmutex.c \
+	kern/kmutex.h kern/list.h kern/lock.c kern/lock.h \
+	kern/lock_mon.c kern/log2.h kern/mach_clock.c \
+	kern/mach_clock.h kern/mach_factor.c kern/mach_factor.h \
+	kern/machine.c kern/machine.h kern/macros.h \
 	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
 	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
 	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
@@ -3407,6 +3464,7 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
 	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
 	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/smp_lock.h \
+# >>>>>>> master
 	kern/smp_lock.c kern/smp_sched.c kern/sched.h \
 	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
 	kern/startup.c kern/startup.h kern/strings.c \
@@ -3884,7 +3942,12 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-suite-runner \
 @PLATFORM_xen_FALSE@	tests/test-device-framework \
 @PLATFORM_xen_FALSE@	tests/test-cross-phase-infrastructure \
-@PLATFORM_xen_FALSE@	tests/test-smp-threads
+@PLATFORM_xen_FALSE@	tests/test-smp-threads \
+# <<<<<<< copilot/fix-115
+@PLATFORM_xen_FALSE@	tests/test-lttng
+# =======
+@PLATFORM_xen_FALSE@	tests/test-dtrace-instrumentation
+# >>>>>>> master
 
 @PLATFORM_xen_FALSE@USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
@@ -4205,6 +4268,8 @@ kern/counters.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/debug.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/dtrace.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/eventcount.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/exception.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4230,6 +4295,8 @@ kern/kmutex.$(OBJEXT): kern/$(am__dirstamp) \
 kern/lock.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/lock_mon.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/lttng.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/mach_clock.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
@@ -5339,6 +5406,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/bootstrap.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/counters.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/debug.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/dtrace.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/elf-load.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/eventcount.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/exception.Po@am__quote@ # am--include-marker
@@ -5364,6 +5432,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/lib_dep_tr_for_defs_a-task_notify.user.defs.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/lock.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/lock_mon.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/lttng.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mach.server.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mach4.server.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mach_clock.Po@am__quote@ # am--include-marker
@@ -5587,15 +5656,7 @@ distclean-compile:
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	# Ugly bootstrap hack to get to-be-generated files created
-	# Try to guess what file this dependency file is from...
-	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
-	for f in "$$f"*; do \
-		case $$f in \
-			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
-			*) echo '# dummy';; \
-		esac ; \
-	done >$@-t && $(am__mv) $@-t $@
+	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
@@ -8719,6 +8780,19 @@ tests/test-smp-threads.log: tests/test-smp-threads
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+# <<<<<<< copilot/fix-115
+tests/test-lttng.log: tests/test-lttng
+	@p='tests/test-lttng'; \
+	b='tests/test-lttng'; \
+# =======
+tests/test-dtrace-instrumentation.log: tests/test-dtrace-instrumentation
+	@p='tests/test-dtrace-instrumentation'; \
+	b='tests/test-dtrace-instrumentation'; \
+# >>>>>>> master
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 .test.log:
 	@p='$<'; \
 	$(am__set_b); \
@@ -9188,6 +9262,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/bootstrap.Po
 	-rm -f kern/$(DEPDIR)/counters.Po
 	-rm -f kern/$(DEPDIR)/debug.Po
+	-rm -f kern/$(DEPDIR)/dtrace.Po
 	-rm -f kern/$(DEPDIR)/elf-load.Po
 	-rm -f kern/$(DEPDIR)/eventcount.Po
 	-rm -f kern/$(DEPDIR)/exception.Po
@@ -9213,6 +9288,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/lib_dep_tr_for_defs_a-task_notify.user.defs.Po
 	-rm -f kern/$(DEPDIR)/lock.Po
 	-rm -f kern/$(DEPDIR)/lock_mon.Po
+	-rm -f kern/$(DEPDIR)/lttng.Po
 	-rm -f kern/$(DEPDIR)/mach.server.Po
 	-rm -f kern/$(DEPDIR)/mach4.server.Po
 	-rm -f kern/$(DEPDIR)/mach_clock.Po
@@ -9713,6 +9789,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/bootstrap.Po
 	-rm -f kern/$(DEPDIR)/counters.Po
 	-rm -f kern/$(DEPDIR)/debug.Po
+	-rm -f kern/$(DEPDIR)/dtrace.Po
 	-rm -f kern/$(DEPDIR)/elf-load.Po
 	-rm -f kern/$(DEPDIR)/eventcount.Po
 	-rm -f kern/$(DEPDIR)/exception.Po
@@ -9738,6 +9815,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/lib_dep_tr_for_defs_a-task_notify.user.defs.Po
 	-rm -f kern/$(DEPDIR)/lock.Po
 	-rm -f kern/$(DEPDIR)/lock_mon.Po
+	-rm -f kern/$(DEPDIR)/lttng.Po
 	-rm -f kern/$(DEPDIR)/mach.server.Po
 	-rm -f kern/$(DEPDIR)/mach4.server.Po
 	-rm -f kern/$(DEPDIR)/mach_clock.Po

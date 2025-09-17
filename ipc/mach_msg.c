@@ -46,6 +46,7 @@
 #include <kern/printf.h>
 #include <kern/sched_prim.h>
 #include <kern/ipc_sched.h>
+#include <kern/dtrace.h>
 #include <kern/exception.h>
 #include <vm/vm_map.h>
 #include <ipc/copy_user.h>
@@ -62,7 +63,13 @@
 #include <ipc/mach_msg.h>
 #include <machine/locore.h>
 #include <machine/pcb.h>
+//<<<<<<< copilot/fix-116
 #include <kern/perf_analysis.h>
+//=======
+#ifdef CONFIG_MACH_TRACING
+#include <mach/lttng.h>
+#endif
+//>>>>>>> master
 
 /*
  *	Routine:	mach_msg_send
@@ -101,6 +108,10 @@ mach_msg_send(
 	vm_map_t map = current_map();
 	ipc_kmsg_t kmsg;
 	mach_msg_return_t mr;
+
+#ifdef CONFIG_MACH_TRACING
+	TRACE_IPC(msg_send);
+#endif
 
 	mr = ipc_kmsg_get(msg, send_size, &kmsg);
 	if (mr != MACH_MSG_SUCCESS)
@@ -188,6 +199,10 @@ mach_msg_receive(
 	ipc_kmsg_t kmsg;
 	mach_port_seqno_t seqno;
 	mach_msg_return_t mr;
+
+#ifdef CONFIG_MACH_TRACING
+	TRACE_IPC(msg_receive);
+#endif
 
 	mr = ipc_mqueue_copyin(space, rcv_name, &mqueue, &object);
 	if (mr != MACH_MSG_SUCCESS)
@@ -404,6 +419,8 @@ mach_msg_trap(
 			task_id = (uint32_t)(uintptr_t)current_thread()->task;
 		}
 	}
+
+	DTRACE_IPC_SEND((uint64_t)rcv_name, send_size);
 
 	/* first check for common cases */
 

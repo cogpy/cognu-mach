@@ -86,5 +86,40 @@ extern int vprintf(const char *fmt, va_list listp);
 
 extern void safe_gets (char *str, int maxlen);
 
+/* LTTng-style tracing integration */
+#ifdef CONFIG_MACH_TRACING
+#include <mach/lttng.h>
+
+/* Enhanced printf with automatic tracing */
+#define printf_trace(level, fmt, ...) \
+	do { \
+		printf(fmt, ##__VA_ARGS__); \
+		if (mach_tracing_enabled) \
+			mach_trace_event(MACH_TRACE_KERN, level, \
+			                 MACH_TRACE_EVENT_KERN_BASE + 10, \
+			                 fmt, ##__VA_ARGS__); \
+	} while (0)
+
+/* Tracing-aware panic that logs to trace buffer */
+#define panic_trace(fmt, ...) \
+	do { \
+		if (mach_tracing_enabled) \
+			mach_trace_event(MACH_TRACE_KERN, MACH_TRACE_LEVEL_EMERG, \
+			                 MACH_TRACE_EVENT_KERN_BASE + 2, \
+			                 fmt, ##__VA_ARGS__); \
+		panic(fmt, ##__VA_ARGS__); \
+	} while (0)
+
+/* Function declarations for tracing system */
+extern void mach_trace_print_stats(void);
+extern void mach_trace_early_init(void);
+
+#else /* !CONFIG_MACH_TRACING */
+
+#define printf_trace(level, fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define panic_trace(fmt, ...) panic(fmt, ##__VA_ARGS__)
+
+#endif /* CONFIG_MACH_TRACING */
+
 #endif /* _MACH_SA_SYS_PRINTF_H_ */
 

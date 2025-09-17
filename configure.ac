@@ -199,6 +199,19 @@ AC_ARG_ENABLE([debug-info],
   [debug_info="$enableval"],
   [debug_info="yes"])
 
+# LTTng-style tracing support
+AC_ARG_ENABLE([tracing],
+  AS_HELP_STRING([--enable-tracing], [enable LTTng-style kernel tracing @<:@default=yes@:>@]),
+  [tracing_enabled="$enableval"],
+  [tracing_enabled="yes"])
+
+AS_IF([test "x$tracing_enabled" = xyes], [
+  AC_DEFINE([CONFIG_MACH_TRACING], [1], [Enable LTTng-style kernel tracing])
+  AC_MSG_NOTICE([LTTng-style tracing support enabled])
+], [
+  AC_MSG_NOTICE([LTTng-style tracing support disabled])
+])
+
 AM_CONDITIONAL([ENABLE_DEBUG_INFO], [test "x$debug_info" = "xyes"])
 
 # Strict compilation mode for development
