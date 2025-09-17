@@ -58,6 +58,7 @@
 #include <vm/vm_object.h>
 #include <vm/memory_object_proxy.h>
 #include <vm/vm_page.h>
+#include <kern/perf_analysis.h>
 
 
 
@@ -74,11 +75,29 @@ kern_return_t vm_allocate(
 	boolean_t	anywhere)
 {
 	kern_return_t	result;
+	uint64_t perf_start_time;
+	uint32_t task_id = 0, thread_id = 0;
 
-	if (map == VM_MAP_NULL)
+	/* Record performance start time */
+	perf_start_time = PERF_EVENT_TIME_START(PERF_EVENT_VM_ALLOC);
+	
+	/* Get task and thread IDs for performance tracking */
+	if (current_thread() != THREAD_NULL) {
+		thread_id = (uint32_t)(uintptr_t)current_thread();
+		if (current_thread()->task != TASK_NULL) {
+			task_id = (uint32_t)(uintptr_t)current_thread()->task;
+		}
+	}
+
+	if (map == VM_MAP_NULL) {
+		PERF_EVENT_TIME_END(PERF_EVENT_VM_ALLOC, perf_start_time, 
+		                   task_id, thread_id, KERN_INVALID_ARGUMENT, 0);
 		return(KERN_INVALID_ARGUMENT);
+	}
 	if (size == 0) {
 		*addr = 0;
+		PERF_EVENT_TIME_END(PERF_EVENT_VM_ALLOC, perf_start_time, 
+		                   task_id, thread_id, KERN_SUCCESS, 0);
 		return(KERN_SUCCESS);
 	}
 
@@ -101,6 +120,8 @@ kern_return_t vm_allocate(
 			VM_PROT_ALL,
 			VM_INHERIT_DEFAULT);
 
+	PERF_EVENT_TIME_END(PERF_EVENT_VM_ALLOC, perf_start_time, 
+	                   task_id, thread_id, result, size);
 	return(result);
 }
 
@@ -113,13 +134,38 @@ kern_return_t vm_deallocate(
 	vm_offset_t		start,
 	vm_size_t		size)
 {
-	if (map == VM_MAP_NULL)
+	kern_return_t result;
+	uint64_t perf_start_time;
+	uint32_t task_id = 0, thread_id = 0;
+
+	/* Record performance start time */
+	perf_start_time = PERF_EVENT_TIME_START(PERF_EVENT_VM_FREE);
+	
+	/* Get task and thread IDs for performance tracking */
+	if (current_thread() != THREAD_NULL) {
+		thread_id = (uint32_t)(uintptr_t)current_thread();
+		if (current_thread()->task != TASK_NULL) {
+			task_id = (uint32_t)(uintptr_t)current_thread()->task;
+		}
+	}
+
+	if (map == VM_MAP_NULL) {
+		PERF_EVENT_TIME_END(PERF_EVENT_VM_FREE, perf_start_time, 
+		                   task_id, thread_id, KERN_INVALID_ARGUMENT, 0);
 		return(KERN_INVALID_ARGUMENT);
+	}
 
-	if (size == (vm_offset_t) 0)
+	if (size == (vm_offset_t) 0) {
+		PERF_EVENT_TIME_END(PERF_EVENT_VM_FREE, perf_start_time, 
+		                   task_id, thread_id, KERN_SUCCESS, 0);
 		return(KERN_SUCCESS);
+	}
 
-	return(vm_map_remove(map, trunc_page(start), round_page(start+size)));
+	result = vm_map_remove(map, trunc_page(start), round_page(start+size));
+	
+	PERF_EVENT_TIME_END(PERF_EVENT_VM_FREE, perf_start_time, 
+	                   task_id, thread_id, result, size);
+	return result;
 }
 
 /*

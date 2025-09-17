@@ -160,6 +160,7 @@ libkernel_a_SOURCES += \
 	kern/ipc_kobject.h \
 	kern/ipc_mig.c \
 	kern/ipc_mig.h \
+	kern/ipc_perf_monitor.c \
 	kern/ipc_sched.c \
 	kern/ipc_sched.h \
 	kern/ipc_tt.c \
@@ -189,6 +190,8 @@ libkernel_a_SOURCES += \
 	kern/mem_track.h \
 	kern/pc_sample.c \
 	kern/pc_sample.h \
+	kern/perf_analysis.c \
+	kern/perf_analysis.h \
 	kern/printf.c \
 	kern/printf.h \
 	kern/priority.c \
@@ -403,6 +406,7 @@ include_mach_HEADERS = \
 	include/mach/memory_object.defs \
 	include/mach/memory_object_default.defs \
 	include/mach/notify.defs \
+	include/mach/perf_monitor.defs \
 	include/mach/std_types.defs \
 	include/mach/experimental.defs \
 	include/mach/alert.h \
@@ -421,6 +425,7 @@ include_mach_HEADERS = \
 	include/mach/mig_errors.h \
 	include/mach/notify.h \
 	include/mach/pc_sample.h \
+	include/mach/perf_monitor.h \
 	include/mach/policy.h \
 	include/mach/port.h \
 	include/mach/processor_info.h \
