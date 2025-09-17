@@ -63,6 +63,9 @@
 #include <ipc/mach_msg.h>
 #include <machine/locore.h>
 #include <machine/pcb.h>
+#ifdef CONFIG_MACH_TRACING
+#include <mach/lttng.h>
+#endif
 
 /*
  *	Routine:	mach_msg_send
@@ -101,6 +104,10 @@ mach_msg_send(
 	vm_map_t map = current_map();
 	ipc_kmsg_t kmsg;
 	mach_msg_return_t mr;
+
+#ifdef CONFIG_MACH_TRACING
+	TRACE_IPC(msg_send);
+#endif
 
 	mr = ipc_kmsg_get(msg, send_size, &kmsg);
 	if (mr != MACH_MSG_SUCCESS)
@@ -188,6 +195,10 @@ mach_msg_receive(
 	ipc_kmsg_t kmsg;
 	mach_port_seqno_t seqno;
 	mach_msg_return_t mr;
+
+#ifdef CONFIG_MACH_TRACING
+	TRACE_IPC(msg_receive);
+#endif
 
 	mr = ipc_mqueue_copyin(space, rcv_name, &mqueue, &object);
 	if (mr != MACH_MSG_SUCCESS)

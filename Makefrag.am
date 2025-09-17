@@ -175,6 +175,7 @@ libkernel_a_SOURCES += \
 	kern/lock.h \
 	kern/lock_mon.c \
 	kern/log2.h \
+	kern/lttng.c \
 	kern/mach_clock.c \
 	kern/mach_clock.h \
 	kern/mach_factor.c \
