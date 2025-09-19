@@ -7,10 +7,12 @@ on:
         description: 'Feature Name'
         required: true
         type: string
+        default: 'Kernel'
       context:
         description: 'Context or component area'
         required: true
         type: string
+        default: 'Integration'
       category:
         description: 'Feature category'
         required: true
@@ -46,7 +48,11 @@ on:
       duration:
         description: 'Estimated effort'
         required: true
-        type: string
+        type: choice
+        options:
+          - High
+          - Medium
+          - Low
       epic:
         description: 'Parent epic or project'
         required: false
