@@ -194,7 +194,6 @@ libkernel_a_SOURCES += \
 	kern/perf_analysis.h \
 	kern/new_feature.c \
 	kern/new_feature.h \
-	kern/kernel_feature_server.c \
 	kern/printf.c \
 	kern/printf.h \
 	kern/priority.c \
@@ -251,7 +250,6 @@ EXTRA_DIST += \
 	kern/experimental.srv \
 	kern/mach_debug.srv \
 	kern/mach_host.srv \
-	kern/kernel_feature.srv \
 	kern/task_notify.cli
 
 
@@ -411,7 +409,6 @@ include_mach_HEADERS = \
 	include/mach/memory_object_default.defs \
 	include/mach/notify.defs \
 	include/mach/perf_monitor.defs \
-	include/mach/kernel_feature.defs \
 	include/mach/std_types.defs \
 	include/mach/experimental.defs \
 	include/mach/alert.h \
