@@ -261,7 +261,8 @@ USER_TESTS := \
 	tests/test-cross-phase-infrastructure \
 	tests/test-smp-threads \
 	tests/test-lttng \
-	tests/test-dtrace-instrumentation
+	tests/test-dtrace-instrumentation \
+	tests/test-enhanced-instrumentation
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 

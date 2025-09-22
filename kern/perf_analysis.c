@@ -17,7 +17,8 @@
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/sched_prim.h>
-#include <mach/mach_time.h>
+#include <kern/mach_clock.h>
+#include <mach/time_value.h>
 #include <machine/cpu.h>
 
 /* Global performance monitor instance */
@@ -40,18 +41,13 @@ static uint64_t perf_timebase_factor = 0;
 static uint64_t
 perf_get_timestamp_us(void)
 {
-    uint64_t time_ns;
+    /* Use record_time_stamp for high resolution timing like DTrace does */
+    time_value64_t tv;
+    record_time_stamp(&tv);
     
-    /* Use mach_absolute_time() if available, otherwise use approximation */
-    if (perf_timebase_factor != 0) {
-        time_ns = mach_absolute_time() * perf_timebase_factor;
-        return time_ns / 1000;  /* Convert to microseconds */
-    }
-    
-    /* Fallback: use timer_elt for approximation */
-    struct time_value tv;
-    clock_get_system_microtime(&tv.seconds, &tv.microseconds);
-    return (uint64_t)tv.seconds * 1000000ULL + tv.microseconds;
+    /* Convert to microseconds */
+    return ((uint64_t)tv.seconds * 1000000ULL) + 
+           ((uint64_t)tv.nanoseconds / 1000ULL);
 }
 
 /*
