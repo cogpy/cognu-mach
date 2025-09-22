@@ -162,7 +162,6 @@ libkernel_a_SOURCES += \
 	kern/ipc_kobject.h \
 	kern/ipc_mig.c \
 	kern/ipc_mig.h \
-	kern/ipc_perf_monitor.c \
 	kern/ipc_sched.c \
 	kern/ipc_sched.h \
 	kern/ipc_tt.c \

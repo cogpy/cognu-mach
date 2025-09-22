@@ -20,6 +20,7 @@
 #include <kern/mach_clock.h>
 #include <mach/time_value.h>
 #include <machine/cpu.h>
+#include <string.h>
 
 /* Global performance monitor instance */
 struct perf_monitor global_perf_monitor;
@@ -163,7 +164,7 @@ perf_monitor_configure(uint32_t sample_rate, uint32_t buffer_size)
         
         size_t old_bytes = global_perf_monitor.buffer_size * 
                           sizeof(struct perf_sample);
-        kfree(global_perf_monitor.sample_buffer, old_bytes);
+        kfree((vm_offset_t)global_perf_monitor.sample_buffer, old_bytes);
         global_perf_monitor.sample_buffer = NULL;
     }
     
