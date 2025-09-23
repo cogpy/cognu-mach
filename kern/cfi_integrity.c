@@ -21,12 +21,15 @@
  * ROP/JOP attacks and control flow hijacking in the GNU Mach microkernel.
  */
 
-#include <kern/cfi_integrity.h>
+#include "cfi_integrity.h"
 #include <mach/mach_security.h>
-#include <kern/security_monitor.h>
+#include "security_monitor.h"
 #include <kern/printf.h>
 #include <mach/machine.h>
 #include <string.h>
+
+/* Forward declare missing functions for compilation test */
+extern void clock_get_uptime(time_value_t *);
 
 /* CFI configuration constants */
 #define CFI_MAX_CALL_DEPTH      64

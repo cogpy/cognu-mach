@@ -26,7 +26,9 @@
 
 #include <mach/kern_return.h>
 #include <mach/mach_safety.h>
+#include <mach/boolean.h>
 #include <stdint.h>
+#include <stddef.h>
 
 /*
  * Control Flow Integrity (CFI) Infrastructure

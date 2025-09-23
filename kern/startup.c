@@ -59,8 +59,8 @@
 #endif
 #include <kern/bootstrap.h>
 #include <kern/startup.h>
-#include <kern/security_monitor.h>
-#include <kern/cfi_integrity.h>
+#include "security_monitor.h"
+#include "cfi_integrity.h"
 #include <kern/printf.h>
 #ifdef CONFIG_MACH_TRACING
 #include <mach/lttng.h>

@@ -21,7 +21,7 @@
  * and security statistics collection for the GNU Mach microkernel.
  */
 
-#include <kern/security_monitor.h>
+#include "security_monitor.h"
 #include <mach/mach_security.h>
 #include <mach/mach_safety.h>
 #include <kern/printf.h>
@@ -29,6 +29,12 @@
 #include <kern/time_value.h>
 #include <mach/machine.h>
 #include <string.h>
+
+/* Forward declare missing functions for compilation test */
+extern void clock_get_uptime(time_value_t *);
+extern void simple_lock_init(void *);
+extern void simple_lock(void *);
+extern void simple_unlock(void *);
 
 /* Global security monitoring state */
 boolean_t security_monitoring_enabled = FALSE;
