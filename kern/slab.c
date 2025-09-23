@@ -82,6 +82,7 @@
 #include <kern/mach_debug.server.h>
 #include <kern/mem_track.h>
 #include <kern/mem_optimize.h>
+#include <mach/valgrind.h>
 #include <mach/vm_param.h>
 #include <mach/machine/vm_types.h>
 #include <vm/vm_kern.h>
@@ -1422,6 +1423,12 @@ vm_offset_t kalloc(vm_size_t size)
             
             /* Track successful allocation */
             mem_track_alloc(MEM_TYPE_GENERAL, size);
+            
+            /* Valgrind integration: track allocation */
+            valgrind_track_alloc((vm_address_t)buf, size, 0);
+            
+            /* Mark newly allocated memory as undefined (typical Valgrind behavior) */
+            valgrind_make_mem_undefined((vm_address_t)buf, size);
         } else {
             /* Track failed allocation */
             mem_track_alloc_failed(MEM_TYPE_GENERAL, size);
@@ -1430,6 +1437,10 @@ vm_offset_t kalloc(vm_size_t size)
         buf = (void *)kmem_pagealloc_physmem(PAGE_SIZE);
         if (buf != 0) {
             mem_track_alloc(MEM_TYPE_GENERAL, PAGE_SIZE);
+            
+            /* Valgrind integration */
+            valgrind_track_alloc((vm_address_t)buf, PAGE_SIZE, 0);
+            valgrind_make_mem_undefined((vm_address_t)buf, PAGE_SIZE);
         } else {
             mem_track_alloc_failed(MEM_TYPE_GENERAL, PAGE_SIZE);
         }
@@ -1437,6 +1448,10 @@ vm_offset_t kalloc(vm_size_t size)
         buf = (void *)kmem_pagealloc_virtual(size, 0);
         if (buf != 0) {
             mem_track_alloc(MEM_TYPE_GENERAL, size);
+            
+            /* Valgrind integration */
+            valgrind_track_alloc((vm_address_t)buf, size, 0);
+            valgrind_make_mem_undefined((vm_address_t)buf, size);
         } else {
             mem_track_alloc_failed(MEM_TYPE_GENERAL, size);
         }
@@ -1479,14 +1494,24 @@ void kfree(vm_offset_t data, vm_size_t size)
         if (cache->flags & KMEM_CF_VERIFY)
             kfree_verify(cache, (void *)data, size);
 
+        /* Valgrind integration: track free and mark memory as inaccessible */
+        valgrind_track_free(data);
+        valgrind_make_mem_noaccess(data, size);
+
         kmem_cache_free(cache, data);
         
         /* Track successful free */
         mem_track_free(MEM_TYPE_GENERAL, size);
     } else if (size <= PAGE_SIZE) {
+        valgrind_track_free(data);
+        valgrind_make_mem_noaccess(data, PAGE_SIZE);
+        
         kmem_pagefree_physmem(data, PAGE_SIZE);
         mem_track_free(MEM_TYPE_GENERAL, PAGE_SIZE);
     } else {
+        valgrind_track_free(data);
+        valgrind_make_mem_noaccess(data, size);
+        
         kmem_pagefree_virtual(data, size);
         mem_track_free(MEM_TYPE_GENERAL, size);
     }
