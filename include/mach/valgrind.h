@@ -22,7 +22,9 @@
 
 #include <mach/boolean.h>
 #include <mach/kern_return.h>
-#include <mach/vm_types.h>
+#include <mach/std_types.h>
+#include <mach/machine/vm_types.h>
+#include <vm/vm_types.h>
 
 /*
  * GNU Mach Valgrind compatibility layer

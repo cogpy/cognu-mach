@@ -145,11 +145,9 @@ kern_return_t valgrind_init(void)
 
 kern_return_t valgrind_enable(boolean_t enable)
 {
-    spl_t spl;
-    
-    spl = simple_lock_irq(&valgrind_lock);
+    simple_lock(&valgrind_lock);
     valgrind_enabled = enable;
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     printf("Valgrind support %s\n", enable ? "enabled" : "disabled");
     return KERN_SUCCESS;
@@ -163,7 +161,7 @@ boolean_t valgrind_is_enabled(void)
 kern_return_t valgrind_track_alloc(vm_address_t addr, vm_size_t size, 
                                    vm_address_t caller_pc)
 {
-    spl_t spl;
+    
     kern_return_t ret;
     
     if (!valgrind_enabled)
@@ -172,7 +170,7 @@ kern_return_t valgrind_track_alloc(vm_address_t addr, vm_size_t size,
     if (caller_pc == 0)
         caller_pc = get_caller_pc();
     
-    spl = simple_lock_irq(&valgrind_lock);
+    simple_lock(&valgrind_lock);
     
     ret = add_memory_record(addr, size, VALGRIND_MEM_ADDRESSABLE, caller_pc);
     if (ret == KERN_SUCCESS) {
@@ -182,21 +180,21 @@ kern_return_t valgrind_track_alloc(vm_address_t addr, vm_size_t size,
         mem_track_alloc(MEM_TYPE_GENERAL, size);
     }
     
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     return ret;
 }
 
 kern_return_t valgrind_track_free(vm_address_t addr)
 {
-    spl_t spl;
+    
     kern_return_t ret;
     struct valgrind_mem_record *rec;
     
     if (!valgrind_enabled)
         return KERN_SUCCESS;
     
-    spl = simple_lock_irq(&valgrind_lock);
+    simple_lock(&valgrind_lock);
     
     rec = find_memory_record(addr);
     if (rec) {
@@ -216,7 +214,7 @@ kern_return_t valgrind_track_free(vm_address_t addr)
                               "Attempt to free untracked or already freed memory");
     }
     
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     return ret;
 }
@@ -225,7 +223,6 @@ kern_return_t valgrind_track_realloc(vm_address_t old_addr, vm_address_t new_add
                                      vm_size_t new_size)
 {
     kern_return_t ret;
-    struct valgrind_mem_record *old_rec;
     vm_address_t caller_pc;
     
     if (!valgrind_enabled)
@@ -254,13 +251,13 @@ kern_return_t valgrind_track_realloc(vm_address_t old_addr, vm_address_t new_add
 
 kern_return_t valgrind_make_mem_defined(vm_address_t addr, vm_size_t size)
 {
-    spl_t spl;
+    
     struct valgrind_mem_record *rec;
     
     if (!valgrind_enabled)
         return KERN_SUCCESS;
     
-    spl = simple_lock_irq(&valgrind_lock);
+    simple_lock(&valgrind_lock);
     
     rec = find_memory_record(addr);
     if (rec && addr >= rec->start_addr && 
@@ -269,20 +266,20 @@ kern_return_t valgrind_make_mem_defined(vm_address_t addr, vm_size_t size)
         rec->state = VALGRIND_MEM_DEFINED;
     }
     
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     return KERN_SUCCESS;
 }
 
 kern_return_t valgrind_make_mem_undefined(vm_address_t addr, vm_size_t size)
 {
-    spl_t spl;
+    
     struct valgrind_mem_record *rec;
     
     if (!valgrind_enabled)
         return KERN_SUCCESS;
     
-    spl = simple_lock_irq(&valgrind_lock);
+    simple_lock(&valgrind_lock);
     
     rec = find_memory_record(addr);
     if (rec && addr >= rec->start_addr && 
@@ -291,20 +288,20 @@ kern_return_t valgrind_make_mem_undefined(vm_address_t addr, vm_size_t size)
         rec->state = VALGRIND_MEM_UNDEFINED;
     }
     
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     return KERN_SUCCESS;
 }
 
 kern_return_t valgrind_make_mem_noaccess(vm_address_t addr, vm_size_t size)
 {
-    spl_t spl;
+    
     struct valgrind_mem_record *rec;
     
     if (!valgrind_enabled)
         return KERN_SUCCESS;
     
-    spl = simple_lock_irq(&valgrind_lock);
+    simple_lock(&valgrind_lock);
     
     rec = find_memory_record(addr);
     if (rec && addr >= rec->start_addr && 
@@ -312,28 +309,28 @@ kern_return_t valgrind_make_mem_noaccess(vm_address_t addr, vm_size_t size)
         rec->state = VALGRIND_MEM_NOACCESS;
     }
     
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     return KERN_SUCCESS;
 }
 
 valgrind_mem_state_t valgrind_check_mem_state(vm_address_t addr)
 {
-    spl_t spl;
+    
     struct valgrind_mem_record *rec;
     valgrind_mem_state_t state = VALGRIND_MEM_NOACCESS;
     
     if (!valgrind_enabled)
         return VALGRIND_MEM_DEFINED; /* Assume defined when disabled */
     
-    spl = simple_lock_irq(&valgrind_lock);
+    simple_lock(&valgrind_lock);
     
     rec = find_memory_record(addr);
     if (rec) {
         state = rec->state;
     }
     
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     return state;
 }
@@ -377,11 +374,11 @@ boolean_t valgrind_is_mem_addressable(vm_address_t addr, vm_size_t size)
 void valgrind_report_error(const char *error_type, vm_address_t addr, 
                            vm_size_t size, const char *description)
 {
-    spl_t spl;
     
-    spl = simple_lock_irq(&valgrind_lock);
+    
+    simple_lock(&valgrind_lock);
     memory_errors_detected++;
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     printf("VALGRIND ERROR: %s at address 0x%lx (size %lu)\n", 
            error_type, (unsigned long)addr, (unsigned long)size);
@@ -403,15 +400,15 @@ kern_return_t valgrind_handle_client_request(uint32_t request,
                                              vm_address_t arg3, vm_address_t arg4, 
                                              vm_address_t arg5)
 {
-    spl_t spl;
+    
     kern_return_t ret = KERN_SUCCESS;
     
     if (!valgrind_enabled)
         return KERN_INVALID_ARGUMENT;
     
-    spl = simple_lock_irq(&valgrind_lock);
+    simple_lock(&valgrind_lock);
     client_requests++;
-    simple_unlock_irq(spl, &valgrind_lock);
+    simple_unlock(&valgrind_lock);
     
     switch (request) {
     case VG_USERREQ_MAKE_MEM_NOACCESS:
@@ -435,7 +432,7 @@ kern_return_t valgrind_handle_client_request(uint32_t request,
         break;
         
     case VG_USERREQ_COUNT_ERRORS:
-        ret = memory_errors_detected;
+        ret = (kern_return_t)memory_errors_detected;
         break;
         
     default:
