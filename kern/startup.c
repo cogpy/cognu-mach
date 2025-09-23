@@ -67,6 +67,7 @@
 #include <mach/lttng.h>
 #endif
 #include <mach/valgrind.h>
+#include <kern/development_tools.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -196,6 +197,9 @@ void setup_main(void)
 
 	/* Initialize Valgrind compatibility layer */
 	valgrind_init();
+
+	/* Initialize advanced development tools interface */
+	development_tools_init();
 
 	/* Initialize modern GDB stub for enhanced debugging */
 #if MACH_KDB

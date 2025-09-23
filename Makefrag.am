@@ -246,6 +246,8 @@ libkernel_a_SOURCES += \
 	kern/timer.c \
 	kern/timer.h \
 	kern/valgrind.c \
+	kern/development_tools.c \
+	kern/development_tools.h \
 	kern/xpr.c \
 	kern/xpr.h \
 	kern/elf-load.c \
@@ -258,6 +260,7 @@ EXTRA_DIST += \
 	kern/experimental.srv \
 	kern/mach_debug.srv \
 	kern/mach_host.srv \
+	kern/development_tools.srv \
 	kern/task_notify.cli
 
 
