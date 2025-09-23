@@ -60,10 +60,13 @@
 #endif
 #include <kern/bootstrap.h>
 #include <kern/startup.h>
+#include "security_monitor.h"
+#include "cfi_integrity.h"
 #include <kern/printf.h>
 #ifdef CONFIG_MACH_TRACING
 #include <mach/lttng.h>
 #endif
+#include <mach/valgrind.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -141,6 +144,10 @@ void setup_main(void)
 	sched_init();
 	unified_debug_thread_init();
 	
+	/* Initialize security subsystems early */
+	security_monitor_init();
+	cfi_init();
+	
 	vm_mem_bootstrap();
 	unified_debug_vm_init();
 	
@@ -186,6 +193,9 @@ void setup_main(void)
 	printf("LTTng-style kernel tracing initialized\n");
 #endif
 //>>>>>>> master
+
+	/* Initialize Valgrind compatibility layer */
+	valgrind_init();
 
 	/* Initialize modern GDB stub for enhanced debugging */
 #if MACH_KDB
