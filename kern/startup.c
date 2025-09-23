@@ -59,6 +59,8 @@
 #endif
 #include <kern/bootstrap.h>
 #include <kern/startup.h>
+#include <kern/security_monitor.h>
+#include <kern/cfi_integrity.h>
 #include <kern/printf.h>
 #ifdef CONFIG_MACH_TRACING
 #include <mach/lttng.h>
@@ -131,6 +133,11 @@ void setup_main(void)
 #endif
 
 	sched_init();
+	
+	/* Initialize security subsystems early */
+	security_monitor_init();
+	cfi_init();
+	
 	vm_mem_bootstrap();
 	rdxtree_cache_init();
 	ipc_bootstrap();
