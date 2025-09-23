@@ -239,6 +239,7 @@ libkernel_a_SOURCES += \
 	kern/thread_swap.h \
 	kern/timer.c \
 	kern/timer.h \
+	kern/valgrind.c \
 	kern/xpr.c \
 	kern/xpr.h \
 	kern/elf-load.c \
