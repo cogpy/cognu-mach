@@ -48,6 +48,7 @@
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
 #include <kern/xpr.h>
+#include <mach/unified_debug.h>
 //<<<<<<< copilot/fix-116
 #include <kern/perf_analysis.h>
 //=======
@@ -128,20 +129,33 @@ void setup_main(void)
 
 	panic_init();
 
+	/* Initialize unified debugging infrastructure early */
+	unified_debug_init();
+	unified_debug_enable_all(TRUE);
+
 #ifdef CONFIG_MACH_TRACING
 	/* Initialize LTTng-style tracing early */
 	mach_trace_early_init();
 #endif
 
+	/* Start tracking kernel subsystem initializations */
+	UNIFIED_DEBUG_FUNCTION_ENTRY(SYSDEBUG_SUBSYSTEM_KERNEL);
+
 	sched_init();
+	unified_debug_thread_init();
 	
 	/* Initialize security subsystems early */
 	security_monitor_init();
 	cfi_init();
 	
 	vm_mem_bootstrap();
+	unified_debug_vm_init();
+	
 	rdxtree_cache_init();
+	
 	ipc_bootstrap();
+	unified_debug_ipc_init();
+	
 	vm_mem_init();
 	ipc_init();
 

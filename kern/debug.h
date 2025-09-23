@@ -69,4 +69,69 @@ extern void Panic (const char *file, int line, const char *fun,
 extern void SoftDebugger (const char *message);
 extern void Debugger (const char *message) __attribute__ ((noreturn));
 
+/*
+ * System-wide debugging integration
+ * Provides unified debugging interface across all kernel subsystems
+ */
+#include <mach/system_debug.h>
+
+/* 
+ * Enhanced debugging macros that integrate with system-wide debugging
+ * These extend the traditional debugging with cross-component tracking
+ */
+#ifndef NDEBUG
+
+#define sysdebug_here(subsystem) \
+    do { \
+        printf("@ %s:%d\n", __FILE__, __LINE__); \
+        SYSDEBUG_LOG((subsystem), SYSDEBUG_EVENT_TRACE, \
+                    "Debug marker at %s:%d", __FILE__, __LINE__); \
+    } while (0)
+
+#define sysdebug_message(subsystem, args) \
+    do { \
+        printf("@ %s:%d: ", __FILE__, __LINE__); \
+        printf args; \
+        printf("\n"); \
+        SYSDEBUG_LOG((subsystem), SYSDEBUG_EVENT_TRACE, \
+                    "Debug message at %s:%d", __FILE__, __LINE__); \
+    } while (0)
+
+/* Enhanced panic that reports to system debugging */
+#define sysdebug_panic(subsystem, s, ...) \
+    do { \
+        SYSDEBUG_LOG((subsystem), SYSDEBUG_EVENT_ERROR, \
+                    "Panic in %s:%d: " s, __FILE__, __LINE__, ##__VA_ARGS__); \
+        Panic(__FILE__, __LINE__, __FUNCTION__, s, ##__VA_ARGS__); \
+    } while (0)
+
+#else /* NDEBUG */
+
+#define sysdebug_here(subsystem) do {} while (0)
+#define sysdebug_message(subsystem, args) do {} while (0) 
+#define sysdebug_panic(subsystem, s, ...) \
+    panic(s, ##__VA_ARGS__)
+
+#endif /* NDEBUG */
+
+/* 
+ * Cross-component debugging helpers
+ * Track interactions between different kernel subsystems
+ */
+#define SYSDEBUG_ENTER_SUBSYSTEM(subsystem) \
+    SYSDEBUG_LOG((subsystem), SYSDEBUG_EVENT_TRACE, \
+                "Entering %s", __FUNCTION__)
+
+#define SYSDEBUG_EXIT_SUBSYSTEM(subsystem) \
+    SYSDEBUG_LOG((subsystem), SYSDEBUG_EVENT_TRACE, \
+                "Exiting %s", __FUNCTION__)
+
+#define SYSDEBUG_CALL_SUBSYSTEM(from, to, function_name) \
+    do { \
+        SYSDEBUG_TRACE_INTERACTION((from), (to), SYSDEBUG_EVENT_INTERACTION, \
+                                  (function_name)); \
+        SYSDEBUG_LOG((from), SYSDEBUG_EVENT_TRACE, \
+                    "Calling %s->%s", #from, #to); \
+    } while (0)
+
 #endif /* _mach_debug__debug_ */
