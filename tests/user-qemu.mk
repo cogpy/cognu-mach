@@ -249,6 +249,7 @@ USER_TESTS := \
 	tests/test-tickless-timer \
 	tests/test-gdb-stub \
 	tests/test-development-tools \
+	tests/test-advanced-development-tools \
 	tests/test-benchmark-ipc \
 	tests/test-benchmark-memory \
 	tests/test-advanced-memory \
