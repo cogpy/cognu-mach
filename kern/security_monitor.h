@@ -26,7 +26,7 @@
 #include <mach/mach_security.h>
 #include <mach/boolean.h>
 #include <mach/kern_return.h>
-#include <kern/time_value.h>
+#include <mach/time_value.h>
 
 /* Internal function declarations */
 extern void security_monitor_init(void);

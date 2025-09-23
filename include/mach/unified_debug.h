@@ -13,6 +13,7 @@
 #define _MACH_UNIFIED_DEBUG_H_
 
 #include <mach/system_debug.h>
+#include <mach/message.h>
 #include <kern/debug.h>
 
 #if MACH_KDB

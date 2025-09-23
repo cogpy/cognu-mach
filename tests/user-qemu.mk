@@ -260,6 +260,7 @@ USER_TESTS := \
 	tests/test-security-analysis \
 	tests/test-suite-runner \
 	tests/test-device-framework \
+	tests/test-userspace-driver \
 	tests/test-cross-phase-infrastructure \
 	tests/test-smp-threads \
 	tests/test-lttng \

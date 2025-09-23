@@ -26,15 +26,12 @@
 #include <mach/mach_safety.h>
 #include <kern/printf.h>
 #include <kern/lock.h>
-#include <kern/time_value.h>
+#include <mach/time_value.h>
 #include <mach/machine.h>
 #include <string.h>
 
 /* Forward declare missing functions for compilation test */
 extern void clock_get_uptime(time_value_t *);
-extern void simple_lock_init(void *);
-extern void simple_lock(void *);
-extern void simple_unlock(void *);
 
 /* Global security monitoring state */
 boolean_t security_monitoring_enabled = FALSE;
