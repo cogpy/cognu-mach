@@ -146,6 +146,8 @@ libkernel_a_SOURCES += \
 	kern/debug.h \
 	kern/dtrace.c \
 	kern/dtrace.h \
+	kern/dynamic_probes.c \
+	kern/dynamic_probes.h \
 	kern/eventcount.c \
 	kern/eventcount.h \
 	kern/exception.c \
@@ -160,7 +162,6 @@ libkernel_a_SOURCES += \
 	kern/ipc_kobject.h \
 	kern/ipc_mig.c \
 	kern/ipc_mig.h \
-	kern/ipc_perf_monitor.c \
 	kern/ipc_sched.c \
 	kern/ipc_sched.h \
 	kern/ipc_tt.c \
@@ -192,6 +193,8 @@ libkernel_a_SOURCES += \
 	kern/pc_sample.h \
 	kern/perf_analysis.c \
 	kern/perf_analysis.h \
+	kern/perf_counters.c \
+	kern/perf_counters.h \
 	kern/printf.c \
 	kern/printf.h \
 	kern/priority.c \
