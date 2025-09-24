@@ -69,6 +69,7 @@
 #endif
 #include <mach/valgrind.h>
 #include <kern/development_tools.h>
+#include <kern/instrumentation_integration.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -188,16 +189,20 @@ void setup_main(void)
 	/* Initialize console timestamps after time system is ready */
 	console_timestamp_init();
 
-//<<<<<<< copilot/fix-116
 	/* Initialize performance analysis framework */
 	perf_analysis_init();
-//=======
+
 #ifdef CONFIG_MACH_TRACING
 	/* Initialize full tracing system now that console is ready */
 	mach_trace_init();
 	printf("LTTng-style kernel tracing initialized\n");
 #endif
-//>>>>>>> master
+
+	/* Initialize dynamic probes after DTrace is ready */
+	dynamic_probes_init();
+
+	/* Initialize unified instrumentation integration framework */
+	instrumentation_integration_init();
 
 	/* Initialize Valgrind compatibility layer */
 	valgrind_init();

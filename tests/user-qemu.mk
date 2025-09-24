@@ -265,6 +265,7 @@ USER_TESTS := \
 	tests/test-lttng \
 	tests/test-dtrace-instrumentation \
 	tests/test-enhanced-instrumentation \
+	tests/test-phase4-instrumentation \
 	tests/test-whole-system-debugging \
 	tests/test-valgrind \
 	tests/test-vdso \
