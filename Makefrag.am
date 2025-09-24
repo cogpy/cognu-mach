@@ -148,6 +148,8 @@ libkernel_a_SOURCES += \
 	kern/dtrace.h \
 	kern/dynamic_probes.c \
 	kern/dynamic_probes.h \
+	kern/instrumentation_integration.c \
+	kern/instrumentation_integration.h \
 	kern/system_debug.c \
 	kern/unified_debug.c \
 	kern/eventcount.c \
