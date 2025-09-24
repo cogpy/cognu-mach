@@ -48,6 +48,7 @@
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
 #include <kern/xpr.h>
+#include <kern/vdso.h>
 #include <mach/unified_debug.h>
 //<<<<<<< copilot/fix-116
 #include <kern/perf_analysis.h>
@@ -159,6 +160,9 @@ void setup_main(void)
 	
 	vm_mem_init();
 	ipc_init();
+
+	/* Initialize VDSO after memory management is ready */
+	vdso_init();
 
 	/*
 	 * As soon as the virtual memory system is up, we record

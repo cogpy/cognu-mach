@@ -246,6 +246,8 @@ libkernel_a_SOURCES += \
 	kern/timer.c \
 	kern/timer.h \
 	kern/valgrind.c \
+	kern/vdso.c \
+	kern/vdso.h \
 	kern/development_tools.c \
 	kern/development_tools.h \
 	kern/xpr.c \

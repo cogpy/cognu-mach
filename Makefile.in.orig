@@ -1221,6 +1221,7 @@ noinst_PROGRAMS = gnumach.o$(EXEEXT)
 @HOST_ix86_TRUE@	i386/i386/percpu.c \
 @HOST_ix86_TRUE@	i386/i386/percpu.h \
 @HOST_ix86_TRUE@	i386/i386/percpu_smp.c \
+@HOST_ix86_TRUE@	i386/i386/vdso_arch.c \
 @HOST_ix86_TRUE@	i386/i386/spl.S \
 @HOST_ix86_TRUE@	i386/i386/cpuboot.S
 
@@ -1619,10 +1620,17 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
 	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
 	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
+#<<<<<<< copilot/fix-123
+	kern/timer.c kern/timer.h kern/valgrind.c kern/vdso.c \
+	kern/vdso.h kern/development_tools.c kern/development_tools.h \
+	kern/xpr.c kern/xpr.h kern/elf-load.c kern/boot_script.c \
+	util/atoi.c util/atoi.h util/byteorder.h util/byteorder.c \
+#=======
 	kern/timer.c kern/timer.h kern/valgrind.c \
 	kern/development_tools.c kern/development_tools.h kern/xpr.c \
 	kern/xpr.h kern/elf-load.c kern/boot_script.c util/atoi.c \
 	util/atoi.h util/byteorder.h util/byteorder.c \
+#>>>>>>> master
 	vm/memory_object_proxy.c vm/memory_object_proxy.h \
 	vm/memory_object.c vm/memory_object.h vm/pmap.h \
 	vm/vm_block_cache.c vm/vm_block_cache.h vm/vm_compress.c \
@@ -1709,13 +1717,14 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	i386/i386at/rtc.h i386/i386at/lpr.c i386/i386at/lpr.h \
 	i386/i386/cswitch.S i386/i386/debug_trace.S \
 	i386/i386/idt_inittab.S i386/i386/locore.S i386/i386/percpu.c \
-	i386/i386/percpu.h i386/i386/percpu_smp.c i386/i386/spl.S \
-	i386/i386/cpuboot.S i386/i386/apic.h i386/i386/apic.c \
-	i386/i386/hardclock.c i386/i386/hardclock.h i386/i386/irq.c \
-	i386/i386/irq.h i386/i386/msr.h i386/i386/pit.c \
-	i386/i386/pit.h i386/i386at/ioapic.c i386/i386/pic.c \
-	i386/i386/pic.h i386/i386at/pic_isa.c i386/i386/_setjmp.S \
-	chips/busses.c chips/busses.h device/cirbuf.c i386/xen/xen.c \
+	i386/i386/percpu.h i386/i386/percpu_smp.c \
+	i386/i386/vdso_arch.c i386/i386/spl.S i386/i386/cpuboot.S \
+	i386/i386/apic.h i386/i386/apic.c i386/i386/hardclock.c \
+	i386/i386/hardclock.h i386/i386/irq.c i386/i386/irq.h \
+	i386/i386/msr.h i386/i386/pit.c i386/i386/pit.h \
+	i386/i386at/ioapic.c i386/i386/pic.c i386/i386/pic.h \
+	i386/i386at/pic_isa.c i386/i386/_setjmp.S chips/busses.c \
+	chips/busses.h device/cirbuf.c i386/xen/xen.c \
 	i386/xen/xen_locore.S i386/xen/xen_boothdr.S i386/i386/xen.h \
 	x86_64/boothdr.S x86_64/interrupt.S x86_64/kdasm.S \
 	x86_64/cswitch.S x86_64/debug_trace.S x86_64/idt_inittab.S \
@@ -1819,6 +1828,7 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 @HOST_ix86_TRUE@	i386/i386/locore.$(OBJEXT) \
 @HOST_ix86_TRUE@	i386/i386/percpu.$(OBJEXT) \
 @HOST_ix86_TRUE@	i386/i386/percpu_smp.$(OBJEXT) \
+@HOST_ix86_TRUE@	i386/i386/vdso_arch.$(OBJEXT) \
 @HOST_ix86_TRUE@	i386/i386/spl.$(OBJEXT) \
 @HOST_ix86_TRUE@	i386/i386/cpuboot.$(OBJEXT)
 @HOST_ix86_TRUE@@PLATFORM_at_TRUE@am__objects_12 =  \
@@ -1916,6 +1926,16 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/syscall_sw.$(OBJEXT) kern/task.$(OBJEXT) \
 	kern/thread.$(OBJEXT) kern/thread_swap.$(OBJEXT) \
 	kern/timer.$(OBJEXT) kern/valgrind.$(OBJEXT) \
+#<<<<<<< copilot/fix-123
+	kern/vdso.$(OBJEXT) kern/development_tools.$(OBJEXT) \
+	kern/xpr.$(OBJEXT) kern/elf-load.$(OBJEXT) \
+	kern/boot_script.$(OBJEXT) util/atoi.$(OBJEXT) \
+	util/byteorder.$(OBJEXT) vm/memory_object_proxy.$(OBJEXT) \
+	vm/memory_object.$(OBJEXT) vm/vm_block_cache.$(OBJEXT) \
+	vm/vm_compress.$(OBJEXT) vm/vm_debug.$(OBJEXT) \
+	vm/vm_external.$(OBJEXT) vm/vm_fault.$(OBJEXT) \
+	vm/vm_init.$(OBJEXT) vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
+#=======
 	kern/development_tools.$(OBJEXT) kern/xpr.$(OBJEXT) \
 	kern/elf-load.$(OBJEXT) kern/boot_script.$(OBJEXT) \
 	util/atoi.$(OBJEXT) util/byteorder.$(OBJEXT) \
@@ -1924,6 +1944,7 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	vm/vm_debug.$(OBJEXT) vm/vm_external.$(OBJEXT) \
 	vm/vm_fault.$(OBJEXT) vm/vm_init.$(OBJEXT) \
 	vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
+#>>>>>>> master
 	vm/vm_object.$(OBJEXT) vm/vm_object_verify.$(OBJEXT) \
 	vm/vm_page.$(OBJEXT) vm/vm_pageout.$(OBJEXT) \
 	vm/vm_resident.$(OBJEXT) vm/vm_user.$(OBJEXT) \
@@ -2418,6 +2439,7 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	i386/i386/$(DEPDIR)/smp.Po i386/i386/$(DEPDIR)/spl.Po \
 	i386/i386/$(DEPDIR)/strings.Po i386/i386/$(DEPDIR)/trap.Po \
 	i386/i386/$(DEPDIR)/user_ldt.Po \
+	i386/i386/$(DEPDIR)/vdso_arch.Po \
 	i386/i386at/$(DEPDIR)/acpi_parse_apic.Po \
 	i386/i386at/$(DEPDIR)/autoconf.Po \
 	i386/i386at/$(DEPDIR)/biosmem.Po \
@@ -2494,7 +2516,7 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/task_notify.user.Po kern/$(DEPDIR)/thread.Po \
 	kern/$(DEPDIR)/thread_swap.Po kern/$(DEPDIR)/timer.Po \
 	kern/$(DEPDIR)/unified_debug.Po kern/$(DEPDIR)/valgrind.Po \
-	kern/$(DEPDIR)/xpr.Po \
+	kern/$(DEPDIR)/vdso.Po kern/$(DEPDIR)/xpr.Po \
 	linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-irq.Po \
 	linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-setup.Po \
 	linux/dev/drivers/block/$(DEPDIR)/liblinux_a-ahci.Po \
@@ -3439,10 +3461,17 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
 	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
 	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
+#<<<<<<< copilot/fix-123
+	kern/timer.c kern/timer.h kern/valgrind.c kern/vdso.c \
+	kern/vdso.h kern/development_tools.c kern/development_tools.h \
+	kern/xpr.c kern/xpr.h kern/elf-load.c kern/boot_script.c \
+	util/atoi.c util/atoi.h util/byteorder.h util/byteorder.c \
+#=======
 	kern/timer.c kern/timer.h kern/valgrind.c \
 	kern/development_tools.c kern/development_tools.h kern/xpr.c \
 	kern/xpr.h kern/elf-load.c kern/boot_script.c util/atoi.c \
 	util/atoi.h util/byteorder.h util/byteorder.c \
+#>>>>>>> master
 	vm/memory_object_proxy.c vm/memory_object_proxy.h \
 	vm/memory_object.c vm/memory_object.h vm/pmap.h \
 	vm/vm_block_cache.c vm/vm_block_cache.h vm/vm_compress.c \
@@ -4340,6 +4369,8 @@ kern/timer.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/valgrind.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/vdso.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/development_tools.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/xpr.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4532,6 +4563,8 @@ i386/i386/locore.$(OBJEXT): i386/i386/$(am__dirstamp) \
 i386/i386/percpu.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
 i386/i386/percpu_smp.$(OBJEXT): i386/i386/$(am__dirstamp) \
+	i386/i386/$(DEPDIR)/$(am__dirstamp)
+i386/i386/vdso_arch.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
 i386/i386/spl.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
@@ -5342,6 +5375,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/strings.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/trap.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/user_ldt.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/vdso_arch.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386at/$(DEPDIR)/acpi_parse_apic.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386at/$(DEPDIR)/autoconf.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386at/$(DEPDIR)/biosmem.Po@am__quote@ # am--include-marker
@@ -5464,6 +5498,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/timer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/unified_debug.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/valgrind.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/vdso.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/xpr.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-irq.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-setup.Po@am__quote@ # am--include-marker
@@ -5655,7 +5690,15 @@ distclean-compile:
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
+	# Ugly bootstrap hack to get to-be-generated files created
+	# Try to guess what file this dependency file is from...
+	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
+	for f in "$$f"*; do \
+		case $$f in \
+			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
+			*) echo '# dummy';; \
+		esac ; \
+	done >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
@@ -9243,6 +9286,7 @@ distclean: distclean-recursive
 	-rm -f i386/i386/$(DEPDIR)/strings.Po
 	-rm -f i386/i386/$(DEPDIR)/trap.Po
 	-rm -f i386/i386/$(DEPDIR)/user_ldt.Po
+	-rm -f i386/i386/$(DEPDIR)/vdso_arch.Po
 	-rm -f i386/i386at/$(DEPDIR)/acpi_parse_apic.Po
 	-rm -f i386/i386at/$(DEPDIR)/autoconf.Po
 	-rm -f i386/i386at/$(DEPDIR)/biosmem.Po
@@ -9365,6 +9409,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/timer.Po
 	-rm -f kern/$(DEPDIR)/unified_debug.Po
 	-rm -f kern/$(DEPDIR)/valgrind.Po
+	-rm -f kern/$(DEPDIR)/vdso.Po
 	-rm -f kern/$(DEPDIR)/xpr.Po
 	-rm -f linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-irq.Po
 	-rm -f linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-setup.Po
@@ -9779,6 +9824,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f i386/i386/$(DEPDIR)/strings.Po
 	-rm -f i386/i386/$(DEPDIR)/trap.Po
 	-rm -f i386/i386/$(DEPDIR)/user_ldt.Po
+	-rm -f i386/i386/$(DEPDIR)/vdso_arch.Po
 	-rm -f i386/i386at/$(DEPDIR)/acpi_parse_apic.Po
 	-rm -f i386/i386at/$(DEPDIR)/autoconf.Po
 	-rm -f i386/i386at/$(DEPDIR)/biosmem.Po
@@ -9901,6 +9947,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/timer.Po
 	-rm -f kern/$(DEPDIR)/unified_debug.Po
 	-rm -f kern/$(DEPDIR)/valgrind.Po
+	-rm -f kern/$(DEPDIR)/vdso.Po
 	-rm -f kern/$(DEPDIR)/xpr.Po
 	-rm -f linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-irq.Po
 	-rm -f linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-setup.Po
