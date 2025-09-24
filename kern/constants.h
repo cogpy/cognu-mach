@@ -53,6 +53,10 @@
 #define PERF_MIN_SAMPLES_FOR_REGRESSION  10      /* Minimum samples needed for regression analysis */
 #define PERF_DEFAULT_PROFILE_INTERVAL_MS 100     /* Default profiling interval in milliseconds */
 
+/* Scheduler constants */
+#define SCHED_WAIT_HASH_SIZE        1031         /* Size of wait event hash table (prime number) */
+#define SCHED_CPU_USAGE_RESET_TICKS 30           /* Ticks after which to reset CPU usage stats */
+
 /* Console output constants */
 #define CONSOLE_TIMESTAMP_WIDTH     12           /* Width of console timestamp field */
 
