@@ -18,6 +18,7 @@
 #include <kern/thread.h>
 #include <kern/sched_prim.h>
 #include <kern/mach_clock.h>
+#include <kern/constants.h>
 #include <mach/time_value.h>
 #include <machine/cpu.h>
 #include <string.h>
@@ -84,7 +85,7 @@ perf_analysis_init(void)
     perf_control.profiling_enabled = FALSE;
     perf_control.trace_enabled = FALSE;
     perf_control.trace_mask = 0xFFFFFFFF;  /* All events by default */
-    perf_control.profile_interval_ms = 100;  /* 100ms default */
+    perf_control.profile_interval_ms = PERF_DEFAULT_PROFILE_INTERVAL_MS;
     
     /* Initialize timing infrastructure */
     perf_timebase_factor = 1;  /* Initialize to safe value */
@@ -401,7 +402,8 @@ perf_check_regression(perf_event_type_t event, uint32_t threshold_percent)
     baseline = &global_perf_monitor.baseline_stats[event];
     
     /* Need meaningful baseline data */
-    if (baseline->count < 10 || current->count < 10) {
+    if (baseline->count < PERF_MIN_SAMPLES_FOR_REGRESSION || 
+        current->count < PERF_MIN_SAMPLES_FOR_REGRESSION) {
         goto unlock;
     }
     
@@ -411,7 +413,7 @@ perf_check_regression(perf_event_type_t event, uint32_t threshold_percent)
     /* Check if current performance is significantly worse */
     if (baseline_avg > 0) {
         uint64_t increase_percent = 
-            ((current_avg - baseline_avg) * 100) / baseline_avg;
+            ((current_avg - baseline_avg) * PERF_PERCENTAGE_SCALE) / baseline_avg;
         
         if (increase_percent > threshold_percent) {
             regression = TRUE;
@@ -419,7 +421,8 @@ perf_check_regression(perf_event_type_t event, uint32_t threshold_percent)
             
             printf("Performance regression detected for event %d: "
                    "%llu%% increase (baseline: %llu us, current: %llu us)\n",
-                   event, increase_percent, baseline_avg, current_avg);
+                   event, (unsigned long long)increase_percent, 
+                   (unsigned long long)baseline_avg, (unsigned long long)current_avg);
         }
     }
     

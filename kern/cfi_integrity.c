@@ -99,8 +99,6 @@ cfi_validate_return(uintptr_t return_addr, uintptr_t expected)
 cfi_result_t
 cfi_validate_call_target(uintptr_t target)
 {
-    int i;
-    
     /* Check if target is in valid code region */
     if (target < CFI_VALID_CODE_START || target > CFI_VALID_CODE_END) {
         security_event_log(SEC_EVENT_CFI_VIOLATION, target, "invalid_call_target");
@@ -115,7 +113,7 @@ cfi_validate_call_target(uintptr_t target)
     
     /* Check against function table if available */
     if (function_table.entries && function_table.count > 0) {
-        for (i = 0; i < function_table.count; i++) {
+        for (int i = 0; i < function_table.count; i++) {
             if (function_table.entries[i] == target) {
                 return CFI_VALID;
             }
@@ -284,6 +282,6 @@ cfi_dump_call_stack(void)
     
     printf("CFI Call Stack (depth %d):\n", cfi_call_stack.depth);
     for (i = cfi_call_stack.depth - 1; i >= 0; i--) {
-        printf("  %d: 0x%lx\n", i, cfi_call_stack.addresses[i]);
+        printf("  %d: 0x%x\n", i, (unsigned int)cfi_call_stack.addresses[i]);
     }
 }
