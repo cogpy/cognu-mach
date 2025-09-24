@@ -1619,7 +1619,8 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
 	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
 	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
-	kern/timer.c kern/timer.h kern/valgrind.c kern/xpr.c \
+	kern/timer.c kern/timer.h kern/valgrind.c \
+	kern/development_tools.c kern/development_tools.h kern/xpr.c \
 	kern/xpr.h kern/elf-load.c kern/boot_script.c util/atoi.c \
 	util/atoi.h util/byteorder.h util/byteorder.c \
 	vm/memory_object_proxy.c vm/memory_object_proxy.h \
@@ -1915,13 +1916,14 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/syscall_sw.$(OBJEXT) kern/task.$(OBJEXT) \
 	kern/thread.$(OBJEXT) kern/thread_swap.$(OBJEXT) \
 	kern/timer.$(OBJEXT) kern/valgrind.$(OBJEXT) \
-	kern/xpr.$(OBJEXT) kern/elf-load.$(OBJEXT) \
-	kern/boot_script.$(OBJEXT) util/atoi.$(OBJEXT) \
-	util/byteorder.$(OBJEXT) vm/memory_object_proxy.$(OBJEXT) \
-	vm/memory_object.$(OBJEXT) vm/vm_block_cache.$(OBJEXT) \
-	vm/vm_compress.$(OBJEXT) vm/vm_debug.$(OBJEXT) \
-	vm/vm_external.$(OBJEXT) vm/vm_fault.$(OBJEXT) \
-	vm/vm_init.$(OBJEXT) vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
+	kern/development_tools.$(OBJEXT) kern/xpr.$(OBJEXT) \
+	kern/elf-load.$(OBJEXT) kern/boot_script.$(OBJEXT) \
+	util/atoi.$(OBJEXT) util/byteorder.$(OBJEXT) \
+	vm/memory_object_proxy.$(OBJEXT) vm/memory_object.$(OBJEXT) \
+	vm/vm_block_cache.$(OBJEXT) vm/vm_compress.$(OBJEXT) \
+	vm/vm_debug.$(OBJEXT) vm/vm_external.$(OBJEXT) \
+	vm/vm_fault.$(OBJEXT) vm/vm_init.$(OBJEXT) \
+	vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
 	vm/vm_object.$(OBJEXT) vm/vm_object_verify.$(OBJEXT) \
 	vm/vm_page.$(OBJEXT) vm/vm_pageout.$(OBJEXT) \
 	vm/vm_resident.$(OBJEXT) vm/vm_user.$(OBJEXT) \
@@ -2451,9 +2453,10 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/act.Po kern/$(DEPDIR)/ast.Po \
 	kern/$(DEPDIR)/boot_script.Po kern/$(DEPDIR)/bootstrap.Po \
 	kern/$(DEPDIR)/cfi_integrity.Po kern/$(DEPDIR)/counters.Po \
-	kern/$(DEPDIR)/debug.Po kern/$(DEPDIR)/dtrace.Po \
-	kern/$(DEPDIR)/dynamic_probes.Po kern/$(DEPDIR)/elf-load.Po \
-	kern/$(DEPDIR)/eventcount.Po kern/$(DEPDIR)/exception.Po \
+	kern/$(DEPDIR)/debug.Po kern/$(DEPDIR)/development_tools.Po \
+	kern/$(DEPDIR)/dtrace.Po kern/$(DEPDIR)/dynamic_probes.Po \
+	kern/$(DEPDIR)/elf-load.Po kern/$(DEPDIR)/eventcount.Po \
+	kern/$(DEPDIR)/exception.Po \
 	kern/$(DEPDIR)/experimental.server.Po \
 	kern/$(DEPDIR)/gdb_stub.Po kern/$(DEPDIR)/gnumach.server.Po \
 	kern/$(DEPDIR)/gsync.Po kern/$(DEPDIR)/host.Po \
@@ -3262,12 +3265,12 @@ DIST_SUBDIRS =
 EXTRA_DIST = gensym.awk ipc/mach_port.srv ipc/notify.defs \
 	kern/exc.defs kern/mach.srv kern/mach4.srv kern/gnumach.srv \
 	kern/experimental.srv kern/mach_debug.srv kern/mach_host.srv \
-	kern/task_notify.cli vm/memory_object_default.cli \
-	vm/memory_object_user.cli device/device.srv \
-	device/device_pager.srv device/device_reply.cli \
-	device/memory_object_reply.cli include $(am__append_17) \
-	$(am__append_24) $(am__append_28) $(am__append_30) \
-	$(am__append_34) $(am__append_45) \
+	kern/development_tools.srv kern/task_notify.cli \
+	vm/memory_object_default.cli vm/memory_object_user.cli \
+	device/device.srv device/device_pager.srv \
+	device/device_reply.cli device/memory_object_reply.cli include \
+	$(am__append_17) $(am__append_24) $(am__append_28) \
+	$(am__append_30) $(am__append_34) $(am__append_45) \
 	linux/src/drivers/scsi/NCR5380.c \
 	linux/src/drivers/scsi/NCR5380.h linux/src/drivers/net/8390.h \
 	linux/src/drivers/net/kern_compat.h linux/pcmcia-cs/glue/ds.c \
@@ -3436,7 +3439,8 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
 	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
 	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
-	kern/timer.c kern/timer.h kern/valgrind.c kern/xpr.c \
+	kern/timer.c kern/timer.h kern/valgrind.c \
+	kern/development_tools.c kern/development_tools.h kern/xpr.c \
 	kern/xpr.h kern/elf-load.c kern/boot_script.c util/atoi.c \
 	util/atoi.h util/byteorder.h util/byteorder.c \
 	vm/memory_object_proxy.c vm/memory_object_proxy.h \
@@ -3899,6 +3903,7 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-tickless-timer \
 @PLATFORM_xen_FALSE@	tests/test-gdb-stub \
 @PLATFORM_xen_FALSE@	tests/test-development-tools \
+@PLATFORM_xen_FALSE@	tests/test-advanced-development-tools \
 @PLATFORM_xen_FALSE@	tests/test-benchmark-ipc \
 @PLATFORM_xen_FALSE@	tests/test-benchmark-memory \
 @PLATFORM_xen_FALSE@	tests/test-advanced-memory \
@@ -4334,6 +4339,8 @@ kern/thread_swap.$(OBJEXT): kern/$(am__dirstamp) \
 kern/timer.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/valgrind.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/development_tools.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/xpr.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
@@ -5390,6 +5397,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/cfi_integrity.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/counters.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/debug.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/development_tools.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/dtrace.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/dynamic_probes.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/elf-load.Po@am__quote@ # am--include-marker
@@ -8701,6 +8709,13 @@ tests/test-development-tools.log: tests/test-development-tools
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-advanced-development-tools.log: tests/test-advanced-development-tools
+	@p='tests/test-advanced-development-tools'; \
+	b='tests/test-advanced-development-tools'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-benchmark-ipc.log: tests/test-benchmark-ipc
 	@p='tests/test-benchmark-ipc'; \
 	b='tests/test-benchmark-ipc'; \
@@ -9283,6 +9298,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/cfi_integrity.Po
 	-rm -f kern/$(DEPDIR)/counters.Po
 	-rm -f kern/$(DEPDIR)/debug.Po
+	-rm -f kern/$(DEPDIR)/development_tools.Po
 	-rm -f kern/$(DEPDIR)/dtrace.Po
 	-rm -f kern/$(DEPDIR)/dynamic_probes.Po
 	-rm -f kern/$(DEPDIR)/elf-load.Po
@@ -9818,6 +9834,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/cfi_integrity.Po
 	-rm -f kern/$(DEPDIR)/counters.Po
 	-rm -f kern/$(DEPDIR)/debug.Po
+	-rm -f kern/$(DEPDIR)/development_tools.Po
 	-rm -f kern/$(DEPDIR)/dtrace.Po
 	-rm -f kern/$(DEPDIR)/dynamic_probes.Po
 	-rm -f kern/$(DEPDIR)/elf-load.Po
