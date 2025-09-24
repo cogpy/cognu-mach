@@ -50,6 +50,8 @@
 
 /* Performance monitoring */
 #define PERF_PERCENTAGE_SCALE       100          /* Scale factor for percentage calculations */
+#define PERF_MIN_SAMPLES_FOR_REGRESSION  10      /* Minimum samples needed for regression analysis */
+#define PERF_DEFAULT_PROFILE_INTERVAL_MS 100     /* Default profiling interval in milliseconds */
 
 /* Console output constants */
 #define CONSOLE_TIMESTAMP_WIDTH     12           /* Width of console timestamp field */

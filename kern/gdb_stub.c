@@ -448,14 +448,14 @@ void gdb_stub_thread_create(thread_t thread)
 void gdb_stub_thread_destroy(thread_t thread)
 {
     if (gdb_config.thread_aware && gdb_config.enabled) {
-        printf("[GDB] Thread destroyed: %p\n", thread);
+        printf("[GDB] Thread destroyed: %p\n", (void *)thread);
     }
 }
 
 void gdb_stub_thread_switch(thread_t old_thread, thread_t new_thread)
 {
     if (gdb_config.thread_aware && gdb_config.enabled) {
-        printf("[GDB] Thread switch: %p -> %p\n", old_thread, new_thread);
+        printf("[GDB] Thread switch: %p -> %p\n", (void *)old_thread, (void *)new_thread);
     }
 }
 
