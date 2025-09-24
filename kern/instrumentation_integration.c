@@ -118,7 +118,7 @@ instrumentation_create_comprehensive_probe(const char *name,
     
     /* Add LTTng trace point */
     if (instrumentation_state.lttng_enabled) {
-        mach_trace_event(MACH_TRACE_SCHED, MACH_TRACE_INFO, 0, "probe_created: %s", name);
+        mach_trace_event(MACH_TRACE_SCHED, MACH_TRACE_LEVEL_INFO, 0, "probe_created: %s", name);
     }
     
     if (probe_id > 0) {
@@ -197,10 +197,10 @@ instrumentation_generate_report(void)
     
     /* Generate detailed reports from each subsystem */
     printf("\n--- DTrace Statistics ---\n");
-    dtrace_print_stats();
+    printf("  Total probes: %u\n", instrumentation_state.active_probes);
     
     printf("\n--- Performance Analysis ---\n");
-    perf_print_summary();
+    printf("  Overhead: %u%%\n", instrumentation_get_overhead_percent());
     
     printf("\n--- LTTng Statistics ---\n");
     mach_trace_print_stats();
