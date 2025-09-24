@@ -277,19 +277,19 @@ Long-term research projects and advanced features for next-generation capabiliti
 - Runtime analysis tools
 
 **Actionable Tasks**:
-- [ ] [Kernel Instrumentation (DTrace-like)](https://www.gnu.org/software/hurd/community/gsoc/project_ideas/dtrace.html)
-  - [ ] Design probe framework for kernel instrumentation
-  - [ ] Implement dynamic probe insertion/removal
-  - [ ] Add performance counters and metrics collection
-  - [ ] Create analysis and visualization tools
-- [ ] [Linux Trace Toolkit Next Generation (LTTng) integration](https://www.gnu.org/software/hurd/lttng.html)
-  - [ ] Evaluate LTTng compatibility with Mach
-  - [ ] Implement trace point infrastructure
-  - [ ] Add kernel event logging
-- [ ] Performance analysis framework
-  - [ ] Implement system-wide profiling
-  - [ ] Add real-time performance monitoring
-  - [ ] Create performance regression detection
+- [x] [Kernel Instrumentation (DTrace-like)](https://www.gnu.org/software/hurd/community/gsoc/project_ideas/dtrace.html)
+  - [x] Design probe framework for kernel instrumentation
+  - [x] Implement dynamic probe insertion/removal
+  - [x] Add performance counters and metrics collection
+  - [x] Create analysis and visualization tools
+- [x] [Linux Trace Toolkit Next Generation (LTTng) integration](https://www.gnu.org/software/hurd/lttng.html)
+  - [x] Evaluate LTTng compatibility with Mach
+  - [x] Implement trace point infrastructure
+  - [x] Add kernel event logging
+- [x] Performance analysis framework
+  - [x] Implement system-wide profiling
+  - [x] Add real-time performance monitoring
+  - [x] Create performance regression detection
 
 **Success Criteria**:
 - Dynamic tracing with minimal overhead (<5%)
