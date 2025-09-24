@@ -21,12 +21,7 @@
 #define _MACH_LTTNG_H_
 
 #include <mach/boolean.h>
-
-/* Use kernel-compatible types instead of stdint.h */  
-typedef unsigned char   uint8_t;
-typedef unsigned short  uint16_t;  
-typedef unsigned int    uint32_t;
-typedef unsigned long long uint64_t;
+#include <stdint.h>
 
 /*
  * GNU Mach LTTng-style tracing infrastructure
