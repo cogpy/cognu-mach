@@ -34,6 +34,7 @@
 #include <kern/queue.h>
 #include <kern/kalloc.h>
 #include <mach/kern_return.h>
+#include <stddef.h>
 
 /*
  * Driver registry structure - manages all registered user-space drivers
@@ -161,13 +162,13 @@ extern boolean_t usrd_check_resource_limits(usrd_proxy_t proxy,
  * Device operations forwarding - these replace standard device operations
  * for devices handled by user-space drivers
  */
-extern io_return_t usrd_device_open(dev_t dev, dev_mode_t mode, io_req_t ior);
-extern void usrd_device_close(dev_t dev);
-extern io_return_t usrd_device_read(dev_t dev, io_req_t ior);
-extern io_return_t usrd_device_write(dev_t dev, io_req_t ior);
-extern io_return_t usrd_device_get_status(dev_t dev, dev_flavor_t flavor,
+extern io_return_t usrd_device_open(device_t dev, dev_mode_t mode, io_req_t ior);
+extern void usrd_device_close(device_t dev);
+extern io_return_t usrd_device_read(device_t dev, io_req_t ior);
+extern io_return_t usrd_device_write(device_t dev, io_req_t ior);
+extern io_return_t usrd_device_get_status(device_t dev, dev_flavor_t flavor,
                                          dev_status_t status, natural_t *count);
-extern io_return_t usrd_device_set_status(dev_t dev, dev_flavor_t flavor,
+extern io_return_t usrd_device_set_status(device_t dev, dev_flavor_t flavor,
                                          dev_status_t status, natural_t count);
 
 /*
