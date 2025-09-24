@@ -1643,10 +1643,11 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
 	device/net_io.c device/net_io.h device/param.h device/subrs.c \
-	device/subrs.h device/tty.h device/kmsg.c device/kmsg.h \
-	xen/public/arch-x86_32.h xen/public/arch-x86_64.h \
-	xen/public/arch-x86/xen.h xen/public/arch-x86/xen-mca.h \
-	xen/public/arch-x86/xen-x86_32.h \
+	device/subrs.h device/tty.h device/userspace_driver.c \
+	device/userspace_driver.h device/userspace_driver_sdk.c \
+	device/kmsg.c device/kmsg.h xen/public/arch-x86_32.h \
+	xen/public/arch-x86_64.h xen/public/arch-x86/xen.h \
+	xen/public/arch-x86/xen-mca.h xen/public/arch-x86/xen-x86_32.h \
 	xen/public/arch-x86/xen-x86_64.h xen/public/callback.h \
 	xen/public/COPYING xen/public/dom0_ops.h xen/public/domctl.h \
 	xen/public/elfnote.h xen/public/elfstructs.h \
@@ -1935,15 +1936,16 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	device/dev_name.$(OBJEXT) device/dev_pager.$(OBJEXT) \
 	device/device_init.$(OBJEXT) device/ds_routines.$(OBJEXT) \
 	device/intr.$(OBJEXT) device/net_io.$(OBJEXT) \
-	device/subrs.$(OBJEXT) $(am__objects_4) $(am__objects_5) \
-	$(am__objects_6) $(am__objects_7) $(am__objects_8) \
-	$(am__objects_9) $(am__objects_10) $(am__objects_11) \
-	$(am__objects_12) $(am__objects_13) $(am__objects_14) \
-	$(am__objects_15) $(am__objects_16) $(am__objects_17) \
-	$(am__objects_18) $(am__objects_19) $(am__objects_20) \
-	$(am__objects_21) $(am__objects_22) $(am__objects_23) \
-	$(am__objects_24) $(am__objects_25) $(am__objects_26) \
-	$(am__objects_27)
+	device/subrs.$(OBJEXT) device/userspace_driver.$(OBJEXT) \
+	device/userspace_driver_sdk.$(OBJEXT) $(am__objects_4) \
+	$(am__objects_5) $(am__objects_6) $(am__objects_7) \
+	$(am__objects_8) $(am__objects_9) $(am__objects_10) \
+	$(am__objects_11) $(am__objects_12) $(am__objects_13) \
+	$(am__objects_14) $(am__objects_15) $(am__objects_16) \
+	$(am__objects_17) $(am__objects_18) $(am__objects_19) \
+	$(am__objects_20) $(am__objects_21) $(am__objects_22) \
+	$(am__objects_23) $(am__objects_24) $(am__objects_25) \
+	$(am__objects_26) $(am__objects_27)
 @HOST_ix86_TRUE@am__objects_28 = i386/i386/mach_i386.server.$(OBJEXT)
 @HOST_x86_64_TRUE@am__objects_29 =  \
 @HOST_x86_64_TRUE@	i386/i386/mach_i386.server.$(OBJEXT)
@@ -2395,6 +2397,8 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	device/$(DEPDIR)/lib_dep_tr_for_defs_a-memory_object_reply.user.defs.Po \
 	device/$(DEPDIR)/memory_object_reply.user.Po \
 	device/$(DEPDIR)/net_io.Po device/$(DEPDIR)/subrs.Po \
+	device/$(DEPDIR)/userspace_driver.Po \
+	device/$(DEPDIR)/userspace_driver_sdk.Po \
 	i386/i386/$(DEPDIR)/_setjmp.Po i386/i386/$(DEPDIR)/apic.Po \
 	i386/i386/$(DEPDIR)/ast_check.Po \
 	i386/i386/$(DEPDIR)/cpuboot.Po i386/i386/$(DEPDIR)/cswitch.Po \
@@ -3466,15 +3470,16 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
 	device/net_io.c device/net_io.h device/param.h device/subrs.c \
-	device/subrs.h device/tty.h $(am__append_8) $(am__append_116) \
-	$(am__append_117) $(am__append_118) $(am__append_119) \
-	$(am__append_120) $(am__append_121) $(am__append_122) \
-	$(am__append_123) $(am__append_124) $(am__append_125) \
-	$(am__append_126) $(am__append_127) $(am__append_132) \
-	$(am__append_134) $(am__append_135) $(am__append_136) \
-	$(am__append_137) $(am__append_138) $(am__append_139) \
-	$(am__append_140) $(am__append_141) $(am__append_142) \
-	$(am__append_151)
+	device/subrs.h device/tty.h device/userspace_driver.c \
+	device/userspace_driver.h device/userspace_driver_sdk.c \
+	$(am__append_8) $(am__append_116) $(am__append_117) \
+	$(am__append_118) $(am__append_119) $(am__append_120) \
+	$(am__append_121) $(am__append_122) $(am__append_123) \
+	$(am__append_124) $(am__append_125) $(am__append_126) \
+	$(am__append_127) $(am__append_132) $(am__append_134) \
+	$(am__append_135) $(am__append_136) $(am__append_137) \
+	$(am__append_138) $(am__append_139) $(am__append_140) \
+	$(am__append_141) $(am__append_142) $(am__append_151)
 
 #
 # Version number.
@@ -3569,7 +3574,10 @@ include_device_HEADERS = \
 	include/device/notify.defs \
 	include/device/notify.h \
 	include/device/tape_status.h \
-	include/device/tty_status.h
+	include/device/tty_status.h \
+	include/device/userspace_driver.defs \
+	include/device/userspace_driver_types.h \
+	include/device/userspace_driver_sdk.h
 
 include_machdir = $(includedir)/mach
 include_mach_HEADERS = \
@@ -3918,12 +3926,16 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-security-analysis \
 @PLATFORM_xen_FALSE@	tests/test-suite-runner \
 @PLATFORM_xen_FALSE@	tests/test-device-framework \
+@PLATFORM_xen_FALSE@	tests/test-userspace-driver \
 @PLATFORM_xen_FALSE@	tests/test-cross-phase-infrastructure \
 @PLATFORM_xen_FALSE@	tests/test-smp-threads \
 @PLATFORM_xen_FALSE@	tests/test-lttng \
 @PLATFORM_xen_FALSE@	tests/test-dtrace-instrumentation \
 @PLATFORM_xen_FALSE@	tests/test-enhanced-instrumentation \
-@PLATFORM_xen_FALSE@	tests/test-whole-system-debugging
+@PLATFORM_xen_FALSE@	tests/test-whole-system-debugging \
+@PLATFORM_xen_FALSE@	tests/test-valgrind \
+@PLATFORM_xen_FALSE@	tests/test-vdso \
+@PLATFORM_xen_FALSE@	tests/test-mach5-research
 
 @PLATFORM_xen_FALSE@USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
@@ -4344,6 +4356,8 @@ kern/timer.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/valgrind.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/vdso.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/development_tools.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/xpr.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4408,6 +4422,10 @@ device/intr.$(OBJEXT): device/$(am__dirstamp) \
 device/net_io.$(OBJEXT): device/$(am__dirstamp) \
 	device/$(DEPDIR)/$(am__dirstamp)
 device/subrs.$(OBJEXT): device/$(am__dirstamp) \
+	device/$(DEPDIR)/$(am__dirstamp)
+device/userspace_driver.$(OBJEXT): device/$(am__dirstamp) \
+	device/$(DEPDIR)/$(am__dirstamp)
+device/userspace_driver_sdk.$(OBJEXT): device/$(am__dirstamp) \
 	device/$(DEPDIR)/$(am__dirstamp)
 device/kmsg.$(OBJEXT): device/$(am__dirstamp) \
 	device/$(DEPDIR)/$(am__dirstamp)
@@ -5311,6 +5329,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@device/$(DEPDIR)/memory_object_reply.user.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@device/$(DEPDIR)/net_io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@device/$(DEPDIR)/subrs.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@device/$(DEPDIR)/userspace_driver.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@device/$(DEPDIR)/userspace_driver_sdk.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/_setjmp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/apic.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@i386/i386/$(DEPDIR)/ast_check.Po@am__quote@ # am--include-marker
@@ -8802,6 +8822,13 @@ tests/test-device-framework.log: tests/test-device-framework
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-userspace-driver.log: tests/test-userspace-driver
+	@p='tests/test-userspace-driver'; \
+	b='tests/test-userspace-driver'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-cross-phase-infrastructure.log: tests/test-cross-phase-infrastructure
 	@p='tests/test-cross-phase-infrastructure'; \
 	b='tests/test-cross-phase-infrastructure'; \
@@ -8840,6 +8867,27 @@ tests/test-enhanced-instrumentation.log: tests/test-enhanced-instrumentation
 tests/test-whole-system-debugging.log: tests/test-whole-system-debugging
 	@p='tests/test-whole-system-debugging'; \
 	b='tests/test-whole-system-debugging'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-valgrind.log: tests/test-valgrind
+	@p='tests/test-valgrind'; \
+	b='tests/test-valgrind'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-vdso.log: tests/test-vdso
+	@p='tests/test-vdso'; \
+	b='tests/test-vdso'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-mach5-research.log: tests/test-mach5-research
+	@p='tests/test-mach5-research'; \
+	b='tests/test-mach5-research'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -9222,6 +9270,8 @@ distclean: distclean-recursive
 	-rm -f device/$(DEPDIR)/memory_object_reply.user.Po
 	-rm -f device/$(DEPDIR)/net_io.Po
 	-rm -f device/$(DEPDIR)/subrs.Po
+	-rm -f device/$(DEPDIR)/userspace_driver.Po
+	-rm -f device/$(DEPDIR)/userspace_driver_sdk.Po
 	-rm -f i386/i386/$(DEPDIR)/_setjmp.Po
 	-rm -f i386/i386/$(DEPDIR)/apic.Po
 	-rm -f i386/i386/$(DEPDIR)/ast_check.Po
@@ -9760,6 +9810,8 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f device/$(DEPDIR)/memory_object_reply.user.Po
 	-rm -f device/$(DEPDIR)/net_io.Po
 	-rm -f device/$(DEPDIR)/subrs.Po
+	-rm -f device/$(DEPDIR)/userspace_driver.Po
+	-rm -f device/$(DEPDIR)/userspace_driver_sdk.Po
 	-rm -f i386/i386/$(DEPDIR)/_setjmp.Po
 	-rm -f i386/i386/$(DEPDIR)/apic.Po
 	-rm -f i386/i386/$(DEPDIR)/ast_check.Po
@@ -10443,7 +10495,6 @@ dist-hook-linux:
 
 @PLATFORM_xen_FALSE@clean-test-%:
 @PLATFORM_xen_FALSE@	rm -f tests/test-$* tests/test-$*.iso tests/test-$*.log tests/test-$*.raw tests/test-$*.trs tests/module-$*
-@PLATFORM_xen_FALSE@	tests/test-valgrind
 
 #
 # Enhanced test framework integration

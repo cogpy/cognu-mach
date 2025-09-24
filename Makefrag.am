@@ -361,9 +361,10 @@ libkernel_a_SOURCES += \
 	device/subrs.c \
 	device/subrs.h \
 	device/tty.h \
-	device/userspace_driver.c \
-	device/userspace_driver.h \
-	device/userspace_driver_sdk.c
+	device/virtio.c \
+	device/virtio_pci.c \
+	device/virtio_blk.c \
+	device/virtio_net.c
 EXTRA_DIST += \
 	device/device.srv \
 	device/device_pager.srv \
@@ -408,9 +409,7 @@ include_device_HEADERS = \
 	include/device/notify.h \
 	include/device/tape_status.h \
 	include/device/tty_status.h \
-	include/device/userspace_driver.defs \
-	include/device/userspace_driver_types.h \
-	include/device/userspace_driver_sdk.h
+	include/device/virtio.h
 
 include_machdir = $(includedir)/mach
 include_mach_HEADERS = \

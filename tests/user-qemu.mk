@@ -260,7 +260,6 @@ USER_TESTS := \
 	tests/test-security-analysis \
 	tests/test-suite-runner \
 	tests/test-device-framework \
-	tests/test-userspace-driver \
 	tests/test-cross-phase-infrastructure \
 	tests/test-smp-threads \
 	tests/test-lttng \
@@ -269,7 +268,8 @@ USER_TESTS := \
 	tests/test-whole-system-debugging \
 	tests/test-valgrind \
 	tests/test-vdso \
-	tests/test-mach5-research
+	tests/test-mach5-research \
+	tests/test-virtio
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 

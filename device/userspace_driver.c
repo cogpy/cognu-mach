@@ -27,11 +27,16 @@
 #include <device/userspace_driver.h>
 #include <device/ds_routines.h>
 #include <kern/printf.h>
-#include <kern/time_stamp.h>
+#include <i386/i386/time_stamp.h>
 #include <kern/task.h>
 #include <vm/vm_map.h>
 #include <ipc/ipc_port.h>
 #include <ipc/ipc_space.h>
+
+/* Forward declarations for internal functions */
+static io_return_t usrd_device_open(device_t dev, dev_mode_t mode, io_req_t ior);
+static io_return_t usrd_device_read(device_t dev, io_req_t ior);
+static io_return_t usrd_device_write(device_t dev, io_req_t ior);
 
 /*
  * Global registry instance
@@ -498,45 +503,45 @@ void usrd_dump_registry_info(void)
  * in a real implementation with proper IPC to user-space drivers
  */
 
-io_return_t usrd_device_open(dev_t dev, dev_mode_t mode, io_req_t ior)
+static io_return_t usrd_device_open(device_t dev, dev_mode_t mode, io_req_t ior)
 {
     /* Simplified implementation - would normally forward to user-space driver */
-    printf("USRD: device_open called for dev %d\n", dev);
+    printf("USRD: device_open called\n");
     return D_SUCCESS;
 }
 
-void usrd_device_close(dev_t dev)
+void usrd_device_close(device_t dev)
 {
     /* Simplified implementation */
-    printf("USRD: device_close called for dev %d\n", dev);
+    printf("USRD: device_close called\n");
 }
 
-io_return_t usrd_device_read(dev_t dev, io_req_t ior)
+static io_return_t usrd_device_read(device_t dev, io_req_t ior)
 {
     /* Simplified implementation */
-    printf("USRD: device_read called for dev %d\n", dev);
+    printf("USRD: device_read called\n");
     return D_SUCCESS;
 }
 
-io_return_t usrd_device_write(dev_t dev, io_req_t ior)
+static io_return_t usrd_device_write(device_t dev, io_req_t ior)
 {
     /* Simplified implementation */
-    printf("USRD: device_write called for dev %d\n", dev);
+    printf("USRD: device_write called\n");
     return D_SUCCESS;
 }
 
-io_return_t usrd_device_get_status(dev_t dev, dev_flavor_t flavor,
+io_return_t usrd_device_get_status(device_t dev, dev_flavor_t flavor,
                                  dev_status_t status, natural_t *count)
 {
     /* Simplified implementation */
-    printf("USRD: device_get_status called for dev %d\n", dev);
+    printf("USRD: device_get_status called\n");
     return D_SUCCESS;
 }
 
-io_return_t usrd_device_set_status(dev_t dev, dev_flavor_t flavor,
+io_return_t usrd_device_set_status(device_t dev, dev_flavor_t flavor,
                                  dev_status_t status, natural_t count)
 {
     /* Simplified implementation */
-    printf("USRD: device_set_status called for dev %d\n", dev);
+    printf("USRD: device_set_status called\n");
     return D_SUCCESS;
 }
