@@ -138,7 +138,13 @@ cfi_check_stack_integrity(struct cfi_context *ctx)
     }
     
     /* Get current stack pointer */
+#if defined(__x86_64__)
+    asm volatile("movq %%rsp, %0" : "=r"(current_sp));
+#elif defined(__i386__)
     asm volatile("movl %%esp, %0" : "=r"(current_sp));
+#else
+    #error "Unsupported architecture for stack pointer read"
+#endif
     
     /* Check if stack pointer is within expected bounds */
     if (current_sp < ctx->stack_limit || current_sp > ctx->stack_base) {
