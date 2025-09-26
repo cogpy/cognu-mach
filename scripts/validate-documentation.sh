@@ -306,11 +306,13 @@ validate_consistency() {
     # Check for broken internal links (simple check)
     if [[ -f "$PROJECT_ROOT/README" ]]; then
         while IFS= read -r line; do
-            if [[ "$line" =~ \[.*\]\(([^)]+)\) ]]; then
-                local link="${BASH_REMATCH[1]}"
-                if [[ "$link" != http* && "$link" != \#* ]]; then
+            # Look for markdown links [text](url)
+            if echo "$line" | grep -q '\[.*\](.*)'  ; then
+                # Extract the URL part
+                local link=$(echo "$line" | sed -n 's/.*\[\([^]]*\)\](\([^)]*\)).*/\2/p')
+                if [[ -n "$link" && "$link" != http* && "$link" != "#"* ]]; then
                     if [[ ! -f "$PROJECT_ROOT/$link" ]]; then
-                        log_warning "⚠️  Broken link in README: $link"
+                        log_warning "Broken link in README: $link"
                         ((consistency_issues++))
                     fi
                 fi
@@ -404,16 +406,16 @@ generate_documentation_report() {
         echo "=================="
         
         if [[ $score_percentage -ge 80 ]]; then
-            echo "  Overall Quality: EXCELLENT ✅"
+            echo "  Overall Quality: EXCELLENT"
             echo "  Status: Ready for production"
         elif [[ $score_percentage -ge 60 ]]; then
-            echo "  Overall Quality: GOOD ✅"  
+            echo "  Overall Quality: GOOD"
             echo "  Status: Minor improvements recommended"
         elif [[ $score_percentage -ge 40 ]]; then
-            echo "  Overall Quality: FAIR ⚠️"
+            echo "  Overall Quality: FAIR"
             echo "  Status: Significant improvements needed"
         else
-            echo "  Overall Quality: POOR ❌"
+            echo "  Overall Quality: POOR"
             echo "  Status: Major documentation work required"
         fi
         
@@ -490,11 +492,11 @@ main() {
     fi
     
     if [[ $score_percentage -ge $min_score ]]; then
-        log_success "✅ Documentation validation PASSED ($score_percentage%)"
+        log_success "Documentation validation PASSED ($score_percentage%)"
         log_success "Documentation is ready for production release"
         exit 0
     else
-        log_error "❌ Documentation validation FAILED ($score_percentage%)"
+        log_error "Documentation validation FAILED ($score_percentage%)"
         log_error "Documentation improvements required before release"
         exit 1
     fi
