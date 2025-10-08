@@ -48,11 +48,9 @@
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
 #include <kern/xpr.h>
-//<<<<<<< copilot/fix-116
 #include <kern/perf_analysis.h>
-//=======
 #include <kern/dtrace.h>
-//>>>>>>> master
+#include <kern/new_feature.h>
 #include <kern/printf.h>
 #if MACH_KDB
 #include <gdb_stub.h>
@@ -161,16 +159,17 @@ void setup_main(void)
 	/* Initialize console timestamps after time system is ready */
 	console_timestamp_init();
 
-//<<<<<<< copilot/fix-116
 	/* Initialize performance analysis framework */
 	perf_analysis_init();
-//=======
+
+	/* Initialize kernel feature integration module */
+	feature_init();
+
 #ifdef CONFIG_MACH_TRACING
 	/* Initialize full tracing system now that console is ready */
 	mach_trace_init();
 	printf("LTTng-style kernel tracing initialized\n");
 #endif
-//>>>>>>> master
 
 	/* Initialize modern GDB stub for enhanced debugging */
 #if MACH_KDB
