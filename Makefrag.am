@@ -192,6 +192,8 @@ libkernel_a_SOURCES += \
 	kern/pc_sample.h \
 	kern/perf_analysis.c \
 	kern/perf_analysis.h \
+	kern/new_feature.c \
+	kern/new_feature.h \
 	kern/printf.c \
 	kern/printf.h \
 	kern/priority.c \
