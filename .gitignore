@@ -88,3 +88,4 @@ mig/tests/*/Makefile.in
 test_*.c
 final_test
 
+*.o
