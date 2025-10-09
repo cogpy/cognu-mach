@@ -83,3 +83,9 @@ mig/tests/Makefile
 mig/tests/Makefile.in
 mig/tests/*/Makefile
 mig/tests/*/Makefile.in
+
+# Test files
+test_*.c
+final_test
+
+*.o

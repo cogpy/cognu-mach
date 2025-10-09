@@ -22,11 +22,20 @@
 
 #include <mach/boolean.h>
 
-/* Use kernel-compatible types instead of stdint.h */  
+/* Include standard integer types when available, otherwise define our own */
+#ifdef __KERNEL__
+/* In kernel space, define our own types to avoid conflicts */
+#ifndef __uint8_t_defined
 typedef unsigned char   uint8_t;
-typedef unsigned short  uint16_t;  
+typedef unsigned short  uint16_t;
 typedef unsigned int    uint32_t;
 typedef unsigned long long uint64_t;
+#define __uint8_t_defined
+#endif
+#else
+/* In user space, use standard definitions */
+#include <stdint.h>
+#endif
 
 /*
  * GNU Mach LTTng-style tracing infrastructure
