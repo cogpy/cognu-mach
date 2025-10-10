@@ -153,7 +153,7 @@ mach_trace_event(mach_trace_category_t category,
 	spl_t spl;
 	
 	/* Quick check without locking */
-	if (!mach_tracing_enabled || !mach_trace_buf.enabled)
+	if (!mach_tracing_enabled || !mach_trace_buf_impl.enabled)
 		return;
 		
 	/* Get timestamp early to minimize latency */
@@ -163,29 +163,29 @@ mach_trace_event(mach_trace_category_t category,
 	total_events_generated++;
 	
 	/* Lock buffer for modification */
-	spl = simple_lock_irq(&mach_trace_buf.lock);
+	spl = simple_lock_irq(&mach_trace_buf_impl.lock);
 	
 	/* Double-check enabled status */
-	if (!mach_trace_buf.enabled) {
-		simple_unlock_irq(spl, &mach_trace_buf.lock);
+	if (!mach_trace_buf_impl.enabled) {
+		simple_unlock_irq(spl, &mach_trace_buf_impl.lock);
 		return;
 	}
 	
 	/* Get current write position */
-	pos = mach_trace_buf.write_pos;
+	pos = mach_trace_buf_impl.write_pos;
 	next_pos = (pos + 1) % MACH_TRACE_BUF_SIZE;
 	
 	/* Check for buffer overflow */
-	if (next_pos == mach_trace_buf.read_pos) {
+	if (next_pos == mach_trace_buf_impl.read_pos) {
 		/* Buffer full - drop event */
-		mach_trace_buf.dropped_events++;
+		mach_trace_buf_impl.dropped_events++;
 		total_events_dropped++;
-		simple_unlock_irq(spl, &mach_trace_buf.lock);
+		simple_unlock_irq(spl, &mach_trace_buf_impl.lock);
 		return;
 	}
 	
 	/* Fill in the event */
-	event = &mach_trace_buf.events[pos];
+	event = &mach_trace_buf_impl.events[pos];
 	event->timestamp_hi = (uint32_t)(timestamp >> 32);
 	event->timestamp_lo = (uint32_t)(timestamp & 0xFFFFFFFF);
 	event->category = (uint16_t)category;
@@ -206,9 +206,9 @@ mach_trace_event(mach_trace_category_t category,
 	}
 	
 	/* Update write position */
-	mach_trace_buf.write_pos = next_pos;
+	mach_trace_buf_impl.write_pos = next_pos;
 	
-	simple_unlock_irq(spl, &mach_trace_buf.lock);
+	simple_unlock_irq(spl, &mach_trace_buf_impl.lock);
 }
 
 /*
@@ -220,14 +220,14 @@ mach_trace_print_stats(void)
 	uint32_t buffered_events;
 	spl_t spl;
 	
-	spl = simple_lock_irq(&mach_trace_buf.lock);
+	spl = simple_lock_irq(&mach_trace_buf_impl.lock);
 	
 	/* Calculate number of buffered events */
-	if (mach_trace_buf.write_pos >= mach_trace_buf.read_pos) {
-		buffered_events = mach_trace_buf.write_pos - mach_trace_buf.read_pos;
+	if (mach_trace_buf_impl.write_pos >= mach_trace_buf_impl.read_pos) {
+		buffered_events = mach_trace_buf_impl.write_pos - mach_trace_buf_impl.read_pos;
 	} else {
 		buffered_events = MACH_TRACE_BUF_SIZE - 
-		                 (mach_trace_buf.read_pos - mach_trace_buf.write_pos);
+		                 (mach_trace_buf_impl.read_pos - mach_trace_buf_impl.write_pos);
 	}
 	
 	printf("Mach Tracing Statistics:\n");
@@ -236,9 +236,9 @@ mach_trace_print_stats(void)
 	printf("  Buffered events: %u\n", buffered_events);
 	printf("  Events generated: %u\n", total_events_generated);
 	printf("  Events dropped: %u\n", total_events_dropped);
-	printf("  Buffer dropped: %u\n", mach_trace_buf.dropped_events);
+	printf("  Buffer dropped: %u\n", mach_trace_buf_impl.dropped_events);
 	
-	simple_unlock_irq(spl, &mach_trace_buf.lock);
+	simple_unlock_irq(spl, &mach_trace_buf_impl.lock);
 }
 
 /*
@@ -305,8 +305,8 @@ void
 mach_trace_early_init(void)
 {
 	/* Basic initialization without printf to avoid recursion */
-	memset(&mach_trace_buf, 0, sizeof(mach_trace_buf));
-	simple_lock_init_irq(&mach_trace_buf.lock);
-	mach_trace_buf.enabled = FALSE;
+	memset(&mach_trace_buf_impl, 0, sizeof(mach_trace_buf_impl));
+	simple_lock_init_irq(&mach_trace_buf_impl.lock);
+	mach_trace_buf_impl.enabled = FALSE;
 	mach_tracing_enabled = FALSE;
 }

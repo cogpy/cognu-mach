@@ -33,6 +33,7 @@
  */
 
 #include <kern/printf.h>
+#include <kern/constants.h>
 #include <mach/machine.h>
 #include <machine/locore.h>
 #include <machine/spl.h>	/* For def'n of splsched() */
@@ -127,7 +128,7 @@ timer_elt_data_t recompute_priorities_timer;
  *	The wait event hash table declarations are as follows:
  */
 
-#define NUMQUEUES	1031
+#define NUMQUEUES	SCHED_WAIT_HASH_SIZE
 
 /* Shall be taken at splsched only */
 decl_simple_lock_data(static,	wait_lock[NUMQUEUES])	 /* Lock for... */
@@ -1140,14 +1141,14 @@ void update_priority(
 	assert(ticks != 0);
 
 	/*
-	 *	If asleep for more than 30 seconds forget all
+	 *	If asleep for more than SCHED_CPU_USAGE_RESET_TICKS seconds forget all
 	 *	cpu_usage, else catch up on missed aging.
 	 *	5/8 ** n is approximated by the two shifts
 	 *	in the wait_shift array.
 	 */
 	thread->sched_stamp += ticks;
 	thread_timer_delta(thread);
-	if (ticks >  30) {
+	if (ticks > SCHED_CPU_USAGE_RESET_TICKS) {
 		thread->cpu_usage = 0;
 		thread->sched_usage = 0;
 	}

@@ -15,7 +15,7 @@
 
 #include <kern/kern_types.h>
 #include <kern/lock.h>
-#include <kern/timer.h>
+#include <mach/kern_return.h>
 #include <mach/time_value.h>
 
 /*

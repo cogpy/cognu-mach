@@ -31,6 +31,7 @@ OPTIONS:
     -o, --output DIR        Output directory for reports (default: ./analysis-reports)
     --debug-focus          Focus analysis on debugging-related code
     --timestamp-focus      Focus analysis on timestamp functionality
+    --security-focus       Focus analysis on security infrastructure
 
 EOF
 }
@@ -38,6 +39,7 @@ EOF
 # Parse command line arguments
 DEBUG_FOCUS=false
 TIMESTAMP_FOCUS=false
+SECURITY_FOCUS=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -55,6 +57,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --timestamp-focus)
             TIMESTAMP_FOCUS=true
+            shift
+            ;;
+        --security-focus)
+            SECURITY_FOCUS=true
             shift
             ;;
         *)
@@ -92,6 +98,9 @@ if [[ "$DEBUG_FOCUS" == "true" ]]; then
 elif [[ "$TIMESTAMP_FOCUS" == "true" ]]; then
     FILE_PATTERNS="kern/printf.c tests/test-console-timestamp.c"
     echo -e "${YELLOW}Focus: Timestamp functionality${NC}"
+elif [[ "$SECURITY_FOCUS" == "true" ]]; then
+    FILE_PATTERNS="kern/security_monitor.c kern/cfi_integrity.c include/mach/mach_security.h include/mach/mach_safety.h i386/i386/trap.c vm/vm_kern.c"
+    echo -e "${YELLOW}Focus: Security infrastructure${NC}"
 else
     FILE_PATTERNS="kern/ ddb/ device/ ipc/ vm/ i386/"
     echo -e "${YELLOW}Scope: Full codebase analysis${NC}"
@@ -143,11 +152,15 @@ if check_tool clang; then
 fi
 
 # Run debugging-specific checks
-if [[ "$DEBUG_FOCUS" == "true" || "$TIMESTAMP_FOCUS" == "true" ]]; then
-    echo -e "${BLUE}=== Running debugging-specific checks ===${NC}"
+if [[ "$DEBUG_FOCUS" == "true" || "$TIMESTAMP_FOCUS" == "true" || "$SECURITY_FOCUS" == "true" ]]; then
+    echo -e "${BLUE}=== Running specialized checks ===${NC}"
     
     {
-        echo "=== GNU Mach Debugging Analysis Report ==="
+        if [[ "$SECURITY_FOCUS" == "true" ]]; then
+            echo "=== GNU Mach Security Analysis Report ==="
+        else
+            echo "=== GNU Mach Debugging Analysis Report ==="
+        fi
         echo "Generated: $(date)"
         echo
         
@@ -191,6 +204,6 @@ echo "Review the following files for issues:"
 echo "  - $OUTPUT_DIR/cppcheck-report.txt"
 echo "  - $OUTPUT_DIR/compiler-warnings.txt"
 echo "  - $OUTPUT_DIR/build-analyze/scan-results/ (if clang analyzer was run)"
-if [[ "$DEBUG_FOCUS" == "true" || "$TIMESTAMP_FOCUS" == "true" ]]; then
+if [[ "$DEBUG_FOCUS" == "true" || "$TIMESTAMP_FOCUS" == "true" || "$SECURITY_FOCUS" == "true" ]]; then
     echo "  - $OUTPUT_DIR/debug-analysis.txt"
 fi

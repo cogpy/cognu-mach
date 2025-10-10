@@ -249,6 +249,7 @@ USER_TESTS := \
 	tests/test-tickless-timer \
 	tests/test-gdb-stub \
 	tests/test-development-tools \
+	tests/test-advanced-development-tools \
 	tests/test-benchmark-ipc \
 	tests/test-benchmark-memory \
 	tests/test-advanced-memory \
@@ -256,12 +257,20 @@ USER_TESTS := \
 	tests/test-memory-tracking \
 	tests/test-memory-management-enhanced \
 	tests/test-performance-analysis \
+	tests/test-security-analysis \
 	tests/test-suite-runner \
 	tests/test-device-framework \
 	tests/test-cross-phase-infrastructure \
 	tests/test-smp-threads \
 	tests/test-lttng \
 	tests/test-dtrace-instrumentation \
+	tests/test-enhanced-instrumentation \
+	tests/test-phase4-instrumentation \
+	tests/test-whole-system-debugging \
+	tests/test-valgrind \
+	tests/test-vdso \
+	tests/test-mach5-research \
+	tests/test-virtio
 	tests/test-kernel-feature
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))

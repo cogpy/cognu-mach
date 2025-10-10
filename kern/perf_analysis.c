@@ -17,8 +17,11 @@
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/sched_prim.h>
-#include <mach/mach_time.h>
+#include <kern/mach_clock.h>
+#include <kern/constants.h>
+#include <mach/time_value.h>
 #include <machine/cpu.h>
+#include <string.h>
 
 /* Global performance monitor instance */
 struct perf_monitor global_perf_monitor;
@@ -40,18 +43,13 @@ static uint64_t perf_timebase_factor = 0;
 static uint64_t
 perf_get_timestamp_us(void)
 {
-    uint64_t time_ns;
+    /* Use record_time_stamp for high resolution timing like DTrace does */
+    time_value64_t tv;
+    record_time_stamp(&tv);
     
-    /* Use mach_absolute_time() if available, otherwise use approximation */
-    if (perf_timebase_factor != 0) {
-        time_ns = mach_absolute_time() * perf_timebase_factor;
-        return time_ns / 1000;  /* Convert to microseconds */
-    }
-    
-    /* Fallback: use timer_elt for approximation */
-    struct time_value tv;
-    clock_get_system_microtime(&tv.seconds, &tv.microseconds);
-    return (uint64_t)tv.seconds * 1000000ULL + tv.microseconds;
+    /* Convert to microseconds */
+    return ((uint64_t)tv.seconds * 1000000ULL) + 
+           ((uint64_t)tv.nanoseconds / 1000ULL);
 }
 
 /*
@@ -87,7 +85,7 @@ perf_analysis_init(void)
     perf_control.profiling_enabled = FALSE;
     perf_control.trace_enabled = FALSE;
     perf_control.trace_mask = 0xFFFFFFFF;  /* All events by default */
-    perf_control.profile_interval_ms = 100;  /* 100ms default */
+    perf_control.profile_interval_ms = PERF_DEFAULT_PROFILE_INTERVAL_MS;
     
     /* Initialize timing infrastructure */
     perf_timebase_factor = 1;  /* Initialize to safe value */
@@ -167,7 +165,7 @@ perf_monitor_configure(uint32_t sample_rate, uint32_t buffer_size)
         
         size_t old_bytes = global_perf_monitor.buffer_size * 
                           sizeof(struct perf_sample);
-        kfree(global_perf_monitor.sample_buffer, old_bytes);
+        kfree((vm_offset_t)global_perf_monitor.sample_buffer, old_bytes);
         global_perf_monitor.sample_buffer = NULL;
     }
     
@@ -404,7 +402,8 @@ perf_check_regression(perf_event_type_t event, uint32_t threshold_percent)
     baseline = &global_perf_monitor.baseline_stats[event];
     
     /* Need meaningful baseline data */
-    if (baseline->count < 10 || current->count < 10) {
+    if (baseline->count < PERF_MIN_SAMPLES_FOR_REGRESSION || 
+        current->count < PERF_MIN_SAMPLES_FOR_REGRESSION) {
         goto unlock;
     }
     
@@ -414,7 +413,7 @@ perf_check_regression(perf_event_type_t event, uint32_t threshold_percent)
     /* Check if current performance is significantly worse */
     if (baseline_avg > 0) {
         uint64_t increase_percent = 
-            ((current_avg - baseline_avg) * 100) / baseline_avg;
+            ((current_avg - baseline_avg) * PERF_PERCENTAGE_SCALE) / baseline_avg;
         
         if (increase_percent > threshold_percent) {
             regression = TRUE;
@@ -422,7 +421,8 @@ perf_check_regression(perf_event_type_t event, uint32_t threshold_percent)
             
             printf("Performance regression detected for event %d: "
                    "%llu%% increase (baseline: %llu us, current: %llu us)\n",
-                   event, increase_percent, baseline_avg, current_avg);
+                   event, (unsigned long long)increase_percent, 
+                   (unsigned long long)baseline_avg, (unsigned long long)current_avg);
         }
     }
     

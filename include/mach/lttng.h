@@ -21,6 +21,7 @@
 #define _MACH_LTTNG_H_
 
 #include <mach/boolean.h>
+#include <stdint.h>
 
 /* Include standard integer types when available, otherwise define our own */
 #ifdef __KERNEL__

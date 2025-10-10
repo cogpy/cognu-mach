@@ -146,6 +146,12 @@ libkernel_a_SOURCES += \
 	kern/debug.h \
 	kern/dtrace.c \
 	kern/dtrace.h \
+	kern/dynamic_probes.c \
+	kern/dynamic_probes.h \
+	kern/instrumentation_integration.c \
+	kern/instrumentation_integration.h \
+	kern/system_debug.c \
+	kern/unified_debug.c \
 	kern/eventcount.c \
 	kern/eventcount.h \
 	kern/exception.c \
@@ -160,7 +166,6 @@ libkernel_a_SOURCES += \
 	kern/ipc_kobject.h \
 	kern/ipc_mig.c \
 	kern/ipc_mig.h \
-	kern/ipc_perf_monitor.c \
 	kern/ipc_sched.c \
 	kern/ipc_sched.h \
 	kern/ipc_tt.c \
@@ -192,10 +197,16 @@ libkernel_a_SOURCES += \
 	kern/pc_sample.h \
 	kern/perf_analysis.c \
 	kern/perf_analysis.h \
+	kern/perf_counters.c \
+	kern/perf_counters.h \
 	kern/new_feature.c \
 	kern/new_feature.h \
 	kern/printf.c \
 	kern/printf.h \
+	kern/security_monitor.c \
+	kern/security_monitor.h \
+	kern/cfi_integrity.c \
+	kern/cfi_integrity.h \
 	kern/priority.c \
 	kern/priority.h \
 	kern/processor.c \
@@ -238,6 +249,11 @@ libkernel_a_SOURCES += \
 	kern/thread_swap.h \
 	kern/timer.c \
 	kern/timer.h \
+	kern/valgrind.c \
+	kern/vdso.c \
+	kern/vdso.h \
+	kern/development_tools.c \
+	kern/development_tools.h \
 	kern/xpr.c \
 	kern/xpr.h \
 	kern/elf-load.c \
@@ -250,6 +266,7 @@ EXTRA_DIST += \
 	kern/experimental.srv \
 	kern/mach_debug.srv \
 	kern/mach_host.srv \
+	kern/development_tools.srv \
 	kern/task_notify.cli
 
 
@@ -347,7 +364,11 @@ libkernel_a_SOURCES += \
 	device/param.h \
 	device/subrs.c \
 	device/subrs.h \
-	device/tty.h
+	device/tty.h \
+	device/virtio.c \
+	device/virtio_pci.c \
+	device/virtio_blk.c \
+	device/virtio_net.c
 EXTRA_DIST += \
 	device/device.srv \
 	device/device_pager.srv \
@@ -391,7 +412,8 @@ include_device_HEADERS = \
 	include/device/notify.defs \
 	include/device/notify.h \
 	include/device/tape_status.h \
-	include/device/tty_status.h
+	include/device/tty_status.h \
+	include/device/virtio.h
 
 include_machdir = $(includedir)/mach
 include_mach_HEADERS = \

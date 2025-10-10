@@ -100,6 +100,7 @@ libkernel_a_SOURCES += \
 	i386/i386/percpu.c \
 	i386/i386/percpu.h \
 	i386/i386/percpu_smp.c \
+	i386/i386/vdso_arch.c \
 	i386/i386/spl.S \
 	i386/i386/cpuboot.S
 

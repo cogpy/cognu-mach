@@ -49,6 +49,7 @@ if [ $MIG_EXIT_CODE -eq 0 ]; then
     if [ -f "$FIX_SCRIPT" ]; then
         [ -n "$USER_FILE" ] && [ -f "$USER_FILE" ] && "$FIX_SCRIPT" "$USER_FILE"
         [ -n "$SERVER_FILE" ] && [ -f "$SERVER_FILE" ] && "$FIX_SCRIPT" "$SERVER_FILE"
+        [ -n "$HEADER_FILE" ] && [ -f "$HEADER_FILE" ] && "$FIX_SCRIPT" "$HEADER_FILE"
     fi
 fi
 

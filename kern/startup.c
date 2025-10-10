@@ -48,6 +48,9 @@
 #include <kern/thread_swap.h>
 #include <kern/timer.h>
 #include <kern/xpr.h>
+#include <kern/vdso.h>
+#include <mach/unified_debug.h>
+//<<<<<<< copilot/fix-116
 #include <kern/perf_analysis.h>
 #include <kern/dtrace.h>
 #include <kern/new_feature.h>
@@ -57,10 +60,15 @@
 #endif
 #include <kern/bootstrap.h>
 #include <kern/startup.h>
+#include "security_monitor.h"
+#include "cfi_integrity.h"
 #include <kern/printf.h>
 #ifdef CONFIG_MACH_TRACING
 #include <mach/lttng.h>
 #endif
+#include <mach/valgrind.h>
+#include <kern/development_tools.h>
+#include <kern/instrumentation_integration.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -123,17 +131,38 @@ void setup_main(void)
 
 	panic_init();
 
+	/* Initialize unified debugging infrastructure early */
+	unified_debug_init();
+	unified_debug_enable_all(TRUE);
+
 #ifdef CONFIG_MACH_TRACING
 	/* Initialize LTTng-style tracing early */
 	mach_trace_early_init();
 #endif
 
+	/* Start tracking kernel subsystem initializations */
+	UNIFIED_DEBUG_FUNCTION_ENTRY(SYSDEBUG_SUBSYSTEM_KERNEL);
+
 	sched_init();
+	unified_debug_thread_init();
+	
+	/* Initialize security subsystems early */
+	security_monitor_init();
+	cfi_init();
+	
 	vm_mem_bootstrap();
+	unified_debug_vm_init();
+	
 	rdxtree_cache_init();
+	
 	ipc_bootstrap();
+	unified_debug_ipc_init();
+	
 	vm_mem_init();
 	ipc_init();
+
+	/* Initialize VDSO after memory management is ready */
+	vdso_init();
 
 	/*
 	 * As soon as the virtual memory system is up, we record
@@ -170,6 +199,18 @@ void setup_main(void)
 	mach_trace_init();
 	printf("LTTng-style kernel tracing initialized\n");
 #endif
+
+	/* Initialize dynamic probes after DTrace is ready */
+	dynamic_probes_init();
+
+	/* Initialize unified instrumentation integration framework */
+	instrumentation_integration_init();
+
+	/* Initialize Valgrind compatibility layer */
+	valgrind_init();
+
+	/* Initialize advanced development tools interface */
+	development_tools_init();
 
 	/* Initialize modern GDB stub for enhanced debugging */
 #if MACH_KDB

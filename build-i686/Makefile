@@ -1220,6 +1220,8 @@ am__append_122 = \
 	i386/i386/locore.S \
 	i386/i386/percpu.c \
 	i386/i386/percpu.h \
+	i386/i386/percpu_smp.c \
+	i386/i386/vdso_arch.c \
 	i386/i386/spl.S \
 	i386/i386/cpuboot.S
 
@@ -1587,37 +1589,49 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/act.c kern/act.h kern/assert.h kern/ast.c kern/ast.h \
 	kern/atomic.h kern/boot_script.h kern/bootstrap.c \
 	kern/bootstrap.h kern/counters.c kern/counters.h \
-	kern/cpu_number.h kern/debug.c kern/debug.h kern/eventcount.c \
-	kern/eventcount.h kern/exception.c kern/exception.h \
-	kern/gsync.c kern/gsync.h kern/host.c kern/host.h \
-	kern/ipc_host.c kern/ipc_host.h kern/ipc_kobject.c \
-	kern/ipc_kobject.h kern/ipc_mig.c kern/ipc_mig.h \
-	kern/ipc_sched.c kern/ipc_sched.h kern/ipc_tt.c kern/ipc_tt.h \
-	kern/kalloc.h kern/kalloc_enhanced.c kern/kalloc_enhanced.h \
-	kern/kern_types.h kern/kmutex.c kern/kmutex.h kern/list.h \
-	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
-	kern/mach_clock.c kern/mach_clock.h kern/mach_factor.c \
-	kern/mach_factor.h kern/machine.c kern/machine.h kern/macros.h \
+	kern/cpu_number.h kern/debug.c kern/debug.h kern/dtrace.c \
+	kern/dtrace.h kern/dynamic_probes.c kern/dynamic_probes.h \
+	kern/instrumentation_integration.c \
+	kern/instrumentation_integration.h kern/system_debug.c \
+	kern/unified_debug.c kern/eventcount.c kern/eventcount.h \
+	kern/exception.c kern/exception.h kern/gsync.c kern/gsync.h \
+	kern/host.c kern/host.h kern/ipc_host.c kern/ipc_host.h \
+	kern/ipc_kobject.c kern/ipc_kobject.h kern/ipc_mig.c \
+	kern/ipc_mig.h kern/ipc_sched.c kern/ipc_sched.h kern/ipc_tt.c \
+	kern/ipc_tt.h kern/kalloc.h kern/kalloc_enhanced.c \
+	kern/kalloc_enhanced.h kern/kern_types.h kern/kmutex.c \
+	kern/kmutex.h kern/list.h kern/lock.c kern/lock.h \
+	kern/lock_mon.c kern/log2.h kern/lttng.c kern/mach_clock.c \
+	kern/mach_clock.h kern/mach_factor.c kern/mach_factor.h \
+	kern/machine.c kern/machine.h kern/macros.h \
 	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
 	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
-	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
-	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
-	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
-	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
-	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/sched.h \
-	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
-	kern/startup.c kern/startup.h kern/strings.c \
-	kern/syscall_emulation.c kern/syscall_emulation.h \
-	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
-	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
-	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
-	kern/timer.c kern/timer.h kern/xpr.c kern/xpr.h \
-	kern/elf-load.c kern/boot_script.c util/atoi.c util/atoi.h \
-	util/byteorder.h util/byteorder.c vm/memory_object_proxy.c \
-	vm/memory_object_proxy.h vm/memory_object.c vm/memory_object.h \
-	vm/pmap.h vm/vm_debug.c vm/vm_external.c vm/vm_external.h \
-	vm/vm_fault.c vm/vm_fault.h vm/vm_init.c vm/vm_init.h \
-	vm/vm_kern.c vm/vm_kern.h vm/vm_map.c vm/vm_map.h \
+	kern/perf_analysis.c kern/perf_analysis.h kern/perf_counters.c \
+	kern/perf_counters.h kern/printf.c kern/printf.h \
+	kern/security_monitor.c kern/security_monitor.h \
+	kern/cfi_integrity.c kern/cfi_integrity.h kern/priority.c \
+	kern/priority.h kern/processor.c kern/processor.h \
+	kern/profile.c kern/queue.c kern/queue.h kern/rbtree.c \
+	kern/rbtree.h kern/rbtree_i.h kern/rdxtree.c kern/rdxtree.h \
+	kern/rdxtree_i.h kern/refcount.h kern/slab.c kern/slab.h \
+	kern/smp.h kern/smp.c kern/smp_lock.h kern/smp_lock.c \
+	kern/smp_sched.c kern/sched.h kern/sched_prim.c \
+	kern/sched_prim.h kern/shuttle.h kern/startup.c kern/startup.h \
+	kern/strings.c kern/syscall_emulation.c \
+	kern/syscall_emulation.h kern/syscall_subr.c \
+	kern/syscall_subr.h kern/syscall_sw.c kern/syscall_sw.h \
+	kern/task.c kern/task.h kern/thread.c kern/thread.h \
+	kern/thread_swap.c kern/thread_swap.h kern/timer.c \
+	kern/timer.h kern/valgrind.c kern/vdso.c kern/vdso.h \
+	kern/development_tools.c kern/development_tools.h kern/xpr.c \
+	kern/xpr.h kern/elf-load.c kern/boot_script.c util/atoi.c \
+	util/atoi.h util/byteorder.h util/byteorder.c \
+	vm/memory_object_proxy.c vm/memory_object_proxy.h \
+	vm/memory_object.c vm/memory_object.h vm/pmap.h \
+	vm/vm_block_cache.c vm/vm_block_cache.h vm/vm_compress.c \
+	vm/vm_compress.h vm/vm_debug.c vm/vm_external.c \
+	vm/vm_external.h vm/vm_fault.c vm/vm_fault.h vm/vm_init.c \
+	vm/vm_init.h vm/vm_kern.c vm/vm_kern.h vm/vm_map.c vm/vm_map.h \
 	vm/vm_object.c vm/vm_object.h vm/vm_object_verify.c \
 	vm/vm_page.c vm/vm_page.h vm/vm_pageout.c vm/vm_pageout.h \
 	vm/vm_print.h vm/vm_resident.c vm/vm_resident.h vm/vm_types.h \
@@ -1631,10 +1645,11 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
 	device/net_io.c device/net_io.h device/param.h device/subrs.c \
-	device/subrs.h device/tty.h device/kmsg.c device/kmsg.h \
-	xen/public/arch-x86_32.h xen/public/arch-x86_64.h \
-	xen/public/arch-x86/xen.h xen/public/arch-x86/xen-mca.h \
-	xen/public/arch-x86/xen-x86_32.h \
+	device/subrs.h device/tty.h device/virtio.c \
+	device/virtio_pci.c device/virtio_blk.c device/virtio_net.c \
+	device/kmsg.c device/kmsg.h xen/public/arch-x86_32.h \
+	xen/public/arch-x86_64.h xen/public/arch-x86/xen.h \
+	xen/public/arch-x86/xen-mca.h xen/public/arch-x86/xen-x86_32.h \
 	xen/public/arch-x86/xen-x86_64.h xen/public/callback.h \
 	xen/public/COPYING xen/public/dom0_ops.h xen/public/domctl.h \
 	xen/public/elfnote.h xen/public/elfstructs.h \
@@ -1698,7 +1713,8 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	i386/i386at/rtc.h i386/i386at/lpr.c i386/i386at/lpr.h \
 	i386/i386/cswitch.S i386/i386/debug_trace.S \
 	i386/i386/idt_inittab.S i386/i386/locore.S i386/i386/percpu.c \
-	i386/i386/percpu.h i386/i386/spl.S i386/i386/cpuboot.S \
+	i386/i386/percpu.h i386/i386/percpu_smp.c \
+	i386/i386/vdso_arch.c i386/i386/spl.S i386/i386/cpuboot.S \
 	i386/i386/apic.h i386/i386/apic.c i386/i386/hardclock.c \
 	i386/i386/hardclock.h i386/i386/irq.c i386/i386/irq.h \
 	i386/i386/msr.h i386/i386/pit.c i386/i386/pit.h \
@@ -1807,6 +1823,8 @@ am__objects_11 = i386/i386/cswitch.$(OBJEXT) \
 	i386/i386/idt_inittab.$(OBJEXT) \
 	i386/i386/locore.$(OBJEXT) \
 	i386/i386/percpu.$(OBJEXT) \
+	i386/i386/percpu_smp.$(OBJEXT) \
+	i386/i386/vdso_arch.$(OBJEXT) \
 	i386/i386/spl.$(OBJEXT) \
 	i386/i386/cpuboot.$(OBJEXT)
 am__objects_12 =  \
@@ -1879,31 +1897,41 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	ipc/mach_msg.$(OBJEXT) ipc/mach_port.$(OBJEXT) \
 	ipc/mach_debug.$(OBJEXT) kern/act.$(OBJEXT) kern/ast.$(OBJEXT) \
 	kern/bootstrap.$(OBJEXT) kern/counters.$(OBJEXT) \
-	kern/debug.$(OBJEXT) kern/eventcount.$(OBJEXT) \
-	kern/exception.$(OBJEXT) kern/gsync.$(OBJEXT) \
-	kern/host.$(OBJEXT) kern/ipc_host.$(OBJEXT) \
-	kern/ipc_kobject.$(OBJEXT) kern/ipc_mig.$(OBJEXT) \
-	kern/ipc_sched.$(OBJEXT) kern/ipc_tt.$(OBJEXT) \
-	kern/kalloc_enhanced.$(OBJEXT) kern/kmutex.$(OBJEXT) \
-	kern/lock.$(OBJEXT) kern/lock_mon.$(OBJEXT) \
+	kern/debug.$(OBJEXT) kern/dtrace.$(OBJEXT) \
+	kern/dynamic_probes.$(OBJEXT) \
+	kern/instrumentation_integration.$(OBJEXT) \
+	kern/system_debug.$(OBJEXT) kern/unified_debug.$(OBJEXT) \
+	kern/eventcount.$(OBJEXT) kern/exception.$(OBJEXT) \
+	kern/gsync.$(OBJEXT) kern/host.$(OBJEXT) \
+	kern/ipc_host.$(OBJEXT) kern/ipc_kobject.$(OBJEXT) \
+	kern/ipc_mig.$(OBJEXT) kern/ipc_sched.$(OBJEXT) \
+	kern/ipc_tt.$(OBJEXT) kern/kalloc_enhanced.$(OBJEXT) \
+	kern/kmutex.$(OBJEXT) kern/lock.$(OBJEXT) \
+	kern/lock_mon.$(OBJEXT) kern/lttng.$(OBJEXT) \
 	kern/mach_clock.$(OBJEXT) kern/mach_factor.$(OBJEXT) \
 	kern/machine.$(OBJEXT) kern/mem_optimize.$(OBJEXT) \
 	kern/mem_track.$(OBJEXT) kern/pc_sample.$(OBJEXT) \
-	kern/printf.$(OBJEXT) kern/priority.$(OBJEXT) \
+	kern/perf_analysis.$(OBJEXT) kern/perf_counters.$(OBJEXT) \
+	kern/printf.$(OBJEXT) kern/security_monitor.$(OBJEXT) \
+	kern/cfi_integrity.$(OBJEXT) kern/priority.$(OBJEXT) \
 	kern/processor.$(OBJEXT) kern/profile.$(OBJEXT) \
 	kern/queue.$(OBJEXT) kern/rbtree.$(OBJEXT) \
 	kern/rdxtree.$(OBJEXT) kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) \
+	kern/smp_lock.$(OBJEXT) kern/smp_sched.$(OBJEXT) \
 	kern/sched_prim.$(OBJEXT) kern/startup.$(OBJEXT) \
 	kern/strings.$(OBJEXT) kern/syscall_emulation.$(OBJEXT) \
 	kern/syscall_subr.$(OBJEXT) kern/syscall_sw.$(OBJEXT) \
 	kern/task.$(OBJEXT) kern/thread.$(OBJEXT) \
 	kern/thread_swap.$(OBJEXT) kern/timer.$(OBJEXT) \
-	kern/xpr.$(OBJEXT) kern/elf-load.$(OBJEXT) \
-	kern/boot_script.$(OBJEXT) util/atoi.$(OBJEXT) \
-	util/byteorder.$(OBJEXT) vm/memory_object_proxy.$(OBJEXT) \
-	vm/memory_object.$(OBJEXT) vm/vm_debug.$(OBJEXT) \
-	vm/vm_external.$(OBJEXT) vm/vm_fault.$(OBJEXT) \
-	vm/vm_init.$(OBJEXT) vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
+	kern/valgrind.$(OBJEXT) kern/vdso.$(OBJEXT) \
+	kern/development_tools.$(OBJEXT) kern/xpr.$(OBJEXT) \
+	kern/elf-load.$(OBJEXT) kern/boot_script.$(OBJEXT) \
+	util/atoi.$(OBJEXT) util/byteorder.$(OBJEXT) \
+	vm/memory_object_proxy.$(OBJEXT) vm/memory_object.$(OBJEXT) \
+	vm/vm_block_cache.$(OBJEXT) vm/vm_compress.$(OBJEXT) \
+	vm/vm_debug.$(OBJEXT) vm/vm_external.$(OBJEXT) \
+	vm/vm_fault.$(OBJEXT) vm/vm_init.$(OBJEXT) \
+	vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
 	vm/vm_object.$(OBJEXT) vm/vm_object_verify.$(OBJEXT) \
 	vm/vm_page.$(OBJEXT) vm/vm_pageout.$(OBJEXT) \
 	vm/vm_resident.$(OBJEXT) vm/vm_user.$(OBJEXT) \
@@ -1912,7 +1940,9 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	device/dev_name.$(OBJEXT) device/dev_pager.$(OBJEXT) \
 	device/device_init.$(OBJEXT) device/ds_routines.$(OBJEXT) \
 	device/intr.$(OBJEXT) device/net_io.$(OBJEXT) \
-	device/subrs.$(OBJEXT) $(am__objects_4) $(am__objects_5) \
+	device/subrs.$(OBJEXT) device/virtio.$(OBJEXT) \
+	device/virtio_pci.$(OBJEXT) device/virtio_blk.$(OBJEXT) \
+	device/virtio_net.$(OBJEXT) $(am__objects_4) $(am__objects_5) \
 	$(am__objects_6) $(am__objects_7) $(am__objects_8) \
 	$(am__objects_9) $(am__objects_10) $(am__objects_11) \
 	$(am__objects_12) $(am__objects_13) $(am__objects_14) \
@@ -2372,6 +2402,8 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	device/$(DEPDIR)/lib_dep_tr_for_defs_a-memory_object_reply.user.defs.Po \
 	device/$(DEPDIR)/memory_object_reply.user.Po \
 	device/$(DEPDIR)/net_io.Po device/$(DEPDIR)/subrs.Po \
+	device/$(DEPDIR)/virtio.Po device/$(DEPDIR)/virtio_blk.Po \
+	device/$(DEPDIR)/virtio_net.Po device/$(DEPDIR)/virtio_pci.Po \
 	i386/i386/$(DEPDIR)/_setjmp.Po i386/i386/$(DEPDIR)/apic.Po \
 	i386/i386/$(DEPDIR)/ast_check.Po \
 	i386/i386/$(DEPDIR)/cpuboot.Po i386/i386/$(DEPDIR)/cswitch.Po \
@@ -2392,11 +2424,13 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	i386/i386/$(DEPDIR)/mach_i386.server.Po \
 	i386/i386/$(DEPDIR)/machine_task.Po \
 	i386/i386/$(DEPDIR)/mp_desc.Po i386/i386/$(DEPDIR)/pcb.Po \
-	i386/i386/$(DEPDIR)/percpu.Po i386/i386/$(DEPDIR)/phys.Po \
+	i386/i386/$(DEPDIR)/percpu.Po \
+	i386/i386/$(DEPDIR)/percpu_smp.Po i386/i386/$(DEPDIR)/phys.Po \
 	i386/i386/$(DEPDIR)/pic.Po i386/i386/$(DEPDIR)/pit.Po \
 	i386/i386/$(DEPDIR)/smp.Po i386/i386/$(DEPDIR)/spl.Po \
 	i386/i386/$(DEPDIR)/strings.Po i386/i386/$(DEPDIR)/trap.Po \
 	i386/i386/$(DEPDIR)/user_ldt.Po \
+	i386/i386/$(DEPDIR)/vdso_arch.Po \
 	i386/i386at/$(DEPDIR)/acpi_parse_apic.Po \
 	i386/i386at/$(DEPDIR)/autoconf.Po \
 	i386/i386at/$(DEPDIR)/biosmem.Po \
@@ -2431,12 +2465,15 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	ipc/$(DEPDIR)/mach_port.Po ipc/$(DEPDIR)/mach_port.server.Po \
 	kern/$(DEPDIR)/act.Po kern/$(DEPDIR)/ast.Po \
 	kern/$(DEPDIR)/boot_script.Po kern/$(DEPDIR)/bootstrap.Po \
-	kern/$(DEPDIR)/counters.Po kern/$(DEPDIR)/debug.Po \
+	kern/$(DEPDIR)/cfi_integrity.Po kern/$(DEPDIR)/counters.Po \
+	kern/$(DEPDIR)/debug.Po kern/$(DEPDIR)/development_tools.Po \
+	kern/$(DEPDIR)/dtrace.Po kern/$(DEPDIR)/dynamic_probes.Po \
 	kern/$(DEPDIR)/elf-load.Po kern/$(DEPDIR)/eventcount.Po \
 	kern/$(DEPDIR)/exception.Po \
 	kern/$(DEPDIR)/experimental.server.Po \
 	kern/$(DEPDIR)/gdb_stub.Po kern/$(DEPDIR)/gnumach.server.Po \
 	kern/$(DEPDIR)/gsync.Po kern/$(DEPDIR)/host.Po \
+	kern/$(DEPDIR)/instrumentation_integration.Po \
 	kern/$(DEPDIR)/ipc_host.Po kern/$(DEPDIR)/ipc_kobject.Po \
 	kern/$(DEPDIR)/ipc_mig.Po kern/$(DEPDIR)/ipc_sched.Po \
 	kern/$(DEPDIR)/ipc_tt.Po kern/$(DEPDIR)/kalloc_enhanced.Po \
@@ -2450,23 +2487,28 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-mach_host.server.defs.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-task_notify.user.defs.Po \
 	kern/$(DEPDIR)/lock.Po kern/$(DEPDIR)/lock_mon.Po \
-	kern/$(DEPDIR)/mach.server.Po kern/$(DEPDIR)/mach4.server.Po \
-	kern/$(DEPDIR)/mach_clock.Po \
+	kern/$(DEPDIR)/lttng.Po kern/$(DEPDIR)/mach.server.Po \
+	kern/$(DEPDIR)/mach4.server.Po kern/$(DEPDIR)/mach_clock.Po \
 	kern/$(DEPDIR)/mach_debug.server.Po \
 	kern/$(DEPDIR)/mach_factor.Po \
 	kern/$(DEPDIR)/mach_host.server.Po kern/$(DEPDIR)/machine.Po \
 	kern/$(DEPDIR)/mem_optimize.Po kern/$(DEPDIR)/mem_track.Po \
-	kern/$(DEPDIR)/pc_sample.Po kern/$(DEPDIR)/printf.Po \
+	kern/$(DEPDIR)/pc_sample.Po kern/$(DEPDIR)/perf_analysis.Po \
+	kern/$(DEPDIR)/perf_counters.Po kern/$(DEPDIR)/printf.Po \
 	kern/$(DEPDIR)/priority.Po kern/$(DEPDIR)/processor.Po \
 	kern/$(DEPDIR)/profile.Po kern/$(DEPDIR)/queue.Po \
 	kern/$(DEPDIR)/rbtree.Po kern/$(DEPDIR)/rdxtree.Po \
-	kern/$(DEPDIR)/sched_prim.Po kern/$(DEPDIR)/slab.Po \
-	kern/$(DEPDIR)/smp.Po kern/$(DEPDIR)/startup.Po \
+	kern/$(DEPDIR)/sched_prim.Po \
+	kern/$(DEPDIR)/security_monitor.Po kern/$(DEPDIR)/slab.Po \
+	kern/$(DEPDIR)/smp.Po kern/$(DEPDIR)/smp_lock.Po \
+	kern/$(DEPDIR)/smp_sched.Po kern/$(DEPDIR)/startup.Po \
 	kern/$(DEPDIR)/strings.Po kern/$(DEPDIR)/syscall_emulation.Po \
 	kern/$(DEPDIR)/syscall_subr.Po kern/$(DEPDIR)/syscall_sw.Po \
-	kern/$(DEPDIR)/task.Po kern/$(DEPDIR)/task_notify.user.Po \
-	kern/$(DEPDIR)/thread.Po kern/$(DEPDIR)/thread_swap.Po \
-	kern/$(DEPDIR)/timer.Po kern/$(DEPDIR)/xpr.Po \
+	kern/$(DEPDIR)/system_debug.Po kern/$(DEPDIR)/task.Po \
+	kern/$(DEPDIR)/task_notify.user.Po kern/$(DEPDIR)/thread.Po \
+	kern/$(DEPDIR)/thread_swap.Po kern/$(DEPDIR)/timer.Po \
+	kern/$(DEPDIR)/unified_debug.Po kern/$(DEPDIR)/valgrind.Po \
+	kern/$(DEPDIR)/vdso.Po kern/$(DEPDIR)/xpr.Po \
 	linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-irq.Po \
 	linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-setup.Po \
 	linux/dev/drivers/block/$(DEPDIR)/liblinux_a-ahci.Po \
@@ -2619,6 +2661,7 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	vm/$(DEPDIR)/memory_object_default.user.Po \
 	vm/$(DEPDIR)/memory_object_proxy.Po \
 	vm/$(DEPDIR)/memory_object_user.user.Po \
+	vm/$(DEPDIR)/vm_block_cache.Po vm/$(DEPDIR)/vm_compress.Po \
 	vm/$(DEPDIR)/vm_debug.Po vm/$(DEPDIR)/vm_external.Po \
 	vm/$(DEPDIR)/vm_fault.Po vm/$(DEPDIR)/vm_init.Po \
 	vm/$(DEPDIR)/vm_kern.Po vm/$(DEPDIR)/vm_map.Po \
@@ -3236,12 +3279,12 @@ DIST_SUBDIRS =
 EXTRA_DIST = gensym.awk ipc/mach_port.srv ipc/notify.defs \
 	kern/exc.defs kern/mach.srv kern/mach4.srv kern/gnumach.srv \
 	kern/experimental.srv kern/mach_debug.srv kern/mach_host.srv \
-	kern/task_notify.cli vm/memory_object_default.cli \
-	vm/memory_object_user.cli device/device.srv \
-	device/device_pager.srv device/device_reply.cli \
-	device/memory_object_reply.cli include $(am__append_17) \
-	$(am__append_24) $(am__append_28) $(am__append_30) \
-	$(am__append_34) $(am__append_45) \
+	kern/development_tools.srv kern/task_notify.cli \
+	vm/memory_object_default.cli vm/memory_object_user.cli \
+	device/device.srv device/device_pager.srv \
+	device/device_reply.cli device/memory_object_reply.cli include \
+	$(am__append_17) $(am__append_24) $(am__append_28) \
+	$(am__append_30) $(am__append_34) $(am__append_45) \
 	linux/src/drivers/scsi/NCR5380.c \
 	linux/src/drivers/scsi/NCR5380.h linux/src/drivers/net/8390.h \
 	linux/src/drivers/net/kern_compat.h linux/pcmcia-cs/glue/ds.c \
@@ -3379,37 +3422,49 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/act.c kern/act.h kern/assert.h kern/ast.c kern/ast.h \
 	kern/atomic.h kern/boot_script.h kern/bootstrap.c \
 	kern/bootstrap.h kern/counters.c kern/counters.h \
-	kern/cpu_number.h kern/debug.c kern/debug.h kern/eventcount.c \
-	kern/eventcount.h kern/exception.c kern/exception.h \
-	kern/gsync.c kern/gsync.h kern/host.c kern/host.h \
-	kern/ipc_host.c kern/ipc_host.h kern/ipc_kobject.c \
-	kern/ipc_kobject.h kern/ipc_mig.c kern/ipc_mig.h \
-	kern/ipc_sched.c kern/ipc_sched.h kern/ipc_tt.c kern/ipc_tt.h \
-	kern/kalloc.h kern/kalloc_enhanced.c kern/kalloc_enhanced.h \
-	kern/kern_types.h kern/kmutex.c kern/kmutex.h kern/list.h \
-	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
-	kern/mach_clock.c kern/mach_clock.h kern/mach_factor.c \
-	kern/mach_factor.h kern/machine.c kern/machine.h kern/macros.h \
+	kern/cpu_number.h kern/debug.c kern/debug.h kern/dtrace.c \
+	kern/dtrace.h kern/dynamic_probes.c kern/dynamic_probes.h \
+	kern/instrumentation_integration.c \
+	kern/instrumentation_integration.h kern/system_debug.c \
+	kern/unified_debug.c kern/eventcount.c kern/eventcount.h \
+	kern/exception.c kern/exception.h kern/gsync.c kern/gsync.h \
+	kern/host.c kern/host.h kern/ipc_host.c kern/ipc_host.h \
+	kern/ipc_kobject.c kern/ipc_kobject.h kern/ipc_mig.c \
+	kern/ipc_mig.h kern/ipc_sched.c kern/ipc_sched.h kern/ipc_tt.c \
+	kern/ipc_tt.h kern/kalloc.h kern/kalloc_enhanced.c \
+	kern/kalloc_enhanced.h kern/kern_types.h kern/kmutex.c \
+	kern/kmutex.h kern/list.h kern/lock.c kern/lock.h \
+	kern/lock_mon.c kern/log2.h kern/lttng.c kern/mach_clock.c \
+	kern/mach_clock.h kern/mach_factor.c kern/mach_factor.h \
+	kern/machine.c kern/machine.h kern/macros.h \
 	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
 	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
-	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
-	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
-	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
-	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
-	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/sched.h \
-	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
-	kern/startup.c kern/startup.h kern/strings.c \
-	kern/syscall_emulation.c kern/syscall_emulation.h \
-	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
-	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
-	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
-	kern/timer.c kern/timer.h kern/xpr.c kern/xpr.h \
-	kern/elf-load.c kern/boot_script.c util/atoi.c util/atoi.h \
-	util/byteorder.h util/byteorder.c vm/memory_object_proxy.c \
-	vm/memory_object_proxy.h vm/memory_object.c vm/memory_object.h \
-	vm/pmap.h vm/vm_debug.c vm/vm_external.c vm/vm_external.h \
-	vm/vm_fault.c vm/vm_fault.h vm/vm_init.c vm/vm_init.h \
-	vm/vm_kern.c vm/vm_kern.h vm/vm_map.c vm/vm_map.h \
+	kern/perf_analysis.c kern/perf_analysis.h kern/perf_counters.c \
+	kern/perf_counters.h kern/printf.c kern/printf.h \
+	kern/security_monitor.c kern/security_monitor.h \
+	kern/cfi_integrity.c kern/cfi_integrity.h kern/priority.c \
+	kern/priority.h kern/processor.c kern/processor.h \
+	kern/profile.c kern/queue.c kern/queue.h kern/rbtree.c \
+	kern/rbtree.h kern/rbtree_i.h kern/rdxtree.c kern/rdxtree.h \
+	kern/rdxtree_i.h kern/refcount.h kern/slab.c kern/slab.h \
+	kern/smp.h kern/smp.c kern/smp_lock.h kern/smp_lock.c \
+	kern/smp_sched.c kern/sched.h kern/sched_prim.c \
+	kern/sched_prim.h kern/shuttle.h kern/startup.c kern/startup.h \
+	kern/strings.c kern/syscall_emulation.c \
+	kern/syscall_emulation.h kern/syscall_subr.c \
+	kern/syscall_subr.h kern/syscall_sw.c kern/syscall_sw.h \
+	kern/task.c kern/task.h kern/thread.c kern/thread.h \
+	kern/thread_swap.c kern/thread_swap.h kern/timer.c \
+	kern/timer.h kern/valgrind.c kern/vdso.c kern/vdso.h \
+	kern/development_tools.c kern/development_tools.h kern/xpr.c \
+	kern/xpr.h kern/elf-load.c kern/boot_script.c util/atoi.c \
+	util/atoi.h util/byteorder.h util/byteorder.c \
+	vm/memory_object_proxy.c vm/memory_object_proxy.h \
+	vm/memory_object.c vm/memory_object.h vm/pmap.h \
+	vm/vm_block_cache.c vm/vm_block_cache.h vm/vm_compress.c \
+	vm/vm_compress.h vm/vm_debug.c vm/vm_external.c \
+	vm/vm_external.h vm/vm_fault.c vm/vm_fault.h vm/vm_init.c \
+	vm/vm_init.h vm/vm_kern.c vm/vm_kern.h vm/vm_map.c vm/vm_map.h \
 	vm/vm_object.c vm/vm_object.h vm/vm_object_verify.c \
 	vm/vm_page.c vm/vm_page.h vm/vm_pageout.c vm/vm_pageout.h \
 	vm/vm_print.h vm/vm_resident.c vm/vm_resident.h vm/vm_types.h \
@@ -3423,15 +3478,16 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
 	device/net_io.c device/net_io.h device/param.h device/subrs.c \
-	device/subrs.h device/tty.h $(am__append_8) $(am__append_116) \
-	$(am__append_117) $(am__append_118) $(am__append_119) \
-	$(am__append_120) $(am__append_121) $(am__append_122) \
-	$(am__append_123) $(am__append_124) $(am__append_125) \
-	$(am__append_126) $(am__append_127) $(am__append_132) \
-	$(am__append_134) $(am__append_135) $(am__append_136) \
-	$(am__append_137) $(am__append_138) $(am__append_139) \
-	$(am__append_140) $(am__append_141) $(am__append_142) \
-	$(am__append_151)
+	device/subrs.h device/tty.h device/virtio.c \
+	device/virtio_pci.c device/virtio_blk.c device/virtio_net.c \
+	$(am__append_8) $(am__append_116) $(am__append_117) \
+	$(am__append_118) $(am__append_119) $(am__append_120) \
+	$(am__append_121) $(am__append_122) $(am__append_123) \
+	$(am__append_124) $(am__append_125) $(am__append_126) \
+	$(am__append_127) $(am__append_132) $(am__append_134) \
+	$(am__append_135) $(am__append_136) $(am__append_137) \
+	$(am__append_138) $(am__append_139) $(am__append_140) \
+	$(am__append_141) $(am__append_142) $(am__append_151)
 
 #
 # Version number.
@@ -3526,7 +3582,8 @@ include_device_HEADERS = \
 	include/device/notify.defs \
 	include/device/notify.h \
 	include/device/tape_status.h \
-	include/device/tty_status.h
+	include/device/tty_status.h \
+	include/device/virtio.h
 
 include_machdir = $(includedir)/mach
 include_mach_HEADERS = \
@@ -3543,6 +3600,7 @@ include_mach_HEADERS = \
 	include/mach/memory_object.defs \
 	include/mach/memory_object_default.defs \
 	include/mach/notify.defs \
+	include/mach/perf_monitor.defs \
 	include/mach/std_types.defs \
 	include/mach/experimental.defs \
 	include/mach/alert.h \
@@ -3561,6 +3619,7 @@ include_mach_HEADERS = \
 	include/mach/mig_errors.h \
 	include/mach/notify.h \
 	include/mach/pc_sample.h \
+	include/mach/perf_monitor.h \
 	include/mach/policy.h \
 	include/mach/port.h \
 	include/mach/processor_info.h \
@@ -3845,7 +3904,9 @@ USER_TESTS := \
 	tests/test-vm \
 	tests/test-vm-boundary \
 	tests/test-vm-merge \
+	tests/test-vm-aslr \
 	tests/test-vm-object-memory \
+	tests/test-block-cache \
 	tests/test-ipc-large \
 	tests/test-ipc-virtual-copy \
 	tests/test-vm-fault \
@@ -3855,17 +3916,33 @@ USER_TESTS := \
 	tests/test-threads \
 	tests/test-thread-state \
 	tests/test-thread-state-fp \
+	tests/test-thread-migration \
 	tests/test-console-timestamps \
 	tests/test-tickless-timer \
 	tests/test-gdb-stub \
 	tests/test-development-tools \
+	tests/test-advanced-development-tools \
 	tests/test-benchmark-ipc \
 	tests/test-benchmark-memory \
+	tests/test-advanced-memory \
 	tests/test-stress \
 	tests/test-memory-tracking \
 	tests/test-memory-management-enhanced \
+	tests/test-performance-analysis \
+	tests/test-security-analysis \
 	tests/test-suite-runner \
-	tests/test-device-framework
+	tests/test-device-framework \
+	tests/test-cross-phase-infrastructure \
+	tests/test-smp-threads \
+	tests/test-lttng \
+	tests/test-dtrace-instrumentation \
+	tests/test-enhanced-instrumentation \
+	tests/test-phase4-instrumentation \
+	tests/test-whole-system-debugging \
+	tests/test-valgrind \
+	tests/test-vdso \
+	tests/test-mach5-research \
+	tests/test-virtio
 
 USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
@@ -4186,6 +4263,16 @@ kern/counters.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/debug.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/dtrace.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/dynamic_probes.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/instrumentation_integration.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/system_debug.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/unified_debug.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/eventcount.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/exception.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4212,6 +4299,8 @@ kern/lock.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/lock_mon.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/lttng.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/mach_clock.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/mach_factor.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4224,7 +4313,15 @@ kern/mem_track.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/pc_sample.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/perf_analysis.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/perf_counters.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/printf.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/security_monitor.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/cfi_integrity.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/priority.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
@@ -4241,6 +4338,10 @@ kern/rdxtree.$(OBJEXT): kern/$(am__dirstamp) \
 kern/slab.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/smp.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/smp_lock.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/smp_sched.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/sched_prim.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
@@ -4262,6 +4363,12 @@ kern/thread_swap.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/timer.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/valgrind.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/vdso.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/development_tools.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/xpr.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/elf-load.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4281,6 +4388,10 @@ util/byteorder.$(OBJEXT): util/$(am__dirstamp) \
 vm/memory_object_proxy.$(OBJEXT): vm/$(am__dirstamp) \
 	vm/$(DEPDIR)/$(am__dirstamp)
 vm/memory_object.$(OBJEXT): vm/$(am__dirstamp) \
+	vm/$(DEPDIR)/$(am__dirstamp)
+vm/vm_block_cache.$(OBJEXT): vm/$(am__dirstamp) \
+	vm/$(DEPDIR)/$(am__dirstamp)
+vm/vm_compress.$(OBJEXT): vm/$(am__dirstamp) \
 	vm/$(DEPDIR)/$(am__dirstamp)
 vm/vm_debug.$(OBJEXT): vm/$(am__dirstamp) vm/$(DEPDIR)/$(am__dirstamp)
 vm/vm_external.$(OBJEXT): vm/$(am__dirstamp) \
@@ -4320,6 +4431,14 @@ device/intr.$(OBJEXT): device/$(am__dirstamp) \
 device/net_io.$(OBJEXT): device/$(am__dirstamp) \
 	device/$(DEPDIR)/$(am__dirstamp)
 device/subrs.$(OBJEXT): device/$(am__dirstamp) \
+	device/$(DEPDIR)/$(am__dirstamp)
+device/virtio.$(OBJEXT): device/$(am__dirstamp) \
+	device/$(DEPDIR)/$(am__dirstamp)
+device/virtio_pci.$(OBJEXT): device/$(am__dirstamp) \
+	device/$(DEPDIR)/$(am__dirstamp)
+device/virtio_blk.$(OBJEXT): device/$(am__dirstamp) \
+	device/$(DEPDIR)/$(am__dirstamp)
+device/virtio_net.$(OBJEXT): device/$(am__dirstamp) \
 	device/$(DEPDIR)/$(am__dirstamp)
 device/kmsg.$(OBJEXT): device/$(am__dirstamp) \
 	device/$(DEPDIR)/$(am__dirstamp)
@@ -4446,6 +4565,10 @@ i386/i386/idt_inittab.$(OBJEXT): i386/i386/$(am__dirstamp) \
 i386/i386/locore.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
 i386/i386/percpu.$(OBJEXT): i386/i386/$(am__dirstamp) \
+	i386/i386/$(DEPDIR)/$(am__dirstamp)
+i386/i386/percpu_smp.$(OBJEXT): i386/i386/$(am__dirstamp) \
+	i386/i386/$(DEPDIR)/$(am__dirstamp)
+i386/i386/vdso_arch.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
 i386/i386/spl.$(OBJEXT): i386/i386/$(am__dirstamp) \
 	i386/i386/$(DEPDIR)/$(am__dirstamp)
@@ -5219,6 +5342,10 @@ include device/$(DEPDIR)/lib_dep_tr_for_defs_a-memory_object_reply.user.defs.Po 
 include device/$(DEPDIR)/memory_object_reply.user.Po # am--include-marker
 include device/$(DEPDIR)/net_io.Po # am--include-marker
 include device/$(DEPDIR)/subrs.Po # am--include-marker
+include device/$(DEPDIR)/virtio.Po # am--include-marker
+include device/$(DEPDIR)/virtio_blk.Po # am--include-marker
+include device/$(DEPDIR)/virtio_net.Po # am--include-marker
+include device/$(DEPDIR)/virtio_pci.Po # am--include-marker
 include i386/i386/$(DEPDIR)/_setjmp.Po # am--include-marker
 include i386/i386/$(DEPDIR)/apic.Po # am--include-marker
 include i386/i386/$(DEPDIR)/ast_check.Po # am--include-marker
@@ -5247,6 +5374,7 @@ include i386/i386/$(DEPDIR)/machine_task.Po # am--include-marker
 include i386/i386/$(DEPDIR)/mp_desc.Po # am--include-marker
 include i386/i386/$(DEPDIR)/pcb.Po # am--include-marker
 include i386/i386/$(DEPDIR)/percpu.Po # am--include-marker
+include i386/i386/$(DEPDIR)/percpu_smp.Po # am--include-marker
 include i386/i386/$(DEPDIR)/phys.Po # am--include-marker
 include i386/i386/$(DEPDIR)/pic.Po # am--include-marker
 include i386/i386/$(DEPDIR)/pit.Po # am--include-marker
@@ -5255,6 +5383,7 @@ include i386/i386/$(DEPDIR)/spl.Po # am--include-marker
 include i386/i386/$(DEPDIR)/strings.Po # am--include-marker
 include i386/i386/$(DEPDIR)/trap.Po # am--include-marker
 include i386/i386/$(DEPDIR)/user_ldt.Po # am--include-marker
+include i386/i386/$(DEPDIR)/vdso_arch.Po # am--include-marker
 include i386/i386at/$(DEPDIR)/acpi_parse_apic.Po # am--include-marker
 include i386/i386at/$(DEPDIR)/autoconf.Po # am--include-marker
 include i386/i386at/$(DEPDIR)/biosmem.Po # am--include-marker
@@ -5307,8 +5436,12 @@ include kern/$(DEPDIR)/act.Po # am--include-marker
 include kern/$(DEPDIR)/ast.Po # am--include-marker
 include kern/$(DEPDIR)/boot_script.Po # am--include-marker
 include kern/$(DEPDIR)/bootstrap.Po # am--include-marker
+include kern/$(DEPDIR)/cfi_integrity.Po # am--include-marker
 include kern/$(DEPDIR)/counters.Po # am--include-marker
 include kern/$(DEPDIR)/debug.Po # am--include-marker
+include kern/$(DEPDIR)/development_tools.Po # am--include-marker
+include kern/$(DEPDIR)/dtrace.Po # am--include-marker
+include kern/$(DEPDIR)/dynamic_probes.Po # am--include-marker
 include kern/$(DEPDIR)/elf-load.Po # am--include-marker
 include kern/$(DEPDIR)/eventcount.Po # am--include-marker
 include kern/$(DEPDIR)/exception.Po # am--include-marker
@@ -5317,6 +5450,7 @@ include kern/$(DEPDIR)/gdb_stub.Po # am--include-marker
 include kern/$(DEPDIR)/gnumach.server.Po # am--include-marker
 include kern/$(DEPDIR)/gsync.Po # am--include-marker
 include kern/$(DEPDIR)/host.Po # am--include-marker
+include kern/$(DEPDIR)/instrumentation_integration.Po # am--include-marker
 include kern/$(DEPDIR)/ipc_host.Po # am--include-marker
 include kern/$(DEPDIR)/ipc_kobject.Po # am--include-marker
 include kern/$(DEPDIR)/ipc_mig.Po # am--include-marker
@@ -5334,6 +5468,7 @@ include kern/$(DEPDIR)/lib_dep_tr_for_defs_a-mach_host.server.defs.Po # am--incl
 include kern/$(DEPDIR)/lib_dep_tr_for_defs_a-task_notify.user.defs.Po # am--include-marker
 include kern/$(DEPDIR)/lock.Po # am--include-marker
 include kern/$(DEPDIR)/lock_mon.Po # am--include-marker
+include kern/$(DEPDIR)/lttng.Po # am--include-marker
 include kern/$(DEPDIR)/mach.server.Po # am--include-marker
 include kern/$(DEPDIR)/mach4.server.Po # am--include-marker
 include kern/$(DEPDIR)/mach_clock.Po # am--include-marker
@@ -5344,6 +5479,8 @@ include kern/$(DEPDIR)/machine.Po # am--include-marker
 include kern/$(DEPDIR)/mem_optimize.Po # am--include-marker
 include kern/$(DEPDIR)/mem_track.Po # am--include-marker
 include kern/$(DEPDIR)/pc_sample.Po # am--include-marker
+include kern/$(DEPDIR)/perf_analysis.Po # am--include-marker
+include kern/$(DEPDIR)/perf_counters.Po # am--include-marker
 include kern/$(DEPDIR)/printf.Po # am--include-marker
 include kern/$(DEPDIR)/priority.Po # am--include-marker
 include kern/$(DEPDIR)/processor.Po # am--include-marker
@@ -5352,18 +5489,25 @@ include kern/$(DEPDIR)/queue.Po # am--include-marker
 include kern/$(DEPDIR)/rbtree.Po # am--include-marker
 include kern/$(DEPDIR)/rdxtree.Po # am--include-marker
 include kern/$(DEPDIR)/sched_prim.Po # am--include-marker
+include kern/$(DEPDIR)/security_monitor.Po # am--include-marker
 include kern/$(DEPDIR)/slab.Po # am--include-marker
 include kern/$(DEPDIR)/smp.Po # am--include-marker
+include kern/$(DEPDIR)/smp_lock.Po # am--include-marker
+include kern/$(DEPDIR)/smp_sched.Po # am--include-marker
 include kern/$(DEPDIR)/startup.Po # am--include-marker
 include kern/$(DEPDIR)/strings.Po # am--include-marker
 include kern/$(DEPDIR)/syscall_emulation.Po # am--include-marker
 include kern/$(DEPDIR)/syscall_subr.Po # am--include-marker
 include kern/$(DEPDIR)/syscall_sw.Po # am--include-marker
+include kern/$(DEPDIR)/system_debug.Po # am--include-marker
 include kern/$(DEPDIR)/task.Po # am--include-marker
 include kern/$(DEPDIR)/task_notify.user.Po # am--include-marker
 include kern/$(DEPDIR)/thread.Po # am--include-marker
 include kern/$(DEPDIR)/thread_swap.Po # am--include-marker
 include kern/$(DEPDIR)/timer.Po # am--include-marker
+include kern/$(DEPDIR)/unified_debug.Po # am--include-marker
+include kern/$(DEPDIR)/valgrind.Po # am--include-marker
+include kern/$(DEPDIR)/vdso.Po # am--include-marker
 include kern/$(DEPDIR)/xpr.Po # am--include-marker
 include linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-irq.Po # am--include-marker
 include linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-setup.Po # am--include-marker
@@ -5518,6 +5662,8 @@ include vm/$(DEPDIR)/memory_object.Po # am--include-marker
 include vm/$(DEPDIR)/memory_object_default.user.Po # am--include-marker
 include vm/$(DEPDIR)/memory_object_proxy.Po # am--include-marker
 include vm/$(DEPDIR)/memory_object_user.user.Po # am--include-marker
+include vm/$(DEPDIR)/vm_block_cache.Po # am--include-marker
+include vm/$(DEPDIR)/vm_compress.Po # am--include-marker
 include vm/$(DEPDIR)/vm_debug.Po # am--include-marker
 include vm/$(DEPDIR)/vm_external.Po # am--include-marker
 include vm/$(DEPDIR)/vm_fault.Po # am--include-marker
@@ -5553,15 +5699,7 @@ include xen/$(DEPDIR)/xen.Po # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	# Ugly bootstrap hack to get to-be-generated files created
-	# Try to guess what file this dependency file is from...
-	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
-	for f in "$$f"*; do \
-		case $$f in \
-			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
-			*) echo '# dummy';; \
-		esac ; \
-	done >$@-t && $(am__mv) $@-t $@
+	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
@@ -8496,9 +8634,23 @@ tests/test-vm-merge.log: tests/test-vm-merge
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-vm-aslr.log: tests/test-vm-aslr
+	@p='tests/test-vm-aslr'; \
+	b='tests/test-vm-aslr'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-vm-object-memory.log: tests/test-vm-object-memory
 	@p='tests/test-vm-object-memory'; \
 	b='tests/test-vm-object-memory'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-block-cache.log: tests/test-block-cache
+	@p='tests/test-block-cache'; \
+	b='tests/test-block-cache'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -8566,6 +8718,13 @@ tests/test-thread-state-fp.log: tests/test-thread-state-fp
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-thread-migration.log: tests/test-thread-migration
+	@p='tests/test-thread-migration'; \
+	b='tests/test-thread-migration'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-console-timestamps.log: tests/test-console-timestamps
 	@p='tests/test-console-timestamps'; \
 	b='tests/test-console-timestamps'; \
@@ -8594,6 +8753,13 @@ tests/test-development-tools.log: tests/test-development-tools
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-advanced-development-tools.log: tests/test-advanced-development-tools
+	@p='tests/test-advanced-development-tools'; \
+	b='tests/test-advanced-development-tools'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-benchmark-ipc.log: tests/test-benchmark-ipc
 	@p='tests/test-benchmark-ipc'; \
 	b='tests/test-benchmark-ipc'; \
@@ -8604,6 +8770,13 @@ tests/test-benchmark-ipc.log: tests/test-benchmark-ipc
 tests/test-benchmark-memory.log: tests/test-benchmark-memory
 	@p='tests/test-benchmark-memory'; \
 	b='tests/test-benchmark-memory'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-advanced-memory.log: tests/test-advanced-memory
+	@p='tests/test-advanced-memory'; \
+	b='tests/test-advanced-memory'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -8629,6 +8802,20 @@ tests/test-memory-management-enhanced.log: tests/test-memory-management-enhanced
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-performance-analysis.log: tests/test-performance-analysis
+	@p='tests/test-performance-analysis'; \
+	b='tests/test-performance-analysis'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-security-analysis.log: tests/test-security-analysis
+	@p='tests/test-security-analysis'; \
+	b='tests/test-security-analysis'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-suite-runner.log: tests/test-suite-runner
 	@p='tests/test-suite-runner'; \
 	b='tests/test-suite-runner'; \
@@ -8639,6 +8826,83 @@ tests/test-suite-runner.log: tests/test-suite-runner
 tests/test-device-framework.log: tests/test-device-framework
 	@p='tests/test-device-framework'; \
 	b='tests/test-device-framework'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-cross-phase-infrastructure.log: tests/test-cross-phase-infrastructure
+	@p='tests/test-cross-phase-infrastructure'; \
+	b='tests/test-cross-phase-infrastructure'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-smp-threads.log: tests/test-smp-threads
+	@p='tests/test-smp-threads'; \
+	b='tests/test-smp-threads'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-lttng.log: tests/test-lttng
+	@p='tests/test-lttng'; \
+	b='tests/test-lttng'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-dtrace-instrumentation.log: tests/test-dtrace-instrumentation
+	@p='tests/test-dtrace-instrumentation'; \
+	b='tests/test-dtrace-instrumentation'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-enhanced-instrumentation.log: tests/test-enhanced-instrumentation
+	@p='tests/test-enhanced-instrumentation'; \
+	b='tests/test-enhanced-instrumentation'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-phase4-instrumentation.log: tests/test-phase4-instrumentation
+	@p='tests/test-phase4-instrumentation'; \
+	b='tests/test-phase4-instrumentation'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-whole-system-debugging.log: tests/test-whole-system-debugging
+	@p='tests/test-whole-system-debugging'; \
+	b='tests/test-whole-system-debugging'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-valgrind.log: tests/test-valgrind
+	@p='tests/test-valgrind'; \
+	b='tests/test-valgrind'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-vdso.log: tests/test-vdso
+	@p='tests/test-vdso'; \
+	b='tests/test-vdso'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-mach5-research.log: tests/test-mach5-research
+	@p='tests/test-mach5-research'; \
+	b='tests/test-mach5-research'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-virtio.log: tests/test-virtio
+	@p='tests/test-virtio'; \
+	b='tests/test-virtio'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -9021,6 +9285,10 @@ distclean: distclean-recursive
 	-rm -f device/$(DEPDIR)/memory_object_reply.user.Po
 	-rm -f device/$(DEPDIR)/net_io.Po
 	-rm -f device/$(DEPDIR)/subrs.Po
+	-rm -f device/$(DEPDIR)/virtio.Po
+	-rm -f device/$(DEPDIR)/virtio_blk.Po
+	-rm -f device/$(DEPDIR)/virtio_net.Po
+	-rm -f device/$(DEPDIR)/virtio_pci.Po
 	-rm -f i386/i386/$(DEPDIR)/_setjmp.Po
 	-rm -f i386/i386/$(DEPDIR)/apic.Po
 	-rm -f i386/i386/$(DEPDIR)/ast_check.Po
@@ -9049,6 +9317,7 @@ distclean: distclean-recursive
 	-rm -f i386/i386/$(DEPDIR)/mp_desc.Po
 	-rm -f i386/i386/$(DEPDIR)/pcb.Po
 	-rm -f i386/i386/$(DEPDIR)/percpu.Po
+	-rm -f i386/i386/$(DEPDIR)/percpu_smp.Po
 	-rm -f i386/i386/$(DEPDIR)/phys.Po
 	-rm -f i386/i386/$(DEPDIR)/pic.Po
 	-rm -f i386/i386/$(DEPDIR)/pit.Po
@@ -9057,6 +9326,7 @@ distclean: distclean-recursive
 	-rm -f i386/i386/$(DEPDIR)/strings.Po
 	-rm -f i386/i386/$(DEPDIR)/trap.Po
 	-rm -f i386/i386/$(DEPDIR)/user_ldt.Po
+	-rm -f i386/i386/$(DEPDIR)/vdso_arch.Po
 	-rm -f i386/i386at/$(DEPDIR)/acpi_parse_apic.Po
 	-rm -f i386/i386at/$(DEPDIR)/autoconf.Po
 	-rm -f i386/i386at/$(DEPDIR)/biosmem.Po
@@ -9109,8 +9379,12 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/ast.Po
 	-rm -f kern/$(DEPDIR)/boot_script.Po
 	-rm -f kern/$(DEPDIR)/bootstrap.Po
+	-rm -f kern/$(DEPDIR)/cfi_integrity.Po
 	-rm -f kern/$(DEPDIR)/counters.Po
 	-rm -f kern/$(DEPDIR)/debug.Po
+	-rm -f kern/$(DEPDIR)/development_tools.Po
+	-rm -f kern/$(DEPDIR)/dtrace.Po
+	-rm -f kern/$(DEPDIR)/dynamic_probes.Po
 	-rm -f kern/$(DEPDIR)/elf-load.Po
 	-rm -f kern/$(DEPDIR)/eventcount.Po
 	-rm -f kern/$(DEPDIR)/exception.Po
@@ -9119,6 +9393,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/gnumach.server.Po
 	-rm -f kern/$(DEPDIR)/gsync.Po
 	-rm -f kern/$(DEPDIR)/host.Po
+	-rm -f kern/$(DEPDIR)/instrumentation_integration.Po
 	-rm -f kern/$(DEPDIR)/ipc_host.Po
 	-rm -f kern/$(DEPDIR)/ipc_kobject.Po
 	-rm -f kern/$(DEPDIR)/ipc_mig.Po
@@ -9136,6 +9411,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/lib_dep_tr_for_defs_a-task_notify.user.defs.Po
 	-rm -f kern/$(DEPDIR)/lock.Po
 	-rm -f kern/$(DEPDIR)/lock_mon.Po
+	-rm -f kern/$(DEPDIR)/lttng.Po
 	-rm -f kern/$(DEPDIR)/mach.server.Po
 	-rm -f kern/$(DEPDIR)/mach4.server.Po
 	-rm -f kern/$(DEPDIR)/mach_clock.Po
@@ -9146,6 +9422,8 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/mem_optimize.Po
 	-rm -f kern/$(DEPDIR)/mem_track.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
+	-rm -f kern/$(DEPDIR)/perf_analysis.Po
+	-rm -f kern/$(DEPDIR)/perf_counters.Po
 	-rm -f kern/$(DEPDIR)/printf.Po
 	-rm -f kern/$(DEPDIR)/priority.Po
 	-rm -f kern/$(DEPDIR)/processor.Po
@@ -9154,18 +9432,25 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/rbtree.Po
 	-rm -f kern/$(DEPDIR)/rdxtree.Po
 	-rm -f kern/$(DEPDIR)/sched_prim.Po
+	-rm -f kern/$(DEPDIR)/security_monitor.Po
 	-rm -f kern/$(DEPDIR)/slab.Po
 	-rm -f kern/$(DEPDIR)/smp.Po
+	-rm -f kern/$(DEPDIR)/smp_lock.Po
+	-rm -f kern/$(DEPDIR)/smp_sched.Po
 	-rm -f kern/$(DEPDIR)/startup.Po
 	-rm -f kern/$(DEPDIR)/strings.Po
 	-rm -f kern/$(DEPDIR)/syscall_emulation.Po
 	-rm -f kern/$(DEPDIR)/syscall_subr.Po
 	-rm -f kern/$(DEPDIR)/syscall_sw.Po
+	-rm -f kern/$(DEPDIR)/system_debug.Po
 	-rm -f kern/$(DEPDIR)/task.Po
 	-rm -f kern/$(DEPDIR)/task_notify.user.Po
 	-rm -f kern/$(DEPDIR)/thread.Po
 	-rm -f kern/$(DEPDIR)/thread_swap.Po
 	-rm -f kern/$(DEPDIR)/timer.Po
+	-rm -f kern/$(DEPDIR)/unified_debug.Po
+	-rm -f kern/$(DEPDIR)/valgrind.Po
+	-rm -f kern/$(DEPDIR)/vdso.Po
 	-rm -f kern/$(DEPDIR)/xpr.Po
 	-rm -f linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-irq.Po
 	-rm -f linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-setup.Po
@@ -9320,6 +9605,8 @@ distclean: distclean-recursive
 	-rm -f vm/$(DEPDIR)/memory_object_default.user.Po
 	-rm -f vm/$(DEPDIR)/memory_object_proxy.Po
 	-rm -f vm/$(DEPDIR)/memory_object_user.user.Po
+	-rm -f vm/$(DEPDIR)/vm_block_cache.Po
+	-rm -f vm/$(DEPDIR)/vm_compress.Po
 	-rm -f vm/$(DEPDIR)/vm_debug.Po
 	-rm -f vm/$(DEPDIR)/vm_external.Po
 	-rm -f vm/$(DEPDIR)/vm_fault.Po
@@ -9541,6 +9828,10 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f device/$(DEPDIR)/memory_object_reply.user.Po
 	-rm -f device/$(DEPDIR)/net_io.Po
 	-rm -f device/$(DEPDIR)/subrs.Po
+	-rm -f device/$(DEPDIR)/virtio.Po
+	-rm -f device/$(DEPDIR)/virtio_blk.Po
+	-rm -f device/$(DEPDIR)/virtio_net.Po
+	-rm -f device/$(DEPDIR)/virtio_pci.Po
 	-rm -f i386/i386/$(DEPDIR)/_setjmp.Po
 	-rm -f i386/i386/$(DEPDIR)/apic.Po
 	-rm -f i386/i386/$(DEPDIR)/ast_check.Po
@@ -9569,6 +9860,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f i386/i386/$(DEPDIR)/mp_desc.Po
 	-rm -f i386/i386/$(DEPDIR)/pcb.Po
 	-rm -f i386/i386/$(DEPDIR)/percpu.Po
+	-rm -f i386/i386/$(DEPDIR)/percpu_smp.Po
 	-rm -f i386/i386/$(DEPDIR)/phys.Po
 	-rm -f i386/i386/$(DEPDIR)/pic.Po
 	-rm -f i386/i386/$(DEPDIR)/pit.Po
@@ -9577,6 +9869,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f i386/i386/$(DEPDIR)/strings.Po
 	-rm -f i386/i386/$(DEPDIR)/trap.Po
 	-rm -f i386/i386/$(DEPDIR)/user_ldt.Po
+	-rm -f i386/i386/$(DEPDIR)/vdso_arch.Po
 	-rm -f i386/i386at/$(DEPDIR)/acpi_parse_apic.Po
 	-rm -f i386/i386at/$(DEPDIR)/autoconf.Po
 	-rm -f i386/i386at/$(DEPDIR)/biosmem.Po
@@ -9629,8 +9922,12 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/ast.Po
 	-rm -f kern/$(DEPDIR)/boot_script.Po
 	-rm -f kern/$(DEPDIR)/bootstrap.Po
+	-rm -f kern/$(DEPDIR)/cfi_integrity.Po
 	-rm -f kern/$(DEPDIR)/counters.Po
 	-rm -f kern/$(DEPDIR)/debug.Po
+	-rm -f kern/$(DEPDIR)/development_tools.Po
+	-rm -f kern/$(DEPDIR)/dtrace.Po
+	-rm -f kern/$(DEPDIR)/dynamic_probes.Po
 	-rm -f kern/$(DEPDIR)/elf-load.Po
 	-rm -f kern/$(DEPDIR)/eventcount.Po
 	-rm -f kern/$(DEPDIR)/exception.Po
@@ -9639,6 +9936,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/gnumach.server.Po
 	-rm -f kern/$(DEPDIR)/gsync.Po
 	-rm -f kern/$(DEPDIR)/host.Po
+	-rm -f kern/$(DEPDIR)/instrumentation_integration.Po
 	-rm -f kern/$(DEPDIR)/ipc_host.Po
 	-rm -f kern/$(DEPDIR)/ipc_kobject.Po
 	-rm -f kern/$(DEPDIR)/ipc_mig.Po
@@ -9656,6 +9954,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/lib_dep_tr_for_defs_a-task_notify.user.defs.Po
 	-rm -f kern/$(DEPDIR)/lock.Po
 	-rm -f kern/$(DEPDIR)/lock_mon.Po
+	-rm -f kern/$(DEPDIR)/lttng.Po
 	-rm -f kern/$(DEPDIR)/mach.server.Po
 	-rm -f kern/$(DEPDIR)/mach4.server.Po
 	-rm -f kern/$(DEPDIR)/mach_clock.Po
@@ -9666,6 +9965,8 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/mem_optimize.Po
 	-rm -f kern/$(DEPDIR)/mem_track.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
+	-rm -f kern/$(DEPDIR)/perf_analysis.Po
+	-rm -f kern/$(DEPDIR)/perf_counters.Po
 	-rm -f kern/$(DEPDIR)/printf.Po
 	-rm -f kern/$(DEPDIR)/priority.Po
 	-rm -f kern/$(DEPDIR)/processor.Po
@@ -9674,18 +9975,25 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/rbtree.Po
 	-rm -f kern/$(DEPDIR)/rdxtree.Po
 	-rm -f kern/$(DEPDIR)/sched_prim.Po
+	-rm -f kern/$(DEPDIR)/security_monitor.Po
 	-rm -f kern/$(DEPDIR)/slab.Po
 	-rm -f kern/$(DEPDIR)/smp.Po
+	-rm -f kern/$(DEPDIR)/smp_lock.Po
+	-rm -f kern/$(DEPDIR)/smp_sched.Po
 	-rm -f kern/$(DEPDIR)/startup.Po
 	-rm -f kern/$(DEPDIR)/strings.Po
 	-rm -f kern/$(DEPDIR)/syscall_emulation.Po
 	-rm -f kern/$(DEPDIR)/syscall_subr.Po
 	-rm -f kern/$(DEPDIR)/syscall_sw.Po
+	-rm -f kern/$(DEPDIR)/system_debug.Po
 	-rm -f kern/$(DEPDIR)/task.Po
 	-rm -f kern/$(DEPDIR)/task_notify.user.Po
 	-rm -f kern/$(DEPDIR)/thread.Po
 	-rm -f kern/$(DEPDIR)/thread_swap.Po
 	-rm -f kern/$(DEPDIR)/timer.Po
+	-rm -f kern/$(DEPDIR)/unified_debug.Po
+	-rm -f kern/$(DEPDIR)/valgrind.Po
+	-rm -f kern/$(DEPDIR)/vdso.Po
 	-rm -f kern/$(DEPDIR)/xpr.Po
 	-rm -f linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-irq.Po
 	-rm -f linux/dev/arch/i386/kernel/$(DEPDIR)/liblinux_a-setup.Po
@@ -9840,6 +10148,8 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f vm/$(DEPDIR)/memory_object_default.user.Po
 	-rm -f vm/$(DEPDIR)/memory_object_proxy.Po
 	-rm -f vm/$(DEPDIR)/memory_object_user.user.Po
+	-rm -f vm/$(DEPDIR)/vm_block_cache.Po
+	-rm -f vm/$(DEPDIR)/vm_compress.Po
 	-rm -f vm/$(DEPDIR)/vm_debug.Po
 	-rm -f vm/$(DEPDIR)/vm_external.Po
 	-rm -f vm/$(DEPDIR)/vm_fault.Po
