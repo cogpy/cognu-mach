@@ -84,7 +84,7 @@ echo
 
 # Check if tools are available
 check_tool() {
-    if ! command -v $1 &> /dev/null; then
+    if ! command -v "$1" &> /dev/null; then
         echo -e "${YELLOW}Warning: $1 not found. Please install it for complete analysis.${NC}"
         return 1
     fi
@@ -139,7 +139,7 @@ if check_tool clang; then
     if check_tool scan-build; then
         if [ -x "$PROJECT_ROOT/configure" ]; then
             scan-build "$PROJECT_ROOT/configure" --host=i686-gnu || true
-            scan-build -o scan-results make -j$(nproc) || true
+            scan-build -o scan-results make -j"$(nproc)" || true
             echo -e "${GREEN}Clang static analyzer results saved in $OUTPUT_DIR/build-analyze/scan-results/${NC}"
         else
             echo "Skipping scan-build configure step (no configure script)."
@@ -191,7 +191,7 @@ mkdir -p "$OUTPUT_DIR/build-warnings"
 cd "$OUTPUT_DIR/build-warnings"
 if [ -x "$PROJECT_ROOT/configure" ]; then
     "$PROJECT_ROOT/configure" --host=i686-gnu --enable-kdb CFLAGS="-g -O2 -Wall -Wextra" 2>&1 | tee ../configure-warnings.txt || true
-    make -j$(nproc) 2>&1 | tee ../compiler-warnings.txt || true
+    make -j"$(nproc)" 2>&1 | tee ../compiler-warnings.txt || true
 else
     echo "No configure script; skipping build with warnings." | tee ../compiler-warnings.txt
 fi

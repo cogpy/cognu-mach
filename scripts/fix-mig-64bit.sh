@@ -30,16 +30,11 @@ EOF
 UPDATE_STRUCT_SIZES=false
 BATCH_PROCESS=false
 VERIFY_ONLY=false
-UPDATE_ASSERTIONS=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --update-struct-sizes)
             UPDATE_STRUCT_SIZES=true
-            shift
-            ;;
-        --update-assertions)
-            UPDATE_ASSERTIONS=true
             shift
             ;;
         --batch-process)
