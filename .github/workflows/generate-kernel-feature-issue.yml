@@ -7,10 +7,12 @@ on:
         description: 'Feature Name'
         required: true
         type: string
+        default: 'Kernel'
       context:
         description: 'Context or component area'
         required: true
         type: string
+        default: 'Integration'
       category:
         description: 'Feature category'
         required: true
@@ -46,66 +48,31 @@ on:
       duration:
         description: 'Estimated effort'
         required: true
-        type: string
-      epic:
-        description: 'Parent epic or project'
+        type: choice
+        options:
+          - High
+          - Medium
+          - Low
+      project_info:
+        description: 'Project metadata (JSON format: {"epic": "Kernel Modernization", "spec_path": "", "standards": "GNU Coding Standards"})'
         required: false
         type: string
-        default: 'Kernel Modernization'
-      spec_path:
-        description: 'Path to specification (without https://github.com/)'
-        required: false
-        type: string
-      standards:
-        description: 'Standards compliance'
-        required: false
-        type: string
-        default: 'GNU Coding Standards'
-      tasks:
-        description: 'Implementation tasks (JSON array format)'
+        default: '{"epic": "Kernel Modernization", "spec_path": "", "standards": "GNU Coding Standards"}'
+      implementation_details:
+        description: 'Implementation details (JSON format: {"tasks": ["Define structures"], "targets": ["Memory efficient"], "devices": ["x86 (32-bit)", "x86_64"]})'
         required: true
         type: string
-        default: '["Define kernel data structures", "Implement core algorithms", "Add system call interface"]'
-      targets:
-        description: 'Performance targets (JSON array format)'
+        default: '{"tasks": ["Define kernel data structures", "Implement core algorithms", "Add system call interface"], "targets": ["Memory efficient implementation", "Low latency operations"], "devices": ["x86 (32-bit)", "x86_64", "QEMU virtual devices"]}'
+      code_structure:
+        description: 'Code structure (JSON format: {"mainfiles": ["kern/feature.c"], "functions": ["feature_init()"], "files": ["kern/new_feature.c"]})'
         required: false
         type: string
-        default: '["Memory efficient implementation", "Low latency operations"]'
-      devices:
-        description: 'Supported devices (JSON array format)'
-        required: false
-        type: string
-        default: '["x86 (32-bit)", "x86_64", "QEMU virtual devices"]'
-      mainfiles:
-        description: 'Main files to implement (JSON array format)'
-        required: false
-        type: string
-        default: '["kern/feature.c", "include/kern/feature.h"]'
-      functions:
-        description: 'Key functions (JSON array format)'
-        required: false
-        type: string
-        default: '["feature_init()", "feature_enable()"]'
-      tests:
-        description: 'Testing requirements (JSON array format)'
-        required: false
-        type: string
-        default: '["Unit tests for core functions", "Integration tests"]'
-      dependencies:
-        description: 'Dependencies (JSON array format)'
-        required: false
-        type: string
-        default: '["Updated kernel headers", "Compatible build system"]'
-      files:
-        description: 'Files to create (JSON array format)'
-        required: false
-        type: string
-        default: '["kern/new_feature.c", "include/kern/new_feature.h"]'
-      criteria:
-        description: 'Acceptance criteria (JSON array format)'
+        default: '{"mainfiles": ["kern/feature.c", "include/kern/feature.h"], "functions": ["feature_init()", "feature_enable()"], "files": ["kern/new_feature.c", "include/kern/new_feature.h"]}'
+      quality_requirements:
+        description: 'Quality requirements (JSON format: {"tests": ["Unit tests"], "dependencies": ["Updated headers"], "criteria": ["Compiles without warnings"]})'
         required: true
         type: string
-        default: '["Feature compiles without warnings", "All tests pass", "Documentation updated"]'
+        default: '{"tests": ["Unit tests for core functions", "Integration tests"], "dependencies": ["Updated kernel headers", "Compatible build system"], "criteria": ["Feature compiles without warnings", "All tests pass", "Documentation updated"]}'
 
 jobs:
   create_issue:
@@ -117,7 +84,7 @@ jobs:
           FEATURE_ID="KERN-$(date +%Y%m%d)-$(echo '${{ inputs.feature }}' | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | cut -c1-10)"
           echo "feature_id=$FEATURE_ID" >> $GITHUB_OUTPUT
           
-      - name: Format arrays as markdown lists
+      - name: Parse inputs and format arrays as markdown lists
         id: format_lists
         run: |
           # Function to convert JSON array to markdown list
@@ -129,19 +96,37 @@ jobs:
             echo "$1" | jq -r '.[] | "- " + .'
           }
           
-          # Format all the arrays
-          TASKS=$(format_array '${{ inputs.tasks }}')
-          TARGETS=$(format_array_simple '${{ inputs.targets }}')
-          DEVICES=$(format_array_simple '${{ inputs.devices }}')
-          MAINFILES=$(format_array_simple '${{ inputs.mainfiles }}')
-          FUNCTIONS=$(format_array_simple '${{ inputs.functions }}')
-          TESTS=$(format_array_simple '${{ inputs.tests }}')
-          DEPENDENCIES=$(format_array_simple '${{ inputs.dependencies }}')
-          FILES=$(format_array '${{ inputs.files }}')
-          CRITERIA=$(format_array '${{ inputs.criteria }}')
+          # Parse consolidated JSON inputs
+          PROJECT_INFO='${{ inputs.project_info }}'
+          IMPL_DETAILS='${{ inputs.implementation_details }}'
+          CODE_STRUCTURE='${{ inputs.code_structure }}'
+          QUALITY_REQS='${{ inputs.quality_requirements }}'
+          
+          # Extract individual fields from JSON objects
+          EPIC=$(echo "$PROJECT_INFO" | jq -r '.epic // "Kernel Modernization"')
+          SPEC_PATH=$(echo "$PROJECT_INFO" | jq -r '.spec_path // ""')
+          STANDARDS=$(echo "$PROJECT_INFO" | jq -r '.standards // "GNU Coding Standards"')
+          
+          # Extract and format arrays from consolidated inputs
+          TASKS=$(echo "$IMPL_DETAILS" | jq -r '.tasks // []' | jq -r '.[] | "- [ ] " + .')
+          TARGETS=$(echo "$IMPL_DETAILS" | jq -r '.targets // []' | jq -r '.[] | "- " + .')
+          DEVICES=$(echo "$IMPL_DETAILS" | jq -r '.devices // []' | jq -r '.[] | "- " + .')
+          
+          MAINFILES=$(echo "$CODE_STRUCTURE" | jq -r '.mainfiles // []' | jq -r '.[] | "- " + .')
+          FUNCTIONS=$(echo "$CODE_STRUCTURE" | jq -r '.functions // []' | jq -r '.[] | "- " + .')
+          FILES=$(echo "$CODE_STRUCTURE" | jq -r '.files // []' | jq -r '.[] | "- [ ] " + .')
+          
+          TESTS=$(echo "$QUALITY_REQS" | jq -r '.tests // []' | jq -r '.[] | "- " + .')
+          DEPENDENCIES=$(echo "$QUALITY_REQS" | jq -r '.dependencies // []' | jq -r '.[] | "- " + .')
+          CRITERIA=$(echo "$QUALITY_REQS" | jq -r '.criteria // []' | jq -r '.[] | "- [ ] " + .')
           
           # Use delimiter to handle multiline
           delimiter=$(openssl rand -hex 8)
+          
+          echo "epic=$EPIC" >> $GITHUB_OUTPUT
+          echo "spec_path=$SPEC_PATH" >> $GITHUB_OUTPUT
+          echo "standards=$STANDARDS" >> $GITHUB_OUTPUT
+          
           echo "tasks<<${delimiter}" >> $GITHUB_OUTPUT
           echo "$TASKS" >> $GITHUB_OUTPUT
           echo "${delimiter}" >> $GITHUB_OUTPUT
@@ -182,7 +167,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const specPath = '${{ inputs.spec_path }}' || `${context.repo.owner}/${context.repo.repo}/blob/main/docs/architecture-overview.md`;
+            const specPath = '${{ steps.format_lists.outputs.spec_path }}' || `${context.repo.owner}/${context.repo.repo}/blob/main/docs/architecture-overview.md`;
             const specUrl = `https://github.com/${specPath}`;
             
             const issueBody = `## ${{ inputs.feature }}
@@ -237,11 +222,11 @@ jobs:
             
             ### Implementation Notes
             
-            This feature is part of the ${{ inputs.epic }} implementation.
+            This feature is part of the ${{ steps.format_lists.outputs.epic }} implementation.
             
-            See the [${{ inputs.epic }} implementation specification](${specUrl}) for architectural context.
+            See the [${{ steps.format_lists.outputs.epic }} implementation specification](${specUrl}) for architectural context.
             
-            **${{ inputs.standards }} Compliance:** All implementations must follow ${{ inputs.standards }}
+            **${{ steps.format_lists.outputs.standards }} Compliance:** All implementations must follow ${{ steps.format_lists.outputs.standards }}
             
             ### Acceptance Criteria
             
@@ -249,7 +234,7 @@ jobs:
             
             ---
             
-            *Feature ID: ${{ steps.feature_id.outputs.feature_id }} | Auto-generated from ${{ inputs.epic }} implementation workflow*`;
+            *Feature ID: ${{ steps.feature_id.outputs.feature_id }} | Auto-generated from ${{ steps.format_lists.outputs.epic }} implementation workflow*`;
             
             const issue = await github.rest.issues.create({
               owner: context.repo.owner,

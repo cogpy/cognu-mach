@@ -199,6 +199,8 @@ libkernel_a_SOURCES += \
 	kern/perf_analysis.h \
 	kern/perf_counters.c \
 	kern/perf_counters.h \
+	kern/new_feature.c \
+	kern/new_feature.h \
 	kern/printf.c \
 	kern/printf.h \
 	kern/security_monitor.c \
