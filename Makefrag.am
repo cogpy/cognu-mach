@@ -193,6 +193,8 @@ libkernel_a_SOURCES += \
 	kern/mem_optimize.h \
 	kern/mem_track.c \
 	kern/mem_track.h \
+	kern/microkernel_optimizations.c \
+	kern/microkernel_optimizations.h \
 	kern/pc_sample.c \
 	kern/pc_sample.h \
 	kern/perf_analysis.c \

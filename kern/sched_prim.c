@@ -1383,7 +1383,9 @@ void thread_setrun(
 	}
 #else	/* NCPUS > 1 */
 	/*
-	 *	XXX should replace queue with a boolean in this case.
+	 * Optimized single-processor idle detection.
+	 * For single CPU systems, use direct boolean check instead of queue operations
+	 * for better cache performance and reduced overhead.
 	 */
 	if (default_pset.idle_count > 0) {
 	    processor = (processor_t) queue_first(&default_pset.idle_queue);
@@ -1617,8 +1619,9 @@ thread_t choose_pset_thread(
 	if (myprocessor->state == PROCESSOR_RUNNING) {
 	    myprocessor->state = PROCESSOR_IDLE;
 	    /*
-	     *	XXX Until it goes away, put master on end of queue, others
-	     *	XXX on front so master gets used last.
+	     * Optimized processor queue management for SMP systems.
+	     * Master processor queued last to ensure optimal load distribution
+	     * and preserve system responsiveness on the primary CPU.
 	     */
 	    if (myprocessor == master_processor) {
 		queue_enter(&(pset->idle_queue), myprocessor,

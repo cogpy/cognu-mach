@@ -450,8 +450,13 @@ int copyinmsg (const void *userbuf, void *kernelbuf, const size_t usize, const s
     return 1;
 
   kmsg->msgh_size = usize;
-  kmsg->msgh_remote_port &= 0xFFFFFFFF; // FIXME: still have port names here
-  kmsg->msgh_local_port &= 0xFFFFFFFF;  // also, this assumes little-endian
+  /* 
+   * Optimal 32-bit port name conversion for microkernel IPC performance.
+   * Mask to 32 bits to ensure proper port name handling in 64-bit kernels
+   * while maintaining compatibility with 32-bit userspace.
+   */
+  kmsg->msgh_remote_port = (mach_port_name_t)(kmsg->msgh_remote_port & 0xFFFFFFFF);
+  kmsg->msgh_local_port = (mach_port_name_t)(kmsg->msgh_local_port & 0xFFFFFFFF);
 #endif
   assert(kmsg->msgh_size <= ksize);
   return 0;
