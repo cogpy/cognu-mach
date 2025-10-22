@@ -1605,9 +1605,11 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/mach_clock.h kern/mach_factor.c kern/mach_factor.h \
 	kern/machine.c kern/machine.h kern/macros.h \
 	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
-	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
-	kern/perf_analysis.c kern/perf_analysis.h kern/perf_counters.c \
-	kern/perf_counters.h kern/printf.c kern/printf.h \
+	kern/mem_track.h kern/microkernel_optimizations.c \
+	kern/microkernel_optimizations.h kern/pc_sample.c \
+	kern/pc_sample.h kern/perf_analysis.c kern/perf_analysis.h \
+	kern/perf_counters.c kern/perf_counters.h kern/new_feature.c \
+	kern/new_feature.h kern/printf.c kern/printf.h \
 	kern/security_monitor.c kern/security_monitor.h \
 	kern/cfi_integrity.c kern/cfi_integrity.h kern/priority.c \
 	kern/priority.h kern/processor.c kern/processor.h \
@@ -1641,51 +1643,6 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	device/dev_hdr.h device/dev_lookup.c device/dev_master.h \
 	device/dev_name.c device/dev_pager.c device/dev_pager.h \
 	device/device_init.c device/device_init.h device/device_port.h \
-	kern/dtrace.h kern/eventcount.c kern/eventcount.h \
-	kern/exception.c kern/exception.h kern/gsync.c kern/gsync.h \
-	kern/host.c kern/host.h kern/ipc_host.c kern/ipc_host.h \
-	kern/ipc_kobject.c kern/ipc_kobject.h kern/ipc_mig.c \
-	kern/ipc_mig.h kern/ipc_perf_monitor.c kern/ipc_sched.c \
-	kern/ipc_sched.h kern/ipc_tt.c kern/ipc_tt.h kern/kalloc.h \
-	kern/kalloc_enhanced.c kern/kalloc_enhanced.h \
-	kern/kern_types.h kern/kmutex.c kern/kmutex.h kern/list.h \
-	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
-	kern/lttng.c kern/mach_clock.c kern/mach_clock.h \
-	kern/mach_factor.c kern/mach_factor.h kern/machine.c \
-	kern/machine.h kern/macros.h kern/mem_optimize.c \
-	kern/mem_optimize.h kern/mem_track.c kern/mem_track.h \
-	kern/pc_sample.c kern/pc_sample.h kern/perf_analysis.c \
-	kern/perf_analysis.h kern/new_feature.c kern/new_feature.h \
-	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
-	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
-	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
-	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
-	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/smp_lock.h \
-	kern/smp_lock.c kern/smp_sched.c kern/sched.h \
-	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
-	kern/startup.c kern/startup.h kern/strings.c \
-	kern/syscall_emulation.c kern/syscall_emulation.h \
-	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
-	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
-	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
-	kern/timer.c kern/timer.h kern/xpr.c kern/xpr.h \
-	kern/elf-load.c kern/boot_script.c util/atoi.c util/atoi.h \
-	util/byteorder.h util/byteorder.c vm/memory_object_proxy.c \
-	vm/memory_object_proxy.h vm/memory_object.c vm/memory_object.h \
-	vm/pmap.h vm/vm_block_cache.c vm/vm_block_cache.h \
-	vm/vm_compress.c vm/vm_compress.h vm/vm_debug.c \
-	vm/vm_external.c vm/vm_external.h vm/vm_fault.c vm/vm_fault.h \
-	vm/vm_init.c vm/vm_init.h vm/vm_kern.c vm/vm_kern.h \
-	vm/vm_map.c vm/vm_map.h vm/vm_object.c vm/vm_object.h \
-	vm/vm_object_verify.c vm/vm_page.c vm/vm_page.h \
-	vm/vm_pageout.c vm/vm_pageout.h vm/vm_print.h vm/vm_resident.c \
-	vm/vm_resident.h vm/vm_types.h vm/vm_user.c vm/vm_user.h \
-	device/blkio.c device/blkio.h device/buf.h device/chario.c \
-	device/chario.h device/cirbuf.h device/conf.h device/cons.c \
-	device/cons.h device/device_emul.h device/dev_hdr.h \
-	device/dev_lookup.c device/dev_master.h device/dev_name.c \
-	device/dev_pager.c device/dev_pager.h device/device_init.c \
-	device/device_init.h device/device_port.h \
 	device/device_types_kernel.h device/ds_routines.c \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
@@ -1955,8 +1912,10 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/lock_mon.$(OBJEXT) kern/lttng.$(OBJEXT) \
 	kern/mach_clock.$(OBJEXT) kern/mach_factor.$(OBJEXT) \
 	kern/machine.$(OBJEXT) kern/mem_optimize.$(OBJEXT) \
-	kern/mem_track.$(OBJEXT) kern/pc_sample.$(OBJEXT) \
-	kern/perf_analysis.$(OBJEXT) kern/perf_counters.$(OBJEXT) \
+	kern/mem_track.$(OBJEXT) \
+	kern/microkernel_optimizations.$(OBJEXT) \
+	kern/pc_sample.$(OBJEXT) kern/perf_analysis.$(OBJEXT) \
+	kern/perf_counters.$(OBJEXT) kern/new_feature.$(OBJEXT) \
 	kern/printf.$(OBJEXT) kern/security_monitor.$(OBJEXT) \
 	kern/cfi_integrity.$(OBJEXT) kern/priority.$(OBJEXT) \
 	kern/processor.$(OBJEXT) kern/profile.$(OBJEXT) \
@@ -1970,25 +1929,6 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/thread_swap.$(OBJEXT) kern/timer.$(OBJEXT) \
 	kern/valgrind.$(OBJEXT) kern/vdso.$(OBJEXT) \
 	kern/development_tools.$(OBJEXT) kern/xpr.$(OBJEXT) \
-	kern/ipc_mig.$(OBJEXT) kern/ipc_perf_monitor.$(OBJEXT) \
-	kern/ipc_sched.$(OBJEXT) kern/ipc_tt.$(OBJEXT) \
-	kern/kalloc_enhanced.$(OBJEXT) kern/kmutex.$(OBJEXT) \
-	kern/lock.$(OBJEXT) kern/lock_mon.$(OBJEXT) \
-	kern/lttng.$(OBJEXT) kern/mach_clock.$(OBJEXT) \
-	kern/mach_factor.$(OBJEXT) kern/machine.$(OBJEXT) \
-	kern/mem_optimize.$(OBJEXT) kern/mem_track.$(OBJEXT) \
-	kern/pc_sample.$(OBJEXT) kern/perf_analysis.$(OBJEXT) \
-	kern/new_feature.$(OBJEXT) kern/printf.$(OBJEXT) \
-	kern/priority.$(OBJEXT) kern/processor.$(OBJEXT) \
-	kern/profile.$(OBJEXT) kern/queue.$(OBJEXT) \
-	kern/rbtree.$(OBJEXT) kern/rdxtree.$(OBJEXT) \
-	kern/slab.$(OBJEXT) kern/smp.$(OBJEXT) kern/smp_lock.$(OBJEXT) \
-	kern/smp_sched.$(OBJEXT) kern/sched_prim.$(OBJEXT) \
-	kern/startup.$(OBJEXT) kern/strings.$(OBJEXT) \
-	kern/syscall_emulation.$(OBJEXT) kern/syscall_subr.$(OBJEXT) \
-	kern/syscall_sw.$(OBJEXT) kern/task.$(OBJEXT) \
-	kern/thread.$(OBJEXT) kern/thread_swap.$(OBJEXT) \
-	kern/timer.$(OBJEXT) kern/xpr.$(OBJEXT) \
 	kern/elf-load.$(OBJEXT) kern/boot_script.$(OBJEXT) \
 	util/atoi.$(OBJEXT) util/byteorder.$(OBJEXT) \
 	vm/memory_object_proxy.$(OBJEXT) vm/memory_object.$(OBJEXT) \
@@ -2539,9 +2479,9 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/gsync.Po kern/$(DEPDIR)/host.Po \
 	kern/$(DEPDIR)/instrumentation_integration.Po \
 	kern/$(DEPDIR)/ipc_host.Po kern/$(DEPDIR)/ipc_kobject.Po \
-	kern/$(DEPDIR)/ipc_mig.Po kern/$(DEPDIR)/ipc_perf_monitor.Po \
-	kern/$(DEPDIR)/ipc_sched.Po kern/$(DEPDIR)/ipc_tt.Po \
-	kern/$(DEPDIR)/kalloc_enhanced.Po kern/$(DEPDIR)/kmutex.Po \
+	kern/$(DEPDIR)/ipc_mig.Po kern/$(DEPDIR)/ipc_sched.Po \
+	kern/$(DEPDIR)/ipc_tt.Po kern/$(DEPDIR)/kalloc_enhanced.Po \
+	kern/$(DEPDIR)/kmutex.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-exc.none.defs.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-experimental.server.defs.Po \
 	kern/$(DEPDIR)/lib_dep_tr_for_defs_a-gnumach.server.defs.Po \
@@ -2557,10 +2497,10 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/mach_factor.Po \
 	kern/$(DEPDIR)/mach_host.server.Po kern/$(DEPDIR)/machine.Po \
 	kern/$(DEPDIR)/mem_optimize.Po kern/$(DEPDIR)/mem_track.Po \
-	kern/$(DEPDIR)/pc_sample.Po kern/$(DEPDIR)/perf_analysis.Po \
-	kern/$(DEPDIR)/perf_counters.Po kern/$(DEPDIR)/printf.Po \
+	kern/$(DEPDIR)/microkernel_optimizations.Po \
 	kern/$(DEPDIR)/new_feature.Po kern/$(DEPDIR)/pc_sample.Po \
-	kern/$(DEPDIR)/perf_analysis.Po kern/$(DEPDIR)/printf.Po \
+	kern/$(DEPDIR)/perf_analysis.Po \
+	kern/$(DEPDIR)/perf_counters.Po kern/$(DEPDIR)/printf.Po \
 	kern/$(DEPDIR)/priority.Po kern/$(DEPDIR)/processor.Po \
 	kern/$(DEPDIR)/profile.Po kern/$(DEPDIR)/queue.Po \
 	kern/$(DEPDIR)/rbtree.Po kern/$(DEPDIR)/rdxtree.Po \
@@ -3504,9 +3444,11 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/mach_clock.h kern/mach_factor.c kern/mach_factor.h \
 	kern/machine.c kern/machine.h kern/macros.h \
 	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
-	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
-	kern/perf_analysis.c kern/perf_analysis.h kern/perf_counters.c \
-	kern/perf_counters.h kern/printf.c kern/printf.h \
+	kern/mem_track.h kern/microkernel_optimizations.c \
+	kern/microkernel_optimizations.h kern/pc_sample.c \
+	kern/pc_sample.h kern/perf_analysis.c kern/perf_analysis.h \
+	kern/perf_counters.c kern/perf_counters.h kern/new_feature.c \
+	kern/new_feature.h kern/printf.c kern/printf.h \
 	kern/security_monitor.c kern/security_monitor.h \
 	kern/cfi_integrity.c kern/cfi_integrity.h kern/priority.c \
 	kern/priority.h kern/processor.c kern/processor.h \
@@ -3540,51 +3482,6 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	device/dev_hdr.h device/dev_lookup.c device/dev_master.h \
 	device/dev_name.c device/dev_pager.c device/dev_pager.h \
 	device/device_init.c device/device_init.h device/device_port.h \
-	kern/dtrace.h kern/eventcount.c kern/eventcount.h \
-	kern/exception.c kern/exception.h kern/gsync.c kern/gsync.h \
-	kern/host.c kern/host.h kern/ipc_host.c kern/ipc_host.h \
-	kern/ipc_kobject.c kern/ipc_kobject.h kern/ipc_mig.c \
-	kern/ipc_mig.h kern/ipc_perf_monitor.c kern/ipc_sched.c \
-	kern/ipc_sched.h kern/ipc_tt.c kern/ipc_tt.h kern/kalloc.h \
-	kern/kalloc_enhanced.c kern/kalloc_enhanced.h \
-	kern/kern_types.h kern/kmutex.c kern/kmutex.h kern/list.h \
-	kern/lock.c kern/lock.h kern/lock_mon.c kern/log2.h \
-	kern/lttng.c kern/mach_clock.c kern/mach_clock.h \
-	kern/mach_factor.c kern/mach_factor.h kern/machine.c \
-	kern/machine.h kern/macros.h kern/mem_optimize.c \
-	kern/mem_optimize.h kern/mem_track.c kern/mem_track.h \
-	kern/pc_sample.c kern/pc_sample.h kern/perf_analysis.c \
-	kern/perf_analysis.h kern/new_feature.c kern/new_feature.h \
-	kern/printf.c kern/printf.h kern/priority.c kern/priority.h \
-	kern/processor.c kern/processor.h kern/profile.c kern/queue.c \
-	kern/queue.h kern/rbtree.c kern/rbtree.h kern/rbtree_i.h \
-	kern/rdxtree.c kern/rdxtree.h kern/rdxtree_i.h kern/refcount.h \
-	kern/slab.c kern/slab.h kern/smp.h kern/smp.c kern/smp_lock.h \
-	kern/smp_lock.c kern/smp_sched.c kern/sched.h \
-	kern/sched_prim.c kern/sched_prim.h kern/shuttle.h \
-	kern/startup.c kern/startup.h kern/strings.c \
-	kern/syscall_emulation.c kern/syscall_emulation.h \
-	kern/syscall_subr.c kern/syscall_subr.h kern/syscall_sw.c \
-	kern/syscall_sw.h kern/task.c kern/task.h kern/thread.c \
-	kern/thread.h kern/thread_swap.c kern/thread_swap.h \
-	kern/timer.c kern/timer.h kern/xpr.c kern/xpr.h \
-	kern/elf-load.c kern/boot_script.c util/atoi.c util/atoi.h \
-	util/byteorder.h util/byteorder.c vm/memory_object_proxy.c \
-	vm/memory_object_proxy.h vm/memory_object.c vm/memory_object.h \
-	vm/pmap.h vm/vm_block_cache.c vm/vm_block_cache.h \
-	vm/vm_compress.c vm/vm_compress.h vm/vm_debug.c \
-	vm/vm_external.c vm/vm_external.h vm/vm_fault.c vm/vm_fault.h \
-	vm/vm_init.c vm/vm_init.h vm/vm_kern.c vm/vm_kern.h \
-	vm/vm_map.c vm/vm_map.h vm/vm_object.c vm/vm_object.h \
-	vm/vm_object_verify.c vm/vm_page.c vm/vm_page.h \
-	vm/vm_pageout.c vm/vm_pageout.h vm/vm_print.h vm/vm_resident.c \
-	vm/vm_resident.h vm/vm_types.h vm/vm_user.c vm/vm_user.h \
-	device/blkio.c device/blkio.h device/buf.h device/chario.c \
-	device/chario.h device/cirbuf.h device/conf.h device/cons.c \
-	device/cons.h device/device_emul.h device/dev_hdr.h \
-	device/dev_lookup.c device/dev_master.h device/dev_name.c \
-	device/dev_pager.c device/dev_pager.h device/device_init.c \
-	device/device_init.h device/device_port.h \
 	device/device_types_kernel.h device/ds_routines.c \
 	device/ds_routines.h device/if_ether.h device/if_hdr.h \
 	device/input.h device/intr.c device/intr.h device/io_req.h \
@@ -4028,6 +3925,7 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-thread-state \
 @PLATFORM_xen_FALSE@	tests/test-thread-state-fp \
 @PLATFORM_xen_FALSE@	tests/test-thread-migration \
+@PLATFORM_xen_FALSE@	tests/test-microkernel-optimizations \
 @PLATFORM_xen_FALSE@	tests/test-console-timestamps \
 @PLATFORM_xen_FALSE@	tests/test-tickless-timer \
 @PLATFORM_xen_FALSE@	tests/test-gdb-stub \
@@ -4054,7 +3952,6 @@ liblinux_pcmcia_cs_wireless_a_SOURCES = $(am__append_114)
 @PLATFORM_xen_FALSE@	tests/test-vdso \
 @PLATFORM_xen_FALSE@	tests/test-mach5-research \
 @PLATFORM_xen_FALSE@	tests/test-virtio
-@PLATFORM_xen_FALSE@	tests/test-kernel-feature
 
 @PLATFORM_xen_FALSE@USER_TESTS_CLEAN = $(subst tests/,clean-,$(USER_TESTS))
 
@@ -4399,8 +4296,6 @@ kern/ipc_kobject.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/ipc_mig.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
-kern/ipc_perf_monitor.$(OBJEXT): kern/$(am__dirstamp) \
-	kern/$(DEPDIR)/$(am__dirstamp)
 kern/ipc_sched.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/ipc_tt.$(OBJEXT): kern/$(am__dirstamp) \
@@ -4425,11 +4320,14 @@ kern/mem_optimize.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/mem_track.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/microkernel_optimizations.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/pc_sample.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/perf_analysis.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/perf_counters.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/new_feature.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/printf.$(OBJEXT): kern/$(am__dirstamp) \
@@ -5569,7 +5467,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/ipc_host.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/ipc_kobject.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/ipc_mig.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/ipc_perf_monitor.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/ipc_sched.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/ipc_tt.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/kalloc_enhanced.Po@am__quote@ # am--include-marker
@@ -5594,6 +5491,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/machine.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mem_optimize.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/mem_track.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/microkernel_optimizations.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/new_feature.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/pc_sample.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/perf_analysis.Po@am__quote@ # am--include-marker
@@ -5816,15 +5714,7 @@ distclean-compile:
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	# Ugly bootstrap hack to get to-be-generated files created
-	# Try to guess what file this dependency file is from...
-	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
-	for f in "$$f"*; do \
-		case $$f in \
-			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
-			*) echo '# dummy';; \
-		esac ; \
-	done >$@-t && $(am__mv) $@-t $@
+	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
@@ -8850,6 +8740,13 @@ tests/test-thread-migration.log: tests/test-thread-migration
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-microkernel-optimizations.log: tests/test-microkernel-optimizations
+	@p='tests/test-microkernel-optimizations'; \
+	b='tests/test-microkernel-optimizations'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-console-timestamps.log: tests/test-console-timestamps
 	@p='tests/test-console-timestamps'; \
 	b='tests/test-console-timestamps'; \
@@ -9028,9 +8925,6 @@ tests/test-mach5-research.log: tests/test-mach5-research
 tests/test-virtio.log: tests/test-virtio
 	@p='tests/test-virtio'; \
 	b='tests/test-virtio'; \
-tests/test-kernel-feature.log: tests/test-kernel-feature
-	@p='tests/test-kernel-feature'; \
-	b='tests/test-kernel-feature'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -9525,7 +9419,6 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/ipc_host.Po
 	-rm -f kern/$(DEPDIR)/ipc_kobject.Po
 	-rm -f kern/$(DEPDIR)/ipc_mig.Po
-	-rm -f kern/$(DEPDIR)/ipc_perf_monitor.Po
 	-rm -f kern/$(DEPDIR)/ipc_sched.Po
 	-rm -f kern/$(DEPDIR)/ipc_tt.Po
 	-rm -f kern/$(DEPDIR)/kalloc_enhanced.Po
@@ -9550,6 +9443,7 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/machine.Po
 	-rm -f kern/$(DEPDIR)/mem_optimize.Po
 	-rm -f kern/$(DEPDIR)/mem_track.Po
+	-rm -f kern/$(DEPDIR)/microkernel_optimizations.Po
 	-rm -f kern/$(DEPDIR)/new_feature.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
 	-rm -f kern/$(DEPDIR)/perf_analysis.Po
@@ -10070,7 +9964,6 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/ipc_host.Po
 	-rm -f kern/$(DEPDIR)/ipc_kobject.Po
 	-rm -f kern/$(DEPDIR)/ipc_mig.Po
-	-rm -f kern/$(DEPDIR)/ipc_perf_monitor.Po
 	-rm -f kern/$(DEPDIR)/ipc_sched.Po
 	-rm -f kern/$(DEPDIR)/ipc_tt.Po
 	-rm -f kern/$(DEPDIR)/kalloc_enhanced.Po
@@ -10095,6 +9988,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/machine.Po
 	-rm -f kern/$(DEPDIR)/mem_optimize.Po
 	-rm -f kern/$(DEPDIR)/mem_track.Po
+	-rm -f kern/$(DEPDIR)/microkernel_optimizations.Po
 	-rm -f kern/$(DEPDIR)/new_feature.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
 	-rm -f kern/$(DEPDIR)/perf_analysis.Po
@@ -10648,6 +10542,7 @@ dist-hook-linux:
 
 @PLATFORM_xen_FALSE@clean-test-%:
 @PLATFORM_xen_FALSE@	rm -f tests/test-$* tests/test-$*.iso tests/test-$*.log tests/test-$*.raw tests/test-$*.trs tests/module-$*
+@PLATFORM_xen_FALSE@	tests/test-kernel-feature
 
 #
 # Enhanced test framework integration
