@@ -26,9 +26,9 @@ and its `CPPFLAGS' and `CFLAGS' to use by passing `TARGET_CC',
 	`configure TARGET_CPPFLAGS=-I"$HOME"/some/where/include'
 
 
-Please read the FAQ at <http://www.gnu.org/software/hurd/faq.html>.
+Please read the FAQ at <https://www.gnu.org/software/hurd/faq.html>.
 Bug reports should be sent to <bug-hurd@gnu.org> or filed on
-<http://savannah.gnu.org/bugs/?group=hurd>.  Requests for assistance
+<https://savannah.gnu.org/bugs/?group=hurd>.  Requests for assistance
 should be sent to <help-hurd@gnu.org> or filed on
-<http://savannah.gnu.org/support/?group=hurd>.  You can also find us on
+<https://savannah.gnu.org/support/?group=hurd>.  You can also find us on
 the libera.chat IRC network in the #hurd channel.
