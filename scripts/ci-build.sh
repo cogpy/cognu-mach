@@ -71,11 +71,11 @@ check_dependencies() {
                         non_functional_deps+=("$cmd")
                         error "⚠️  Present but non-functional: $cmd"
                     else
-                        log "✅ Verified: $cmd ($(which $cmd))"
+                        log "✅ Verified: $cmd ($(which "$cmd"))"
                     fi
                     ;;
                 *)
-                    log "✅ Found: $cmd ($(which $cmd))"
+                    log "✅ Found: $cmd ($(which "$cmd"))"
                     ;;
             esac
         fi
@@ -150,7 +150,7 @@ setup_mig() {
         exit 1
     fi
     
-    if ! timeout 300 make -j$(nproc); then
+    if ! timeout 300 make -j"$(nproc)"; then
         error "❌ MIG build failed or timed out (300s limit)"
         exit 1
     fi
@@ -233,12 +233,12 @@ build_kernel() {
     
     if [[ "$force_build" == "true" ]]; then
         # Try to build, but don't fail on MIG assertion errors
-        make -j$(nproc) || {
+        make -j"$(nproc)" || {
             warn "Build had issues, but continuing as requested"
             return 0
         }
     else
-        make -j$(nproc)
+        make -j"$(nproc)"
     fi
     
     if [[ -f gnumach ]]; then

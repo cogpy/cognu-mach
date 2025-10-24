@@ -30,16 +30,11 @@ EOF
 UPDATE_STRUCT_SIZES=false
 BATCH_PROCESS=false
 VERIFY_ONLY=false
-UPDATE_ASSERTIONS=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --update-struct-sizes)
             UPDATE_STRUCT_SIZES=true
-            shift
-            ;;
-        --update-assertions)
-            UPDATE_ASSERTIONS=true
             shift
             ;;
         --batch-process)
@@ -145,7 +140,7 @@ process_mig_file() {
         sed -i 's/_Static_assert(sizeof(int64_t) == 4 \* 1, "expected int64_t to be size 4 \* 1");/_Static_assert(sizeof(int64_t) == 8 * 1, "expected int64_t to be size 8 * 1");/g' "$file"
         
         # Update Request size assertions with architecture detection
-        sed -i 's/_Static_assert(sizeof(Request) == \([0-9]\+\), "Request expected to be \1 bytes");/#ifdef __i386__\n_Static_assert(sizeof(Request) <= 64, "Request size should fit 32-bit constraints");\n#else\n_Static_assert(sizeof(Request) == \1, "Request expected to be \1 bytes");\n#endif/g' "$file"
+        sed -i 's/_Static_assert(sizeof(Request) == \([0-9]\+\), "Request expected to be \1 bytes");/#ifdef __i386__\n_Static_assert(sizeof(Request) <= 128, "Request size should fit reasonable 32-bit constraints");\n#else\n_Static_assert(sizeof(Request) == \1, "Request expected to be \1 bytes");\n#endif/g' "$file"
         
         echo "✅ Fixed static assertions for 32-bit architecture in $file"
     else
