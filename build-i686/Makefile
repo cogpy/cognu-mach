@@ -3133,7 +3133,7 @@ CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2 -ffreestanding -nostdlib -g -O2 -Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wformat=2 -Wformat-security -Wold-style-definition -Wno-unused-parameter -Wno-sign-compare
 
 # We need this because we use $(CPP) to preprocess MIG .defs files.
-CPP = cpp -x c
+CPP = gcc -m32 -E -x c
 CPPFLAGS = 
 CSCOPE = cscope
 CTAGS = ctags
@@ -3178,7 +3178,7 @@ SHELL = /bin/bash
 STRIP = strip
 USER_CC = gcc -m32
 USER_CFLAGS = 
-USER_CPP = cpp
+USER_CPP = gcc -m32 -E
 USER_CPPFLAGS = 
 USER_MIG = 
 VERSION = 1.8
@@ -5699,7 +5699,15 @@ include xen/$(DEPDIR)/xen.Po # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
-	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
+	# Ugly bootstrap hack to get to-be-generated files created
+	# Try to guess what file this dependency file is from...
+	@f=$(srcdir)/`dirname "$(@D)"`/`basename "$@" .Po | sed s/lib[^-]\*-//` ; \
+	for f in "$$f"*; do \
+		case $$f in \
+			*.c | *.S) echo "$$f"': $$(filter-out $$(DIST_SOURCES),$$(SOURCES))' ;; \
+			*) echo '# dummy';; \
+		esac ; \
+	done >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
 
