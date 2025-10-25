@@ -172,8 +172,9 @@ test_build_system() {
         cd "$PROJECT_ROOT"
         
     } > "$log_file" 2>&1
+    local test_result=$?
     
-    if [[ $? -eq 0 ]]; then
+    if [[ $test_result -eq 0 ]]; then
         log_success "Build system test PASSED for $platform"
         mark_test_result "$test_name" "PASS"
         return 0
@@ -222,9 +223,7 @@ test_core_functionality() {
         
     } > "$log_file" 2>&1
     
-    cd "$PROJECT_ROOT"
-    
-    if [[ $? -eq 0 ]]; then
+    if cd "$PROJECT_ROOT"; then
         log_success "Core functionality test PASSED for $platform"
         mark_test_result "$test_name" "PASS"
         return 0
@@ -278,8 +277,9 @@ test_memory_management() {
         echo "Memory management tests completed successfully"
         
     } > "$log_file" 2>&1
+    local test_result=$?
     
-    if [[ $? -eq 0 ]]; then
+    if [[ $test_result -eq 0 ]]; then
         log_success "Memory management test PASSED for $platform"
         mark_test_result "$test_name" "PASS"
         return 0
@@ -321,8 +321,9 @@ test_static_analysis() {
         fi
         
     } > "$log_file" 2>&1
+    local test_result=$?
     
-    if [[ $? -eq 0 ]]; then
+    if [[ $test_result -eq 0 ]]; then
         log_success "Static analysis test PASSED"
         mark_test_result "$test_name" "PASS"
         return 0
@@ -366,9 +367,7 @@ test_console_debugging() {
         
     } > "$log_file" 2>&1
     
-    cd "$PROJECT_ROOT"
-    
-    if [[ $? -eq 0 ]]; then
+    if cd "$PROJECT_ROOT"; then
         log_success "Console debugging test PASSED for $platform"
         mark_test_result "$test_name" "PASS"
         return 0
@@ -406,8 +405,9 @@ test_performance() {
         echo "Performance validation completed successfully"
         
     } > "$log_file" 2>&1
+    local test_result=$?
     
-    if [[ $? -eq 0 ]]; then
+    if [[ $test_result -eq 0 ]]; then
         log_success "Performance test PASSED for $platform"
         mark_test_result "$test_name" "PASS"
         return 0

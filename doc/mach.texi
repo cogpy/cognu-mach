@@ -1536,12 +1536,13 @@ Same meaning as @code{msgt_number}.
 
 Each task has its own space of port rights.  Port rights are named with
 positive integers.  Except for the reserved values
-@w{@code{MACH_PORT_NULL (0)}@footnote{In the Hurd system, we don't make
-the assumption that @code{MACH_PORT_NULL} is zero and evaluates to
-false, but rather compare port names to @code{MACH_PORT_NULL}
-explicitly}} and @w{@code{MACH_PORT_DEAD (~0)}}, this is a full 32-bit
+@w{@code{MACH_PORT_NULL (0)}} and @w{@code{MACH_PORT_DEAD (~0)}}, this is a full 32-bit
 name space.  When the kernel chooses a name for a new right, it is free
 to pick any unused name (one which denotes no right) in the space.
+
+@footnote{In the Hurd system, we don't make the assumption that
+@code{MACH_PORT_NULL} is zero and evaluates to false, but rather compare
+port names to @code{MACH_PORT_NULL} explicitly.}
 
 There are five basic kinds of rights: receive rights, send rights,
 send-once rights, port-set rights, and dead names.  Dead names are not
@@ -7336,7 +7337,7 @@ next
 address of the start of the last line examined.  Unlike dot or next,
 this is only changed by @code{examine} or @code{write} command.
 
-@item ´
+@item ï¿½
 last address explicitly specified.
 
 @item $@var{variable}

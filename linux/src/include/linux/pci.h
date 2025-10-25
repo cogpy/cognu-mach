@@ -67,6 +67,7 @@
 #define PCI_STATUS		0x06	/* 16 bits */
 #define  PCI_STATUS_66MHZ	0x20	/* Support 66 Mhz PCI 2.1 bus */
 #define  PCI_STATUS_UDF		0x40	/* Support User Definable Features */
+#define  PCI_STATUS_CAP_LIST	0x10	/* Support Capability List */
 
 #define  PCI_STATUS_FAST_BACK	0x80	/* Accept fast-back to back */
 #define  PCI_STATUS_PARITY	0x100	/* Detected parity error */
@@ -1208,6 +1209,8 @@ struct pci_bus {
 #define PCI_IORESOURCE_UNSET		0x20000000
 #define PCI_IORESOURCE_AUTO		0x40000000
 #define PCI_IORESOURCE_BUSY		0x80000000	/* Driver has marked this resource busy */
+
+/* PCI device BAR resource tracking */
 
 /*
  * This is used to map a vendor-id/device-id pair into device-specific
