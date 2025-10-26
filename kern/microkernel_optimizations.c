@@ -20,6 +20,11 @@
 #include <mach/time_value.h>
 #include <string.h>
 
+/* Maximum priority for system threads (0 = highest priority) */
+#ifndef MAXPRI_SYSTEM
+#define MAXPRI_SYSTEM 0
+#endif
+
 /* Global microkernel optimization state */
 struct microkernel_optimizer {
     simple_lock_data_t lock;
@@ -49,7 +54,7 @@ struct microkernel_optimizer {
  */
 void microkernel_optimization_init(void)
 {
-    simple_lock_init(&global_mk_optimizer.lock, 0);
+    simple_lock_init(&global_mk_optimizer.lock);
     
     /* Clear statistics */
     memset(&global_mk_optimizer.stats, 0, sizeof(global_mk_optimizer.stats));
