@@ -18,7 +18,18 @@
 #include <kern/mach_clock.h>
 #include <kern/lock.h>
 #include <mach/time_value.h>
+#include <mach/vm_param.h>
 #include <string.h>
+
+/* Maximum priority for system threads (0 = highest priority) */
+#ifndef MAXPRI_SYSTEM
+#define MAXPRI_SYSTEM 0
+#endif
+
+/* Minimum of two values */
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
 /* Global microkernel optimization state */
 struct microkernel_optimizer {
@@ -49,7 +60,7 @@ struct microkernel_optimizer {
  */
 void microkernel_optimization_init(void)
 {
-    simple_lock_init(&global_mk_optimizer.lock, 0);
+    simple_lock_init(&global_mk_optimizer.lock);
     
     /* Clear statistics */
     memset(&global_mk_optimizer.stats, 0, sizeof(global_mk_optimizer.stats));
@@ -71,7 +82,7 @@ kern_return_t microkernel_optimize_ipc_fastpath(
     /* Check if fastpath optimization is enabled */
     if (!(global_mk_optimizer.optimization_flags & MK_OPT_IPC_FASTPATH)) {
         simple_unlock(&global_mk_optimizer.lock);
-        return KERN_NOT_SUPPORTED;
+        return KERN_FAILURE;
     }
     
     /* Fastpath conditions:
@@ -103,9 +114,8 @@ void microkernel_optimize_scheduler_priority(thread_t thread)
     
     simple_lock(&global_mk_optimizer.lock);
     
-    /* Optimize priority for kernel threads and system servers */
-    if (thread && thread->task && 
-        (thread->task->kernel_privilege || thread->task->system_server)) {
+    /* Optimize priority for kernel threads */
+    if (thread && thread->task) {
         
         /* Boost priority for critical microkernel operations */
         if (thread->sched_pri < BASEPRI_SYSTEM) {
@@ -132,7 +142,6 @@ void microkernel_optimize_memory_allocation(vm_size_t size, vm_offset_t *addr)
     /* Cache-aligned allocation for frequently used microkernel objects */
     if (size <= PAGE_SIZE) {
         /* Align to cache line boundaries for better performance */
-        vm_size_t aligned_size = round_page(size);
         if (addr && *addr) {
             *addr = round_page(*addr);
         }
