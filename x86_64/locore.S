@@ -28,6 +28,29 @@
  * the rights to redistribute these changes.
  */
 
+/*
+ * x86_64 Low-level Assembly Code - Port Status
+ *
+ * This file contains the x86_64 port of the low-level Mach code.
+ * The port is INCOMPLETE - several areas use ud2 (invalid opcode) as
+ * placeholders for untested code paths:
+ *
+ * Known incomplete areas:
+ *   1. SMP segment handling (line ~168): needs swapgs implementation
+ *   2. KDB interrupt return (line ~1060): needs testing before enabling
+ *   3. TTD interrupt handling (line ~1072): needs testing
+ *   4. System call handling (lines ~1141, ~1346): needs testing
+ *
+ * The ud2 instructions cause an invalid opcode trap if executed,
+ * providing a clear failure mode rather than silent corruption.
+ * Before removing ud2, each code path must be:
+ *   - Tested in QEMU with the relevant configuration
+ *   - Verified with GDB stepping through the code path
+ *   - Confirmed to correctly save/restore all registers
+ *
+ * See docs/debugging-qemu-gdb.md for testing procedures.
+ */
+
 #include <mach/machine/asm.h>
 #include <mach/machine/eflags.h>
 #include <i386/i386/proc_reg.h>

@@ -58,6 +58,7 @@
 #include <vm/memory_object_proxy.h>
 #include <ipc/ipc_port.h>
 #include <ipc/ipc_kmsg.h>
+#include <mach/mach_safety.h>
 #include <string.h>
 
 #if	MACH_KDB
@@ -5640,9 +5641,66 @@ kern_return_t vm_map_msync(
 	if (size == 0)
 		return KERN_SUCCESS;
 
-	/* TODO */
+	/*
+	 * Validate address range is within map bounds.
+	 * This implements the TODO by providing basic msync support.
+	 */
+	if (address < vm_map_min(map) ||
+	    (address + size) > vm_map_max(map) ||
+	    !MACH_VALIDATE_REGION(address, size))
+		return KERN_INVALID_ARGUMENT;
 
-	return KERN_INVALID_ARGUMENT;
+	vm_map_lock(map);
+
+	/*
+	 * Walk through the map entries in the specified range
+	 * and flush/invalidate pages as requested.
+	 */
+	{
+		vm_map_entry_t entry;
+		vm_offset_t end = address + size;
+
+		if (!vm_map_lookup_entry(map, address, &entry)) {
+			vm_map_unlock(map);
+			return KERN_INVALID_ADDRESS;
+		}
+
+		while (entry != vm_map_to_entry(map) && entry->vme_start < end) {
+			vm_object_t object = entry->object.vm_object;
+			vm_offset_t offset = entry->offset;
+			vm_offset_t start = (entry->vme_start > address) ?
+					    entry->vme_start : address;
+			vm_offset_t entry_end = (entry->vme_end < end) ?
+						entry->vme_end : end;
+
+			if (object != VM_OBJECT_NULL) {
+				vm_object_lock(object);
+				/*
+				 * For synchronous sync, ensure pages are
+				 * flushed to backing store.
+				 */
+				if (sync_flags & VM_SYNC_SYNCHRONOUS) {
+					vm_object_page_clean(object,
+						offset + (start - entry->vme_start),
+						offset + (entry_end - entry->vme_start),
+						FALSE);
+				}
+				/*
+				 * Invalidate pages if requested.
+				 */
+				if (sync_flags & VM_SYNC_INVALIDATE) {
+					vm_object_page_remove(object,
+						offset + (start - entry->vme_start),
+						offset + (entry_end - entry->vme_start));
+				}
+				vm_object_unlock(object);
+			}
+			entry = vm_map_entry_next(entry);
+		}
+	}
+
+	vm_map_unlock(map);
+	return KERN_SUCCESS;
 }
 
 

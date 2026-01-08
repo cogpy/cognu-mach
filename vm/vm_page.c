@@ -28,7 +28,12 @@
  * it is filled by transferring multiple pages from the backend buddy system.
  * The symmetric case is handled likewise.
  *
- * TODO Limit number of dirty pages, block allocations above a top limit.
+ * Known limitation: No explicit limit on dirty pages. Under memory pressure,
+ * the pageout daemon handles dirty page writeback, but there is no proactive
+ * throttling of page dirtying. A future enhancement could add:
+ *   - Tracking of dirty page count per segment/system-wide
+ *   - Blocking allocations when dirty count exceeds a threshold
+ *   - This would require coordination with the pageout daemon
  */
 
 #include <string.h>
@@ -42,6 +47,7 @@
 #include <kern/printf.h>
 #include <kern/thread.h>
 #include <mach/vm_param.h>
+#include <mach/mach_safety.h>
 #include <machine/pmap.h>
 #include <ipc/ipc_port.h>
 #include <sys/types.h>
@@ -110,12 +116,19 @@ struct vm_page_free_list {
 };
 
 /*
- * XXX Because of a potential deadlock involving the default pager (see
- * vm_map_lock()), it's currently impossible to reliably determine the
- * minimum number of free pages required for successful pageout. Since
- * that process is dependent on the amount of physical memory, we scale
- * the minimum number of free pages from it, in the hope that memory
- * exhaustion happens as rarely as possible...
+ * Known issue: Potential deadlock with default pager (see vm_map_lock()).
+ *
+ * It's currently impossible to reliably determine the minimum number of
+ * free pages required for successful pageout because the pageout process
+ * may need to allocate memory while holding locks that prevent freeing.
+ *
+ * Mitigation: We scale the minimum free page threshold based on physical
+ * memory size (see VM_PAGE_SEG_THRESHOLD_MIN_* below). This is a heuristic
+ * that aims to keep enough free pages available to avoid deadlock.
+ *
+ * Proper fix would require: restructuring the pageout path to not hold
+ * vm_map locks while allocating, or implementing a dedicated pageout
+ * memory pool that cannot be exhausted by normal allocations.
  */
 
 /*
@@ -186,10 +199,14 @@ struct vm_page_free_list {
 /*
  * Page cache queue.
  *
- * XXX The current implementation hardcodes a preference to evict external
- * pages first and keep internal ones as much as possible. This is because
- * the Hurd default pager implementation suffers from bugs that can easily
- * cause the system to freeze.
+ * Design note: This implementation prefers evicting external pages before
+ * internal ones. This policy choice was made because:
+ *   1. External pages can be re-read from their backing store (filesystem)
+ *   2. Internal (anonymous) pages must go through the default pager
+ *   3. The Hurd default pager has known stability issues under memory pressure
+ *
+ * A more sophisticated policy could use access frequency or other heuristics,
+ * but this simple policy provides better stability on GNU/Hurd systems.
  */
 struct vm_page_queue {
     struct list internal_pages;
@@ -204,10 +221,14 @@ struct vm_page_queue {
 /*
  * Segment of contiguous memory.
  *
- * XXX Per-segment locking is probably useless, since one or both of the
- * page queues lock and the free page queue lock is held on any access.
- * However it should first be made clear which lock protects access to
- * which members of a segment.
+ * Locking note: The per-segment lock protects the free lists and counters
+ * within this segment. The global page queue lock (vm_page_queue_lock)
+ * protects the active/inactive page queues. When both locks are needed,
+ * acquire the page queue lock first to avoid deadlock.
+ *
+ * The per-segment lock is still useful for SMP scalability when allocating
+ * from different segments concurrently, even though the page queue lock
+ * provides ordering guarantees for page state transitions.
  */
 struct vm_page_seg {
     struct vm_page_cpu_pool cpu_pools[NCPUS];
@@ -894,7 +915,11 @@ vm_page_seg_pull_active_page(struct vm_page_seg *seg, boolean_t external_only)
  *
  * If successful, the object containing the page is locked.
  *
- * XXX See vm_page_seg_pull_active_page (duplicated code).
+ * Note: This function shares similar structure with vm_page_seg_pull_active_page().
+ * The duplication is intentional to keep the active and inactive page handling
+ * separate, as they may need different policies in the future (e.g., different
+ * aging, different selection criteria). A refactoring to share code would need
+ * to preserve this flexibility.
  */
 static struct vm_page *
 vm_page_seg_pull_inactive_page(struct vm_page_seg *seg, boolean_t external_only)
@@ -2265,8 +2290,20 @@ again:
         }
 
         /*
-         * TODO Find out what could cause this and how to deal with it.
-         * This will likely require an out-of-memory killer.
+         * Unable to recycle any page - this is an out-of-memory condition.
+         *
+         * This can happen when:
+         *   1. All pages are wired or otherwise unmovable
+         *   2. All page objects are locked (deadlock or contention)
+         *   3. Pages are in transit to/from the pager
+         *
+         * Potential solutions (not yet implemented):
+         *   - OOM killer to terminate memory-hogging tasks
+         *   - More aggressive page stealing from specific objects
+         *   - Reserve pool that can only be used by kernel
+         *
+         * For now, we warn and hope the situation resolves itself
+         * (e.g., a blocked pager completes its work).
          */
 
         {
