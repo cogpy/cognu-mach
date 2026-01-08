@@ -1,16 +1,9 @@
-# Deprecated Workflows
+# GitHub Actions Workflows
 
-The following workflow files have been consolidated into the main `ci-cd.yml` pipeline:
+## Active Workflows
 
-- `build-test.yml.deprecated` - Original matrix build workflow
-- `build-test-i686.yml.deprecated` - i686-specific build workflow  
-- `build-test-x86_64.yml.deprecated` - x86_64-specific build workflow
-- `ci.yml.deprecated` - Original CI workflow
-
-## Migration to Consolidated CI/CD Pipeline
-
-All functionality from the deprecated workflows has been integrated into `ci-cd.yml` which provides:
-
+### ci-cd.yml
+Main CI/CD pipeline providing:
 - Multi-architecture builds (i686, x86_64)
 - Comprehensive static analysis
 - Regression testing
@@ -18,10 +11,14 @@ All functionality from the deprecated workflows has been integrated into `ci-cd.
 - Security scanning
 - Integration testing
 - Performance monitoring
-- Better artifact management
+- Artifact management
 
-The consolidated workflow is more efficient, reduces duplication, and provides better visibility into the build and test process.
+### release.yml
+Release workflow for creating distribution packages.
 
-## Cleanup
+### generate-kernel-feature-issue.yml
+Automation for kernel feature issue tracking.
 
-These deprecated files can be safely removed after confirming the new CI/CD pipeline works correctly.
+## Previous Consolidation
+
+The original separate workflow files (build-test.yml, build-test-i686.yml, build-test-x86_64.yml, ci.yml) were consolidated into the main `ci-cd.yml` pipeline for improved efficiency and reduced duplication.

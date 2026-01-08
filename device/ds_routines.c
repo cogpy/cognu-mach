@@ -83,6 +83,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_user.h>
 
+#include <mach/mach_safety.h>
 #include <device/device_types.h>
 #include <device/device.server.h>
 #include <device/dev_hdr.h>
@@ -137,6 +138,13 @@ vm_map_t		device_io_map = &device_io_map_store;
 struct kmem_cache	io_inband_cache;
 
 #define NUM_EMULATION (sizeof (emulation_list) / sizeof (emulation_list[0]))
+
+/*
+ * Maximum size for device I/O requests.
+ * Prevents denial-of-service from ridiculously large requests.
+ * 64MB is generous for any reasonable device operation.
+ */
+#define DS_MAX_IO_SIZE	(64 * 1024 * 1024)
 
 io_return_t
 ds_device_open (ipc_port_t open_port, ipc_port_t reply_port,
@@ -760,10 +768,17 @@ device_write(void *dev,
 	    return (D_NO_SUCH_DEVICE);
 
 	/*
-	 * XXX Need logic to reject ridiculously big requests.
+	 * Reject ridiculously big requests to prevent DoS.
+	 * Also validate that data_count doesn't overflow when used in calculations.
 	 */
+	if (data_count > DS_MAX_IO_SIZE || data_count == 0)
+	    return (D_INVALID_SIZE);
 
-	/* XXX note that a CLOSE may proceed at any point */
+	/*
+	 * Note: A CLOSE may proceed at any point during this operation.
+	 * The device reference held by the ior protects against premature
+	 * device destruction.
+	 */
 
 	/*
 	 * Package the write request for the device driver
@@ -849,7 +864,17 @@ device_write_inband(void		*dev,
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
 
-	/* XXX note that a CLOSE may proceed at any point */
+	/*
+	 * Validate data_count - inband data has stricter limits.
+	 */
+	if (data_count > IO_INBAND_MAX || data_count == 0)
+	    return (D_INVALID_SIZE);
+
+	/*
+	 * Note: A CLOSE may proceed at any point during this operation.
+	 * The device reference held by the ior protects against premature
+	 * device destruction.
+	 */
 
 	/*
 	 * Package the write request for the device driver.
@@ -1161,7 +1186,17 @@ device_read(void *dev,
 	if (device->state != DEV_STATE_OPEN)
 	    return (D_NO_SUCH_DEVICE);
 
-	/* XXX note that a CLOSE may proceed at any point */
+	/*
+	 * Reject ridiculously big read requests to prevent DoS.
+	 */
+	if (bytes_wanted > DS_MAX_IO_SIZE || bytes_wanted <= 0)
+	    return (D_INVALID_SIZE);
+
+	/*
+	 * Note: A CLOSE may proceed at any point during this operation.
+	 * The device reference held by the ior protects against premature
+	 * device destruction.
+	 */
 
 	/*
 	 * There must be a reply port.

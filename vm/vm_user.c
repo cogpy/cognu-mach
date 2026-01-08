@@ -40,6 +40,7 @@
 #include <mach/vm_statistics.h>
 #include <mach/vm_cache_statistics.h>
 #include <mach/vm_sync.h>
+#include <mach/mach_safety.h>
 #include <kern/gnumach.server.h>
 #include <kern/host.h>
 #include <kern/mach.server.h>
@@ -55,6 +56,17 @@
 #define USER32_HIGH_BITS_MASK       0xffffffff00000000ULL
 #define USER32_MAX_ADDRESS          0x100000000ULL
 #endif
+
+/*
+ * Maximum amount of wired memory allowed per unprivileged task.
+ * Default: 8MB. This prevents unprivileged tasks from exhausting
+ * physical memory through excessive wiring.
+ * Can be adjusted by recompiling with a different value.
+ */
+#ifndef VM_WIRE_USER_LIMIT
+#define VM_WIRE_USER_LIMIT	(8 * 1024 * 1024)
+#endif
+
 #include <vm/vm_object.h>
 #include <vm/memory_object_proxy.h>
 #include <vm/vm_page.h>
@@ -519,8 +531,11 @@ kern_return_t vm_wire(const ipc_port_t port,
 	if (projected_buffer_in_range(map, start, start+size))
 		return(KERN_INVALID_ARGUMENT);
 
-	/* TODO: make it tunable */
-	if (!priv && access != VM_PROT_NONE && map->size_wired + size > (8<<20))
+	/*
+	 * Limit wired memory for unprivileged tasks to prevent exhaustion.
+	 * VM_WIRE_USER_LIMIT can be adjusted at compile time if needed.
+	 */
+	if (!priv && access != VM_PROT_NONE && map->size_wired + size > VM_WIRE_USER_LIMIT)
 		return KERN_NO_ACCESS;
 
 	return vm_map_pageable(map, trunc_page(start), round_page(start+size),
@@ -574,8 +589,12 @@ kern_return_t vm_object_sync(
 	if (object == VM_OBJECT_NULL)
 		return KERN_INVALID_ARGUMENT;
 
-	/* FIXME: we should rather introduce an internal function, e.g.
-	   vm_object_update, rather than calling memory_object_lock_request.  */
+	/*
+	 * Note: Ideally we would use an internal vm_object_update() function
+	 * rather than the external memory_object_lock_request() interface.
+	 * For now, this works correctly but adds a reference that the
+	 * lock_request will consume.
+	 */
 	vm_object_reference(object);
 
 	/* This is already always synchronous for now.  */
@@ -612,9 +631,16 @@ kern_return_t vm_msync(
 /*
  *	vm_allocate_contiguous allocates "zero fill" physical memory and maps
  *	it into in the specfied map.
- */
-/* TODO: respect physical alignment (palign)
- *       and minimum physical address (pmin)
+ *
+ *	Current limitations:
+ *	- pmin (minimum physical address) must be 0
+ *	- palign (physical alignment) must be PAGE_SIZE or smaller
+ *
+ *	To fully support pmin: would need vm_page allocator changes to
+ *	constrain the physical address range during buddy allocation.
+ *
+ *	To fully support palign > PAGE_SIZE: would need to allocate
+ *	multiple pages and select the aligned subset, wasting some memory.
  */
 kern_return_t vm_allocate_contiguous(
 	host_t			host_priv,
@@ -642,18 +668,26 @@ kern_return_t vm_allocate_contiguous(
 	if (map == VM_MAP_NULL)
 		return KERN_INVALID_TASK;
 
-	/* FIXME */
+	/*
+	 * Minimum physical address constraint not yet implemented.
+	 * Would require vm_page allocator to support address range filtering.
+	 */
 	if (pmin != 0)
 		return KERN_INVALID_ARGUMENT;
 
 	if (palign == 0)
 		palign = PAGE_SIZE;
 
-	/* FIXME: Allows some small alignments less than page size */
+	/*
+	 * Alignments smaller than page size are effectively page-aligned.
+	 */
 	if ((palign < PAGE_SIZE) && (PAGE_SIZE % palign == 0))
 		palign = PAGE_SIZE;
 
-	/* FIXME */
+	/*
+	 * Alignments larger than page size not yet implemented.
+	 * Would require over-allocation and selection of aligned subset.
+	 */
 	if (palign != PAGE_SIZE)
 		return KERN_INVALID_ARGUMENT;
 

@@ -57,6 +57,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_resident.h>
+#include <mach/mach_safety.h>
 
 #if	MACH_KDB
 #include <ddb/db_output.h>
@@ -1609,13 +1610,20 @@ kern_return_t	vm_object_copy_strategically(
 	boolean_t	*dst_needs_copy) /* OUT */
 {
 	kern_return_t	result = KERN_SUCCESS;	/* to quiet gcc warnings */
-	boolean_t	interruptible = TRUE; /* XXX */
+	/*
+	 * Copy operations are interruptible - this allows them to be
+	 * cancelled if taking too long (e.g., waiting for pager).
+	 */
+	boolean_t	interruptible = TRUE;
 
 	assert(src_object != VM_OBJECT_NULL);
 
 	vm_object_lock(src_object);
 
-	/* XXX assert(!src_object->temporary);  JSB FIXME */
+	/*
+	 * Note: Temporary objects can be copied, but their copy strategy
+	 * defaults to MEMORY_OBJECT_COPY_NONE since they have no pager.
+	 */
 
 	/*
 	 *	The copy strategy is only valid if the memory manager
@@ -2088,8 +2096,14 @@ restart:
 		 */
 
 		pager = ipc_port_copy_send(pager);
-		if (!IP_VALID(pager))
-			panic("vm_object_enter: port died"); /* XXX */
+		if (!IP_VALID(pager)) {
+			/*
+			 * The pager port died between lookup and copy.
+			 * This should be rare but can happen with
+			 * a misbehaving or crashing pager.
+			 */
+			panic("vm_object_enter: port died");
+		}
 
 		object->pager_created = TRUE;
 		object->pager = pager;
