@@ -259,7 +259,13 @@ libkernel_a_SOURCES += \
 	kern/xpr.c \
 	kern/xpr.h \
 	kern/elf-load.c \
-	kern/boot_script.c
+	kern/boot_script.c \
+	kern/tensor.c \
+	kern/tensor.h \
+	kern/atomspace.c \
+	kern/atomspace.h \
+	kern/tensor_logic.c \
+	kern/tensor_logic.h
 EXTRA_DIST += \
 	kern/exc.defs \
 	kern/mach.srv \

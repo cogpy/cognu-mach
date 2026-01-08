@@ -57,7 +57,7 @@ make debug-hello              # Start with GDB server on :1234
 ## Project Structure
 
 ```
-kern/           # Core kernel (scheduler, IPC, memory, threads)
+kern/           # Core kernel (scheduler, IPC, memory, threads, tensor logic)
 vm/             # Virtual memory subsystem
 ipc/            # Inter-process communication
 i386/           # x86 32-bit architecture support (primary)
@@ -110,6 +110,11 @@ This project follows a 4-phase approach (see `CONTRIBUTING.md` for details):
 - `kern/gdb_stub.c` - GDB remote debugging stub
 - `kern/debug.c` - Kernel debugging utilities
 - `kern/printf.c` - Kernel printf implementation
+
+### Tensor Logic (Cognitive Computing)
+- `kern/tensor.h`, `kern/tensor.c` - Fixed-point tensor operations (ATen-inspired)
+- `kern/atomspace.h`, `kern/atomspace.c` - Hypergraph knowledge representation (AtomSpace-inspired)
+- `kern/tensor_logic.h`, `kern/tensor_logic.c` - Multi-entity tracking and network-aware operations
 
 ## Coding Standards
 
@@ -166,6 +171,7 @@ Always run these before considering changes complete:
 - `docs/debugging-guide.md` - Debugging techniques
 - `docs/new-developer-guide.md` - Getting started
 - `open-issues-gnumach.md` - Development roadmap
+- `kern/tensor_logic.h` - Tensor Logic API (ATen + AtomSpace integration)
 
 ## Git Workflow
 
