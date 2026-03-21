@@ -2,6 +2,10 @@
 # Creates release artifacts for the GNU Mach microkernel
 name: Release
 
+env:
+  # KSM-13: Prevent LFS failures from blocking CI/CD
+  GIT_LFS_SKIP_SMUDGE: "1"
+
 on:
   push:
     tags:
