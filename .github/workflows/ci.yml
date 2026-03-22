@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [i686, x86_64]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y build-essential cmake qemu-system-x86
+
+    - name: Configure and build
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_C_FLAGS="-m${{ matrix.arch == 'i686' && 32 || 64 }}"
+        make
+
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure
+
+    - name: Run QEMU tests
+      run: |
+        qemu-system-${{ matrix.arch }} -kernel build/cognu-mach -nographic -serial stdio
