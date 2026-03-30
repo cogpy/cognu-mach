@@ -1605,9 +1605,11 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/mach_clock.h kern/mach_factor.c kern/mach_factor.h \
 	kern/machine.c kern/machine.h kern/macros.h \
 	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
-	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
-	kern/perf_analysis.c kern/perf_analysis.h kern/perf_counters.c \
-	kern/perf_counters.h kern/printf.c kern/printf.h \
+	kern/mem_track.h kern/microkernel_optimizations.c \
+	kern/microkernel_optimizations.h kern/pc_sample.c \
+	kern/pc_sample.h kern/perf_analysis.c kern/perf_analysis.h \
+	kern/perf_counters.c kern/perf_counters.h kern/new_feature.c \
+	kern/new_feature.h kern/printf.c kern/printf.h \
 	kern/security_monitor.c kern/security_monitor.h \
 	kern/cfi_integrity.c kern/cfi_integrity.h kern/priority.c \
 	kern/priority.h kern/processor.c kern/processor.h \
@@ -1910,8 +1912,10 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/lock_mon.$(OBJEXT) kern/lttng.$(OBJEXT) \
 	kern/mach_clock.$(OBJEXT) kern/mach_factor.$(OBJEXT) \
 	kern/machine.$(OBJEXT) kern/mem_optimize.$(OBJEXT) \
-	kern/mem_track.$(OBJEXT) kern/pc_sample.$(OBJEXT) \
-	kern/perf_analysis.$(OBJEXT) kern/perf_counters.$(OBJEXT) \
+	kern/mem_track.$(OBJEXT) \
+	kern/microkernel_optimizations.$(OBJEXT) \
+	kern/pc_sample.$(OBJEXT) kern/perf_analysis.$(OBJEXT) \
+	kern/perf_counters.$(OBJEXT) kern/new_feature.$(OBJEXT) \
 	kern/printf.$(OBJEXT) kern/security_monitor.$(OBJEXT) \
 	kern/cfi_integrity.$(OBJEXT) kern/priority.$(OBJEXT) \
 	kern/processor.$(OBJEXT) kern/profile.$(OBJEXT) \
@@ -2493,7 +2497,9 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/mach_factor.Po \
 	kern/$(DEPDIR)/mach_host.server.Po kern/$(DEPDIR)/machine.Po \
 	kern/$(DEPDIR)/mem_optimize.Po kern/$(DEPDIR)/mem_track.Po \
-	kern/$(DEPDIR)/pc_sample.Po kern/$(DEPDIR)/perf_analysis.Po \
+	kern/$(DEPDIR)/microkernel_optimizations.Po \
+	kern/$(DEPDIR)/new_feature.Po kern/$(DEPDIR)/pc_sample.Po \
+	kern/$(DEPDIR)/perf_analysis.Po \
 	kern/$(DEPDIR)/perf_counters.Po kern/$(DEPDIR)/printf.Po \
 	kern/$(DEPDIR)/priority.Po kern/$(DEPDIR)/processor.Po \
 	kern/$(DEPDIR)/profile.Po kern/$(DEPDIR)/queue.Po \
@@ -3133,7 +3139,7 @@ CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2 -ffreestanding -nostdlib -g -O2 -Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wformat=2 -Wformat-security -Wold-style-definition -Wno-unused-parameter -Wno-sign-compare
 
 # We need this because we use $(CPP) to preprocess MIG .defs files.
-CPP = gcc -m32 -E -x c
+CPP = cpp -x c
 CPPFLAGS = 
 CSCOPE = cscope
 CTAGS = ctags
@@ -3178,7 +3184,7 @@ SHELL = /bin/bash
 STRIP = strip
 USER_CC = gcc -m32
 USER_CFLAGS = 
-USER_CPP = gcc -m32 -E
+USER_CPP = cpp
 USER_CPPFLAGS = 
 USER_MIG = 
 VERSION = 1.8
@@ -3438,9 +3444,11 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/mach_clock.h kern/mach_factor.c kern/mach_factor.h \
 	kern/machine.c kern/machine.h kern/macros.h \
 	kern/mem_optimize.c kern/mem_optimize.h kern/mem_track.c \
-	kern/mem_track.h kern/pc_sample.c kern/pc_sample.h \
-	kern/perf_analysis.c kern/perf_analysis.h kern/perf_counters.c \
-	kern/perf_counters.h kern/printf.c kern/printf.h \
+	kern/mem_track.h kern/microkernel_optimizations.c \
+	kern/microkernel_optimizations.h kern/pc_sample.c \
+	kern/pc_sample.h kern/perf_analysis.c kern/perf_analysis.h \
+	kern/perf_counters.c kern/perf_counters.h kern/new_feature.c \
+	kern/new_feature.h kern/printf.c kern/printf.h \
 	kern/security_monitor.c kern/security_monitor.h \
 	kern/cfi_integrity.c kern/cfi_integrity.h kern/priority.c \
 	kern/priority.h kern/processor.c kern/processor.h \
@@ -3917,6 +3925,7 @@ USER_TESTS := \
 	tests/test-thread-state \
 	tests/test-thread-state-fp \
 	tests/test-thread-migration \
+	tests/test-microkernel-optimizations \
 	tests/test-console-timestamps \
 	tests/test-tickless-timer \
 	tests/test-gdb-stub \
@@ -4311,11 +4320,15 @@ kern/mem_optimize.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/mem_track.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
+kern/microkernel_optimizations.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
 kern/pc_sample.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/perf_analysis.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/perf_counters.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/new_feature.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/printf.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
@@ -5478,6 +5491,8 @@ include kern/$(DEPDIR)/mach_host.server.Po # am--include-marker
 include kern/$(DEPDIR)/machine.Po # am--include-marker
 include kern/$(DEPDIR)/mem_optimize.Po # am--include-marker
 include kern/$(DEPDIR)/mem_track.Po # am--include-marker
+include kern/$(DEPDIR)/microkernel_optimizations.Po # am--include-marker
+include kern/$(DEPDIR)/new_feature.Po # am--include-marker
 include kern/$(DEPDIR)/pc_sample.Po # am--include-marker
 include kern/$(DEPDIR)/perf_analysis.Po # am--include-marker
 include kern/$(DEPDIR)/perf_counters.Po # am--include-marker
@@ -8733,6 +8748,13 @@ tests/test-thread-migration.log: tests/test-thread-migration
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+tests/test-microkernel-optimizations.log: tests/test-microkernel-optimizations
+	@p='tests/test-microkernel-optimizations'; \
+	b='tests/test-microkernel-optimizations'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/test-console-timestamps.log: tests/test-console-timestamps
 	@p='tests/test-console-timestamps'; \
 	b='tests/test-console-timestamps'; \
@@ -9429,6 +9451,8 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/machine.Po
 	-rm -f kern/$(DEPDIR)/mem_optimize.Po
 	-rm -f kern/$(DEPDIR)/mem_track.Po
+	-rm -f kern/$(DEPDIR)/microkernel_optimizations.Po
+	-rm -f kern/$(DEPDIR)/new_feature.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
 	-rm -f kern/$(DEPDIR)/perf_analysis.Po
 	-rm -f kern/$(DEPDIR)/perf_counters.Po
@@ -9972,6 +9996,8 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/machine.Po
 	-rm -f kern/$(DEPDIR)/mem_optimize.Po
 	-rm -f kern/$(DEPDIR)/mem_track.Po
+	-rm -f kern/$(DEPDIR)/microkernel_optimizations.Po
+	-rm -f kern/$(DEPDIR)/new_feature.Po
 	-rm -f kern/$(DEPDIR)/pc_sample.Po
 	-rm -f kern/$(DEPDIR)/perf_analysis.Po
 	-rm -f kern/$(DEPDIR)/perf_counters.Po
@@ -10524,6 +10550,7 @@ tests/test-console-timestamps: tests/test-console-timestamps.iso $(srcdir)/tests
 
 clean-test-%:
 	rm -f tests/test-$* tests/test-$*.iso tests/test-$*.log tests/test-$*.raw tests/test-$*.trs tests/module-$*
+	tests/test-kernel-feature
 
 #
 # Enhanced test framework integration

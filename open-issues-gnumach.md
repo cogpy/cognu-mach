@@ -10,8 +10,12 @@ The roadmap focuses on:
 3. **Community Engagement**: Providing opportunities for contributors at all skill levels
 4. **Long-term Vision**: Working toward a modern, efficient microkernel
 
-## FOSS Bounties Available
-- [ ] [FOSS Factory bounty (p265)](http://www.fossfactory.org/project/p265)
+## Community Contributions
+The GNU Mach project welcomes community contributions. While some historical bounty platforms (like FOSS Factory) are no longer operational, there are other ways to contribute:
+
+- **Issue tracking**: Check GitHub issues for tasks that need attention
+- **Community support**: Join the GNU Hurd mailing lists for guidance
+- **Alternative bounties**: Consider platforms like Bountysource or similar active bounty systems
 
 ## Phase 1: Foundation & Quick Wins (0-3 months)
 **Priority**: Critical | **Difficulty**: Low-Medium | **Dependencies**: None
