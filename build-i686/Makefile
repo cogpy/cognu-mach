@@ -10550,7 +10550,6 @@ tests/test-console-timestamps: tests/test-console-timestamps.iso $(srcdir)/tests
 
 clean-test-%:
 	rm -f tests/test-$* tests/test-$*.iso tests/test-$*.log tests/test-$*.raw tests/test-$*.trs tests/module-$*
-	tests/test-kernel-feature
 
 #
 # Enhanced test framework integration

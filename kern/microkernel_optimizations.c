@@ -114,7 +114,8 @@ void microkernel_optimize_scheduler_priority(thread_t thread)
     
     simple_lock(&global_mk_optimizer.lock);
     
-    /* Optimize priority for kernel threads */
+    /* Optimize priority for kernel threads (simplified to thread->task check
+     * as kernel_privilege/system_server fields are not available in this version) */
     if (thread && thread->task) {
         
         /* Boost priority for critical microkernel operations */
