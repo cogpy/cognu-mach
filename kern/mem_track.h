@@ -33,49 +33,49 @@ typedef int kern_return_t;
  * Memory allocation type identifiers for tracking.
  */
 typedef enum {
-    MEM_TYPE_GENERAL = 0,    /* General purpose kalloc */
-    MEM_TYPE_VM_OBJECTS,     /* VM objects and pages */
-    MEM_TYPE_IPC,            /* IPC ports, spaces, etc. */
-    MEM_TYPE_THREADS,        /* Thread structures */
-    MEM_TYPE_TASKS,          /* Task structures */
-    MEM_TYPE_DEVICE,         /* Device drivers */
-    MEM_TYPE_NETWORK,        /* Network buffers */
-    MEM_TYPE_MAX
+	MEM_TYPE_GENERAL = 0,    /* General purpose kalloc */
+	MEM_TYPE_VM_OBJECTS,     /* VM objects and pages */
+	MEM_TYPE_IPC,            /* IPC ports, spaces, etc. */
+	MEM_TYPE_THREADS,        /* Thread structures */
+	MEM_TYPE_TASKS,          /* Task structures */
+	MEM_TYPE_DEVICE,         /* Device drivers */
+	MEM_TYPE_NETWORK,        /* Network buffers */
+	MEM_TYPE_MAX
 } mem_type_t;
 
 /*
  * Memory allocation statistics per type.
  */
 struct mem_stats {
-    uint64_t alloc_count;     /* Number of allocations */
-    uint64_t free_count;      /* Number of frees */
-    uint64_t alloc_bytes;     /* Total bytes allocated */
-    uint64_t free_bytes;      /* Total bytes freed */
-    uint64_t current_bytes;   /* Current bytes in use */
-    uint64_t peak_bytes;      /* Peak memory usage */
-    uint64_t failed_allocs;   /* Failed allocation attempts */
-    uint32_t large_allocs;    /* Allocations > PAGE_SIZE */
+	uint64_t alloc_count;     /* Number of allocations */
+	uint64_t free_count;      /* Number of frees */
+	uint64_t alloc_bytes;     /* Total bytes allocated */
+	uint64_t free_bytes;      /* Total bytes freed */
+	uint64_t current_bytes;   /* Current bytes in use */
+	uint64_t peak_bytes;      /* Peak memory usage */
+	uint64_t failed_allocs;   /* Failed allocation attempts */
+	uint32_t large_allocs;    /* Allocations > PAGE_SIZE */
 };
 
 /*
  * System-wide memory tracking structure.
  */
 struct mem_tracker {
-    simple_lock_data_t lock;
-    struct mem_stats stats[MEM_TYPE_MAX];
-    struct mem_stats total_stats;
-    
-    /* Memory pressure indicators */
-    uint32_t low_memory_warnings;
-    uint32_t out_of_memory_events;
-    vm_size_t memory_threshold_low;   /* Low memory warning threshold */
-    vm_size_t memory_threshold_critical; /* Critical memory threshold */
-    
-    /* Pool statistics */
-    uint32_t slab_cache_hits;
-    uint32_t slab_cache_misses;
-    uint32_t page_alloc_slow;         /* Slow path page allocations */
-    uint32_t page_alloc_failed;       /* Failed page allocations */
+	simple_lock_data_t lock;
+	struct mem_stats stats[MEM_TYPE_MAX];
+	struct mem_stats total_stats;
+	
+	/* Memory pressure indicators */
+	uint32_t low_memory_warnings;
+	uint32_t out_of_memory_events;
+	vm_size_t memory_threshold_low;   /* Low memory warning threshold */
+	vm_size_t memory_threshold_critical; /* Critical memory threshold */
+	
+	/* Pool statistics */
+	uint32_t slab_cache_hits;
+	uint32_t slab_cache_misses;
+	uint32_t page_alloc_slow;         /* Slow path page allocations */
+	uint32_t page_alloc_failed;       /* Failed page allocations */
 };
 
 /*

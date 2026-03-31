@@ -66,12 +66,12 @@ struct kmem_cache;
  * The flags member is a read-only CPU-local copy of the parent cache flags.
  */
 struct kmem_cpu_pool {
-    simple_lock_data_t lock;
-    int flags;
-    int size;
-    int transfer_size;
-    int nr_objs;
-    void **array;
+	simple_lock_data_t lock;
+	int flags;
+	int size;
+	int transfer_size;
+	int nr_objs;
+	void **array;
 } __attribute__((aligned(CPU_L1_SIZE)));
 
 /*
@@ -81,10 +81,10 @@ struct kmem_cpu_pool {
  * a few objects are stored in a CPU pool.
  */
 struct kmem_cpu_pool_type {
-    size_t buf_size;
-    int array_size;
-    size_t array_align;
-    struct kmem_cache *array_cache;
+	size_t buf_size;
+	int array_size;
+	size_t array_align;
+	struct kmem_cache *array_cache;
 };
 #endif /* SLAB_USE_CPU_POOLS */
 
@@ -99,8 +99,8 @@ struct kmem_cpu_pool_type {
  * is instead used for redzoning if cache debugging is in effect.
  */
 union kmem_bufctl {
-    union kmem_bufctl *next;
-    unsigned long redzone;
+	union kmem_bufctl *next;
+	unsigned long redzone;
 };
 
 /*
@@ -112,19 +112,19 @@ union kmem_bufctl {
  * extension of the bufctl.
  */
 struct kmem_buftag {
-    unsigned long state;
+	unsigned long state;
 };
 
 /*
  * Page-aligned collection of unconstructed buffers.
  */
 struct kmem_slab {
-    struct kmem_cache *cache;
-    struct list list_node;
-    struct rbtree_node tree_node;
-    unsigned long nr_refs;
-    union kmem_bufctl *first_free;
-    void *addr;
+	struct kmem_cache *cache;
+	struct list list_node;
+	struct rbtree_node tree_node;
+	unsigned long nr_refs;
+	union kmem_bufctl *first_free;
+	void *addr;
 };
 
 /*
@@ -157,36 +157,36 @@ typedef void (*kmem_cache_ctor_t)(void *obj);
  */
 struct kmem_cache {
 #if SLAB_USE_CPU_POOLS
-    /* CPU pool layer */
-    struct kmem_cpu_pool cpu_pools[NCPUS];
-    struct kmem_cpu_pool_type *cpu_pool_type;
+	/* CPU pool layer */
+	struct kmem_cpu_pool cpu_pools[NCPUS];
+	struct kmem_cpu_pool_type *cpu_pool_type;
 #endif /* SLAB_USE_CPU_POOLS */
 
-    /* Slab layer */
-    simple_lock_data_t lock;
-    struct list node;   /* Cache list linkage */
-    struct list partial_slabs;
-    struct list free_slabs;
-    struct rbtree active_slabs;
-    int flags;
-    size_t bufctl_dist; /* Distance from buffer to bufctl   */
-    size_t slab_size;
-    long_natural_t bufs_per_slab;
-    long_natural_t nr_objs;  /* Number of allocated objects */
-    long_natural_t nr_free_slabs;
-    kmem_cache_ctor_t ctor;
-    /* All fields below are cold  */
-    size_t obj_size;    /* User-provided size */
-    /* Assuming ! SLAB_USE_CPU_POOLS, here is the cacheline boundary */
-    size_t align;
-    size_t buf_size;    /* Aligned object size  */
-    size_t color;
-    size_t color_max;
-    long_natural_t nr_bufs;  /* Total number of buffers */
-    long_natural_t nr_slabs;
-    char name[KMEM_CACHE_NAME_SIZE];
-    size_t buftag_dist; /* Distance from buffer to buftag */
-    size_t redzone_pad; /* Bytes from end of object to redzone word */
+	/* Slab layer */
+	simple_lock_data_t lock;
+	struct list node;   /* Cache list linkage */
+	struct list partial_slabs;
+	struct list free_slabs;
+	struct rbtree active_slabs;
+	int flags;
+	size_t bufctl_dist; /* Distance from buffer to bufctl   */
+	size_t slab_size;
+	long_natural_t bufs_per_slab;
+	long_natural_t nr_objs;  /* Number of allocated objects */
+	long_natural_t nr_free_slabs;
+	kmem_cache_ctor_t ctor;
+	/* All fields below are cold  */
+	size_t obj_size;    /* User-provided size */
+	/* Assuming ! SLAB_USE_CPU_POOLS, here is the cacheline boundary */
+	size_t align;
+	size_t buf_size;    /* Aligned object size  */
+	size_t color;
+	size_t color_max;
+	long_natural_t nr_bufs;  /* Total number of buffers */
+	long_natural_t nr_slabs;
+	char name[KMEM_CACHE_NAME_SIZE];
+	size_t buftag_dist; /* Distance from buffer to buftag */
+	size_t redzone_pad; /* Bytes from end of object to redzone word */
 } __cacheline_aligned;
 
 /*
@@ -206,8 +206,8 @@ typedef struct kmem_cache *kmem_cache_t;
  * Initialize a cache.
  */
 void kmem_cache_init(struct kmem_cache *cache, const char *name,
-                     size_t obj_size, size_t align,
-                     kmem_cache_ctor_t ctor, int flags);
+					 size_t obj_size, size_t align,
+					 kmem_cache_ctor_t ctor, int flags);
 
 /*
  * Allocate an object from a cache.
