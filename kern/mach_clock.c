@@ -835,3 +835,23 @@ boolean_t untimeout(void (*fcn)( void * param ), const void *param)
 	simple_unlock_irq(s, &timer_lock);
 	return (FALSE);
 }
+
+/*
+ * Get system uptime (time since boot) as a time_value_t.
+ */
+void
+clock_get_uptime(time_value_t *result)
+{
+result->seconds = uptime.seconds;
+result->microseconds = uptime.nanoseconds / 1000;
+}
+
+/*
+ * Get current wall-clock time in seconds and microseconds.
+ */
+void
+clock_get_system_microtime(unsigned int *secs, unsigned int *microsecs)
+{
+*secs = (unsigned int)time.seconds;
+*microsecs = (unsigned int)(time.nanoseconds / 1000);
+}

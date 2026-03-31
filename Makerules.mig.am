@@ -79,6 +79,7 @@ lib_dep_tr_for_defs_a_CPPFLAGS = $(AM_CPPFLAGS) \
 	  -sheader $*.server.h -server $*.server.c		\
 	  -list $*.server.msgids				\
 	  < $<
+	$(AM_V_at) $(top_srcdir)/scripts/fix-mig-64bit.sh $*.server.c 2>/dev/null || true
 %.user.defs.c: %.cli
 	$(AM_V_at) rm -f $@
 	$(AM_V_GEN) cp -p $< $@
@@ -87,6 +88,7 @@ lib_dep_tr_for_defs_a_CPPFLAGS = $(AM_CPPFLAGS) \
 	  -user $*.user.c -header $*.user.h			\
 	  -list $*.user.msgids					\
 	  < $<
+	$(AM_V_at) $(top_srcdir)/scripts/fix-mig-64bit.sh $*.user.c 2>/dev/null || true
 # Stand-alone rule to generate the list of message ids when neither
 # the client nor the server stubs are required.
 %.none.defs.c: %.defs

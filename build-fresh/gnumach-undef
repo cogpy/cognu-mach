@@ -1,0 +1,11 @@
+__divdi3
+__divmoddi4
+__ffsdi2
+__rel_iplt_end
+__rel_iplt_start
+__udivdi3
+__udivmoddi4
+__umoddi3
+_edata
+_end
+etext

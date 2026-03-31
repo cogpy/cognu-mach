@@ -1241,8 +1241,8 @@ extern int get_pci_list (char *buf);
 /* PCIe capability functions */
 extern int pci_find_capability (struct pci_dev *dev, int cap);
 extern int pci_find_ext_capability (struct pci_dev *dev, int cap);
-extern int pcie_capability_read_word (struct pci_dev *dev, int pos, u16 *val);
-extern int pcie_capability_write_word (struct pci_dev *dev, int pos, u16 val);
+extern int pcie_capability_read_word (struct pci_dev *dev, int pos, unsigned short *val);
+extern int pcie_capability_write_word (struct pci_dev *dev, int pos, unsigned short val);
 
 /* PCI resource management functions */
 extern int pci_request_regions(struct pci_dev *pdev, const char *res_name);
@@ -1251,8 +1251,8 @@ extern int pci_assign_resource(struct pci_dev *dev, int i);
 extern void pci_setup_device_resources(struct pci_dev *dev);
 
 /* PCI configuration space access for extended (PCIe) registers */
-extern int pci_read_config_dword_ext(struct pci_dev *dev, int pos, u32 *val);
-extern int pci_write_config_dword_ext(struct pci_dev *dev, int pos, u32 val);
+extern int pci_read_config_dword_ext(struct pci_dev *dev, int pos, unsigned int *val);
+extern int pci_write_config_dword_ext(struct pci_dev *dev, int pos, unsigned int val);
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */
