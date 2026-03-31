@@ -38,15 +38,15 @@ extern void clock_get_uptime(time_value_t *);
 
 /* CFI call stack for return address validation */
 static struct cfi_call_stack {
-    uintptr_t addresses[CFI_MAX_CALL_DEPTH];
-    int depth;
+	uintptr_t addresses[CFI_MAX_CALL_DEPTH];
+	int depth;
 } cfi_call_stack;
 
 /* Valid function entry points table (simplified implementation) */
 static struct cfi_function_table {
-    uintptr_t *entries;
-    int count;
-    int capacity;
+	uintptr_t *entries;
+	int count;
+	int capacity;
 } function_table;
 
 /*
@@ -55,15 +55,15 @@ static struct cfi_function_table {
 void
 cfi_init_context(struct cfi_context *ctx, uintptr_t stack_base, uintptr_t stack_limit)
 {
-    if (!ctx) {
-        return;
-    }
-    
-    ctx->expected_return = 0;
-    ctx->call_site = 0;
-    ctx->stack_base = stack_base;
-    ctx->stack_limit = stack_limit;
-    ctx->magic = CFI_RETURN_MAGIC;
+	if (!ctx) {
+		return;
+	}
+	
+	ctx->expected_return = 0;
+	ctx->call_site = 0;
+	ctx->stack_base = stack_base;
+	ctx->stack_limit = stack_limit;
+	ctx->magic = CFI_RETURN_MAGIC;
 }
 
 /*
@@ -72,25 +72,25 @@ cfi_init_context(struct cfi_context *ctx, uintptr_t stack_base, uintptr_t stack_
 cfi_result_t
 cfi_validate_return(uintptr_t return_addr, uintptr_t expected)
 {
-    /* Check if return address is in valid code region */
-    if (return_addr < CFI_VALID_CODE_START || return_addr > CFI_VALID_CODE_END) {
-        security_event_log(SEC_EVENT_CFI_VIOLATION, return_addr, "invalid_return_region");
-        return CFI_INVALID_RETURN_ADDR;
-    }
-    
-    /* Check if return address matches expected (if provided) */
-    if (expected != 0 && return_addr != expected) {
-        security_event_log(SEC_EVENT_CFI_VIOLATION, return_addr, "return_mismatch");
-        return CFI_INVALID_RETURN_ADDR;
-    }
-    
-    /* Validate return address is properly aligned */
-    if ((return_addr & 0x3) != 0) {
-        security_event_log(SEC_EVENT_CFI_VIOLATION, return_addr, "unaligned_return");
-        return CFI_INVALID_RETURN_ADDR;
-    }
-    
-    return CFI_VALID;
+	/* Check if return address is in valid code region */
+	if (return_addr < CFI_VALID_CODE_START || return_addr > CFI_VALID_CODE_END) {
+		security_event_log(SEC_EVENT_CFI_VIOLATION, return_addr, "invalid_return_region");
+		return CFI_INVALID_RETURN_ADDR;
+	}
+	
+	/* Check if return address matches expected (if provided) */
+	if (expected != 0 && return_addr != expected) {
+		security_event_log(SEC_EVENT_CFI_VIOLATION, return_addr, "return_mismatch");
+		return CFI_INVALID_RETURN_ADDR;
+	}
+	
+	/* Validate return address is properly aligned */
+	if ((return_addr & 0x3) != 0) {
+		security_event_log(SEC_EVENT_CFI_VIOLATION, return_addr, "unaligned_return");
+		return CFI_INVALID_RETURN_ADDR;
+	}
+	
+	return CFI_VALID;
 }
 
 /*
@@ -99,30 +99,30 @@ cfi_validate_return(uintptr_t return_addr, uintptr_t expected)
 cfi_result_t
 cfi_validate_call_target(uintptr_t target)
 {
-    /* Check if target is in valid code region */
-    if (target < CFI_VALID_CODE_START || target > CFI_VALID_CODE_END) {
-        security_event_log(SEC_EVENT_CFI_VIOLATION, target, "invalid_call_target");
-        return CFI_INVALID_CALL_TARGET;
-    }
-    
-    /* Check alignment */
-    if ((target & 0x3) != 0) {
-        security_event_log(SEC_EVENT_CFI_VIOLATION, target, "unaligned_call");
-        return CFI_INVALID_CALL_TARGET;
-    }
-    
-    /* Check against function table if available */
-    if (function_table.entries && function_table.count > 0) {
-        for (int i = 0; i < function_table.count; i++) {
-            if (function_table.entries[i] == target) {
-                return CFI_VALID;
-            }
-        }
-        security_event_log(SEC_EVENT_CFI_VIOLATION, target, "unlisted_function");
-        return CFI_INVALID_CALL_TARGET;
-    }
-    
-    return CFI_VALID;
+	/* Check if target is in valid code region */
+	if (target < CFI_VALID_CODE_START || target > CFI_VALID_CODE_END) {
+		security_event_log(SEC_EVENT_CFI_VIOLATION, target, "invalid_call_target");
+		return CFI_INVALID_CALL_TARGET;
+	}
+	
+	/* Check alignment */
+	if ((target & 0x3) != 0) {
+		security_event_log(SEC_EVENT_CFI_VIOLATION, target, "unaligned_call");
+		return CFI_INVALID_CALL_TARGET;
+	}
+	
+	/* Check against function table if available */
+	if (function_table.entries && function_table.count > 0) {
+		for (int i = 0; i < function_table.count; i++) {
+			if (function_table.entries[i] == target) {
+				return CFI_VALID;
+			}
+		}
+		security_event_log(SEC_EVENT_CFI_VIOLATION, target, "unlisted_function");
+		return CFI_INVALID_CALL_TARGET;
+	}
+	
+	return CFI_VALID;
 }
 
 /*
@@ -131,34 +131,34 @@ cfi_validate_call_target(uintptr_t target)
 cfi_result_t
 cfi_check_stack_integrity(struct cfi_context *ctx)
 {
-    uintptr_t current_sp;
-    
-    if (!ctx || ctx->magic != CFI_RETURN_MAGIC) {
-        return CFI_STACK_CORRUPTION;
-    }
-    
-    /* Get current stack pointer */
+	uintptr_t current_sp;
+	
+	if (!ctx || ctx->magic != CFI_RETURN_MAGIC) {
+		return CFI_STACK_CORRUPTION;
+	}
+	
+	/* Get current stack pointer */
 #if defined(__x86_64__)
-    asm volatile("movq %%rsp, %0" : "=r"(current_sp));
+	asm volatile("movq %%rsp, %0" : "=r"(current_sp));
 #elif defined(__i386__)
-    asm volatile("movl %%esp, %0" : "=r"(current_sp));
+	asm volatile("movl %%esp, %0" : "=r"(current_sp));
 #else
-    #error "Unsupported architecture for stack pointer read"
+	#error "Unsupported architecture for stack pointer read"
 #endif
-    
-    /* Check if stack pointer is within expected bounds */
-    if (current_sp < ctx->stack_limit || current_sp > ctx->stack_base) {
-        security_event_log(SEC_EVENT_STACK_SMASH, current_sp, "stack_bounds");
-        return CFI_STACK_CORRUPTION;
-    }
-    
-    /* Check for stack overflow (growing downward) */
-    if (current_sp < ctx->stack_limit + 1024) {  /* 1KB safety margin */
-        security_event_log(SEC_EVENT_STACK_SMASH, current_sp, "stack_overflow");
-        return CFI_BUFFER_OVERFLOW;
-    }
-    
-    return CFI_VALID;
+	
+	/* Check if stack pointer is within expected bounds */
+	if (current_sp < ctx->stack_limit || current_sp > ctx->stack_base) {
+		security_event_log(SEC_EVENT_STACK_SMASH, current_sp, "stack_bounds");
+		return CFI_STACK_CORRUPTION;
+	}
+	
+	/* Check for stack overflow (growing downward) */
+	if (current_sp < ctx->stack_limit + 1024) {  /* 1KB safety margin */
+		security_event_log(SEC_EVENT_STACK_SMASH, current_sp, "stack_overflow");
+		return CFI_BUFFER_OVERFLOW;
+	}
+	
+	return CFI_VALID;
 }
 
 /*
@@ -167,13 +167,13 @@ cfi_check_stack_integrity(struct cfi_context *ctx)
 static void
 cfi_push_call(uintptr_t return_addr)
 {
-    if (cfi_call_stack.depth < CFI_MAX_CALL_DEPTH) {
-        cfi_call_stack.addresses[cfi_call_stack.depth] = return_addr;
-        cfi_call_stack.depth++;
-    } else {
-        /* Call stack full - log warning but continue */
-        security_event_log(SEC_EVENT_CFI_VIOLATION, return_addr, "call_stack_full");
-    }
+	if (cfi_call_stack.depth < CFI_MAX_CALL_DEPTH) {
+		cfi_call_stack.addresses[cfi_call_stack.depth] = return_addr;
+		cfi_call_stack.depth++;
+	} else {
+		/* Call stack full - log warning but continue */
+		security_event_log(SEC_EVENT_CFI_VIOLATION, return_addr, "call_stack_full");
+	}
 }
 
 /*
@@ -182,12 +182,12 @@ cfi_push_call(uintptr_t return_addr)
 static uintptr_t
 cfi_pop_call(void)
 {
-    if (cfi_call_stack.depth > 0) {
-        cfi_call_stack.depth--;
-        return cfi_call_stack.addresses[cfi_call_stack.depth];
-    }
-    
-    return 0;
+	if (cfi_call_stack.depth > 0) {
+		cfi_call_stack.depth--;
+		return cfi_call_stack.addresses[cfi_call_stack.depth];
+	}
+	
+	return 0;
 }
 
 /*
@@ -196,18 +196,18 @@ cfi_pop_call(void)
 cfi_result_t
 cfi_protected_call(uintptr_t target, uintptr_t return_site)
 {
-    cfi_result_t result;
-    
-    /* Validate call target */
-    result = cfi_validate_call_target(target);
-    if (result != CFI_VALID) {
-        return result;
-    }
-    
-    /* Push return information to call stack */
-    cfi_push_call(return_site);
-    
-    return CFI_VALID;
+	cfi_result_t result;
+	
+	/* Validate call target */
+	result = cfi_validate_call_target(target);
+	if (result != CFI_VALID) {
+		return result;
+	}
+	
+	/* Push return information to call stack */
+	cfi_push_call(return_site);
+	
+	return CFI_VALID;
 }
 
 /*
@@ -216,19 +216,19 @@ cfi_protected_call(uintptr_t target, uintptr_t return_site)
 cfi_result_t
 cfi_protected_return(uintptr_t return_addr)
 {
-    uintptr_t expected_return;
-    cfi_result_t result;
-    
-    /* Pop expected return address */
-    expected_return = cfi_pop_call();
-    
-    /* Validate return address */
-    result = cfi_validate_return(return_addr, expected_return);
-    if (result != CFI_VALID) {
-        return result;
-    }
-    
-    return CFI_VALID;
+	uintptr_t expected_return;
+	cfi_result_t result;
+	
+	/* Pop expected return address */
+	expected_return = cfi_pop_call();
+	
+	/* Validate return address */
+	result = cfi_validate_return(return_addr, expected_return);
+	if (result != CFI_VALID) {
+		return result;
+	}
+	
+	return CFI_VALID;
 }
 
 /*
@@ -237,15 +237,15 @@ cfi_protected_return(uintptr_t return_addr)
 void
 cfi_init(void)
 {
-    /* Initialize call stack */
-    memset(&cfi_call_stack, 0, sizeof(cfi_call_stack));
-    
-    /* Initialize function table */
-    function_table.entries = NULL;
-    function_table.count = 0;
-    function_table.capacity = 0;
-    
-    printf("CFI integrity checking initialized\n");
+	/* Initialize call stack */
+	memset(&cfi_call_stack, 0, sizeof(cfi_call_stack));
+	
+	/* Initialize function table */
+	function_table.entries = NULL;
+	function_table.count = 0;
+	function_table.capacity = 0;
+	
+	printf("CFI integrity checking initialized\n");
 }
 
 /*
@@ -254,9 +254,9 @@ cfi_init(void)
 kern_return_t
 cfi_add_function(uintptr_t entry_point)
 {
-    /* For simplified implementation, we don't maintain dynamic table */
-    /* In production, this would manage a hash table of valid functions */
-    return KERN_SUCCESS;
+	/* For simplified implementation, we don't maintain dynamic table */
+	/* In production, this would manage a hash table of valid functions */
+	return KERN_SUCCESS;
 }
 
 /*
@@ -265,8 +265,8 @@ cfi_add_function(uintptr_t entry_point)
 kern_return_t
 cfi_remove_function(uintptr_t entry_point)
 {
-    /* Simplified implementation */
-    return KERN_SUCCESS;
+	/* Simplified implementation */
+	return KERN_SUCCESS;
 }
 
 /*
@@ -275,7 +275,7 @@ cfi_remove_function(uintptr_t entry_point)
 int
 cfi_get_call_depth(void)
 {
-    return cfi_call_stack.depth;
+	return cfi_call_stack.depth;
 }
 
 /*
@@ -284,10 +284,10 @@ cfi_get_call_depth(void)
 void
 cfi_dump_call_stack(void)
 {
-    int i;
-    
-    printf("CFI Call Stack (depth %d):\n", cfi_call_stack.depth);
-    for (i = cfi_call_stack.depth - 1; i >= 0; i--) {
-        printf("  %d: 0x%x\n", i, (unsigned int)cfi_call_stack.addresses[i]);
-    }
+	int i;
+	
+	printf("CFI Call Stack (depth %d):\n", cfi_call_stack.depth);
+	for (i = cfi_call_stack.depth - 1; i >= 0; i--) {
+		printf("  %d: 0x%x\n", i, (unsigned int)cfi_call_stack.addresses[i]);
+	}
 }

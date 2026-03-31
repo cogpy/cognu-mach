@@ -67,17 +67,17 @@ typedef int32_t tensor_scalar_t;
  * Tensor data types
  */
 typedef enum {
-    TENSOR_DTYPE_INT32,         /* 32-bit signed integer */
-    TENSOR_DTYPE_FIXED16,       /* 16.16 fixed-point */
-    TENSOR_DTYPE_UINT8,         /* 8-bit unsigned (for quantized) */
+	TENSOR_DTYPE_INT32,         /* 32-bit signed integer */
+	TENSOR_DTYPE_FIXED16,       /* 16.16 fixed-point */
+	TENSOR_DTYPE_UINT8,         /* 8-bit unsigned (for quantized) */
 } tensor_dtype_t;
 
 /*
  * Tensor storage layout
  */
 typedef enum {
-    TENSOR_LAYOUT_CONTIGUOUS,   /* Row-major contiguous */
-    TENSOR_LAYOUT_STRIDED,      /* Strided access pattern */
+	TENSOR_LAYOUT_CONTIGUOUS,   /* Row-major contiguous */
+	TENSOR_LAYOUT_STRIDED,      /* Strided access pattern */
 } tensor_layout_t;
 
 /*
@@ -85,15 +85,15 @@ typedef enum {
  * Designed to be small and cache-friendly
  */
 struct tensor {
-    tensor_scalar_t     *data;          /* Data pointer */
-    uint32_t            shape[TENSOR_MAX_DIMS]; /* Dimension sizes */
-    uint32_t            strides[TENSOR_MAX_DIMS]; /* Access strides */
-    uint16_t            ndim;           /* Number of dimensions */
-    uint16_t            flags;          /* Tensor flags */
-    tensor_dtype_t      dtype;          /* Data type */
-    uint32_t            numel;          /* Total number of elements */
-    uint32_t            refcount;       /* Reference count */
-    decl_simple_lock_data(, lock)       /* Tensor lock */
+	tensor_scalar_t     *data;          /* Data pointer */
+	uint32_t            shape[TENSOR_MAX_DIMS]; /* Dimension sizes */
+	uint32_t            strides[TENSOR_MAX_DIMS]; /* Access strides */
+	uint16_t            ndim;           /* Number of dimensions */
+	uint16_t            flags;          /* Tensor flags */
+	tensor_dtype_t      dtype;          /* Data type */
+	uint32_t            numel;          /* Total number of elements */
+	uint32_t            refcount;       /* Reference count */
+	decl_simple_lock_data(, lock)       /* Tensor lock */
 };
 
 typedef struct tensor *tensor_t;
@@ -111,11 +111,11 @@ typedef struct tensor *tensor_t;
  * Used for entity representations in kernel
  */
 struct tensor_embedding {
-    tensor_scalar_t     values[TENSOR_EMBED_DIM];
-    uint32_t            entity_id;      /* Associated entity */
-    uint32_t            timestamp;      /* Last update time */
-    uint16_t            dim;            /* Actual dimension used */
-    uint16_t            flags;          /* Embedding flags */
+	tensor_scalar_t     values[TENSOR_EMBED_DIM];
+	uint32_t            entity_id;      /* Associated entity */
+	uint32_t            timestamp;      /* Last update time */
+	uint16_t            dim;            /* Actual dimension used */
+	uint16_t            flags;          /* Embedding flags */
 };
 
 typedef struct tensor_embedding *tensor_embedding_t;
@@ -139,11 +139,11 @@ typedef struct tensor_embedding *tensor_embedding_t;
  * Tensor creation and destruction
  */
 kern_return_t tensor_create(tensor_t *result, uint32_t *shape,
-                           uint16_t ndim, tensor_dtype_t dtype);
+						   uint16_t ndim, tensor_dtype_t dtype);
 kern_return_t tensor_create_1d(tensor_t *result, uint32_t size);
 kern_return_t tensor_create_2d(tensor_t *result, uint32_t rows, uint32_t cols);
 kern_return_t tensor_create_from_data(tensor_t *result, tensor_scalar_t *data,
-                                      uint32_t *shape, uint16_t ndim);
+									  uint32_t *shape, uint16_t ndim);
 void tensor_destroy(tensor_t t);
 void tensor_retain(tensor_t t);
 void tensor_release(tensor_t t);
@@ -198,12 +198,12 @@ tensor_scalar_t tensor_embedding_l2_distance(tensor_embedding_t a, tensor_embedd
  * Embedding arithmetic
  */
 void tensor_embedding_add(tensor_embedding_t result,
-                         tensor_embedding_t a, tensor_embedding_t b);
+						 tensor_embedding_t a, tensor_embedding_t b);
 void tensor_embedding_scale(tensor_embedding_t result,
-                           tensor_embedding_t a, tensor_scalar_t s);
+						   tensor_embedding_t a, tensor_scalar_t s);
 void tensor_embedding_lerp(tensor_embedding_t result,
-                          tensor_embedding_t a, tensor_embedding_t b,
-                          tensor_scalar_t t);
+						  tensor_embedding_t a, tensor_embedding_t b,
+						  tensor_scalar_t t);
 
 /*
  * Tensor memory pool for kernel allocations
