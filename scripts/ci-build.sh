@@ -258,15 +258,27 @@ run_tests() {
     
     log "Running tests for $arch..."
     
-    # Basic smoke tests
+    cd "build-${arch}"
+    
+    # Basic smoke tests - check if target exists before running
     log "Running basic functionality tests..."
-    timeout 300 make run-hello || warn "hello test had issues: exit code $?"
+    if make -n run-hello >/dev/null 2>&1; then
+        timeout 300 make run-hello || warn "hello test had issues: exit code $?"
+    else
+        warn "run-hello target not available (tests not built) - skipping"
+    fi
     
     if command -v qemu-system-i386 &> /dev/null && [[ "$arch" == "i686" ]]; then
         log "Running additional i686 tests..."
-        timeout 300 make run-mach_port || warn "mach_port test had issues: exit code $?"
-        timeout 300 make run-console-timestamps || warn "console-timestamps test had issues: exit code $?"
+        if make -n run-mach_port >/dev/null 2>&1; then
+            timeout 300 make run-mach_port || warn "mach_port test had issues: exit code $?"
+        fi
+        if make -n run-console-timestamps >/dev/null 2>&1; then
+            timeout 300 make run-console-timestamps || warn "console-timestamps test had issues: exit code $?"
+        fi
     fi
+    
+    cd ..
 }
 
 run_analysis() {

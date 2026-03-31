@@ -69,11 +69,28 @@ if [[ -z "${FILE:-}" && "$BATCH_PROCESS" != "true" && "$UPDATE_STRUCT_SIZES" != 
 fi
 
 # Enhanced architecture detection
+# Priority: config.status host type > CC variable > fallback
+# Note: Do NOT grep Makefile for -m32 because automake conditionals
+# (e.g. 'if HOST_ix86') leave the literal string '-m32' in the
+# generated Makefile even when the conditional is false.
 detect_architecture() {
-    if [ "${CC:-}" = "gcc -m32" ] || grep -q "\-m32" Makefile 2>/dev/null || grep -q "i686-gnu" config.status 2>/dev/null; then
+    # First, check config.status for the authoritative host type
+    if grep -q 'host_alias=.*x86_64\|S\["host"\]="x86_64' config.status 2>/dev/null; then
+        echo "x86_64"
+    elif grep -q 'host_alias=.*i686\|S\["host"\]="i686\|i686-gnu' config.status 2>/dev/null; then
+        echo "i686"
+    elif [ "${CC:-}" = "gcc -m32" ]; then
         echo "i686"
     else
-        echo "x86_64"
+        # Fallback: compile a test to check pointer size
+        local ptr_size
+        ptr_size=$(echo 'int main(){return sizeof(void*);}' | gcc -x c - -o /tmp/ptr_test 2>/dev/null && /tmp/ptr_test; echo $?) || true
+        rm -f /tmp/ptr_test
+        if [ "$ptr_size" = "4" ]; then
+            echo "i686"
+        else
+            echo "x86_64"
+        fi
     fi
 }
 
