@@ -194,7 +194,7 @@ static io_return_t virtio_net_receive(struct virtio_net_dev *netdev,
 /*
  * Network device open
  */
-static io_return_t virtio_net_open(dev_t dev, dev_mode_t mode, io_req_t ior)
+static io_return_t __attribute__((unused)) virtio_net_open(dev_t dev, dev_mode_t mode, io_req_t ior)
 {
 	int minor = minor(dev);
 	
@@ -209,7 +209,7 @@ static io_return_t virtio_net_open(dev_t dev, dev_mode_t mode, io_req_t ior)
 /*
  * Network device close
  */
-static void virtio_net_close(dev_t dev)
+static void __attribute__((unused)) virtio_net_close(dev_t dev)
 {
 	int minor = minor(dev);
 	
@@ -221,7 +221,7 @@ static void virtio_net_close(dev_t dev)
 /*
  * Network device read (receive)
  */
-static io_return_t virtio_net_read(dev_t dev, io_req_t ior)
+static io_return_t __attribute__((unused)) virtio_net_read(dev_t dev, io_req_t ior)
 {
 	int minor = minor(dev);
 	
@@ -235,7 +235,7 @@ static io_return_t virtio_net_read(dev_t dev, io_req_t ior)
 /*
  * Network device write (transmit)
  */
-static io_return_t virtio_net_write(dev_t dev, io_req_t ior)
+static io_return_t __attribute__((unused)) virtio_net_write(dev_t dev, io_req_t ior)
 {
 	int minor = minor(dev);
 	
@@ -249,7 +249,7 @@ static io_return_t virtio_net_write(dev_t dev, io_req_t ior)
 /*
  * Network device get status
  */
-static io_return_t virtio_net_get_status(dev_t dev, dev_flavor_t flavor,
+static io_return_t __attribute__((unused)) virtio_net_get_status(dev_t dev, dev_flavor_t flavor,
 										dev_status_t status, natural_t *count)
 {
 	int minor = minor(dev);
@@ -287,8 +287,8 @@ static io_return_t virtio_net_get_status(dev_t dev, dev_flavor_t flavor,
 	return D_SUCCESS;
 }
 
-/* For now, comment out the device operations structure until the driver is
- * integrated with the Mach device layer.
+/* Disabled until integrated with the Mach device layer. */
+#if 0
 static struct dev_ops virtio_net_ops = {
 	virtio_net_open,
 	virtio_net_close,
@@ -305,7 +305,7 @@ static struct dev_ops virtio_net_ops = {
 	NULL,	/* subdev */
 	NULL	/* dev_info */
 };
-*/
+#endif
 
 /*
  * Virtio network driver probe function
