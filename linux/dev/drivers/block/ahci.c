@@ -229,6 +229,12 @@ struct ahci_host {
 
 /* Our own data */
 
+/* ATA Word 76: SATA capabilities bit definitions */
+#define ATA_SATA_CAP_NCQ	(1 << 8)	/* Supports Native Command Queuing */
+
+/* ATA Word 75: Queue depth mask (bits 4:0) */
+#define ATA_QUEUE_DEPTH_MASK	0x1f
+
 static struct port {
 	/* memory-mapped regions */
 	const volatile struct ahci_host *ahci_host;
@@ -814,9 +820,9 @@ static int ahci_identify(const volatile struct ahci_host *ahci_host, const volat
 			printk("sd%u: %s, %uMB w/%dkB Cache\n", (unsigned) (port - ports), id.model, (unsigned) (port->capacity/2048), id.buf_size/2);
 			
 		/* Detect NCQ support */
-		if ((readl(&ahci_host->cap) & HOST_CAP_NCQ) && (id.word76 & 0x0100)) {
+		if ((readl(&ahci_host->cap) & HOST_CAP_NCQ) && (id.word76 & ATA_SATA_CAP_NCQ)) {
 			/* Both controller and device support NCQ */
-			port->ncq_depth = (id.word75 & 0x1f) + 1;
+			port->ncq_depth = (id.word75 & ATA_QUEUE_DEPTH_MASK) + 1;
 			if (port->ncq_depth > AHCI_MAX_CMDS)
 				port->ncq_depth = AHCI_MAX_CMDS;
 			printk("sd%u: NCQ enabled, queue depth %u\n", (unsigned) (port - ports), port->ncq_depth);

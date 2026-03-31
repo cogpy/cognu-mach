@@ -842,8 +842,8 @@ boolean_t untimeout(void (*fcn)( void * param ), const void *param)
 void
 clock_get_uptime(time_value_t *result)
 {
-result->seconds = uptime.seconds;
-result->microseconds = uptime.nanoseconds / 1000;
+	result->seconds = uptime.seconds;
+	result->microseconds = uptime.nanoseconds / 1000;
 }
 
 /*
@@ -852,6 +852,6 @@ result->microseconds = uptime.nanoseconds / 1000;
 void
 clock_get_system_microtime(unsigned int *secs, unsigned int *microsecs)
 {
-*secs = (unsigned int)time.seconds;
-*microsecs = (unsigned int)(time.nanoseconds / 1000);
+	*secs = (unsigned int)time.seconds;
+	*microsecs = (unsigned int)(time.nanoseconds / 1000);
 }
