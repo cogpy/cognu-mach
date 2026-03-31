@@ -285,12 +285,11 @@ jobs:
       run: |
         # Fail if there are critical security issues found
         if [ -f analysis-reports/cppcheck-report.txt ]; then
-          if grep -E "(error|critical)" analysis-reports/cppcheck-report.txt; then
+          if grep -E ":[0-9]+:[0-9]+: (error|critical):" analysis-reports/cppcheck-report.txt; then
             echo "Critical issues found in static analysis"
             exit 1
           fi
         fi
-        
   # Regression testing
   test:
     name: Regression Tests (${{ matrix.arch }})

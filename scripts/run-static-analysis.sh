@@ -119,10 +119,15 @@ fi
 # Run cppcheck if available
 if check_tool cppcheck; then
     echo -e "${BLUE}=== Running cppcheck ===${NC}"
+    SUPPR_OPT=""
+    if [ -f "$PROJECT_ROOT/.cppcheck-suppressions" ]; then
+        SUPPR_OPT="--suppressions-list=$PROJECT_ROOT/.cppcheck-suppressions"
+    fi
     cppcheck --enable=all --error-exitcode=0 \
              --suppress=missingIncludeSystem \
              --suppress=unmatchedSuppression \
              --inline-suppr \
+             ${SUPPR_OPT:+"$SUPPR_OPT"} \
              -I include -I i386/include -I x86_64/include \
              $FILE_PATTERNS 2>&1 | tee "$OUTPUT_DIR/cppcheck-report.txt"
     echo -e "${GREEN}Cppcheck report saved to $OUTPUT_DIR/cppcheck-report.txt${NC}"
