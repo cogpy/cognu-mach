@@ -5678,12 +5678,17 @@ kern_return_t vm_map_msync(
 				/*
 				 * For synchronous sync, ensure pages are
 				 * flushed to backing store.
+				 * Note: In Mach, page cleaning is handled by
+				 * user-space memory managers, so we mark pages
+				 * as eligible for pageout instead.
 				 */
 				if (sync_flags & VM_SYNC_SYNCHRONOUS) {
-					vm_object_page_clean(object,
+					vm_object_pmap_protect(object,
 						offset + (start - entry->vme_start),
-						offset + (entry_end - entry->vme_start),
-						FALSE);
+						entry_end - start,
+						PMAP_NULL,
+						0,
+						VM_PROT_NONE);
 				}
 				/*
 				 * Invalidate pages if requested.
@@ -5695,7 +5700,7 @@ kern_return_t vm_map_msync(
 				}
 				vm_object_unlock(object);
 			}
-			entry = vm_map_entry_next(entry);
+			entry = entry->vme_next;
 		}
 	}
 

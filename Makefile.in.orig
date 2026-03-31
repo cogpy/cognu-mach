@@ -1626,7 +1626,9 @@ am__libkernel_a_SOURCES_DIST = ddb/db_access.c ddb/db_access.h \
 	kern/thread_swap.c kern/thread_swap.h kern/timer.c \
 	kern/timer.h kern/valgrind.c kern/vdso.c kern/vdso.h \
 	kern/development_tools.c kern/development_tools.h kern/xpr.c \
-	kern/xpr.h kern/elf-load.c kern/boot_script.c util/atoi.c \
+	kern/xpr.h kern/elf-load.c kern/boot_script.c kern/tensor.c \
+	kern/tensor.h kern/atomspace.c kern/atomspace.h \
+	kern/tensor_logic.c kern/tensor_logic.h util/atoi.c \
 	util/atoi.h util/byteorder.h util/byteorder.c \
 	vm/memory_object_proxy.c vm/memory_object_proxy.h \
 	vm/memory_object.c vm/memory_object.h vm/pmap.h \
@@ -1930,12 +1932,13 @@ am_libkernel_a_OBJECTS = $(am__objects_3) ipc/copy_user.$(OBJEXT) \
 	kern/valgrind.$(OBJEXT) kern/vdso.$(OBJEXT) \
 	kern/development_tools.$(OBJEXT) kern/xpr.$(OBJEXT) \
 	kern/elf-load.$(OBJEXT) kern/boot_script.$(OBJEXT) \
-	util/atoi.$(OBJEXT) util/byteorder.$(OBJEXT) \
-	vm/memory_object_proxy.$(OBJEXT) vm/memory_object.$(OBJEXT) \
-	vm/vm_block_cache.$(OBJEXT) vm/vm_compress.$(OBJEXT) \
-	vm/vm_debug.$(OBJEXT) vm/vm_external.$(OBJEXT) \
-	vm/vm_fault.$(OBJEXT) vm/vm_init.$(OBJEXT) \
-	vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
+	kern/tensor.$(OBJEXT) kern/atomspace.$(OBJEXT) \
+	kern/tensor_logic.$(OBJEXT) util/atoi.$(OBJEXT) \
+	util/byteorder.$(OBJEXT) vm/memory_object_proxy.$(OBJEXT) \
+	vm/memory_object.$(OBJEXT) vm/vm_block_cache.$(OBJEXT) \
+	vm/vm_compress.$(OBJEXT) vm/vm_debug.$(OBJEXT) \
+	vm/vm_external.$(OBJEXT) vm/vm_fault.$(OBJEXT) \
+	vm/vm_init.$(OBJEXT) vm/vm_kern.$(OBJEXT) vm/vm_map.$(OBJEXT) \
 	vm/vm_object.$(OBJEXT) vm/vm_object_verify.$(OBJEXT) \
 	vm/vm_page.$(OBJEXT) vm/vm_pageout.$(OBJEXT) \
 	vm/vm_resident.$(OBJEXT) vm/vm_user.$(OBJEXT) \
@@ -2468,12 +2471,12 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	ipc/$(DEPDIR)/mach_debug.Po ipc/$(DEPDIR)/mach_msg.Po \
 	ipc/$(DEPDIR)/mach_port.Po ipc/$(DEPDIR)/mach_port.server.Po \
 	kern/$(DEPDIR)/act.Po kern/$(DEPDIR)/ast.Po \
-	kern/$(DEPDIR)/boot_script.Po kern/$(DEPDIR)/bootstrap.Po \
-	kern/$(DEPDIR)/cfi_integrity.Po kern/$(DEPDIR)/counters.Po \
-	kern/$(DEPDIR)/debug.Po kern/$(DEPDIR)/development_tools.Po \
-	kern/$(DEPDIR)/dtrace.Po kern/$(DEPDIR)/dynamic_probes.Po \
-	kern/$(DEPDIR)/elf-load.Po kern/$(DEPDIR)/eventcount.Po \
-	kern/$(DEPDIR)/exception.Po \
+	kern/$(DEPDIR)/atomspace.Po kern/$(DEPDIR)/boot_script.Po \
+	kern/$(DEPDIR)/bootstrap.Po kern/$(DEPDIR)/cfi_integrity.Po \
+	kern/$(DEPDIR)/counters.Po kern/$(DEPDIR)/debug.Po \
+	kern/$(DEPDIR)/development_tools.Po kern/$(DEPDIR)/dtrace.Po \
+	kern/$(DEPDIR)/dynamic_probes.Po kern/$(DEPDIR)/elf-load.Po \
+	kern/$(DEPDIR)/eventcount.Po kern/$(DEPDIR)/exception.Po \
 	kern/$(DEPDIR)/experimental.server.Po \
 	kern/$(DEPDIR)/gdb_stub.Po kern/$(DEPDIR)/gnumach.server.Po \
 	kern/$(DEPDIR)/gsync.Po kern/$(DEPDIR)/host.Po \
@@ -2511,7 +2514,8 @@ am__depfiles_remade = ./$(DEPDIR)/version.Po chips/$(DEPDIR)/busses.Po \
 	kern/$(DEPDIR)/strings.Po kern/$(DEPDIR)/syscall_emulation.Po \
 	kern/$(DEPDIR)/syscall_subr.Po kern/$(DEPDIR)/syscall_sw.Po \
 	kern/$(DEPDIR)/system_debug.Po kern/$(DEPDIR)/task.Po \
-	kern/$(DEPDIR)/task_notify.user.Po kern/$(DEPDIR)/thread.Po \
+	kern/$(DEPDIR)/task_notify.user.Po kern/$(DEPDIR)/tensor.Po \
+	kern/$(DEPDIR)/tensor_logic.Po kern/$(DEPDIR)/thread.Po \
 	kern/$(DEPDIR)/thread_swap.Po kern/$(DEPDIR)/timer.Po \
 	kern/$(DEPDIR)/unified_debug.Po kern/$(DEPDIR)/valgrind.Po \
 	kern/$(DEPDIR)/vdso.Po kern/$(DEPDIR)/xpr.Po \
@@ -3465,7 +3469,9 @@ libkernel_a_SOURCES = $(am__append_6) ipc/copy_user.c ipc/copy_user.h \
 	kern/thread_swap.c kern/thread_swap.h kern/timer.c \
 	kern/timer.h kern/valgrind.c kern/vdso.c kern/vdso.h \
 	kern/development_tools.c kern/development_tools.h kern/xpr.c \
-	kern/xpr.h kern/elf-load.c kern/boot_script.c util/atoi.c \
+	kern/xpr.h kern/elf-load.c kern/boot_script.c kern/tensor.c \
+	kern/tensor.h kern/atomspace.c kern/atomspace.h \
+	kern/tensor_logic.c kern/tensor_logic.h util/atoi.c \
 	util/atoi.h util/byteorder.h util/byteorder.c \
 	vm/memory_object_proxy.c vm/memory_object_proxy.h \
 	vm/memory_object.c vm/memory_object.h vm/pmap.h \
@@ -4387,6 +4393,12 @@ kern/xpr.$(OBJEXT): kern/$(am__dirstamp) \
 kern/elf-load.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 kern/boot_script.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/tensor.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/atomspace.$(OBJEXT): kern/$(am__dirstamp) \
+	kern/$(DEPDIR)/$(am__dirstamp)
+kern/tensor_logic.$(OBJEXT): kern/$(am__dirstamp) \
 	kern/$(DEPDIR)/$(am__dirstamp)
 util/$(am__dirstamp):
 	@$(MKDIR_P) util
@@ -5447,6 +5459,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ipc/$(DEPDIR)/mach_port.server.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/act.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/ast.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/atomspace.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/boot_script.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/bootstrap.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/cfi_integrity.Po@am__quote@ # am--include-marker
@@ -5517,6 +5530,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/system_debug.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/task.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/task_notify.user.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/tensor.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/tensor_logic.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/thread.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/thread_swap.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@kern/$(DEPDIR)/timer.Po@am__quote@ # am--include-marker
@@ -9399,6 +9414,7 @@ distclean: distclean-recursive
 	-rm -f ipc/$(DEPDIR)/mach_port.server.Po
 	-rm -f kern/$(DEPDIR)/act.Po
 	-rm -f kern/$(DEPDIR)/ast.Po
+	-rm -f kern/$(DEPDIR)/atomspace.Po
 	-rm -f kern/$(DEPDIR)/boot_script.Po
 	-rm -f kern/$(DEPDIR)/bootstrap.Po
 	-rm -f kern/$(DEPDIR)/cfi_integrity.Po
@@ -9469,6 +9485,8 @@ distclean: distclean-recursive
 	-rm -f kern/$(DEPDIR)/system_debug.Po
 	-rm -f kern/$(DEPDIR)/task.Po
 	-rm -f kern/$(DEPDIR)/task_notify.user.Po
+	-rm -f kern/$(DEPDIR)/tensor.Po
+	-rm -f kern/$(DEPDIR)/tensor_logic.Po
 	-rm -f kern/$(DEPDIR)/thread.Po
 	-rm -f kern/$(DEPDIR)/thread_swap.Po
 	-rm -f kern/$(DEPDIR)/timer.Po
@@ -9944,6 +9962,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ipc/$(DEPDIR)/mach_port.server.Po
 	-rm -f kern/$(DEPDIR)/act.Po
 	-rm -f kern/$(DEPDIR)/ast.Po
+	-rm -f kern/$(DEPDIR)/atomspace.Po
 	-rm -f kern/$(DEPDIR)/boot_script.Po
 	-rm -f kern/$(DEPDIR)/bootstrap.Po
 	-rm -f kern/$(DEPDIR)/cfi_integrity.Po
@@ -10014,6 +10033,8 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f kern/$(DEPDIR)/system_debug.Po
 	-rm -f kern/$(DEPDIR)/task.Po
 	-rm -f kern/$(DEPDIR)/task_notify.user.Po
+	-rm -f kern/$(DEPDIR)/tensor.Po
+	-rm -f kern/$(DEPDIR)/tensor_logic.Po
 	-rm -f kern/$(DEPDIR)/thread.Po
 	-rm -f kern/$(DEPDIR)/thread_swap.Po
 	-rm -f kern/$(DEPDIR)/timer.Po

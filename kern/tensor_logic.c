@@ -13,8 +13,7 @@
 #include <kern/tensor_logic.h>
 #include <kern/kalloc.h>
 #include <kern/printf.h>
-#include <kern/strings.h>
-#include <kern/time_stamp.h>
+#include <string.h>
 
 /*
  * Global default Tensor Logic context
@@ -478,7 +477,7 @@ tl_unregister_entity(tensor_logic_context_t ctx, atom_handle_t handle)
     entity = tl_find_entity(ctx, handle);
     if (entity == NULL) {
         simple_unlock(&ctx->lock);
-        return KERN_NOT_FOUND;
+        return KERN_INVALID_NAME;
     }
 
     entity->flags &= ~TL_ENTITY_FLAG_ACTIVE;
@@ -504,7 +503,7 @@ tl_update_embedding(tensor_logic_context_t ctx, atom_handle_t handle,
     entity = tl_find_entity(ctx, handle);
     if (entity == NULL) {
         simple_unlock(&ctx->lock);
-        return KERN_NOT_FOUND;
+        return KERN_INVALID_NAME;
     }
 
     /* Update local copy */
@@ -855,7 +854,7 @@ tl_find_similar(tensor_logic_context_t ctx, atom_handle_t target,
     target_entity = tl_find_entity(ctx, target);
     if (target_entity == NULL) {
         simple_unlock(&ctx->lock);
-        return KERN_NOT_FOUND;
+        return KERN_INVALID_NAME;
     }
 
     result->count = 0;

@@ -16,6 +16,7 @@
 #include <linux/bios32.h>
 #include <linux/pci.h>
 #include <linux/string.h>
+#include <linux/version.h>
 
 #include <asm/page.h>
 
@@ -1362,6 +1363,7 @@ unsigned long pci_init (unsigned long mem_start, unsigned long mem_end)
 /*
  * PCIe capability functions
  */
+#if LINUX_VERSION_CODE >= 0x20400
 int pci_find_capability(struct pci_dev *dev, int cap)
 {
 	u16 status;
@@ -1392,6 +1394,7 @@ int pci_find_capability(struct pci_dev *dev, int cap)
 	}
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE >= 0x20400 */
 
 int pci_find_ext_capability(struct pci_dev *dev, int cap)
 {

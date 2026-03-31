@@ -54,6 +54,7 @@ build-aux/
 # Analysis and build artifacts
 analysis-reports/
 build-*-test/
+build-fresh/
 
 # Test artifacts
 test_vm_map_optimization
@@ -89,3 +90,6 @@ test_*.c
 final_test
 
 *.o
+build-i686/
+build-i686-debug/
+build-x86_64/

@@ -335,7 +335,7 @@ kern_return_t atomspace_remove_atom(atomspace_t as, atom_handle_t handle)
     a = atomspace_get_atom(as, handle);
     if (!a) {
         simple_unlock(&as->lock);
-        return KERN_NOT_FOUND;
+        return KERN_INVALID_NAME;
     }
 
     /* Remove from hash table */
@@ -627,7 +627,7 @@ kern_return_t atomspace_find_similar(atomspace_t as, atom_handle_t target,
 
     target_atom = atomspace_get_atom(as, target);
     if (!target_atom)
-        return KERN_NOT_FOUND;
+        return KERN_INVALID_NAME;
 
     /* Ensure target has embedding */
     if (!(target_atom->flags & ATOM_FLAG_HAS_EMBED))
