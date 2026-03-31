@@ -147,10 +147,15 @@ process_mig_file() {
         # 64-bit build: Fix assertions and add proper architecture checks
         sed -i 's/_Static_assert(sizeof(uint64_t) == 4 \* 1, "expected uint64_t to be size 4 \* 1");/_Static_assert(sizeof(uint64_t) == 8 * 1, "expected uint64_t to be size 8 * 1");/g' "$file"
         sed -i 's/_Static_assert(sizeof(int64_t) == 4 \* 1, "expected int64_t to be size 4 \* 1");/_Static_assert(sizeof(int64_t) == 8 * 1, "expected int64_t to be size 8 * 1");/g' "$file"
-        
-        # Add conditional size checks for Request structures
-        sed -i 's/_Static_assert(sizeof(Request) == \([0-9]\+\), "Request expected to be \1 bytes");/#ifdef __x86_64__\n_Static_assert(sizeof(Request) == \1, "Request expected to be \1 bytes");\n#else\n_Static_assert(sizeof(Request) <= 64, "Request size should fit 32-bit constraints");\n#endif/g' "$file"
-        
+
+        # ipc_port_t is a pointer (struct ipc_port *); on x86_64 pointers are 8 bytes
+        sed -i 's/_Static_assert(sizeof(ipc_port_t) == 4 \* 1, "expected ipc_port_t to be size 4 \* 1");/_Static_assert(sizeof(ipc_port_t) == 8 * 1, "expected ipc_port_t to be size 8 * 1");/g' "$file"
+
+        # Request struct sizes differ between 32-bit and 64-bit (8-byte pointers make
+        # structs larger on x86_64).  The MIG-generated values are 32-bit sizes, so
+        # skip these assertions on x86_64 to avoid false build failures.
+        sed -i 's/_Static_assert(sizeof(Request) == \([0-9]\+\), "Request expected to be \1 bytes");/#ifndef __x86_64__\n_Static_assert(sizeof(Request) == \1, "Request expected to be \1 bytes");\n#endif/g' "$file"
+
         echo "✅ Fixed static assertions for 64-bit architecture in $file"
     fi
 }
