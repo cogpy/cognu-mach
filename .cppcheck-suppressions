@@ -1,0 +1,45 @@
+# cppcheck suppression list for GNU Mach
+#
+# Many errors below are false positives caused by cppcheck's inability to
+# expand complex kernel macros (decl_simple_lock_data, def_simple_lock_data,
+# queue_iterate, list_for_each_entry, counter, etc.).  Others reflect
+# intentional kernel idioms that are safe in context.
+
+# ── Kernel macros that cppcheck cannot parse ─────────────────────────────────
+# These produce syntaxError / unknownMacro / preprocessorErrorDirective across
+# many files.  Suppress globally because every instance is a false positive.
+syntaxError
+unknownMacro
+preprocessorErrorDirective
+internalAstError
+
+# ── Per-file false positives ──────────────────────────────────────────────────
+
+# ddb/db_cond.c:74 – intentional setjmp recovery pattern; db_recover is only
+# dereferenced within this function's dynamic scope (before longjmp unwinds it).
+danglingLifetime:ddb/db_cond.c
+
+# ddb/db_sym.c:254 – component[n][-1] is deliberate pointer arithmetic that
+# writes back the ':' separator that was overwritten earlier; the pointer is
+# always at least one byte past the start of the string buffer.
+negativeIndex:ddb/db_sym.c
+
+# device/virtio.c – all uninitvar reports are on struct fields of caller-
+# supplied, caller-initialised pointer parameters; cppcheck cannot trace
+# initialisation across compilation units.
+uninitvar:device/virtio.c
+
+# ipc/ipc_entry.c:140 – entry is conditionally assigned just above and is
+# only read on the branch where it was assigned (short-circuit evaluation of
+# the enclosing ||).
+uninitvar:ipc/ipc_entry.c
+
+# kern/act.c:799 – &gss.rh is placed on the list and then thread_wait()
+# blocks synchronously until the handler removes it; the pointer never
+# outlives the local frame.
+autoVariables:kern/act.c
+
+# kern/host.c:187,190 – load_info->avenrun and load_info->mach_factor are
+# the same size as the source arrays (long[3]); cppcheck is confused by the
+# host_load_info_t typedef.
+bufferAccessOutOfBounds:kern/host.c

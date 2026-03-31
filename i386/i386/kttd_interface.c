@@ -577,7 +577,7 @@ kttd_netentry(struct int_regs *int_regs)
 	is->gs  = kttd_regs.gs & SEGMENT_SELECTOR_MASK;
 
 	if (kttd_run_status == RUNNING)
-		printf("kttd_netentry: %%%%% run_status already RUNNING! %%%%%\n");
+		printf("kttd_netentry: ***** run_status already RUNNING! *****\n");
 	kttd_run_status = RUNNING;
 
 	(void) splx(s);
