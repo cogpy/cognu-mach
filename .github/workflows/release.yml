@@ -11,28 +11,31 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential cmake
-
-    - name: Build
       run: |
-        mkdir build
-        cd build
-        cmake ..
-        make
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc-multilib binutils binutils-multiarch \
+          autoconf automake libtool libtool-bin pkg-config gawk bison flex nasm \
+          xorriso grub-pc-bin mtools qemu-system-x86 \
+          git python3 cppcheck clang-tools texinfo
+
+    - name: Build kernel (i686)
+      timeout-minutes: 20
+      run: ./scripts/ci-build.sh --force-build i686
 
     - name: Package artifact
       run: |
         mkdir -p release
-        cp build/cognu-mach release/
+        cp build-i686/gnumach release/cognu-mach
         tar -czvf cognu-mach-${{ github.ref_name }}.tar.gz -C release .
 
     - name: Create Release
+      id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -41,4 +44,13 @@ jobs:
         release_name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
-        files: cognu-mach-${{ github.ref_name }}.tar.gz
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: cognu-mach-${{ github.ref_name }}.tar.gz
+        asset_name: cognu-mach-${{ github.ref_name }}.tar.gz
+        asset_content_type: application/gzip
