@@ -794,19 +794,29 @@ static void
 onto_sort_by_fitness(struct onto_kernel *population, int size)
 {
 	int i, j;
+	struct onto_kernel *key;
+
+	if (size <= 1)
+		return;
+
+	/* Allocate temp key via kalloc (too large for kernel stack) */
+	key = (struct onto_kernel *)kalloc(sizeof(struct onto_kernel));
+	if (!key)
+		return;
 
 	for (i = 1; i < size; i++) {
-		struct onto_kernel key;
-		memcpy(&key, &population[i], sizeof(key));
+		memcpy(key, &population[i], sizeof(*key));
 		j = i - 1;
 		while (j >= 0
-		       && population[j].genome.fitness < key.genome.fitness) {
+		       && population[j].genome.fitness < key->genome.fitness) {
 			memcpy(&population[j + 1], &population[j],
 			       sizeof(population[j]));
 			j--;
 		}
-		memcpy(&population[j + 1], &key, sizeof(key));
+		memcpy(&population[j + 1], key, sizeof(*key));
 	}
+
+	kfree((vm_offset_t)key, sizeof(struct onto_kernel));
 }
 
 /*
