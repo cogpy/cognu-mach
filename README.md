@@ -46,4 +46,4 @@ mkdir build && cd build && cmake .. && make && ctest
 
 ## License
 
-MIT
+GPL2
