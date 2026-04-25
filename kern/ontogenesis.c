@@ -880,9 +880,18 @@ onto_evolve_generation(struct onto_kernel *population,
 						    child);
 
 			/* Apply mutation */
-			if (onto_rand_fixed() < config->mutation_rate)
+			if (onto_rand_fixed() < config->mutation_rate) {
 				onto_mutate(&child->genome,
 					    config->mutation_rate);
+				/* Sync mutated gene values back to coefficients */
+				if (child->genome.gene_count > 0) {
+					int k;
+					for (k = 0; k < child->num_coefficients
+					     && k < ONTO_MAX_GENE_VALUES; k++)
+						child->coefficients[k] =
+							child->genome.genes[0].values[k];
+				}
+			}
 
 			memcpy(&new_pop[new_size], child, sizeof(*child));
 			new_size++;
@@ -924,12 +933,12 @@ onto_update_stages(struct onto_kernel *population,
 		} else if (k->genome.age < schedule->embryonic_duration
 			   + schedule->juvenile_duration) {
 			k->state.stage = ONTO_STAGE_JUVENILE;
-		} else if (k->state.maturity >= schedule->maturity_threshold) {
-			k->state.stage = ONTO_STAGE_MATURE;
 		} else if (k->genome.age > schedule->embryonic_duration
 			   + schedule->juvenile_duration
 			   + schedule->mature_duration) {
 			k->state.stage = ONTO_STAGE_SENESCENT;
+		} else if (k->state.maturity >= schedule->maturity_threshold) {
+			k->state.stage = ONTO_STAGE_MATURE;
 		}
 	}
 }
