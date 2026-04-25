@@ -617,6 +617,15 @@ onto_self_reproduce(const struct onto_kernel *parent1,
 				? parent1->coefficients[i]
 				: parent2->coefficients[i];
 		}
+
+		/* Sync gene values to match coefficients */
+		if (offspring->genome.gene_count > 0) {
+			for (i = 0; i < min_size
+			     && i < ONTO_MAX_GENE_VALUES; i++)
+				offspring->genome.genes[0].values[i] =
+					offspring->coefficients[i];
+			offspring->genome.genes[0].num_values = min_size;
+		}
 		break;
 	}
 
