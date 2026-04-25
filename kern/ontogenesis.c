@@ -656,6 +656,7 @@ onto_self_reproduce(const struct onto_kernel *parent1,
 	}
 
 	offspring->order = parent1->order;
+	offspring->genome.age = 0;
 	offspring->state.stage = ONTO_STAGE_EMBRYONIC;
 	offspring->state.maturity = 0;
 	offspring->state.development_cycles = 0;
