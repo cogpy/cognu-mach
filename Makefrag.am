@@ -265,7 +265,9 @@ libkernel_a_SOURCES += \
 	kern/atomspace.c \
 	kern/atomspace.h \
 	kern/tensor_logic.c \
-	kern/tensor_logic.h
+	kern/tensor_logic.h \
+	kern/ontogenesis.c \
+	kern/ontogenesis.h
 EXTRA_DIST += \
 	kern/exc.defs \
 	kern/mach.srv \
