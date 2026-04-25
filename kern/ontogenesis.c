@@ -414,9 +414,15 @@ kern_return_t
 onto_self_optimize(struct onto_kernel *kernel, int iterations)
 {
 	int iter, i;
+	struct onto_kernel *temp;
 
 	if (!kernel || iterations <= 0)
 		return KERN_INVALID_ARGUMENT;
+
+	/* Allocate temp kernel via kalloc (too large for kernel stack) */
+	temp = (struct onto_kernel *)kalloc(sizeof(struct onto_kernel));
+	if (!temp)
+		return KERN_RESOURCE_SHORTAGE;
 
 	for (iter = 0; iter < iterations; iter++) {
 		struct onto_grip grip;
@@ -432,21 +438,20 @@ onto_self_optimize(struct onto_kernel *kernel, int iterations)
 
 		/* Compute gradient by finite differences */
 		for (i = 0; i < kernel->num_coefficients; i++) {
-			struct onto_kernel temp;
 			struct onto_grip perturbed_grip;
 			tensor_scalar_t perturbed_total;
 			tensor_scalar_t saved;
 
-			memcpy(&temp, kernel, sizeof(temp));
-			saved = temp.coefficients[i];
-			temp.coefficients[i] += epsilon;
+			memcpy(temp, kernel, sizeof(*temp));
+			saved = temp->coefficients[i];
+			temp->coefficients[i] += epsilon;
 
-			if (temp.genome.gene_count > 0
+			if (temp->genome.gene_count > 0
 			    && i < ONTO_MAX_GENE_VALUES)
-				temp.genome.genes[0].values[i] =
-					temp.coefficients[i];
+				temp->genome.genes[0].values[i] =
+					temp->coefficients[i];
 
-			perturbed_grip = onto_evaluate_grip(&temp);
+			perturbed_grip = onto_evaluate_grip(temp);
 			perturbed_total = onto_grip_total(&perturbed_grip);
 
 			gradient[i] = ONTO_FIXED_DIV(
@@ -485,6 +490,7 @@ onto_self_optimize(struct onto_kernel *kernel, int iterations)
 		}
 	}
 
+	kfree((vm_offset_t)temp, sizeof(struct onto_kernel));
 	return KERN_SUCCESS;
 }
 
@@ -933,7 +939,7 @@ onto_update_stages(struct onto_kernel *population,
 		} else if (k->genome.age < schedule->embryonic_duration
 			   + schedule->juvenile_duration) {
 			k->state.stage = ONTO_STAGE_JUVENILE;
-		} else if (k->genome.age > schedule->embryonic_duration
+		} else if (k->genome.age >= schedule->embryonic_duration
 			   + schedule->juvenile_duration
 			   + schedule->mature_duration) {
 			k->state.stage = ONTO_STAGE_SENESCENT;
