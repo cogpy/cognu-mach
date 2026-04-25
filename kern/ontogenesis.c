@@ -643,11 +643,12 @@ onto_self_reproduce(const struct onto_kernel *parent1,
 
 		onto_mutate(&offspring->genome, ONTO_FIXED_ONE / 5);
 
-		/* Apply mutation to coefficients */
-		for (i = 0; i < offspring->num_coefficients; i++) {
-			tensor_scalar_t perturbation =
-				onto_rand_signed() / 5;
-			offspring->coefficients[i] += perturbation;
+		/* Sync mutated gene values to coefficients */
+		if (offspring->genome.gene_count > 0) {
+			for (i = 0; i < offspring->num_coefficients
+			     && i < ONTO_MAX_GENE_VALUES; i++)
+				offspring->coefficients[i] =
+					offspring->genome.genes[0].values[i];
 		}
 		break;
 
