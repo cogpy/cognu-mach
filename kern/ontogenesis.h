@@ -59,7 +59,7 @@
 #define ONTO_MAX_GENES          8       /* Maximum genes per genome */
 #define ONTO_MAX_GENE_VALUES    16      /* Maximum values per gene */
 #define ONTO_MAX_LINEAGE        8       /* Maximum parent IDs tracked */
-#define ONTO_MAX_HISTORY        64      /* Maximum development events */
+#define ONTO_MAX_HISTORY        8       /* Maximum development events (kept small for kernel stack safety) */
 #define ONTO_MAX_POPULATION     64      /* Maximum population size */
 #define ONTO_ID_LEN             32      /* Kernel ID string length */
 #define ONTO_DESC_LEN           64      /* Description string length */

@@ -16,6 +16,7 @@
 
 #include <kern/ontogenesis.h>
 #include <kern/printf.h>
+#include <kern/kalloc.h>
 #include <string.h>
 
 /*
@@ -810,13 +811,28 @@ onto_evolve_generation(struct onto_kernel *population,
 		       int *population_size,
 		       const struct onto_evolution_config *config)
 {
-	struct onto_kernel new_pop[ONTO_MAX_POPULATION];
+	struct onto_kernel *new_pop;
+	struct onto_kernel *parents;
 	int elite_count, new_size, i;
-	struct onto_kernel parents[2];
 
 	if (!population || !population_size || !config
 	    || *population_size <= 0)
 		return;
+
+	/* Allocate working arrays via kalloc (too large for kernel stack) */
+	new_pop = (struct onto_kernel *)kalloc(
+		ONTO_MAX_POPULATION * sizeof(struct onto_kernel));
+	parents = (struct onto_kernel *)kalloc(
+		2 * sizeof(struct onto_kernel));
+	if (!new_pop || !parents) {
+		if (new_pop)
+			kfree((vm_offset_t)new_pop,
+			      ONTO_MAX_POPULATION * sizeof(struct onto_kernel));
+		if (parents)
+			kfree((vm_offset_t)parents,
+			      2 * sizeof(struct onto_kernel));
+		return;
+	}
 
 	/* Update fitness */
 	onto_update_population_fitness(population, *population_size);
@@ -824,9 +840,9 @@ onto_evolve_generation(struct onto_kernel *population,
 	/* Sort by fitness (descending) */
 	onto_sort_by_fitness(population, *population_size);
 
-	/* Keep elite individuals */
-	elite_count = (int)((long)*population_size
-		* TENSOR_FROM_FIXED(config->elitism_rate));
+	/* Keep elite individuals (fixed-point multiply: pop_size * elitism_rate) */
+	elite_count = (int)(((long)*population_size
+		* (long)config->elitism_rate) >> TENSOR_FIXED_POINT_BITS);
 	if (elite_count < 1 && *population_size > 0)
 		elite_count = 1;
 	if (elite_count > ONTO_MAX_POPULATION)
@@ -847,24 +863,31 @@ onto_evolve_generation(struct onto_kernel *population,
 		nsel = onto_tournament_select(population, *population_size,
 					      parents, 2, 3);
 		if (nsel >= 2) {
-			struct onto_kernel child;
+			struct onto_kernel *child;
+
+			child = (struct onto_kernel *)kalloc(
+				sizeof(struct onto_kernel));
+			if (!child)
+				break;
 
 			if (onto_rand_fixed() < config->crossover_rate)
 				onto_self_reproduce(&parents[0], &parents[1],
 						    ONTO_REPRO_CROSSOVER,
-						    &child);
+						    child);
 			else
 				onto_self_reproduce(&parents[0], &parents[1],
 						    ONTO_REPRO_CLONING,
-						    &child);
+						    child);
 
 			/* Apply mutation */
 			if (onto_rand_fixed() < config->mutation_rate)
-				onto_mutate(&child.genome,
+				onto_mutate(&child->genome,
 					    config->mutation_rate);
 
-			memcpy(&new_pop[new_size], &child, sizeof(child));
+			memcpy(&new_pop[new_size], child, sizeof(*child));
 			new_size++;
+			kfree((vm_offset_t)child,
+			      sizeof(struct onto_kernel));
 		}
 	}
 
@@ -872,6 +895,11 @@ onto_evolve_generation(struct onto_kernel *population,
 	for (i = 0; i < new_size; i++)
 		memcpy(&population[i], &new_pop[i], sizeof(new_pop[i]));
 	*population_size = new_size;
+
+	kfree((vm_offset_t)new_pop,
+	      ONTO_MAX_POPULATION * sizeof(struct onto_kernel));
+	kfree((vm_offset_t)parents,
+	      2 * sizeof(struct onto_kernel));
 }
 
 /*
@@ -1004,7 +1032,7 @@ onto_run_evolution(const struct onto_config *config,
 		   struct onto_gen_stats *stats,
 		   int *num_generations)
 {
-	struct onto_kernel population[ONTO_MAX_POPULATION];
+	struct onto_kernel *population;
 	int pop_size, gen, best_idx;
 	tensor_scalar_t sum, min_fit;
 	int i;
@@ -1014,6 +1042,12 @@ onto_run_evolution(const struct onto_config *config,
 
 	*num_generations = 0;
 
+	/* Allocate population via kalloc (too large for kernel stack) */
+	population = (struct onto_kernel *)kalloc(
+		ONTO_MAX_POPULATION * sizeof(struct onto_kernel));
+	if (!population)
+		return KERN_RESOURCE_SHORTAGE;
+
 	/* Generate initial population */
 	pop_size = onto_generate_initial_population(
 		population,
@@ -1022,8 +1056,11 @@ onto_run_evolution(const struct onto_config *config,
 		config->seed_kernels,
 		config->seed_count);
 
-	if (pop_size == 0)
+	if (pop_size == 0) {
+		kfree((vm_offset_t)population,
+		      ONTO_MAX_POPULATION * sizeof(struct onto_kernel));
 		return KERN_FAILURE;
+	}
 
 	for (gen = 0; gen < config->evolution.max_generations; gen++) {
 		/* Evolve generation */
@@ -1064,6 +1101,9 @@ onto_run_evolution(const struct onto_config *config,
 		       >= config->evolution.fitness_threshold)
 			break;
 	}
+
+	kfree((vm_offset_t)population,
+	      ONTO_MAX_POPULATION * sizeof(struct onto_kernel));
 
 	return KERN_SUCCESS;
 }
