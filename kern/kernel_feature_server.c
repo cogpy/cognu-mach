@@ -10,8 +10,11 @@
  * version.
  */
 
+#include <stddef.h>
+
 #include <kern/new_feature.h>
 #include <kern/host.h>
+#include <kern/kernel_feature.server.h>
 #include <mach/kern_return.h>
 #include <mach/mach_types.h>
 

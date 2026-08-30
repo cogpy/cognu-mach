@@ -46,6 +46,7 @@ $(MIG_OUTDIR)/$(2).user.c: prepare-test $(MIG_OUTDIR) $(MACH_TESTINCLUDE)/$(1)/$
 		-header $(MIG_OUTDIR)/$(2).user.h	\
 		-list $(MIG_OUTDIR)/$(2).user.msgids	\
 		< $(MIG_OUTDIR)/$(2).user.defs
+	$(top_srcdir)/scripts/fix-mig-64bit.sh $(MIG_OUTDIR)/$(2).user.c 2>/dev/null || true
 endef
 
 define generate_mig_server
@@ -59,6 +60,7 @@ $(MIG_OUTDIR)/$(2).server.c: prepare-test $(MIG_OUTDIR) $(srcdir)/include/$(1)/$
 		-header $(MIG_OUTDIR)/$(2).server.h	\
 		-list $(MIG_OUTDIR)/$(2).server.msgids	\
 		< $(MIG_OUTDIR)/$(2).server.defs
+	$(top_srcdir)/scripts/fix-mig-64bit.sh $(MIG_OUTDIR)/$(2).server.c 2>/dev/null || true
 endef
 
 # These are all the IPC implemented in the kernel, both as a server or as a client.
@@ -77,6 +79,7 @@ $(eval $(call generate_mig_client,mach,mach4))
 $(eval $(call generate_mig_client,mach,mach))
 $(eval $(call generate_mig_client,mach,mach_host))
 $(eval $(call generate_mig_client,mach,mach_port))
+$(eval $(call generate_mig_client,mach,kernel_feature))
 # memory_object{_default}.defs?
 # notify.defs?
 $(eval $(call generate_mig_server,mach,task_notify))
@@ -99,6 +102,7 @@ MIG_GEN_CC = \
 	$(MIG_OUTDIR)/mach.user.c \
 	$(MIG_OUTDIR)/mach_host.user.c \
 	$(MIG_OUTDIR)/mach_port.user.c \
+	$(MIG_OUTDIR)/kernel_feature.user.c \
 	$(MIG_OUTDIR)/task_notify.server.c \
 	$(MIG_OUTDIR)/mach_i386.user.c
 

@@ -22,6 +22,8 @@
 #include <testlib.h>
 #include <mach.h>
 
+#include <kernel_feature.user.h>
+
 int main(int argc, char *argv[], int envc, char *envp[])
 {
     kern_return_t ret;
