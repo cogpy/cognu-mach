@@ -3,9 +3,21 @@
  * MIG interface definition for kernel feature management
  *
  * Copyright (C) 2024 Free Software Foundation, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2, or (at your option) any later
+ * version.
  */
 
-subsystem kernel_feature 5300;
+subsystem
+#if	KERNEL_USER
+	  KernelUser
+#endif	/* KERNEL_USER */
+#if	KERNEL_SERVER
+	  KernelServer
+#endif	/* KERNEL_SERVER */
+		kernel_feature 5300;
 
 #include <mach/std_types.defs>
 #include <mach/mach_types.defs>
@@ -14,60 +26,42 @@ subsystem kernel_feature 5300;
  * Enable kernel feature functionality
  */
 routine kernel_feature_enable(
-    host            : host_t
-) -> (
-    return_code     : kern_return_t
-);
+		host		: host_t);
 
 /*
- * Disable kernel feature functionality  
+ * Disable kernel feature functionality
  */
 routine kernel_feature_disable(
-    host            : host_t
-) -> (
-    return_code     : kern_return_t
-);
+		host		: host_t);
 
 /*
  * Get current feature state
  */
 routine kernel_feature_get_state(
-    host            : host_t
-) -> (
-    return_code     : kern_return_t;
-    state           : uint32_t
-);
+		host		: host_t;
+	out	state		: uint32_t);
 
 /*
  * Get feature statistics
  */
 routine kernel_feature_get_stats(
-    host            : host_t
-) -> (
-    return_code     : kern_return_t;
-    init_calls      : uint64_t;
-    enable_calls    : uint64_t;
-    disable_calls   : uint64_t;
-    total_operations: uint64_t;
-    avg_latency_us  : uint64_t;
-    max_latency_us  : uint64_t
-);
+		host		: host_t;
+	out	init_calls	: uint64_t;
+	out	enable_calls	: uint64_t;
+	out	disable_calls	: uint64_t;
+	out	total_operations : uint64_t;
+	out	avg_latency_us	: uint64_t;
+	out	max_latency_us	: uint64_t);
 
 /*
  * Check if feature is enabled
  */
 routine kernel_feature_is_enabled(
-    host            : host_t
-) -> (
-    return_code     : kern_return_t;
-    enabled         : boolean_t
-);
+		host		: host_t;
+	out	enabled		: boolean_t);
 
 /*
  * Reset feature statistics
  */
 routine kernel_feature_reset_stats(
-    host            : host_t
-) -> (
-    return_code     : kern_return_t
-);
+		host		: host_t);

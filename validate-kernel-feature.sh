@@ -8,7 +8,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$SCRIPT_DIR"
 
 # Colors for output
 RED='\033[0;31m'
@@ -143,7 +143,7 @@ test_requirements_compliance() {
     log_info "Testing requirements compliance..."
     
     # Check architecture support
-    if grep -q "x86.*SUPPORT" "$PROJECT_ROOT/kern/new_feature.h"; then
+    if grep -qi "x86.*SUPPORT" "$PROJECT_ROOT/kern/new_feature.h"; then
         log_success "✓ Architecture support flags defined"
     else
         log_warning "Architecture support flags might be missing"
@@ -195,7 +195,7 @@ main() {
     for test_func in "${test_functions[@]}"; do
         echo
         if $test_func; then
-            ((passed++))
+            ((passed++)) || true
         fi
     done
     
